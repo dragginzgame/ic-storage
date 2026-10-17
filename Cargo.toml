@@ -4,7 +4,7 @@ default-members = ["crates/ic-storage"]
 resolver = "3"
 
 [workspace.package]
-version = "0.3.1"
+version = "0.4.0"
 edition = "2024"
 rust-version = "1.91.0"
 repository = "https://github.com/dragginzgame/ic-storage"
@@ -17,13 +17,15 @@ license = "MIT"
 # workspace entries select versions and do not add dependencies to every member.
 candid = "0.10.38"
 ic-cdk = "0.20.3"
-ic-host-fs = "0.24"
-ic-memory = "0.45"
+# Native benchmark artifact identities, computed from the bytes installed.
+ic-host-artifacts = "0.25"
+ic-host-fs = "0.25"
+ic-memory = "0.47"
 ic-stable-structures = "0.7.2"
 ic-storage = { path = "crates/ic-storage" }
-ic-testkit = "0.50"
+ic-testkit = "0.51"
 # Benchmark runner only: bounded Candid reply decoding.
-ic-testkit-candid = "0.50"
+ic-testkit-candid = "0.51"
 
 [workspace.lints.rust]
 missing_docs = "warn"

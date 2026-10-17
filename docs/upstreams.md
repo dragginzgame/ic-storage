@@ -28,7 +28,11 @@ IcyDB owns typed key codecs, comparator semantics and application recovery; see
 [IC Testkit](https://github.com/dragginzgame/ic-testkit) owns canister performance
 counters, typed simulator calls and the managed PocketIC server lifecycle used by
 `ic-storage-bench`. Its native runner uses IC Host FS for bounded artifact reads
-and hashes. These dependencies belong to the non-published benchmark package;
+and server-file hashing, and IC Host Artifacts for hashing the loaded Wasm bytes.
+The reported Wasm identity therefore describes the bytes passed to installation
+without a second pathname read. IC Host Artifacts 0.24 was already selected
+transitively and is now declared directly for the native runner; no selected
+version changes. These dependencies belong to the non-published benchmark package;
 the `ic-storage` library depends on IC Memory and the upstream substrate.
 
 ## Benchmark dependency resolution
@@ -86,17 +90,20 @@ The dependency guard permits the direct substrate dependency only in this
 workspace's `ic-storage` package, including renamed dependency declarations.
 It is a local guard, not a claim that other repositories have been migrated.
 
-Exclusive ownership remains an IC Memory prerequisite. The published 0.45
-runtime still permits cloned/repeated handles.
-The authority must issue a non-cloneable allocation lease, reject a second live
-open with a typed error, and release the lease on drop (including failed
-collection construction). A log needs two distinct leases. Bootstrap and raw
-backing access must not furnish an alternate mutable route to a leased region;
-multiple runtime owners over one backing also need an explicit restriction.
-IC Storage must consume that released capability when available. A downstream
-registry cannot enforce this across other runtime callers and is not added.
-This task does not modify the sibling checkout or claim the unreleased
-ownership guarantee.
+IC Memory 0.46 supplies non-cloneable allocation leases. Opening an allocation
+with a live lease returns `RuntimeOpenError::AlreadyOpen`; dropping the owning
+collection releases it. Collection constructors consume the lease, including
+two distinct allocations for a log. The runtime keeps lease state alive while
+handles outlive it. Typed custom-tree constructor errors drop their consumed
+handle and permit retry. This ownership boundary replaces the previous caller-
+enforced clone discipline; it is a breaking public dependency cut for IC Storage.
+
+Lease tracking is scoped to one runtime. Hosts must keep exclusive custody of
+backing memory until that runtime and every outstanding lease have been dropped.
+Do not open another runtime or write through retained backing aliases during
+that lifetime. IC Memory exports only `Memory`, `DefaultMemoryImpl` and
+`VectorMemory` for infrastructure setup; its broad upstream module is removed.
+IC Storage's own collection wrappers remain the application-facing surface.
 
 
 ## IC Memory 0.45 and IC Testkit 0.50 adoption
@@ -133,3 +140,54 @@ hashes and modes; never edit the exported helper or integrity companions here.
 Only the helper and its integrity companions are adopted, avoiding unrelated
 changes to the main baseline. Upstream owns its rejection/schema fixtures;
 this consumer checks its real Cargo metadata and snapshot integrity.
+
+
+## Fixture-runtime contribution
+
+[IC Memory PR #120](https://github.com/dragginzgame/ic-memory/pull/120) adds
+`testing::fixture_runtime` behind `test-support`, with explicit backing, owner,
+namespace, keys and bucket geometry. It returns an ordinary admitted runtime
+without initializing collections. `FixtureCell` shares that implementation and
+preserves its existing public error categories through a typed conversion.
+The contribution includes multiple-allocation, rejected-open, retained-byte,
+invalid-setup and geometry-refusal tests; focused tests pass on Rust 1.91.
+
+IC Storage now uses published IC Memory 0.46. The local fixture constructors
+are retained only until that contribution is merged and released. Adoption
+requires enabling `test-support` on the library dev dependency and benchmark
+Wasm dependency, replacing both bootstrap bodies, then qualifying the selected
+registry release. No Git/path dependency or feature probing is introduced here.
+The prepared consumer patch `/tmp/ic-storage-fixture-adoption.patch` was tested
+in `/tmp/ic-storage-fixture-consumer` with a temporary Cargo patch pointing to
+the isolated IC Memory contribution. All three adapter tests and the benchmark Wasm
+check pass against the contribution updated for IC Memory 0.46. Those temporary paths are review artifacts, not release inputs.
+The incoming 0.46 manifest and lockfile selection is preserved; no development
+path override is present in the production checkout.
+
+
+## IC Memory 0.46 lease qualification
+
+The incoming registry update is adopted without exposing raw collection APIs.
+Public integration tests verify concurrent-open refusal and release-on-drop for
+our tree, every adapted upstream collection and both log allocations. Another
+regression verifies that invalid configuration during create/open releases the
+custom tree's lease and permits a later valid open. Compile-fail examples use
+the new root backing exports and reject raw memory, extraction, implicit inner
+collection access and lease cloning. The valid README example passes too.
+
+The fixture helper in PR #120 is updated against released 0.46, retaining its
+new passive fixture exports and existing cell error categories. Its ten focused
+tests pass on Rust 1.91, with test-support Clippy and warning-free Rustdoc.
+Local adoption remains gated on that helper's registry release. IC Storage's
+numbered pending notes are 0.4.0 because public constructors now require 0.46
+handle types and non-cloneable lease semantics; package versions are unchanged.
+
+## Supported adapter errors
+
+The stable collection adapter exports `LogWriteError` for the supported log
+append API. It no longer exports upstream cell initialization/value errors,
+vector initialization errors, log initialization errors or `NoSuchEntry`, because
+none is returned by the supported wrapper methods. This is a hard cut in the
+pending 0.4.0 API. Upstream initialization and panic contracts are unchanged;
+removing error aliases does not introduce new fallible collection operations.
+A local search found no uses of these exported names in the IcyDB crate sources.

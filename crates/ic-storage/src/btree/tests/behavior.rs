@@ -608,6 +608,33 @@ fn iterator_errors_once_and_creation_failure_is_non_destructive() {
 }
 
 #[test]
+fn unbounded_cursors_reject_cycles_and_fuse_in_both_directions() {
+    use crate::btree::page::{MAX_HEIGHT, SIZE};
+
+    let memory = ObservedMemory::default();
+    let mut tree = BTreeMap::create(memory.clone(), Config::default(), Lexicographic).unwrap();
+    tree.insert(b"key", &[1]).unwrap();
+    let mut root = tree.node(tree.header.root).unwrap();
+    // Authenticated corruption: endpoint descent must still have a height bound.
+    root.children = vec![tree.header.root; 2];
+    memory.write(tree.header.root * SIZE as u64, &*root.encode().unwrap());
+    for reverse in [false, true] {
+        memory.read_calls.set(0);
+        let mut range = tree.iter();
+        let result = if reverse {
+            range.next_back()
+        } else {
+            range.next()
+        };
+        assert!(matches!(result, Some(Err(Error::Corrupt))));
+        assert_eq!(memory.read_calls.get(), MAX_HEIGHT as u64);
+        assert!(range.next().is_none());
+        assert!(range.next_back().is_none());
+        assert_eq!(memory.read_calls.get(), MAX_HEIGHT as u64);
+    }
+}
+
+#[test]
 fn replacements_reuse_payload_capacity_across_inline_boundaries() {
     let memory = ObservedMemory::default();
     let deny = memory.deny_growth.clone();
@@ -1120,6 +1147,7 @@ fn overflow_key_corruption_preserves_published_bytes() {
             assert!(matches!(tree.iter().next(), Some(Err(Error::Corrupt))));
             assert_eq!(tree.insert(&key, b"changed"), Err(Error::Corrupt));
             assert_eq!(tree.remove(&key), Err(Error::Corrupt));
+            assert_eq!(tree.validate(), Err(Error::Corrupt));
             assert_eq!(*memory.borrow(), before);
             memory.write(u64::try_from(start).unwrap(), &original);
         }
@@ -1127,6 +1155,50 @@ fn overflow_key_corruption_preserves_published_bytes() {
         assert_eq!(tree.get(&key).unwrap(), Some(b"value".to_vec()));
         tree.validate().unwrap();
     }
+}
+
+#[test]
+fn validation_reads_each_live_or_free_page_once() {
+    use crate::btree::page::SIZE;
+
+    for length in [0, 32, 33, 4072, 4073, 16668] {
+        let memory = ObservedMemory::default();
+        let mut tree = BTreeMap::create(memory.clone(), Config::default(), Lexicographic).unwrap();
+        tree.insert(&vec![0xa7; length], &vec![0xb7; 9000]).unwrap();
+        // Retain a free chain as well as live key/value chains.
+        tree.insert(b"temporary", &vec![0xc7; 20000]).unwrap();
+        tree.remove(b"temporary").unwrap();
+        assert_ne!(tree.header.free, 0);
+        let pages = tree.header.next - 1;
+        memory.read_calls.set(0);
+        memory.reads.set(0);
+        memory.write_calls.set(0);
+        tree.validate().unwrap();
+        assert_eq!(memory.read_calls.get(), pages, "key length {length}");
+        assert_eq!(memory.reads.get(), pages * SIZE as u64);
+        assert_eq!(memory.write_calls.get(), 0);
+    }
+}
+
+#[test]
+fn validation_rejects_shared_key_value_pages() {
+    use crate::btree::page::SIZE;
+
+    let memory = ObservedMemory::default();
+    let mut tree = BTreeMap::create(memory.clone(), Config::default(), Lexicographic).unwrap();
+    let key = vec![0xa7; 4073];
+    tree.insert(&key, &vec![0xb7; key.len()]).unwrap();
+    let mut root = tree.node(tree.header.root).unwrap();
+    root.entries[0].value = root.entries[0].key;
+    memory.write(tree.header.root * SIZE as u64, &*root.encode().unwrap());
+    // Both descriptors decode and read successfully; only the ownership audit
+    // can reject the shared pages (and the now-unreachable original value).
+    assert_eq!(tree.get(&key).unwrap(), Some(key.clone()));
+    let before = memory.memory.borrow().clone();
+    memory.write_calls.set(0);
+    assert_eq!(tree.validate(), Err(Error::Corrupt));
+    assert_eq!(memory.write_calls.get(), 0);
+    assert_eq!(*memory.memory.borrow(), before);
 }
 
 #[test]
@@ -1164,4 +1236,60 @@ fn deletion_searches_once_and_discards_balancing_on_a_miss() {
     for n in 0..31 {
         assert_eq!(tree.get(&key(n)).unwrap(), Some(vec![7]));
     }
+}
+
+struct ValidationCount(Rc<Cell<u64>>);
+impl Comparator for ValidationCount {
+    const IDENTITY: [u8; 16] = *b"validation-count";
+    fn compare(&self, left: &[u8], right: &[u8]) -> Result<Ordering, Error> {
+        // The operation validates a borrowed key by passing the same slice twice;
+        // search comparisons use separately decoded stored keys.
+        if std::ptr::eq(left, right) {
+            self.0.set(self.0.get() + 1);
+        }
+        if left.starts_with(b"!") || right.starts_with(b"!") {
+            return Err(Error::InvalidKey);
+        }
+        Ok(left.cmp(right))
+    }
+}
+
+#[test]
+fn operations_validate_keys_once_before_value_limits() {
+    let calls = Rc::new(Cell::new(0));
+    let backing = VectorMemory::default();
+    let mut tree = BTreeMap::create(
+        backing.clone(),
+        Config {
+            max_key_bytes: 64,
+            max_value_bytes: 1,
+        },
+        ValidationCount(calls.clone()),
+    )
+    .unwrap();
+    for previous in [None, Some(vec![7])] {
+        calls.set(0);
+        assert_eq!(tree.insert(b"key", &[7]).unwrap(), previous);
+        assert_eq!(calls.get(), 1);
+    }
+    calls.set(0);
+    assert_eq!(tree.get(b"key").unwrap(), Some(vec![7]));
+    assert_eq!(calls.get(), 1);
+    calls.set(0);
+    assert!(tree.contains_key(b"key").unwrap());
+    assert_eq!(calls.get(), 1);
+    let before = backing.borrow().clone();
+    calls.set(0);
+    assert_eq!(tree.insert(b"!invalid", &[0, 1]), Err(Error::InvalidKey));
+    assert_eq!(calls.get(), 1, "key rejection must precede the value limit");
+    assert_eq!(tree.insert(b"valid", &[0, 1]), Err(Error::TooLarge));
+    calls.set(0);
+    assert_eq!(tree.insert(&[0; 65], &[]), Err(Error::TooLarge));
+    assert_eq!(
+        calls.get(),
+        0,
+        "key size is checked before invoking its codec"
+    );
+    assert_eq!(*backing.borrow(), before);
+    tree.validate().unwrap();
 }

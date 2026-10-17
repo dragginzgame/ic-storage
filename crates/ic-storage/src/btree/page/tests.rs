@@ -93,3 +93,62 @@ fn heap_blob_encoding_preserves_every_page_byte() {
         }
     }
 }
+
+#[test]
+fn record_helpers_preserve_inline_boundary_bytes() {
+    use super::{Config, Node, Record};
+    for key_len in [0, 1, 31, 32, 33] {
+        let key = vec![0xa5; key_len];
+        for branch in [false, true] {
+            let children = if branch { vec![3, 4] } else { vec![] };
+            let mut record = Record::new(&key, &[7; 17], u64::from(key_len > 32), 2);
+            for value_len in [17, 16, 0, 1, 15, 17] {
+                let value = vec![7; value_len];
+                let value_page = if value_len > 16 { 2 } else { 0 };
+                record.set_value(&value, value_page);
+                assert!(record == Record::new(&key, &value, u64::from(key_len > 32), value_page));
+                let encoded = Node {
+                    entries: vec![record],
+                    children: children.clone(),
+                }
+                .encode()
+                .unwrap();
+                // Frozen V1 offsets and capacities, independently of the new constants/helpers.
+                let mut expected = [0; SIZE];
+                expected[0] = if branch { 4 } else { 3 };
+                super::put(&mut expected, 8, 1);
+                super::put(&mut expected, 16, u64::from(key_len > 32));
+                super::put(&mut expected, 24, key_len as u64);
+                super::put(&mut expected, 32, value_page);
+                super::put(&mut expected, 40, value_len as u64);
+                if key_len <= 32 {
+                    expected[48..48 + key_len].copy_from_slice(&key);
+                }
+                if value_len <= 16 {
+                    expected[80..80 + value_len].copy_from_slice(&value);
+                }
+                if branch {
+                    super::put(&mut expected, 2496, 3);
+                    super::put(&mut expected, 2504, 4);
+                }
+                seal(&mut expected);
+                assert_eq!(*encoded, expected);
+                let decoded = Node::decode(&encoded, 5, Config::default()).unwrap();
+                assert!(decoded.entries == vec![record]);
+                assert_eq!(decoded.children, children);
+            }
+        }
+    }
+    let mut invalid = Record::new(b"key", b"value", 0, 0);
+    invalid.value = 1;
+    let encoded = Node {
+        entries: vec![invalid],
+        children: vec![],
+    }
+    .encode()
+    .unwrap();
+    assert!(matches!(
+        Node::decode(&encoded, 2, Config::default()),
+        Err(Error::Corrupt)
+    ));
+}

@@ -3,8 +3,9 @@
 //! Constructors preserve upstream initialization, panic and persisted-format
 //! contracts. Mutations are not our custom tree's staged transactions. These
 //! wrappers expose neither raw memory nor unrestricted upstream collections.
-//! Use distinct admitted allocations, drop before reopening, and never retain
-//! memory clones. IC Memory 0.45 does not yet enforce exclusive allocation leases.
+//! Use distinct admitted allocations and drop collections before reopening.
+//! IC Memory 0.46 enforces one live lease per allocation within each runtime;
+//! hosts retain exclusive custody of the backing across runtimes.
 use crate::substrate::{self, DefaultMemoryImpl};
 pub use crate::{BTreeMap, Comparator, Config, Entry, Error, Lexicographic, Range};
 use ic_memory::RuntimeMemory;
@@ -343,9 +344,7 @@ pub type SetIter<'a, K, M = DefaultMemoryImpl> = substrate::btreeset::Iter<'a, K
 pub type LogIter<'a, T, M = DefaultMemoryImpl> =
     substrate::log::Iter<'a, T, RuntimeMemory<M>, RuntimeMemory<M>>;
 
-pub use substrate::cell::{InitError as CellInitError, ValueError as CellValueError};
-pub use substrate::log::{InitError as LogInitError, NoSuchEntry, WriteError as LogWriteError};
-pub use substrate::vec::InitError as VecInitError;
+pub use substrate::log::WriteError as LogWriteError;
 
 impl<'a, K: Storable + Ord + Clone, V: Storable, M: Memory> IntoIterator
     for &'a StableBTreeMap<K, V, M>
