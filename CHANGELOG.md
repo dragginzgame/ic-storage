@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.1] - Unreleased
+
+- Add a governed bounded stable-cell adapter. Encodings are checked before writes
+  and on reads; rejected oversized replacements preserve stored bytes and cached values.
+
 ## [0.4.0] - 2026-10-17
 
 - Adapt the benchmark runner to IC Testkit 0.51's explicit call principals and

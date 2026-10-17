@@ -185,3 +185,71 @@ fn constructor_errors_release_allocation_leases() {
     .unwrap();
     assert!(tree.is_empty());
 }
+
+use ic_storage::adapter::storable::Bound;
+use std::borrow::Cow;
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct Record(Vec<u8>);
+
+impl Storable for Record {
+    const BOUND: Bound = Bound::Bounded {
+        max_size: 4,
+        is_fixed_size: false,
+    };
+    fn to_bytes(&self) -> Cow<'_, [u8]> {
+        Cow::Borrowed(&self.0)
+    }
+    fn into_bytes(self) -> Vec<u8> {
+        self.0
+    }
+    fn from_bytes(bytes: Cow<[u8]>) -> Self {
+        Self(bytes.into_owned())
+    }
+}
+
+#[test]
+fn bounded_cell_rejects_oversize_without_mutation_and_reopens() {
+    let backing = VectorMemory::default();
+    let runtime = runtime(backing.clone());
+    let mut cell = BoundedCell::init(runtime.open_memory("test.cell.v1").unwrap(), None::<Record>);
+    cell.set(Some(Record(vec![7; 4])));
+    let before = backing.borrow().clone();
+    let failed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        cell.set(Some(Record(vec![8; 5])));
+    }));
+    assert!(failed.is_err());
+    assert_eq!(*backing.borrow(), before);
+    assert_eq!(cell.get(), &Some(Record(vec![7; 4])));
+    assert!(matches!(
+        runtime.open_memory("test.cell.v1"),
+        Err(RuntimeOpenError::AlreadyOpen { .. })
+    ));
+    drop(cell);
+    drop(runtime);
+    let runtime = self::runtime(backing);
+    let mut cell = BoundedCell::init(runtime.open_memory("test.cell.v1").unwrap(), None::<Record>);
+    assert_eq!(cell.get(), &Some(Record(vec![7; 4])));
+    cell.set(None);
+    drop(cell);
+    let cell = BoundedCell::init(runtime.open_memory("test.cell.v1").unwrap(), None::<Record>);
+    assert!(cell.get().is_none());
+}
+
+#[test]
+fn bounded_cell_rejects_unbounded_types_and_oversized_initial_values() {
+    let backing = VectorMemory::default();
+    let runtime = runtime(backing.clone());
+    let before = backing.borrow().clone();
+    for unbounded in [true, false] {
+        let rejected = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let memory = runtime.open_memory("test.cell.v1").unwrap();
+            if unbounded {
+                let _ = BoundedCell::init(memory, Vec::<u8>::new());
+            } else {
+                let _ = BoundedCell::init(memory, Record(vec![1; 5]));
+            }
+        }));
+        assert!(rejected.is_err());
+        assert_eq!(*backing.borrow(), before);
+    }
+}
