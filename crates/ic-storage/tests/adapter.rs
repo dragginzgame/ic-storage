@@ -185,3 +185,39 @@ fn constructor_errors_release_allocation_leases() {
     .unwrap();
     assert!(tree.is_empty());
 }
+
+#[test]
+fn map_clear_persists_empty_state_and_reuses_its_allocation() {
+    let backing = VectorMemory::default();
+    {
+        let runtime = runtime(backing.clone());
+        let mut map = StableBTreeMap::<u64, u64>::init(runtime.open_memory("test.map.v1").unwrap());
+        for key in 0..256 {
+            map.insert(key, key + 1);
+        }
+        let capacity = backing.borrow().len();
+        map.clear_new();
+        assert_eq!(backing.borrow().len(), capacity);
+        assert!(matches!(
+            runtime.open_memory("test.map.v1"),
+            Err(RuntimeOpenError::AlreadyOpen { .. })
+        ));
+        assert!(map.is_empty());
+        assert_eq!(map.len(), 0);
+        assert!(map.iter().next().is_none());
+        assert_eq!(map.get(&128), None);
+        map.clear_new();
+    }
+    {
+        let runtime = runtime(backing.clone());
+        let mut map = StableBTreeMap::<u64, u64>::init(runtime.open_memory("test.map.v1").unwrap());
+        assert!(map.is_empty());
+        assert_eq!(map.insert(42, 99), None);
+        assert_eq!(map.get(&42), Some(99));
+    }
+    let runtime = runtime(backing);
+    let map = StableBTreeMap::<u64, u64>::init(runtime.open_memory("test.map.v1").unwrap());
+    assert_eq!(map.len(), 1);
+    assert_eq!(map.get(&42), Some(99));
+    assert_eq!(map.get(&128), None);
+}

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.1]
+
+- Expose in-place clearing on the governed stable-map adapter, retaining its
+  exclusive allocation lease and upstream storage format across reset/reopen.
+
 ## [0.4.0] - 2026-10-17
 
 - Adapt the benchmark runner to IC Testkit 0.51's explicit call principals and

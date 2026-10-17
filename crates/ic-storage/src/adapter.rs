@@ -39,6 +39,11 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> StableBTreeMap<K, V, M> 
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         self.inner.insert(key, value)
     }
+    /// Clear all entries in place, retaining the governed allocation.
+    /// Delegates to upstream `BTreeMap::clear_new`; allocated pages are not shrunk.
+    pub fn clear_new(&mut self) {
+        self.inner.clear_new();
+    }
     /// Delegates to upstream `BTreeMap::get` with the governed allocation.
     pub fn get(&self, key: &K) -> Option<V> {
         self.inner.get(key)
