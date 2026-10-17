@@ -608,3 +608,73 @@ The same `target/reclamation-benchmark.sjh5wqb7/` attempt retains the final buil
 under `final/`, with runner, Wasm, lockfile and both CSV/log suites;
 `engine-to-final.csv` and `.json` retain comparisons. Final Wasm SHA-256:
 `2b7e204c3d743fcea60ae571ed2558cd361dfd221038a607921887d4016de325`.
+
+## Reuse decoded nodes during deletion
+
+The retained 0.4.1 optimization passes validated decoded children from balancing
+into recursive deletion and passes decoded siblings into merging. Rotation and
+merge survivors retain their existing node vectors, avoiding stable reads and
+staged-page decoding solely to reconstruct the same node. Publication, page
+layout, stable-page reclamation order and comparator/payload validation are unchanged.
+Read-budget regressions require two reads instead of three for ordinary child
+descent, three instead of five for a merging deletion/root collapse, and three
+instead of five for the balancing miss that discards its staged changes.
+
+Reusing a decoded merge survivor requires explicit sibling distinctness. An
+authenticated duplicate child pointer previously failed when recursive deletion
+reread the page just staged free. The first reuse prototype missed that refusal.
+A regression reproduces the old refusal, exposes the prototype's acceptance and
+proves the retained guard rejects the alias without writes. This is preservation
+of an existing corruption boundary, not permission to omit integrity checks.
+
+Qualification uses the unchanged benchmark source at cleanup-stack commit
+bbd07f5, Rust 1.99, IC Memory 0.47, IC Testkit 0.51 and PocketIC server 16.0.0/client
+16.1.0 on Linux. Its Wasm rebuild is byte-identical to the previously qualified
+fixture-cleanup artifact, so the retained baseline CSV is reused. Dependencies,
+fixtures, input preparation, operation order, measured regions and model checks
+remain fixed throughout these storage experiments.
+
+| Engine / mixed workload | Baseline instructions | Retained optimization | Change |
+| --- | ---: | ---: | ---: |
+| Ours / rows | 316,963,272 | 313,810,775 | -0.9946% |
+| Ours / index | 187,136,538 | 183,244,018 | -2.0800% |
+| Upstream / rows | 344,979,980 | 344,979,980 | 0.0000% |
+| Upstream / index | 114,176,042 | 114,176,042 | 0.0000% |
+
+All 46 matrix removal cases improve and the other 460 cases are unchanged.
+Removal savings reach 13.3396% for row_inline (482,046 to 417,743 instructions);
+index_2048 improves 11.1651% (1,389,314 to 1,234,196), and index_4096 improves
+11.0652% (1,394,272 to 1,239,993). Wins against upstream remain 381/506; mixed
+index work still costs about 1.60 times upstream. This is a deletion improvement,
+not closure of the remaining read/scan and large-payload cost gaps.
+
+Both suites pass 2,024 matrix and 256 mixed measurements with exact repeats,
+matching model/results and unchanged heap/stable capacities. Mixed sequence
+costs remain uneven: 20 of our 64 distinct cases improve, 30 are unchanged and
+14 increase. The largest increase is 50.5184% for row keys_reverse_2; the largest
+decrease is 20.0396% for row keys_forward_1. Retaining fewer decoded allocations
+changes later allocation history even though scan code is unchanged. The
+allocator/compiler cause of those individual shifts is not isolated here.
+
+An inline-key borrowing candidate is deferred. It avoids materialization in
+binary search and improves 44/46 matrix get cases, but mixed rows increase
+0.3178% and one scan increases 76.0541%. Combining it with guarded node reuse
+improves rows 0.5303% and indexes 2.3645%, but retains a 76.0754% worst mixed scan
+increase. The deletion-only candidate has the better row total, unchanged
+non-removal matrix cases and unchanged upstream counts. No inline-key search
+change or experiment-only test is retained in the library.
+
+Artifacts are retained at `target/btree-search.moe57xp2/`: `baseline/` is the
+frozen anchor, `inline/` is key borrowing, `prototype/` is the rejected unguarded
+combination, `final/` is the deferred guarded combination, and `deletion/` is the
+accepted build. Each retains runner, Wasm, lockfile and both CSV/log suites;
+comparison CSV/JSON files and `selection.json` record the choice. Selected Wasm
+SHA-256 is `4a7658a1942c43ffba2d4abc4c150005982d77d6752ec1746262b08c568c9053`.
+
+The selected source passes all 40 regular library tests, three public adapter
+tests, the valid Rustdoc example and seven compile-fail examples. Native and
+Wasm Clippy, formatting, links, pins and the storage dependency boundary pass.
+All three deletion regressions pass on Rust 1.91; the 320,000-operation extended
+differential campaign passes on Rust 1.99. The selected Wasm rebuild matches
+the accepted benchmark bytes exactly. Full local release CI, native macOS
+execution and actual IcyDB codec/recovery qualification are not run here.
