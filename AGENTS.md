@@ -31,7 +31,7 @@ Rust checks are `make fmt-check`, `make check`, `make clippy`,
 `make docs-check`, `make test`, `make wasm-check` and `make msrv`. `make ci` is the complete repository gate. Shared Tooling owns tests of the exported helpers.
 
 Common setup and release commands come from `make/consumer.mk`.
-The pending implementation batch is `0.3.1`; release metadata remains maintainer-owned.
+The pending implementation batch is `0.3.2`; release metadata remains maintainer-owned.
 Releases use the local Cargo adapter and shared metadata helpers and direct delivery to
 `origin/main`. The shared contribution and release authorization rules apply.
 `make publish-check` and `make publish` require clean source at an annotated

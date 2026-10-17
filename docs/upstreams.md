@@ -115,12 +115,14 @@ of this native decoding dependency.
 
 ## Dependency-boundary helper adoption
 
-The generic checker is contributed in
-[Shared Tooling PR #257](https://github.com/dragginzgame/shared-tooling/pull/257).
-The separate snapshot in `tools/dependency-boundaries/` pins contribution commit
-`eb04376623a8995b2301d7cc80723a2a3f3e5b8e`; the main baseline snapshot is unchanged.
-This is an unmerged contribution pin, not a claim that the helper has shipped in
-Shared Tooling 0.17.2 (the source checkout's current package version).
+The separate snapshot in `tools/dependency-boundaries/` selects Shared Tooling
+0.20.0 main commit `3f87ddc1a0c1616775b2114c42a4adee7376c9b1`, replacing the
+earlier [PR #257](https://github.com/dragginzgame/shared-tooling/pull/257)
+contribution pin. Cargo must complete successfully and identify this workspace
+with complete member/package metadata before dependencies can be admitted.
+Malformed or incomplete observations cannot establish an empty dependency set.
+The main baseline snapshot is unchanged. Adoption is tracked in
+[#4 — Adopt fail-closed dependency-boundary admission](https://github.com/dragginzgame/ic-storage/issues/4).
 `make check-storage-boundary` verifies the bundle before running the shared
 checker with local policy `ci/cargo-dependency-boundaries.json`. The former
 local shell/Perl implementation is removed. Rules cover canonical names of
