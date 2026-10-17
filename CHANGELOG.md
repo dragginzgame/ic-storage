@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.2]
+
+- Refresh the separate dependency-boundary snapshot to Shared Tooling 0.20.0,
+  requiring successful Cargo completion and complete workspace metadata before
+  admitting dependencies. Preserve the local package allowlist, published
+  library contract and main tooling snapshot
+  ([#4 — Adopt fail-closed Cargo dependency-boundary admission](https://github.com/dragginzgame/ic-storage/issues/4)).
+
 ## [0.3.1] - 2026-10-17
 
 - Remove the membership preflight from deletion. Missing-key transactions

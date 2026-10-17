@@ -1,5 +1,21 @@
 # Current handoff
 
+## Prepared 0.3.2
+
+The dependency-boundary bundle selects committed Shared Tooling 0.20.0 source
+`3f87ddc1a0c1616775b2114c42a4adee7376c9b1` through the canonical exporter.
+It now requires successful Cargo completion and complete workspace metadata.
+The local allowlist, main baseline snapshot, package versions and dependency
+selections are unchanged. Consumer qualification and adoption are tracked in
+[#4 — Adopt fail-closed dependency-boundary admission](https://github.com/dragginzgame/ic-storage/issues/4).
+
+Focused Linux qualification passes: actual workspace metadata/allowlist, rejection
+when the substrate is deliberately disallowed, both snapshot checks, documentation
+links and selected ShellCheck. The policy is restored byte-for-byte. No Rust source,
+full workspace gate or native macOS execution is part of this contributor-only update.
+
+## Earlier source and qualification
+
 Released source is now 0.3.0 (`af1f181`); pending work is 0.3.1. Deletion now
 uses one transactional search; misses discard all staged balancing and leave
 bytes untouched. A successful single-leaf deletion uses one read instead of

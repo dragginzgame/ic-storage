@@ -1,9 +1,9 @@
 # Shared Tooling snapshot v1
-# version	0.17.2
+# version	0.20.0
 format	1
 source	https://github.com/dragginzgame/shared-tooling
-revision	eb04376623a8995b2301d7cc80723a2a3f3e5b8e
+revision	3f87ddc1a0c1616775b2114c42a4adee7376c9b1
 # entrypoint	scripts/ci/check-cargo-dependency-boundaries.sh
-file	400d623a1a323ae1b292c6d509ca9acbcccd893b1f7c7461cb1b8a7cc7b82733	-	scripts/ci/check-cargo-dependency-boundaries.sh
+file	d38467ef1b8e143e9d8daca99975b93f6957fa3796f825b830997b3dc7f0b145	-	scripts/ci/check-cargo-dependency-boundaries.sh
 file	4c981184847462ab3c01cac087e28309f8e054253fd95c7bbe56f643877aa708	x	scripts/ci/verify-file-checksum.sh
 file	a4682503812f210b951aede536cdd65642bfe266b02ab532853a1aeff64f9742	x	scripts/ci/verify-shared-tooling-snapshot.sh
