@@ -40,11 +40,12 @@ collection-memory implementation. Allocation authority and IDs belong to IC Memo
 
 `ic_storage::adapter` also exports our types, upstream `StableBTreeMap`,
 `StableBTreeSet`, `StableCell`, `StableVec`, `StableMinHeap`, `StableLog`, their
-supported iterator/error types, `Storable` and `storable`. Upstream collection
+supported iterator/error types, `Memory`, `Storable`, `Bound` and `storable`. Upstream collection
 wrappers require runtime handles too and preserve their existing formats and
 failure contracts. They do not inherit our custom tree's staged-write behavior.
-No raw `Memory` trait, backing constructors, memory manager or unrestricted
-upstream module is exported. Runtime bootstrap remains the application's IC
+The `Memory` trait supports generic backing bounds; it grants no allocation
+authority. Backing constructors, memory managers and an unrestricted upstream
+module are not exported. Runtime bootstrap remains the application's IC
 Memory infrastructure boundary; ordinary collection code uses this adapter.
 
 Arbitrary backing memory is rejected by both collection surfaces:
@@ -64,7 +65,7 @@ let _ = StableBTreeMap::<u64, u64>::new(VectorMemory::default());
 Raw substrate access is not an application-facing storage API:
 
 ```compile_fail
-use ic_storage::adapter::{Memory, MemoryManager, DefaultMemoryImpl};
+use ic_storage::adapter::{MemoryManager, DefaultMemoryImpl};
 ```
 
 Collection wrappers keep their inner structures private. They implement no
@@ -86,7 +87,7 @@ fn extract(map: ic_storage::adapter::StableBTreeMap<u64, u64>) {
 
 ```compile_fail
 fn bypass(map: &ic_storage::adapter::StableBTreeMap<u64, u64>) {
-    let _: &ic_memory::ic_stable_structures::BTreeMap<_, _, _> = map;
+    let _ = std::ops::Deref::deref(map);
 }
 ```
 

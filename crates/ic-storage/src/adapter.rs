@@ -5,11 +5,14 @@
 //! wrappers expose neither raw memory nor unrestricted upstream collections.
 //! Use distinct admitted allocations, drop before reopening, and never retain
 //! memory clones. IC Memory 0.45 does not yet enforce exclusive allocation leases.
-use crate::substrate::{self, DefaultMemoryImpl, Memory};
+use crate::substrate::{self, DefaultMemoryImpl};
 pub use crate::{BTreeMap, Comparator, Config, Entry, Error, Lexicographic, Range};
 use ic_memory::RuntimeMemory;
 use std::ops::RangeBounds;
-pub use substrate::{Storable, storable};
+/// Exact substrate interfaces for generic bounds and collection codecs.
+/// Implementing `Memory` does not grant allocation authority: collection
+/// constructors still require an admitted `RuntimeMemory` handle.
+pub use substrate::{Memory, Storable, storable, storable::Bound};
 
 /// Governed upstream `BTreeMap`; initialization and failures follow upstream contracts.
 pub struct StableBTreeMap<K: Storable + Ord + Clone, V: Storable, M: Memory = DefaultMemoryImpl> {

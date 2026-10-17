@@ -6,7 +6,7 @@ use ic_memory::{
     GenericAllocationPolicy, MemoryAllocationPool, MemoryAuthority, MemoryRequest, MemoryRuntime,
     RuntimeMemory, SealedDeclarationSnapshot, ic_stable_structures::DefaultMemoryImpl as Memory,
 };
-use ic_storage::adapter::{StableBTreeMap as Upstream, Storable, storable::Bound};
+use ic_storage::adapter::{Bound, StableBTreeMap as Upstream, Storable};
 use ic_storage::{BTreeMap, Config, Lexicographic};
 use ic_testkit::performance::Performance;
 use std::{borrow::Cow, cell::RefCell};

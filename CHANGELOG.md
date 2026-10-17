@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2]
+
+- Export the exact `Memory` trait and codec `Bound` through `adapter`, alongside
+  `Storable`. Generic callers can use Storage-owned interfaces without importing
+  the substrate namespace through IC Memory. Collection constructors continue
+  to require checked runtime handles; formats and bytes are unchanged.
+
 ## [0.3.1] - 2026-10-17
 
 - Remove the membership preflight from deletion. Missing-key transactions
