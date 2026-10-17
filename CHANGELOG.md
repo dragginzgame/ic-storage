@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.0]
+
+- Expose in-place clearing on the governed stable-map adapter, retaining its
+  allocation and upstream storage format so hosts can reset maps without
+  deleting entries individually or accessing raw memory.
+
 ## [0.3.1] - 2026-10-17
 
 - Remove the membership preflight from deletion. Missing-key transactions
