@@ -2,6 +2,9 @@
 
 ## [0.4.1]
 
+- Reuse validated decoded children during deletion and merging, reducing
+  repeated node reads/decoding while preserving staged failure semantics.
+  Explicitly reject aliased merge children before reclaiming either page.
 - Prepare mixed-workload keys/values only for operations that consume them,
   and append matrix scan keys directly into one output buffer. Record fresh
   benchmark baselines for both engines; allocation histories and counts change.

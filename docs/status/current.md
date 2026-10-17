@@ -1,5 +1,21 @@
 # Current handoff
 
+Pending 0.4.1 now reuses decoded children through deletion, borrowing/merging and
+recursive descent. Ordinary child deletion drops from three reads to two;
+merging deletion/root collapse and the balancing miss drop from five to three.
+An explicit sibling-alias guard preserves corruption refusal that the old reread
+provided. Its regression rejects authenticated duplicate pointers without writes.
+All 40 regular library tests, three adapter tests, eight Rustdoc examples,
+native/Wasm Clippy and three deletion regressions on Rust 1.91 pass. The selected
+source passes the 320,000-operation differential campaign. Its Wasm exactly
+matches the accepted benchmark artifact; fixture/dependency selections are fixed.
+Mixed instructions improve 0.9946% for rows and 2.0800% for indexes; all 46 matrix
+removals improve, with the other 460 cases unchanged. One mixed row scan still
+increases 50.5184%; inline-key borrowing is deferred after worse scan tradeoffs.
+See [the comparison](../design/canonical-workloads.md#reuse-decoded-nodes-during-deletion).
+This builds on the benchmark cleanup PR, changes no API or persisted format,
+and leaves package versions at 0.4.0. Full local release CI is not run.
+
 Pending 0.4.1 also removes unused benchmark values for reads/deletes and all
 unused batch inputs for scans. Matrix scans append borrowed key slices to one
 output buffer; the workload target schedule has one helper owner. Native/Wasm

@@ -1215,7 +1215,9 @@ fn deletion_searches_once_and_discards_balancing_on_a_miss() {
     for n in 0..32 {
         tree.insert(&key(n), &[7]).unwrap();
     }
+    reads.set(0);
     tree.remove(&key(31)).unwrap();
+    assert_eq!(reads.get(), 2);
     // Two minimum-size children: descent for an absent key stages a merge.
     let before = backing.borrow().clone();
     reads.set(0);
@@ -1224,6 +1226,7 @@ fn deletion_searches_once_and_discards_balancing_on_a_miss() {
     reads.set(0);
     writes.set(0);
     assert_eq!(tree.remove(&key(999)).unwrap(), None);
+    assert_eq!(reads.get(), 3);
     eprintln!(
         "minimum-child miss: membership={preflight_reads} reads, transactional={} reads",
         reads.get()
@@ -1268,7 +1271,7 @@ fn merging_deletion_reuses_validated_reclaimed_nodes() {
     // the root. The live sibling must not be read again just to mark it free.
     memory.read_calls.set(0);
     assert_eq!(tree.remove(&key(15)).unwrap(), Some(vec![7]));
-    assert_eq!(memory.read_calls.get(), 5);
+    assert_eq!(memory.read_calls.get(), 3);
     assert_eq!(tree.node(tree.header.root).unwrap().children, []);
     tree.validate().unwrap();
     let tree = BTreeMap::open(tree.into_memory(), Config::default(), Lexicographic).unwrap();
@@ -1283,6 +1286,29 @@ fn merging_deletion_reuses_validated_reclaimed_nodes() {
             }
         );
     }
+}
+
+#[test]
+fn deletion_rejects_aliased_merge_children_without_writes() {
+    use crate::btree::page::SIZE;
+
+    let memory = ObservedMemory::default();
+    let mut tree = BTreeMap::create(memory.clone(), Config::default(), Lexicographic).unwrap();
+    for n in 0..32 {
+        tree.insert(&key(n), &[7]).unwrap();
+    }
+    tree.remove(&key(31)).unwrap();
+    let mut root = tree.node(tree.header.root).unwrap();
+    root.children[1] = root.children[0];
+    // The duplicate pointer is checksummed and each child independently decodes.
+    memory
+        .memory
+        .write(tree.header.root * SIZE as u64, &*root.encode().unwrap());
+    let before = memory.memory.borrow().clone();
+    memory.write_calls.set(0);
+    assert_eq!(tree.remove(&key(15)), Err(Error::Corrupt));
+    assert_eq!(memory.write_calls.get(), 0);
+    assert_eq!(*memory.memory.borrow(), before);
 }
 
 struct ValidationCount(Rc<Cell<u64>>);
