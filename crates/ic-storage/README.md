@@ -39,13 +39,23 @@ the remaining generic `M` identifies the runtime's backing, not an arbitrary
 collection-memory implementation. Allocation authority and IDs belong to IC Memory.
 
 `ic_storage::adapter` also exports our types, upstream `StableBTreeMap`,
-`StableBTreeSet`, `StableCell`, `StableVec`, `StableMinHeap`, `StableLog`, their
+`StableBTreeSet`, `StableCell`, `BoundedCell`, `StableVec`, `StableMinHeap`, `StableLog`, their
 supported iterator types, `LogWriteError`, `Storable` and `storable`. Upstream
 collection wrappers require runtime handles too and preserve their existing formats and
 failure contracts. They do not inherit our custom tree's staged-write behavior.
 No raw `Memory` trait, backing constructors, memory manager or unrestricted
 upstream module is exported. Runtime bootstrap remains the application's IC
 Memory infrastructure boundary; ordinary collection code uses this adapter.
+
+`adapter::BoundedCell` adds declared `Storable` bound checks around the upstream
+cell format. It supports `init`, `get` and `set`, rejects unbounded types, and
+checks maximum/exact encoded sizes before writes and before decoding retained
+bytes. Returned records and optional envelopes remain the application's codec.
+A rejected replacement leaves bytes and the cached record unchanged; an invalid
+retained value refuses opening without rewriting it and releases its lease.
+Upstream cell initialization behavior still applies, including initialization
+when memory is empty or does not contain the upstream cell magic. This is not a
+custom-tree transaction, schema migration or recovery policy.
 
 Arbitrary backing memory is rejected by both collection surfaces:
 

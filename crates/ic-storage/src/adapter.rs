@@ -9,7 +9,8 @@
 use crate::substrate::{self, DefaultMemoryImpl, Memory};
 pub use crate::{BTreeMap, Comparator, Config, Entry, Error, Lexicographic, Range};
 use ic_memory::RuntimeMemory;
-use std::ops::RangeBounds;
+use std::{borrow::Cow, ops::RangeBounds};
+use substrate::storable::Bound;
 pub use substrate::{Storable, storable};
 
 /// Governed upstream `BTreeMap`; initialization and failures follow upstream contracts.
@@ -366,5 +367,68 @@ impl<'a, T: Storable, M: Memory> IntoIterator for &'a StableLog<T, M> {
     type IntoIter = LogIter<'a, T, M>;
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
+    }
+}
+
+/// A stable cell whose writes enforce the record's declared `Storable` bound.
+pub struct BoundedCell<T: Storable, M: Memory = DefaultMemoryImpl> {
+    cell: substrate::Cell<BoundedValue<T>, RuntimeMemory<M>>,
+}
+
+impl<T: Storable, M: Memory> BoundedCell<T, M> {
+    /// Open a current cell or initialize a fresh bounded record.
+    ///
+    /// # Panics
+    /// Panics for unbounded records or encodings that violate the declared bound.
+    #[must_use]
+    pub fn init(memory: RuntimeMemory<M>, value: T) -> Self {
+        assert!(matches!(T::BOUND, Bound::Bounded { .. }));
+        Self {
+            cell: substrate::Cell::init(memory, BoundedValue(value)),
+        }
+    }
+
+    /// Read the cached current record without serializing or cloning it.
+    #[must_use]
+    pub fn get(&self) -> &T {
+        &self.cell.get().0
+    }
+
+    /// Validate and persist a complete replacement, returning the prior record.
+    ///
+    /// # Panics
+    /// Panics before writing if the encoding violates its declared bound.
+    pub fn set(&mut self, value: T) -> T {
+        self.cell.set(BoundedValue(value)).0
+    }
+}
+
+struct BoundedValue<T>(T);
+
+impl<T: Storable> Storable for BoundedValue<T> {
+    const BOUND: Bound = T::BOUND;
+
+    fn to_bytes(&self) -> Cow<'_, [u8]> {
+        self.0.to_bytes_checked()
+    }
+
+    fn into_bytes(self) -> Vec<u8> {
+        self.0.into_bytes_checked()
+    }
+
+    fn from_bytes(bytes: Cow<'_, [u8]>) -> Self {
+        let Bound::Bounded {
+            max_size,
+            is_fixed_size,
+        } = T::BOUND
+        else {
+            unreachable!("bounded cell record must declare a bound");
+        };
+        if is_fixed_size {
+            assert_eq!(bytes.len(), max_size as usize);
+        } else {
+            assert!(bytes.len() <= max_size as usize);
+        }
+        Self(T::from_bytes(bytes))
     }
 }
