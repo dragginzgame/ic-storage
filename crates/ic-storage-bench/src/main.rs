@@ -48,7 +48,13 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let (pic, id) = fresh_canister(server.url(), &wasm, engine, profile, dense_keys)?;
                 let mut seeded = false;
                 for _ in 0..2048 {
-                    if pic.update_candid::<bool, _>(id, "seed", (batch,), REPLY_LIMITS)? {
+                    if pic.update_candid::<bool, _>(
+                        id,
+                        candid::Principal::anonymous(),
+                        "seed",
+                        (batch,),
+                        REPLY_LIMITS,
+                    )? {
                         seeded = true;
                         break;
                     }
@@ -95,8 +101,13 @@ fn run_workloads(server: &str, wasm: &[u8]) -> Result<(), Box<dyn Error>> {
                 let profile = u8::try_from(fixtures::FIXTURES.len() + profile)?;
                 let (pic, id) = fresh_canister(server, wasm, engine, profile, false)?;
                 for batch in 0..32 {
-                    let done =
-                        pic.update_candid::<bool, _>(id, "workload_seed", (), REPLY_LIMITS)?;
+                    let done = pic.update_candid::<bool, _>(
+                        id,
+                        candid::Principal::anonymous(),
+                        "workload_seed",
+                        (),
+                        REPLY_LIMITS,
+                    )?;
                     assert_eq!(done, batch == 31);
                 }
                 for round in 0..4 {
@@ -145,10 +156,12 @@ fn fresh_canister(
         .with_server_url(server.parse()?)
         .with_application_subnet()
         .build();
-    let id = pic.try_create_and_install(InstallSpec::new(
-        wasm.to_vec(),
-        candid::encode_args((engine, profile, dense_keys))?,
-        100_000_000_000_000,
-    ))?;
+    let id = pic.try_create_and_install(InstallSpec {
+        wasm: wasm.to_vec(),
+        init_bytes: candid::encode_args((engine, profile, dense_keys))?,
+        cycles: 100_000_000_000_000,
+        install_sender: None,
+        label: None,
+    })?;
     Ok((pic, id))
 }
