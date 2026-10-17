@@ -1,5 +1,17 @@
 # Current handoff
 
+Pending 0.4.1 reclaims merged nodes and collapsed roots directly from validated
+transaction state. The removed free wrapper no longer rereads their pages.
+A regression first fails at six reads on 0.4.0, then passes at five; it also
+rejects a corrupt merge sibling without writes and verifies reopening after
+root collapse. All 39 regular library tests, three adapter tests, native/Wasm
+Clippy and the new regression on Rust 1.91 pass. The 320,000-operation extended
+differential campaign passes. Both benchmark suites pass with exact repeats,
+unchanged capacities/results and small mixed instruction improvements; see
+[the comparison](../design/canonical-workloads.md#validated-node-reclamation).
+The pending patch changes neither the API nor persisted format. Package versions
+remain 0.4.0; full release validation is not run. Earlier evidence follows.
+
 The benchmark runner now follows the selected IC Testkit 0.51 API. Both seed
 calls pass an explicit anonymous principal; installation constructs InstallSpec
 with the prior Wasm/init bytes, cycle top-up and unset sender/label. Measurement

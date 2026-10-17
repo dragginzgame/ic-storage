@@ -1238,6 +1238,53 @@ fn deletion_searches_once_and_discards_balancing_on_a_miss() {
     }
 }
 
+#[test]
+fn merging_deletion_reuses_validated_reclaimed_nodes() {
+    use crate::btree::page::SIZE;
+
+    let memory = ObservedMemory::default();
+    let mut tree = BTreeMap::create(memory.clone(), Config::default(), Lexicographic).unwrap();
+    for n in 0..32 {
+        tree.insert(&key(n), &[7]).unwrap();
+    }
+    tree.remove(&key(31)).unwrap();
+    let root = tree.node(tree.header.root).unwrap();
+    assert_eq!(root.entries.len(), 1);
+    assert_eq!(root.children.len(), 2);
+
+    // Corrupt the sibling that must be decoded before merge reclamation.
+    let right_offset = root.children[1] * SIZE as u64;
+    let mut original = [0; SIZE];
+    memory.memory.read(right_offset, &mut original);
+    memory.memory.write(right_offset + 100, &[0xff]);
+    let before = memory.memory.borrow().clone();
+    memory.write_calls.set(0);
+    assert_eq!(tree.remove(&key(15)), Err(Error::Corrupt));
+    assert_eq!(memory.write_calls.get(), 0);
+    assert_eq!(*memory.memory.borrow(), before);
+    memory.memory.write(right_offset, &original);
+
+    // Removing the separator merges both minimum-size children and collapses
+    // the root. The live sibling must not be read again just to mark it free.
+    memory.read_calls.set(0);
+    assert_eq!(tree.remove(&key(15)).unwrap(), Some(vec![7]));
+    assert_eq!(memory.read_calls.get(), 5);
+    assert_eq!(tree.node(tree.header.root).unwrap().children, []);
+    tree.validate().unwrap();
+    let tree = BTreeMap::open(tree.into_memory(), Config::default(), Lexicographic).unwrap();
+    assert_eq!(tree.len(), 30);
+    for n in 0..32 {
+        assert_eq!(
+            tree.get(&key(n)).unwrap(),
+            if n == 15 || n == 31 {
+                None
+            } else {
+                Some(vec![7])
+            }
+        );
+    }
+}
+
 struct ValidationCount(Rc<Cell<u64>>);
 impl Comparator for ValidationCount {
     const IDENTITY: [u8; 16] = *b"validation-count";
