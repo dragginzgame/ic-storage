@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.1]
+
+- Export the exact `Memory` trait and codec `Bound` through `adapter`, alongside
+  `Storable`. Generic backing bounds and codec declarations stay behind Storage;
+  collection constructors still require exclusive runtime allocation leases.
+
 ## [0.4.0] - 2026-10-17
 
 - Adapt the benchmark runner to IC Testkit 0.51's explicit call principals and

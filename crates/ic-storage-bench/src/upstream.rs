@@ -1,7 +1,7 @@
 //! Shared upstream operations; codec bounds remain distinct for each fixture.
 use super::{Memory, protocol::SCAN_LIMIT};
 use ic_memory::RuntimeMemory;
-use ic_storage::adapter::{StableBTreeMap, Storable, storable::Bound};
+use ic_storage::adapter::{Bound, StableBTreeMap, Storable};
 use std::borrow::Cow;
 
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd)]

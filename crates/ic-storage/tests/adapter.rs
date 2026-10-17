@@ -5,7 +5,7 @@ use ic_memory::{
 };
 use ic_storage::{BTreeMap, Config, Lexicographic, adapter::*};
 
-fn runtime(backing: VectorMemory) -> MemoryRuntime<VectorMemory> {
+fn runtime<M: Memory>(backing: M) -> MemoryRuntime<M> {
     let pool =
         MemoryAllocationPool::new(vec![MemoryAuthority::new("test", "test.").unwrap()], vec![])
             .unwrap();
@@ -33,6 +33,13 @@ fn runtime(backing: VectorMemory) -> MemoryRuntime<VectorMemory> {
 
 #[test]
 fn collections_reopen_through_committed_runtime_allocations() {
+    assert!(matches!(
+        <u64 as Storable>::BOUND,
+        Bound::Bounded {
+            max_size: 8,
+            is_fixed_size: true,
+        }
+    ));
     let backing = VectorMemory::default();
     let runtime = runtime(backing.clone());
     assert!(matches!(
