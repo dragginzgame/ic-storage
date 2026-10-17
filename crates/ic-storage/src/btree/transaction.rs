@@ -85,46 +85,18 @@ impl<'a, M: Memory, C: Comparator> Transaction<'a, M, C> {
                 [..usize::try_from(record.key_len).map_err(|_| Error::Corrupt)?]
                 .to_vec());
         }
-        let mut bytes =
-            Vec::with_capacity(usize::try_from(record.key_len).map_err(|_| Error::Corrupt)?);
-        let mut id = record.key;
-        let mut page = [0; SIZE];
-        while bytes.len() < usize::try_from(record.key_len).map_err(|_| Error::Corrupt)? {
-            self.read_into(id, &mut page)?;
-            if page[0] != page::BLOB {
-                return Err(Error::Corrupt);
-            }
-            let take = (usize::try_from(record.key_len).map_err(|_| Error::Corrupt)? - bytes.len())
-                .min(PAYLOAD);
-            bytes.extend_from_slice(&page[16..16 + take]);
-            id = page::number(&page, 8);
-        }
-        if id != 0 {
-            return Err(Error::Corrupt);
-        }
-        Ok(bytes)
+        page::read_blob_with(record.key, record.key_len, |id, output| {
+            self.read_into(id, output)
+        })
     }
     fn locate(&self, node: &Node, key: &[u8]) -> Result<(usize, bool), Error> {
-        let (mut lo, mut hi) = (0, node.entries.len());
-        while lo < hi {
-            let mid = lo + (hi - lo) / 2;
-            let record = node.entries[mid];
-            let order = if record.key != 0 && record.key_len <= PAYLOAD as u64 {
-                let mut buffer = [0; SIZE];
-                self.read_into(record.key, &mut buffer)?;
-                self.tree
-                    .order
-                    .compare(page::single_blob(&buffer, record.key_len)?, key)?
-            } else {
-                self.tree.order.compare(&self.key(record)?, key)?
-            };
-            match order {
-                Ordering::Less => lo = mid + 1,
-                Ordering::Equal => return Ok((mid, true)),
-                Ordering::Greater => hi = mid,
-            }
-        }
-        Ok((lo, false))
+        super::search::locate(
+            node,
+            key,
+            &self.tree.order,
+            |id, buffer| self.read_into(id, buffer),
+            |record| self.key(record),
+        )
     }
     fn store_blob(&mut self, bytes: &[u8]) -> Result<u64, Error> {
         let mut next = 0;
@@ -214,7 +186,7 @@ impl<'a, M: Memory, C: Comparator> Transaction<'a, M, C> {
         } else {
             previous.extend_from_slice(&record.value_inline[..old_len]);
         }
-        let needed = if value.len() <= 16 {
+        let needed = if value.len() <= page::VALUE_INLINE_BYTES {
             0
         } else {
             value.len().div_ceil(PAYLOAD)
@@ -232,12 +204,7 @@ impl<'a, M: Memory, C: Comparator> Transaction<'a, M, C> {
             let next = ids.get(index + 1).copied().unwrap_or(0);
             self.pages.insert(id, page::encode_blob(next, chunk));
         }
-        record.value = ids.first().copied().unwrap_or(0);
-        record.value_len = value.len() as u64;
-        record.value_inline = [0; 16];
-        if needed == 0 {
-            record.value_inline[..value.len()].copy_from_slice(value);
-        }
+        record.set_value(value, ids.first().copied().unwrap_or(0));
         Ok(previous)
     }
     pub fn replace(
@@ -275,30 +242,17 @@ impl<'a, M: Memory, C: Comparator> Transaction<'a, M, C> {
                 return Err(Error::Corrupt);
             }
             if node.children.is_empty() {
-                let mut key_inline = [0; 32];
-                let mut value_inline = [0; 16];
-                if key.len() <= 32 {
-                    key_inline[..key.len()].copy_from_slice(key);
-                }
-                if value.len() <= 16 {
-                    value_inline[..value.len()].copy_from_slice(value);
-                }
-                let record = Record {
-                    key_inline,
-                    value_inline,
-                    key: if key.len() <= 32 {
-                        0
-                    } else {
-                        self.store_blob(key)?
-                    },
-                    key_len: key.len() as u64,
-                    value: if value.len() <= 16 {
-                        0
-                    } else {
-                        self.store_blob(value)?
-                    },
-                    value_len: value.len() as u64,
+                let key_page = if key.len() <= page::KEY_INLINE_BYTES {
+                    0
+                } else {
+                    self.store_blob(key)?
                 };
+                let value_page = if value.len() <= page::VALUE_INLINE_BYTES {
+                    0
+                } else {
+                    self.store_blob(value)?
+                };
+                let record = Record::new(key, value, key_page, value_page);
                 node.entries.insert(at, record);
                 return self.put_node(id, &node);
             }
@@ -477,118 +431,4 @@ impl<'a, M: Memory, C: Comparator> Transaction<'a, M, C> {
         }
         Ok(self.header)
     }
-}
-
-pub(super) fn validate<M: Memory, C: Comparator>(tree: &BTreeMap<M, C>) -> Result<(), Error> {
-    let mut seen = BTreeSet::new();
-    let mut previous = None;
-    let mut count = 0u64;
-    let mut leaf_depth = None;
-    audit_node(
-        tree,
-        tree.header.root,
-        0,
-        &mut seen,
-        &mut previous,
-        &mut count,
-        &mut leaf_depth,
-    )?;
-    if count != tree.header.len {
-        return Err(Error::Corrupt);
-    }
-    let mut free = tree.header.free;
-    while free != 0 {
-        if !seen.insert(free) {
-            return Err(Error::Corrupt);
-        }
-        let page = page::read(&tree.memory, tree.header.next, free)?;
-        if page[0] != page::FREE {
-            return Err(Error::Corrupt);
-        }
-        free = page::number(&page, 8);
-    }
-    if seen.len() as u64 != tree.header.next - 1 {
-        return Err(Error::Corrupt);
-    }
-    Ok(())
-}
-#[allow(clippy::too_many_arguments)]
-fn audit_node<M: Memory, C: Comparator>(
-    tree: &BTreeMap<M, C>,
-    id: u64,
-    depth: usize,
-    seen: &mut BTreeSet<u64>,
-    previous: &mut Option<Vec<u8>>,
-    count: &mut u64,
-    leaf_depth: &mut Option<usize>,
-) -> Result<(), Error> {
-    if depth >= MAX_HEIGHT || !seen.insert(id) {
-        return Err(Error::Corrupt);
-    }
-    let node = tree.node(id)?;
-    if depth > 0 && node.entries.len() < DEGREE - 1 {
-        return Err(Error::Corrupt);
-    }
-    if node.entries.is_empty() && !node.children.is_empty() {
-        return Err(Error::Corrupt);
-    }
-    if node.children.is_empty() {
-        if leaf_depth.is_some_and(|expected| expected != depth) {
-            return Err(Error::Corrupt);
-        }
-        *leaf_depth = Some(depth);
-    }
-    for (i, record) in node.entries.iter().enumerate() {
-        if !node.children.is_empty() {
-            audit_node(
-                tree,
-                node.children[i],
-                depth + 1,
-                seen,
-                previous,
-                count,
-                leaf_depth,
-            )?;
-        }
-        audit_blob(tree, record.key, record.key_len, seen)?;
-        audit_blob(tree, record.value, record.value_len, seen)?;
-        let key = tree.key(*record)?;
-        tree.check_key(&key)?;
-        if let Some(previous) = previous.as_ref()
-            && tree.order.compare(previous, &key)? != Ordering::Less
-        {
-            return Err(Error::Corrupt);
-        }
-        *previous = Some(key);
-        *count = count.checked_add(1).ok_or(Error::Corrupt)?;
-    }
-    if let Some(last) = node.children.last() {
-        audit_node(tree, *last, depth + 1, seen, previous, count, leaf_depth)?;
-    }
-    Ok(())
-}
-fn audit_blob<M: Memory, C: Comparator>(
-    tree: &BTreeMap<M, C>,
-    mut id: u64,
-    mut len: u64,
-    seen: &mut BTreeSet<u64>,
-) -> Result<(), Error> {
-    if id == 0 {
-        return Ok(());
-    }
-    while len != 0 {
-        if !seen.insert(id) {
-            return Err(Error::Corrupt);
-        }
-        let page = page::read(&tree.memory, tree.header.next, id)?;
-        if page[0] != page::BLOB {
-            return Err(Error::Corrupt);
-        }
-        id = page::number(&page, 8);
-        len = len.saturating_sub(PAYLOAD as u64);
-    }
-    if id != 0 {
-        return Err(Error::Corrupt);
-    }
-    Ok(())
 }

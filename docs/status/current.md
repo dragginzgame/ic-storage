@@ -1,5 +1,97 @@
 # Current handoff
 
+The benchmark runner now follows the selected IC Testkit 0.51 API. Both seed
+calls pass an explicit anonymous principal; installation constructs InstallSpec
+with the prior Wasm/init bytes, cycle top-up and unset sender/label. Measurement
+calls and reply limits are unchanged. This resolves the five native compiler
+errors in the 20261017T101544Z release validation attempt.
+Focused benchmark all-target checking, native/Wasm Clippy and the host protocol
+test pass with the incoming dependency selections (IC Memory 0.47, IC Host
+Artifacts/FS 0.25 and IC Testkit/Candid 0.51). No manifest, lockfile, package
+version or Git index/ref changes are made. The full release gate and simulator
+benchmarks are not rerun for this API repair. Earlier evidence follows.
+
+The latest 0.4.0 cleanup reads overflow keys once during ownership auditing,
+shares unbounded cursor descent and hashes the benchmark's loaded Wasm bytes.
+IC Host Artifacts 0.24 becomes an explicit native runner dependency; no selected
+dependency version, public API or persisted format changes. All 38 regular
+storage tests, three adapter tests, the protocol test and native/Wasm Clippy
+pass. The three new audit/cursor regressions pass on Rust 1.91. The page-read
+regression fails with the old audit and passes with the new one.
+Three mixed-workload builds pass 768 measurements with exact repeats and
+unchanged capacities/results. The combined change increases row instructions
+0.6899% and index instructions 0.0084%; one row scan increases 33.7659%.
+Isolation attributes almost all of the increase to the audit change; cursor-only
+totals increase by 160 instructions per workload. The audit is retained for its
+single-pass I/O and ownership checks, not as an overall instruction speedup.
+See [the qualification](../design/canonical-workloads.md#single-pass-key-audit-and-shared-cursor-descent).
+The fixture matrix, extended campaign and full release gate are not rerun.
+Package versions, Git index and refs are unchanged. Earlier evidence follows.
+
+The latest 0.4.0 cleanup removes five unused adapter error re-exports while
+retaining LogWriteError, centralizes the benchmark protocol and moves inline
+record initialization/limits into the page codec. Existing wire discriminants,
+labels and seed schedule are frozen by a host protocol test. Independent leaf
+and branch page expectations prove the 32/16-byte inline boundaries, replacement
+zeroing and child offsets retain V1 bytes. The byte test passes on Rust 1.91.
+All 35 regular storage tests, three public adapter tests, protocol test and
+Rustdoc examples pass. Native and Wasm Clippy are clear after resolving shared
+module target usage and enum-import/branch lints. The new runner completes the
+previous canister's mixed workload with an identical CSV. Both suites pass
+against the new canister, with exact repeats and unchanged capacities/results.
+The matrix has 230 unchanged and 276 increased costs, at most 0.0586%; wins
+against upstream remain 381/506. The 320,000-operation differential campaign
+passes. See [the qualification](../design/canonical-workloads.md#shared-benchmark-protocol-and-inline-record-ownership).
+No dependencies, package versions, Git index or refs are changed. Earlier evidence follows.
+
+The latest 0.4.0 cleanup removes duplicate input validation from insertion,
+shares committed/staged overflow reads and isolates structural audit state
+under `btree/audit.rs`. Key-before-value errors and corruption checks remain
+intact. All 34 regular native tests, Clippy and the Rust 1.91 validation-count
+regression pass. The 320,000-operation differential campaign and Wasm Clippy
+also pass. Fresh before/after builds pass both benchmark suites (4,560
+measurements total), exact repeats, unchanged capacities/results and model
+checks. Mixed totals increase 0.0133% for rows and 0.0103% for indexes; the
+worst fixture increase is 0.5139%. We still beat upstream in 381/506 fixture
+cases. See [the comparison](../design/canonical-workloads.md#single-input-validation-shared-overflow-reading-and-audit-isolation).
+Source snapshots and benchmark attempts preserve the incoming dirty work.
+No version, dependency selection or Git index/ref change is made here.
+
+
+The incoming IC Memory 0.46 update is now qualified. Collection constructors
+consume exclusive non-cloneable leases; tests cover concurrent-open refusal,
+release on collection drop and release after custom-tree constructor errors.
+Host backing imports use IC Memory root exports. The published API now consumes
+0.46 handle types, so pending notes move to 0.4.0; package versions are unchanged.
+Hosts must retain exclusive backing custody across runtime lifetimes.
+
+All three public integration tests pass on Rust 1.91; the valid README example
+and seven compile-fail examples pass. Native library/test and Wasm benchmark
+Clippy pass. The leased-memory benchmark passes 256 model-checked measurements
+with exact repeats; see [the qualification](../design/canonical-workloads.md#published-ic-memory-046-leases).
+IC Memory PR #120 is refreshed against 0.46; its ten fixture tests, test-support
+Clippy and Rustdoc pass. The regenerated scratch consumer patch passes all three
+adapter tests and Wasm checking. That helper still awaits merge and publication;
+its adoption is not included in the registry-backed source here. Earlier notes
+below retain historical dependency and qualification identities.
+
+Released source is 0.3.1 (`a7ed957`); pending work is 0.3.2. Committed and
+transactional node search now share one private helper with different page
+readers; transaction reads still prefer staged pages. The benchmark shares
+upstream map operations and scan loops while retaining fixture codec bounds
+and key-only laziness. Native storage tests, library/Wasm Clippy and the Rust
+1.91 overflow-key corruption regression pass. The 320,000-operation differential
+campaign passes against upstream and the heap model. Both benchmark builds pass 256
+mixed measurements each, with exact repeats and model checks; details are in
+[the workload report](../design/canonical-workloads.md#shared-search-and-upstream-benchmark-operations).
+
+Fixture bootstrap is contributed in IC Memory PR #120 and qualified with
+consumer changes in an isolated checkout. Adoption here remains gated on its
+registry release; no Git/path dependency is introduced. See
+[upstream ownership](../upstreams.md#fixture-runtime-contribution) for the exact
+adoption steps and the prepared consumer patch. Package versions and lockfile
+are unchanged. Earlier handoff evidence follows.
+
 Released source is now 0.3.0 (`af1f181`); pending work is 0.3.1. Deletion now
 uses one transactional search; misses discard all staged balancing and leave
 bytes untouched. A successful single-leaf deletion uses one read instead of

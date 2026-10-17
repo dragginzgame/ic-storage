@@ -1,5 +1,14 @@
 //! Source-informed canonical-store workloads; not an `IcyDB` codec or overlay.
-use super::{Bytes, Tree, Upstream};
+use super::protocol::WorkloadOperation::{
+    FoldDelete, FoldPut, KeysForward, KeysReverse, ReadMix, Refill, ValuesForward, ValuesReverse,
+};
+use super::{
+    Tree, Upstream,
+    protocol::{
+        SCAN_LIMIT, WORKLOAD_BATCH, WORKLOAD_OPERATIONS, WORKLOAD_PROFILES, WORKLOAD_RECORDS,
+        WORKLOAD_ROUNDS, WORKLOAD_SEED_BATCH, WorkloadOperation,
+    },
+};
 use ic_storage::{BTreeMap, Config, Lexicographic};
 use ic_testkit::performance::Performance;
 use std::{cell::RefCell, collections::BTreeMap as Model, ops::Bound};
@@ -9,12 +18,12 @@ struct State {
     model: Model<Vec<u8>, Vec<u8>>,
     index: bool,
     seeded: u64,
-    step: u8,
+    step: usize,
 }
 thread_local! { static STATE: RefCell<Option<State>> = const { RefCell::new(None) }; }
 
 pub fn init(engine: u8, profile: usize) {
-    assert!(engine <= 1 && profile < 2);
+    assert!(engine <= 1 && profile < WORKLOAD_PROFILES.len());
     let index = profile == 1;
     let memory = super::governed_memory();
     let tree = match (engine, index) {
@@ -56,17 +65,17 @@ fn value(n: u64, generation: u8, index: bool) -> Vec<u8> {
 fn workload_seed() -> bool {
     STATE.with_borrow_mut(|state| {
         let state = state.as_mut().unwrap();
-        let end = (state.seeded + 16).min(512);
+        let end = (state.seeded + WORKLOAD_SEED_BATCH).min(WORKLOAD_RECORDS);
         for i in state.seeded..end {
             // A full permutation gives a reproducible nonsequential insertion order.
-            let n = (i * 149 + 37) % 512;
+            let n = (i * 149 + 37) % WORKLOAD_RECORDS;
             let key = key(n);
             let value = value(n, 0, state.index);
             assert_eq!(state.tree.insert(key.clone(), value.clone()), None);
             assert_eq!(state.model.insert(key, value), None);
         }
         state.seeded = end;
-        end == 512
+        end == WORKLOAD_RECORDS
     })
 }
 
@@ -79,7 +88,7 @@ fn scan(tree: &Tree, lower: Vec<u8>, upper: Vec<u8>, reverse: bool, values: bool
             let mut iter = tree
                 .range(Bound::Included(&lower), Bound::Excluded(&upper))
                 .unwrap();
-            for _ in 0..16 {
+            for _ in 0..SCAN_LIMIT {
                 let Some(entry) = (if reverse {
                     iter.next_back()
                 } else {
@@ -95,40 +104,8 @@ fn scan(tree: &Tree, lower: Vec<u8>, upper: Vec<u8>, reverse: bool, values: bool
                 }
             }
         }
-        Tree::Index(tree) => {
-            let mut iter = tree.range(Bytes(lower)..Bytes(upper));
-            for _ in 0..16 {
-                let Some(entry) = (if reverse {
-                    iter.next_back()
-                } else {
-                    iter.next()
-                }) else {
-                    break;
-                };
-                if values {
-                    output.extend_from_slice(&entry.value().0);
-                } else {
-                    output.extend_from_slice(&entry.key().0);
-                }
-            }
-        }
-        Tree::Row(tree) => {
-            let mut iter = tree.range(Bytes(lower)..Bytes(upper));
-            for _ in 0..16 {
-                let Some(entry) = (if reverse {
-                    iter.next_back()
-                } else {
-                    iter.next()
-                }) else {
-                    break;
-                };
-                if values {
-                    output.extend_from_slice(&entry.value().0);
-                } else {
-                    output.extend_from_slice(&entry.key().0);
-                }
-            }
-        }
+        Tree::Index(tree) => tree.range_scan(lower, upper, reverse, values, &mut output),
+        Tree::Row(tree) => tree.range_scan(lower, upper, reverse, values, &mut output),
         Tree::Journal(_) => unreachable!(),
     }
     output
@@ -136,37 +113,40 @@ fn scan(tree: &Tree, lower: Vec<u8>, upper: Vec<u8>, reverse: bool, values: bool
 
 #[ic_cdk::update]
 fn workload_measure(operation: u8) -> (u128, u128, u128, u64) {
+    let operation = WorkloadOperation::try_from(operation).expect("workload operation");
     STATE.with_borrow_mut(|state| {
         let state = state.as_mut().unwrap();
-        assert_eq!(state.seeded, 512);
-        assert_eq!(operation, state.step % 8);
-        assert!(state.step < 32);
-        let round = state.step / 8;
+        assert_eq!(state.seeded, WORKLOAD_RECORDS);
+        assert!(state.step < usize::from(WORKLOAD_ROUNDS) * WORKLOAD_OPERATIONS.len());
+        assert_eq!(
+            operation,
+            WORKLOAD_OPERATIONS[state.step % WORKLOAD_OPERATIONS.len()].0
+        );
+        let round = u8::try_from(state.step / WORKLOAD_OPERATIONS.len()).unwrap();
         let lower = key(128 + u64::from(round));
         let upper = key(384 + u64::from(round));
-        let reverse = operation == 5 || operation == 7;
-        let values = operation >= 6;
+        let is_scan = matches!(
+            operation,
+            KeysForward | KeysReverse | ValuesForward | ValuesReverse
+        );
+        let reverse = matches!(operation, KeysReverse | ValuesReverse);
+        let values = matches!(operation, ValuesForward | ValuesReverse);
         // Allocate inputs and calculate independent expected results before timing.
-        let inputs = (0..32)
+        let inputs = (0..WORKLOAD_BATCH)
             .map(|i| {
-                let n = (i * 149 + u64::from(round) * 43) % 512;
-                let n = if operation == 0 && i % 4 == 0 {
-                    n + 512
+                let n = (i * 149 + u64::from(round) * 43) % WORKLOAD_RECORDS;
+                let n = if operation == ReadMix && i % 4 == 0 {
+                    n + WORKLOAD_RECORDS
                 } else {
                     n
                 };
                 (key(n), value(n, round + 1, state.index))
             })
             .collect::<Vec<_>>();
-        let expected = if operation < 4 {
-            inputs
-                .iter()
-                .map(|(key, _)| state.model.get(key).cloned())
-                .collect::<Vec<_>>()
-        } else {
+        let expected = if is_scan {
             let mut iter = state.model.range(lower.clone()..upper.clone());
             let mut output = Vec::new();
-            for _ in 0..16 {
+            for _ in 0..SCAN_LIMIT {
                 let Some((key, value)) = (if reverse {
                     iter.next_back()
                 } else {
@@ -177,38 +157,43 @@ fn workload_measure(operation: u8) -> (u128, u128, u128, u64) {
                 output.extend_from_slice(if values { value } else { key });
             }
             vec![Some(output)]
+        } else {
+            inputs
+                .iter()
+                .map(|(key, _)| state.model.get(key).cloned())
+                .collect::<Vec<_>>()
         };
         let before = Performance::counters();
-        let result = if operation < 4 {
+        let result = if is_scan {
+            vec![Some(scan(&state.tree, lower, upper, reverse, values))]
+        } else {
             inputs
                 .into_iter()
                 .map(|(key, value)| match operation {
-                    0 => state.tree.get(key),
-                    1 | 3 => state.tree.insert(key, value),
-                    2 => state.tree.remove(key),
+                    ReadMix => state.tree.get(key),
+                    FoldPut | Refill => state.tree.insert(key, value),
+                    FoldDelete => state.tree.remove(key),
                     _ => unreachable!(),
                 })
                 .collect::<Vec<_>>()
-        } else {
-            vec![Some(scan(&state.tree, lower, upper, reverse, values))]
         };
         let after = Performance::counters();
         assert_eq!(result, expected);
-        for i in 0..32 {
-            let n = (i * 149 + u64::from(round) * 43) % 512;
+        for i in 0..WORKLOAD_BATCH {
+            let n = (i * 149 + u64::from(round) * 43) % WORKLOAD_RECORDS;
             match operation {
-                1 | 3 => {
+                FoldPut | Refill => {
                     state.model.insert(key(n), value(n, round + 1, state.index));
                 }
-                2 => {
+                FoldDelete => {
                     state.model.remove(&key(n));
                 }
                 _ => {}
             }
         }
-        if matches!(operation, 1..=3) {
+        if matches!(operation, FoldPut | FoldDelete | Refill) {
             // Check all rows after every mutation batch, outside the measured window.
-            for n in 0..512 {
+            for n in 0..WORKLOAD_RECORDS {
                 assert_eq!(state.tree.get(key(n)), state.model.get(&key(n)).cloned());
             }
             if let Tree::Ours(tree) = &state.tree {

@@ -329,3 +329,202 @@ still trails upstream. The full older fixture matrix was not rerun.
 Artifacts live in `target/simplified-delete.lPIlSb/`: `runner`, `benchmark.wasm`,
 `Cargo.lock`, `workloads.csv`, `workloads.log`. Wasm SHA-256:
 `fa9569f630bfe826f5174cc39bc6e474cc313a699f09f0136ccfba837b45b8f3`.
+
+
+## Shared search and upstream benchmark operations
+
+The pending 0.3.2 cleanup puts binary search and the single-page borrowed-key
+comparison in one private helper. Its reader callback selects committed pages
+for ordinary lookup and staged-first pages for mutations. Chained-key readers
+retain their existing validation. A benchmark-only generic map wrapper shares
+upstream CRUD and scan loops while retaining index, journal and row codec bounds.
+Bounded key scans still borrow keys and never load values; the older unbounded
+fixture scan keeps its existing copy/collection behavior. Measurement windows,
+operation order and independent model checks are unchanged.
+
+Both builds use the same locked dependencies and runner. Each attempt produces
+256 mixed-workload measurements with exact instruction, heap/stable capacity
+and result-length repeats; paired engine result sizes and model checks pass.
+Totals below cover all four rounds in one fresh run.
+
+| Engine / workload | Before instructions | After instructions | Change |
+| --- | ---: | ---: | ---: |
+| Ours / mixed rows | 313,148,947 | 312,100,436 | -0.335% |
+| Ours / mixed index | 187,936,678 | 186,908,830 | -0.547% |
+| Upstream / mixed rows | 340,590,375 | 340,862,276 | +0.080% |
+| Upstream / mixed index | 114,285,849 | 114,289,280 | +0.003% |
+
+These are compiled-build effects of both extractions, not isolated algorithm
+speedups. The complete older fixture matrix was not rerun. Fixture bootstrap
+still uses the published IC Memory API; the unmerged helper is qualified in a
+separate scratch consumer and is not part of either measured build.
+
+Artifacts retain `runner`, `benchmark.wasm`, `Cargo.lock`, `workloads.csv` and
+`workloads.log` in `target/search-cleanup-baseline.QUKtIN/` and
+`target/search-cleanup-final.mX2Kkm/`. Wasm SHA-256 values respectively:
+`d4a7c73dab02f16b7bfe4b6c49eb597d5b0e4e085abe26543fe863e256fb182a` and
+`a495ef64e988f1286c1eac31e7ac4e9d19ea87644817a219bb22db7651e5baff`.
+
+
+## Published IC Memory 0.46 leases
+
+The current build consumes published IC Memory 0.46 with exclusive allocation
+leases and narrowed host-memory exports. The fixture helper remains unmerged
+and is not included in this measured build. Bootstrap and lease acquisition
+occur outside measurement windows. Both engine wrappers retain their allocations
+throughout each installation, so every operation uses the same live lease.
+
+Attempt `target/lease046.Ff4fA5/` passes 256 measurements with exact repeated
+instruction, heap/stable-capacity and result-length counters. Paired engine
+result lengths agree and all in-canister model checks pass. Per-run totals:
+
+| Mixed workload | Our instructions | Upstream instructions | Ours/upstream |
+| --- | ---: | ---: | ---: |
+| Rows | 311,848,476 | 341,486,251 | 0.9132 |
+| Index | 186,930,855 | 114,279,668 | 1.6357 |
+
+The attempt retains runner, Wasm, lockfile, CSV and log. Wasm SHA-256:
+`feb8e3fe5d6f04f16e28434c54d95958a3c126b61075e5be83fc75360aaa3bb0`.
+These counts qualify the selected dependency and ownership contract; they do
+not isolate lease overhead from compiled-build changes. The full older fixture
+matrix and deployed IcyDB remain outside this focused qualification.
+
+
+## Single input validation, shared overflow reading and audit isolation
+
+The next 0.4.0 cleanup validates keys at operation boundaries, so insertion no
+longer repeats comparator self-validation in its search traversal. Key validation
+still precedes value-limit refusal. A counting-comparator regression proves one
+validation for insert/replace/get/contains and unchanged bytes after invalid
+input. It passes on Rust 1.91. Lexicographic self-comparison can already be
+optimized away; this benchmark does not quantify a real IcyDB codec's saving.
+
+Committed payload reads and transactional key reads share one private chain
+reader, with the transaction callback retaining staged-page visibility. Bounds,
+checksums, page type, payload length and terminal-pointer checks are preserved.
+Read-only auditing moves to `btree/audit.rs`; one audit object owns visitation,
+previous-key, count and leaf-depth state. Recursive arguments and the
+`too_many_arguments` suppression are removed. Formats and mutation publication
+remain unchanged.
+
+A freshly rebuilt baseline includes the incoming 0.46 lease adoption and all
+prior dirty work before these three edits. Both attempts use identical lockfiles
+and runner binaries, Rust 1.99 and PocketIC server 16.0.0/client 16.1.0. Each
+build passes 2,024 fixture-matrix and 256 mixed-workload measurements, producing
+4,560 measurements across both builds. Every instruction/capacity/result counter
+repeats exactly across two fresh runs. Paired engine result lengths agree;
+heap/stable capacities and results are unchanged between builds.
+
+| Engine / mixed workload | Before instructions | After instructions | Change |
+| --- | ---: | ---: | ---: |
+| Ours / rows | 311,848,476 | 311,889,842 | +0.0133% |
+| Ours / index | 186,930,855 | 186,950,150 | +0.0103% |
+| Upstream / rows | 341,486,251 | 341,480,271 | -0.0018% |
+| Upstream / index | 114,279,668 | 114,273,688 | -0.0052% |
+
+In our 506 fixture comparisons, 88 improve, 12 remain unchanged and 406 increase.
+The largest improvement is 0.0624% for `index_128/refill`; the largest increase
+is 0.5139% for `index_full_root_dense/scan_values`. Upstream improves in 368
+cases and is unchanged in 138, by at most 0.0198%. Our count beating upstream
+remains 381/506. These maintainability changes carry small measured instruction
+regressions; they are not presented as an overall performance improvement.
+
+`target/three-cleanups-baseline.a2WJ30/` and
+`target/three-cleanups-final.buUycf/` retain runner, Wasm, lockfile,
+`workloads.csv`/`.log` and `matrix.csv`/`.log`. The final directory additionally
+retains `comparison.csv` and `summary.json`. Wasm SHA-256, baseline then final:
+`feb8e3fe5d6f04f16e28434c54d95958a3c126b61075e5be83fc75360aaa3bb0` and
+`1da0559698c5c4ba41691dcaa2f7ccee0538b4232db8bd4b87f63e3d32c76e0e`.
+
+
+## Shared benchmark protocol and inline-record ownership
+
+The following 0.4.0 cleanup gives the runner and canister one operation/seed
+protocol in `protocol.rs`. Explicit u8 discriminants, CSV labels, operation
+order, seed limits and workload constants retain their existing values. Enums
+are converted to/from u8 at the boundary; Candid argument and reply shapes do
+not change. The host protocol test freezes the old IDs/order/schedule and
+rejects invalid IDs. Constants used on only one target are scoped accordingly.
+
+The page codec now owns 32/16-byte inline capacities, record stride and the
+zero-fill/copy helpers used by insertion and replacement. Independent expected
+leaf and branch pages verify constructor/replacement bytes, child offsets and
+decoding at inline boundaries, including overflow-to-inline transitions. The
+existing decoder still independently rejects inconsistent pointers/lengths.
+The adapter also removes five unsupported error aliases; LogWriteError remains.
+
+Native and Wasm Clippy pass after correcting enum imports and branch style.
+All 35 regular library tests, three integration
+tests, seven compile-fail examples and the valid Rustdoc example pass. The byte
+compatibility regression passes on Rust 1.91, and the 320,000-operation extended
+differential campaign passes against upstream and the independent heap model.
+
+Attempt `target/protocol-layout.jBkgAK/` retains runner, Wasm, lockfile, CSV/logs,
+comparison CSV and summary JSON. The new runner's 256-row mixed-workload CSV
+against the prior canister is byte-identical to that canister's retained CSV.
+Against the new canister, both the 2,024-row matrix and 256-row mixed suite pass,
+with exact repeats, matching model results and unchanged heap/stable capacities.
+The comparison reuses the previous final artifact
+`target/three-cleanups-final.buUycf/` and its unchanged lockfile. This is combined
+protocol/layout qualification, not an isolated storage-algorithm speed claim.
+
+| Our mixed workload | Before instructions | After instructions | Change |
+| --- | ---: | ---: | ---: |
+| Rows | 311,889,842 | 311,915,326 | +0.0082% |
+| Index | 186,950,150 | 186,974,934 | +0.0133% |
+
+The fixture matrix has 230 unchanged and 276 increased instruction cases, with
+a maximum increase of 0.0586%; none improve. The upstream instruction counts
+are identical in both suites. Our count beating upstream remains 381/506.
+Final Wasm SHA-256:
+`735ab8df864e3f1219bd94741b2ea9d6d4f1c78f9e47721eb176be9c3bb48e79`.
+
+## Single-pass key audit and shared cursor descent
+
+The next 0.4.0 cleanup materializes overflow keys through the shared chain reader
+while recording page ownership, replacing the prior audit-then-reread sequence.
+Values remain audited without materialization. A traffic regression covers
+0/32/33/4072/4073/16668-byte keys, live values and freed chains: every allocated
+non-header page is read once, with no writes. It fails on the old audit at a
+33-byte key (11 reads rather than 10). Authenticated shared key/value pages,
+wrong page kinds, bad checksums and unterminated chains remain rejected.
+
+Unbounded seeks delegate to existing cursor descent. Bounded seeks retain their
+comparator and inclusion semantics. A cyclic authenticated branch reaches the
+64-frame limit in either direction and then fuses without further reads. All
+38 regular storage tests, three public adapter tests and the host protocol test
+pass; the three new audit/cursor regressions pass on Rust 1.91. Native and Wasm
+Clippy pass. No public API or persisted bytes change.
+
+The native runner hashes its loaded Wasm buffer using IC Host Artifacts 0.24,
+retaining the previous identity log shape. The direct dependency is native-only
+and reuses an already selected version. Cargo.lock changes only the benchmark's
+direct dependency list. No library or Wasm dependency is added.
+
+Attempt `target/audit-cursor.u35jl0oh/` retains runner, lockfile, combined and
+isolated Wasm builds, CSV/logs and comparison summaries. A fresh build with the
+old audit and cursor reproduces the previous Wasm SHA-256 exactly, so the
+baseline reuses `target/protocol-layout.jBkgAK/workloads.csv`. All three new
+builds complete 256 measurements each, with exact repeats, matching model
+results and unchanged heap/stable capacities and result sizes against baseline.
+They use Rust 1.99 and PocketIC server 16.0.0/client 16.1.0 on Linux.
+
+| Engine / mixed workload | Baseline | Cursor only | Audit only | Combined |
+| --- | ---: | ---: | ---: | ---: |
+| Ours / rows | 311,915,326 | 311,915,486 | 314,067,175 | 314,067,335 |
+| Ours / index | 186,974,934 | 186,975,094 | 186,990,451 | 186,990,611 |
+| Upstream / rows | 341,480,271 | 341,480,271 | 341,486,267 | 341,486,267 |
+| Upstream / index | 114,273,688 | 114,273,688 | 114,279,684 | 114,279,684 |
+
+Combined totals increase 0.6899% for our rows and 0.0084% for our indexes.
+The largest individual increase is 33.7659% for row `keys_reverse_2`.
+Cursor-only totals add 160 instructions to each of our workloads. The audit-only
+build reproduces almost all of the combined increase, despite auditing running
+outside measurement windows. These runs isolate the source change, not the
+underlying allocator/compiler cause. The single-pass I/O improvement is retained
+with this measured tradeoff; it is not an overall instruction speedup.
+The fixture matrix, extended differential campaign and full release gate are
+not rerun for this batch. An initial sandbox attempt failed to bind the local
+server; its failure CSV/log are retained separately from the successful run.
+Combined Wasm SHA-256:
+`634e2a1156d5bc787d9ac9188ee4220cab5a68f769bf9f0a10d24a6139038af1`.

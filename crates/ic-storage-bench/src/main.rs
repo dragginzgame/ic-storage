@@ -1,10 +1,16 @@
 //! Run the canister probe against an explicitly supplied, pre-admitted server.
 mod fixtures;
+mod protocol;
+use ic_host_artifacts::artifact::{ArtifactIdentity, Sha256Digest};
 use ic_testkit::pic::{
     CandidCallExt, CanisterInstallExt, InstallSpec, PocketIc, PocketIcBuilder,
     PocketIcStartupConfig, update_candid_args,
 };
 use ic_testkit_candid::DecodeLimits;
+use protocol::{
+    MATRIX_OPERATIONS, SEED_BYTE_BUDGET, SEED_MAX_BATCH, SEED_MAX_CALLS, WORKLOAD_OPERATIONS,
+    WORKLOAD_PROFILES, WORKLOAD_ROUNDS, WORKLOAD_SEED_CALLS,
+};
 use std::{error::Error, path::Path, time::Duration};
 // Replies contain only a bool or four integer counters, never stored payloads.
 const REPLY_LIMITS: DecodeLimits = DecodeLimits {
@@ -22,7 +28,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let wasm = ic_host_fs::read::read_file(Path::new(&args[1]), 32 * 1024 * 1024)?;
     eprintln!(
         "wasm: {:?}",
-        ic_host_fs::read::hash_file(Path::new(&args[1]), 32 * 1024 * 1024)?
+        ArtifactIdentity {
+            bytes: u64::try_from(wasm.len())?,
+            sha256: Sha256Digest::compute(&wasm),
+        }
     );
     eprintln!(
         "server: {:?}",
@@ -42,13 +51,20 @@ fn main() -> Result<(), Box<dyn Error>> {
         {
             let profile = u8::try_from(profile)?;
             let name = format!("{}{}", fixture.name, if dense_keys { "_dense" } else { "" });
-            let batch = (524_288 / (fixture.key_len + fixture.value_len)).clamp(1, 32) as u64;
-            assert!(fixture.count <= 2048 * batch && fixture.kind <= 2);
+            let batch = (SEED_BYTE_BUDGET / (fixture.key_len + fixture.value_len))
+                .clamp(1, usize::try_from(SEED_MAX_BATCH)?) as u64;
+            assert!(fixture.count <= SEED_MAX_CALLS * batch && fixture.kind <= 2);
             for engine in 0u8..=1 {
                 let (pic, id) = fresh_canister(server.url(), &wasm, engine, profile, dense_keys)?;
                 let mut seeded = false;
-                for _ in 0..2048 {
-                    if pic.update_candid::<bool, _>(id, "seed", (batch,), REPLY_LIMITS)? {
+                for _ in 0..SEED_MAX_CALLS {
+                    if pic.update_candid::<bool, _>(
+                        id,
+                        candid::Principal::anonymous(),
+                        "seed",
+                        (batch,),
+                        REPLY_LIMITS,
+                    )? {
                         seeded = true;
                         break;
                     }
@@ -56,26 +72,14 @@ fn main() -> Result<(), Box<dyn Error>> {
                 if !seeded {
                     return Err("seeding exceeded the bounded call budget".into());
                 }
-                for (operation, label) in [
-                    (0u8, "get"),
-                    (4, "missing_get"),
-                    (1, "replace"),
-                    (10, "replace_changed"),
-                    (2, "scan_keys"),
-                    (5, "scan_values"),
-                    (6, "shrink"),
-                    (7, "regrow"),
-                    (3, "remove"),
-                    (8, "refill"),
-                    (9, "insert_new"),
-                ] {
+                for (operation, label) in MATRIX_OPERATIONS {
                     let (instructions, heap, stable, result): (u128, u128, u128, u64) =
                         update_candid_args(
                             &pic,
                             id,
                             candid::Principal::anonymous(),
                             "measure",
-                            (operation,),
+                            (operation as u8,),
                             REPLY_LIMITS,
                         )?;
                     println!(
@@ -90,36 +94,29 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 fn run_workloads(server: &str, wasm: &[u8]) -> Result<(), Box<dyn Error>> {
     for run in 0..2 {
-        for (profile, name) in ["mixed_rows", "mixed_index"].iter().enumerate() {
+        for (profile, name) in WORKLOAD_PROFILES.iter().enumerate() {
             for engine in 0u8..=1 {
                 let profile = u8::try_from(fixtures::FIXTURES.len() + profile)?;
                 let (pic, id) = fresh_canister(server, wasm, engine, profile, false)?;
-                for batch in 0..32 {
-                    let done =
-                        pic.update_candid::<bool, _>(id, "workload_seed", (), REPLY_LIMITS)?;
-                    assert_eq!(done, batch == 31);
+                for batch in 0..WORKLOAD_SEED_CALLS {
+                    let done = pic.update_candid::<bool, _>(
+                        id,
+                        candid::Principal::anonymous(),
+                        "workload_seed",
+                        (),
+                        REPLY_LIMITS,
+                    )?;
+                    assert_eq!(done, batch + 1 == WORKLOAD_SEED_CALLS);
                 }
-                for round in 0..4 {
-                    for (operation, label) in [
-                        "read_mix",
-                        "fold_put",
-                        "fold_delete",
-                        "refill",
-                        "keys_forward",
-                        "keys_reverse",
-                        "values_forward",
-                        "values_reverse",
-                    ]
-                    .iter()
-                    .enumerate()
-                    {
+                for round in 0..WORKLOAD_ROUNDS {
+                    for (operation, label) in WORKLOAD_OPERATIONS {
                         let (instructions, heap, stable, result): (u128, u128, u128, u64) =
                             update_candid_args(
                                 &pic,
                                 id,
                                 candid::Principal::anonymous(),
                                 "workload_measure",
-                                (u8::try_from(operation)?,),
+                                (operation as u8,),
                                 REPLY_LIMITS,
                             )?;
                         println!(
@@ -145,10 +142,12 @@ fn fresh_canister(
         .with_server_url(server.parse()?)
         .with_application_subnet()
         .build();
-    let id = pic.try_create_and_install(InstallSpec::new(
-        wasm.to_vec(),
-        candid::encode_args((engine, profile, dense_keys))?,
-        100_000_000_000_000,
-    ))?;
+    let id = pic.try_create_and_install(InstallSpec {
+        wasm: wasm.to_vec(),
+        init_bytes: candid::encode_args((engine, profile, dense_keys))?,
+        cycles: 100_000_000_000_000,
+        install_sender: None,
+        label: None,
+    })?;
     Ok((pic, id))
 }

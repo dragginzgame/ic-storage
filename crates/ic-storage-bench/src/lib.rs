@@ -1,90 +1,60 @@
 //! Non-published canister probe; each installation owns one fresh memory region.
 #![cfg(target_arch = "wasm32")]
 mod fixtures;
+mod protocol;
+use protocol::{MatrixOperation, SCAN_LIMIT, SEED_MAX_BATCH, WORKLOAD_PROFILES};
+mod upstream;
 mod workloads;
 use ic_memory::{
-    GenericAllocationPolicy, MemoryAllocationPool, MemoryAuthority, MemoryRequest, MemoryRuntime,
-    RuntimeMemory, SealedDeclarationSnapshot, ic_stable_structures::DefaultMemoryImpl as Memory,
+    DefaultMemoryImpl as Memory, GenericAllocationPolicy, MemoryAllocationPool, MemoryAuthority,
+    MemoryRequest, MemoryRuntime, RuntimeMemory, SealedDeclarationSnapshot,
 };
-use ic_storage::adapter::{StableBTreeMap as Upstream, Storable, storable::Bound};
 use ic_storage::{BTreeMap, Config, Lexicographic};
 use ic_testkit::performance::Performance;
-use std::{borrow::Cow, cell::RefCell};
+use std::cell::RefCell;
+use upstream::Map as Upstream;
 
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd)]
-struct Bytes<const MAX: u32, const FIXED: bool>(Vec<u8>);
-impl<const MAX: u32, const FIXED: bool> Storable for Bytes<MAX, FIXED> {
-    const BOUND: Bound = if MAX == 0 {
-        Bound::Unbounded
-    } else {
-        Bound::Bounded {
-            max_size: MAX,
-            is_fixed_size: FIXED,
-        }
-    };
-    fn to_bytes(&self) -> Cow<'_, [u8]> {
-        Cow::Borrowed(&self.0)
-    }
-    fn into_bytes(self) -> Vec<u8> {
-        self.0
-    }
-    fn from_bytes(bytes: Cow<'_, [u8]>) -> Self {
-        Self(bytes.into_owned())
-    }
-}
 enum Tree {
     Ours(BTreeMap<Memory>),
-    Index(Upstream<Bytes<16668, false>, Bytes<1, false>, Memory>),
-    Journal(Upstream<Bytes<12, true>, Bytes<65536, false>, Memory>),
-    Row(Upstream<Bytes<262, false>, Bytes<0, false>, Memory>),
+    Index(Upstream<16668, false, 1, false>),
+    Journal(Upstream<12, true, 65536, false>),
+    Row(Upstream<262, false, 0, false>),
 }
 impl Tree {
     fn insert(&mut self, key: Vec<u8>, value: Vec<u8>) -> Option<Vec<u8>> {
         match self {
             Self::Ours(tree) => tree.insert(&key, &value).unwrap(),
-            Self::Index(tree) => tree.insert(Bytes(key), Bytes(value)).map(|v| v.0),
-            Self::Journal(tree) => tree.insert(Bytes(key), Bytes(value)).map(|v| v.0),
-            Self::Row(tree) => tree.insert(Bytes(key), Bytes(value)).map(|v| v.0),
+            Self::Index(tree) => tree.insert(key, value),
+            Self::Journal(tree) => tree.insert(key, value),
+            Self::Row(tree) => tree.insert(key, value),
         }
     }
     fn get(&self, key: Vec<u8>) -> Option<Vec<u8>> {
         match self {
             Self::Ours(tree) => tree.get(&key).unwrap(),
-            Self::Index(tree) => tree.get(&Bytes(key)).map(|v| v.0),
-            Self::Journal(tree) => tree.get(&Bytes(key)).map(|v| v.0),
-            Self::Row(tree) => tree.get(&Bytes(key)).map(|v| v.0),
+            Self::Index(tree) => tree.get(key),
+            Self::Journal(tree) => tree.get(key),
+            Self::Row(tree) => tree.get(key),
         }
     }
     fn remove(&mut self, key: Vec<u8>) -> Option<Vec<u8>> {
         match self {
             Self::Ours(tree) => tree.remove(&key).unwrap(),
-            Self::Index(tree) => tree.remove(&Bytes(key)).map(|v| v.0),
-            Self::Journal(tree) => tree.remove(&Bytes(key)).map(|v| v.0),
-            Self::Row(tree) => tree.remove(&Bytes(key)).map(|v| v.0),
+            Self::Index(tree) => tree.remove(key),
+            Self::Journal(tree) => tree.remove(key),
+            Self::Row(tree) => tree.remove(key),
         }
     }
     fn scan(&self) -> Vec<u8> {
         match self {
             Self::Ours(tree) => tree
                 .iter()
-                .take(16)
+                .take(SCAN_LIMIT)
                 .flat_map(|e| e.unwrap().key().to_vec())
                 .collect(),
-            Self::Index(tree) => tree
-                .iter()
-                .take(16)
-                .flat_map(|e| e.key().0.clone())
-                .collect(),
-            Self::Journal(tree) => tree
-                .iter()
-                .take(16)
-                .flat_map(|e| e.key().0.clone())
-                .collect(),
-            Self::Row(tree) => tree
-                .iter()
-                .take(16)
-                .flat_map(|e| e.key().0.clone())
-                .collect(),
+            Self::Index(tree) => tree.scan(),
+            Self::Journal(tree) => tree.scan(),
+            Self::Row(tree) => tree.scan(),
         }
     }
     fn scan_values(&self) -> Vec<u8> {
@@ -92,20 +62,11 @@ impl Tree {
         match self {
             Self::Ours(tree) => tree
                 .iter()
-                .take(16)
+                .take(SCAN_LIMIT)
                 .for_each(|e| output.extend_from_slice(&e.unwrap().value().unwrap())),
-            Self::Index(tree) => tree
-                .iter()
-                .take(16)
-                .for_each(|e| output.extend_from_slice(&e.value().0)),
-            Self::Journal(tree) => tree
-                .iter()
-                .take(16)
-                .for_each(|e| output.extend_from_slice(&e.value().0)),
-            Self::Row(tree) => tree
-                .iter()
-                .take(16)
-                .for_each(|e| output.extend_from_slice(&e.value().0)),
+            Self::Index(tree) => tree.scan_values(&mut output),
+            Self::Journal(tree) => tree.scan_values(&mut output),
+            Self::Row(tree) => tree.scan_values(&mut output),
         }
         output
     }
@@ -143,7 +104,9 @@ fn governed_memory() -> RuntimeMemory<Memory> {
 fn init(engine: u8, profile: u8, dense_keys: bool) {
     assert!(engine <= 1);
     if usize::from(profile) >= fixtures::FIXTURES.len() {
-        workloads::init(engine, usize::from(profile) - fixtures::FIXTURES.len());
+        let workload = usize::from(profile) - fixtures::FIXTURES.len();
+        assert!(workload < WORKLOAD_PROFILES.len());
+        workloads::init(engine, workload);
         return;
     }
     let fixture = &fixtures::FIXTURES[usize::from(profile)];
@@ -173,7 +136,7 @@ fn init(engine: u8, profile: u8, dense_keys: bool) {
 }
 #[ic_cdk::update]
 fn seed(batch: u64) -> bool {
-    assert!((1..=32).contains(&batch));
+    assert!((1..=SEED_MAX_BATCH).contains(&batch));
     STATE.with_borrow_mut(|state| {
         let state = state.as_mut().unwrap();
         let end = (state.seeded + batch).min(state.count);
@@ -194,49 +157,64 @@ fn seed(batch: u64) -> bool {
 }
 #[ic_cdk::update]
 fn measure(operation: u8) -> (u128, u128, u128, u64) {
+    use MatrixOperation::{
+        Get, InsertNew, MissingGet, Refill, Regrow, Remove, Replace, ReplaceChanged, ScanKeys,
+        ScanValues, Shrink,
+    };
+    let operation = MatrixOperation::try_from(operation).expect("matrix operation");
     STATE.with_borrow_mut(|state| {
         let state = state.as_mut().unwrap();
         assert_eq!(state.seeded, state.count);
-        let target = if operation == 4 || operation == 9 {
+        let target = if matches!(operation, MissingGet | InsertNew) {
             state.count
         } else {
             state.count / 2
         };
         let key = key(target, state.key_len, state.dense_keys);
-        let value_len = if operation == 6 { 1 } else { state.value_len };
-        let fill = if operation == 10 { 8 } else { 7 };
+        let value_len = if operation == Shrink {
+            1
+        } else {
+            state.value_len
+        };
+        let fill = if operation == ReplaceChanged { 8 } else { 7 };
         let value = vec![fill; value_len];
         let before = Performance::counters();
         let result = match operation {
-            0 | 4 => state.tree.get(key),
-            1 | 6 | 7 | 8 | 9 | 10 => state.tree.insert(key, value),
-            2 => Some(state.tree.scan()),
-            3 => state.tree.remove(key),
-            5 => Some(state.tree.scan_values()),
-            _ => panic!("invalid operation"),
+            Get | MissingGet => state.tree.get(key),
+            Replace | Shrink | Regrow | Refill | InsertNew | ReplaceChanged => {
+                state.tree.insert(key, value)
+            }
+            ScanKeys => Some(state.tree.scan()),
+            Remove => state.tree.remove(key),
+            ScanValues => Some(state.tree.scan_values()),
         };
         let after = Performance::counters();
         // Semantic checks and reply encoding are outside the measured interval.
-        if matches!(operation, 4 | 8 | 9) {
+        if matches!(operation, MissingGet | Refill | InsertNew) {
             assert!(result.is_none());
-        } else if operation == 2 {
-            let expected = (0..state.count.min(16))
+        } else if operation == ScanKeys {
+            let expected = (0..state.count.min(SCAN_LIMIT as u64))
                 .flat_map(|n| self::key(n, state.key_len, state.dense_keys))
                 .collect::<Vec<_>>();
             assert_eq!(result.as_ref().unwrap(), &expected);
         } else {
             let len = match operation {
-                5 => usize::try_from(state.count.min(16)).unwrap() * state.value_len,
-                7 => 1,
+                ScanValues => {
+                    usize::try_from(state.count.min(SCAN_LIMIT as u64)).unwrap() * state.value_len
+                }
+                Regrow => 1,
                 _ => state.value_len,
             };
             assert_eq!(result.as_ref().unwrap(), &vec![7; len]);
         }
-        if matches!(operation, 1 | 3 | 6 | 7 | 8 | 9 | 10) {
+        if matches!(
+            operation,
+            Replace | Remove | Shrink | Regrow | Refill | InsertNew | ReplaceChanged
+        ) {
             let stored = state
                 .tree
                 .get(self::key(target, state.key_len, state.dense_keys));
-            let expected = if operation == 3 {
+            let expected = if operation == Remove {
                 None
             } else {
                 Some(vec![fill; value_len])
@@ -244,7 +222,7 @@ fn measure(operation: u8) -> (u128, u128, u128, u64) {
             assert_eq!(stored, expected);
         }
         // Restore the common input state outside the measured interval.
-        if operation == 10 {
+        if operation == ReplaceChanged {
             assert_eq!(
                 state.tree.insert(
                     self::key(target, state.key_len, state.dense_keys),

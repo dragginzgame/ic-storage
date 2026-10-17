@@ -1,10 +1,42 @@
 # Changelog
 
-## [0.4.0]
+## [0.4.1]
 
 - Expose in-place clearing on the governed stable-map adapter, retaining its
-  allocation and upstream storage format so hosts can reset maps without
-  deleting entries individually or accessing raw memory.
+  exclusive allocation lease and upstream storage format across reset/reopen.
+
+## [0.4.0] - 2026-10-17
+
+- Adapt the benchmark runner to IC Testkit 0.51's explicit call principals and
+  installation specification, retaining anonymous calls and bounded replies.
+- Validate overflow keys in one pass while retaining page ownership and
+  corruption checks; reuse endpoint descent for unbounded cursor seeks.
+- Hash the benchmark's loaded Wasm bytes with IC Host Artifacts rather than
+  reopening the file, so the reported identity describes the installed bytes.
+- **Breaking adapter exports:** remove `CellInitError`, `CellValueError`,
+  `LogInitError`, `NoSuchEntry` and `VecInitError`, which no supported wrapper
+  method returns. Consumers must remove those imports; `LogWriteError` remains.
+- Share benchmark operation IDs, labels, ordering and seed limits between the
+  runner and canister, preserving existing `u8` wire values and CSV labels.
+- Give inline-record capacities and payload initialization one codec owner;
+  insertion, replacement and decoding retain the exact V1 persisted bytes.
+
+- Validate each operation's input key once, preserving key-before-value error
+  ordering. Share committed/staged overflow reads and isolate read-only tree
+  auditing from mutation transactions without changing persisted bytes.
+
+- **Breaking dependency contract:** consume IC Memory 0.46 non-cloneable
+  allocation leases. A second open through the same runtime is rejected until
+  the owning collection is dropped; failed fallible constructors release leases.
+  Applications must update their IC Memory handles to the 0.46 API.
+- Use IC Memory's narrow root exports for host backing setup; retain collection
+  access through IC Storage. Hosts still own exclusive backing custody across
+  runtimes. Persisted formats remain unchanged; no reset is required.
+
+- Share node search between committed reads and transactions, retaining staged
+  page visibility and borrowed comparisons for single-page overflow keys.
+- Consolidate upstream benchmark operations and bounded scans while preserving
+  each fixture codec and lazy value loading.
 
 ## [0.3.1] - 2026-10-17
 

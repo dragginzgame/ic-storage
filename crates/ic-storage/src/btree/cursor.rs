@@ -61,20 +61,14 @@ impl Cursor {
         bound: &Bound<Vec<u8>>,
     ) -> Result<(), Error> {
         self.started = true;
+        let (Bound::Included(key) | Bound::Excluded(key)) = bound else {
+            return self.descend(tree, tree.header.root);
+        };
+        let inclusive = matches!(bound, Bound::Included(_));
         let mut id = tree.header.root;
         for _ in 0..MAX_HEIGHT {
             let node = tree.node(id)?;
-            let (at, found, inclusive) = match bound {
-                Bound::Unbounded => (
-                    if self.reverse { node.entries.len() } else { 0 },
-                    false,
-                    false,
-                ),
-                Bound::Included(key) | Bound::Excluded(key) => {
-                    let (at, found) = tree.locate(&node, key)?;
-                    (at, found, matches!(bound, Bound::Included(_)))
-                }
-            };
+            let (at, found) = tree.locate(&node, key)?;
             let position = at + usize::from(found && (self.reverse == inclusive));
             let child = if found && inclusive {
                 None

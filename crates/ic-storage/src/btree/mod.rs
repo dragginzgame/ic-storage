@@ -1,7 +1,9 @@
 //! Fixed-size tree pages with separately allocated key/value chains.
 
+mod audit;
 mod cursor;
 mod page;
+mod search;
 #[cfg(test)]
 mod tests;
 mod transaction;
@@ -177,7 +179,8 @@ impl<M: Memory, C: Comparator> BTreeMap<M, C> {
     /// # Errors
     /// Rejects malformed keys, oversized keys, and observed storage corruption.
     pub fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, Error> {
-        self.find(key)?
+        self.check_key(key)?;
+        self.find_validated(key)?
             .map(|(_, node, at)| self.value(node.entries[at]))
             .transpose()
     }
@@ -186,11 +189,12 @@ impl<M: Memory, C: Comparator> BTreeMap<M, C> {
     /// # Errors
     /// Rejects invalid keys and observed key or tree-page corruption.
     pub fn contains_key(&self, key: &[u8]) -> Result<bool, Error> {
-        Ok(self.find(key)?.is_some())
+        self.check_key(key)?;
+        Ok(self.find_validated(key)?.is_some())
     }
 
-    fn find(&self, key: &[u8]) -> Result<Option<(u64, Node, usize)>, Error> {
-        self.check_key(key)?;
+    // Operation boundaries validate the input key before entering this traversal.
+    fn find_validated(&self, key: &[u8]) -> Result<Option<(u64, Node, usize)>, Error> {
         let mut id = self.header.root;
         for _ in 0..page::MAX_HEIGHT {
             let node = self.node(id)?;
@@ -215,7 +219,7 @@ impl<M: Memory, C: Comparator> BTreeMap<M, C> {
         if value.len() > self.header.config.max_value_bytes as usize {
             return Err(Error::TooLarge);
         }
-        let located = self.find(key)?;
+        let located = self.find_validated(key)?;
         let mut tx = Transaction::new(self);
         let previous = if let Some((id, node, at)) = located {
             Some(tx.replace(id, node, at, value)?)
@@ -268,7 +272,7 @@ impl<M: Memory, C: Comparator> BTreeMap<M, C> {
     /// # Errors
     /// Returns an error on corruption, invalid encoded keys or invalid ordering.
     pub fn validate(&self) -> Result<(), Error> {
-        transaction::validate(self)
+        audit::validate(self)
     }
 
     fn check_key(&self, key: &[u8]) -> Result<(), Error> {
@@ -307,25 +311,13 @@ impl<M: Memory, C: Comparator> BTreeMap<M, C> {
         )
     }
     fn locate(&self, node: &Node, key: &[u8]) -> Result<(usize, bool), Error> {
-        let (mut lo, mut hi) = (0, node.entries.len());
-        while lo < hi {
-            let mid = lo + (hi - lo) / 2;
-            let record = node.entries[mid];
-            let order = if record.key != 0 && record.key_len <= page::PAYLOAD as u64 {
-                let mut buffer = [0; page::SIZE];
-                page::read_into(&self.memory, self.header.next, record.key, &mut buffer)?;
-                self.order
-                    .compare(page::single_blob(&buffer, record.key_len)?, key)?
-            } else {
-                self.order.compare(&self.key(record)?, key)?
-            };
-            match order {
-                Ordering::Less => lo = mid + 1,
-                Ordering::Equal => return Ok((mid, true)),
-                Ordering::Greater => hi = mid,
-            }
-        }
-        Ok((lo, false))
+        search::locate(
+            node,
+            key,
+            &self.order,
+            |id, buffer| page::read_into(&self.memory, self.header.next, id, buffer),
+            |record| self.key(record),
+        )
     }
 }
 

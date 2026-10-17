@@ -11,7 +11,7 @@ The library requires Rust 1.91 or later.
 use ic_storage::{BTreeMap, Config, Lexicographic};
 use std::ops::Bound::{Included, Excluded};
 
-# fn example(runtime: &ic_memory::MemoryRuntime<ic_memory::ic_stable_structures::DefaultMemoryImpl>) -> Result<(), Box<dyn std::error::Error>> {
+# fn example(runtime: &ic_memory::MemoryRuntime<ic_memory::DefaultMemoryImpl>) -> Result<(), Box<dyn std::error::Error>> {
 // The application has already admitted and committed this allocation.
 let memory = runtime.open_memory("app.rows.v1")?;
 let mut tree = BTreeMap::create(memory, Config::default(), Lexicographic)?;
@@ -40,8 +40,8 @@ collection-memory implementation. Allocation authority and IDs belong to IC Memo
 
 `ic_storage::adapter` also exports our types, upstream `StableBTreeMap`,
 `StableBTreeSet`, `StableCell`, `StableVec`, `StableMinHeap`, `StableLog`, their
-supported iterator/error types, `Storable` and `storable`. Upstream collection
-wrappers require runtime handles too and preserve their existing formats and
+supported iterator types, `LogWriteError`, `Storable` and `storable`. Upstream
+collection wrappers require runtime handles too and preserve their existing formats and
 failure contracts. They do not inherit our custom tree's staged-write behavior.
 No raw `Memory` trait, backing constructors, memory manager or unrestricted
 upstream module is exported. Runtime bootstrap remains the application's IC
@@ -50,13 +50,13 @@ Memory infrastructure boundary; ordinary collection code uses this adapter.
 Arbitrary backing memory is rejected by both collection surfaces:
 
 ```compile_fail
-use ic_memory::ic_stable_structures::VectorMemory;
+use ic_memory::VectorMemory;
 use ic_storage::{BTreeMap, Config, Lexicographic};
 let _ = BTreeMap::create(VectorMemory::default(), Config::default(), Lexicographic);
 ```
 
 ```compile_fail
-use ic_memory::ic_stable_structures::VectorMemory;
+use ic_memory::VectorMemory;
 use ic_storage::adapter::StableBTreeMap;
 let _ = StableBTreeMap::<u64, u64>::new(VectorMemory::default());
 ```
@@ -86,15 +86,24 @@ fn extract(map: ic_storage::adapter::StableBTreeMap<u64, u64>) {
 
 ```compile_fail
 fn bypass(map: &ic_storage::adapter::StableBTreeMap<u64, u64>) {
-    let _: &ic_memory::ic_stable_structures::BTreeMap<_, _, _> = map;
+    let _: &ic_stable_structures::BTreeMap<u64, u64, ic_memory::RuntimeMemory<ic_memory::DefaultMemoryImpl>> = map;
 }
 ```
 
-IC Memory 0.45 runtime handles are cloneable and can be reopened. Requiring them
-proves allocation provenance, **not exclusive ownership**. Do not retain clones,
-open a second collection over the same allocation, or write through raw handles
-while a collection is live. Enforcing exclusive leases requires a change at the
-IC Memory authority; this adapter does not pretend to supply that missing guarantee.
+IC Memory 0.46 runtime handles are non-cloneable allocation leases. While a
+collection owns a lease, another open through that runtime returns
+`RuntimeOpenError::AlreadyOpen`. Dropping a collection, including a failed
+fallible constructor's handle, releases its lease. A log holds two distinct
+leases. Hosts must keep exclusive backing custody: do not construct another
+runtime or access aliased raw backing until the runtime and all its leases
+have been dropped. The runtime's lease tracking does not coordinate independent
+runtime owners over the same backing.
+
+```compile_fail
+fn duplicate(memory: ic_memory::RuntimeMemory<ic_memory::DefaultMemoryImpl>) {
+    let _ = memory.clone();
+}
+```
 
 Keys up to 32 bytes and values up to 16 bytes are inline in tree nodes. Larger
 payloads use checksummed chains. Nodes have at most 31 entries, with split,

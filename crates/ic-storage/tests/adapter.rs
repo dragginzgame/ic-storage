@@ -1,7 +1,7 @@
 //! Public collection adapters require committed IC Memory allocations.
 use ic_memory::{
     GenericAllocationPolicy, MemoryAllocationPool, MemoryAuthority, MemoryRequest, MemoryRuntime,
-    RuntimeOpenError, SealedDeclarationSnapshot, ic_stable_structures::VectorMemory,
+    RuntimeOpenError, SealedDeclarationSnapshot, VectorMemory,
 };
 use ic_storage::{BTreeMap, Config, Lexicographic, adapter::*};
 
@@ -62,7 +62,38 @@ fn collections_reopen_through_committed_runtime_allocations() {
         runtime.open_memory("test.log.data.v1").unwrap(),
     );
     log.append(&13u64).unwrap();
-    drop((tree, map, set, cell, vector, heap, log, runtime));
+    for key in [
+        "test.tree.v1",
+        "test.map.v1",
+        "test.set.v1",
+        "test.cell.v1",
+        "test.vec.v1",
+        "test.heap.v1",
+        "test.log.index.v1",
+        "test.log.data.v1",
+    ] {
+        assert!(
+            matches!(
+                runtime.open_memory(key),
+                Err(RuntimeOpenError::AlreadyOpen { .. })
+            ),
+            "{key}"
+        );
+    }
+    drop((tree, map, set, cell, vector, heap, log));
+    for key in [
+        "test.tree.v1",
+        "test.map.v1",
+        "test.set.v1",
+        "test.cell.v1",
+        "test.vec.v1",
+        "test.heap.v1",
+        "test.log.index.v1",
+        "test.log.data.v1",
+    ] {
+        drop(runtime.open_memory(key).unwrap());
+    }
+    drop(runtime);
 
     let runtime = self::runtime(backing);
     let tree = BTreeMap::open(
@@ -111,6 +142,51 @@ fn upstream_and_custom_formats_are_not_interchangeable() {
 }
 
 #[test]
+fn constructor_errors_release_allocation_leases() {
+    let runtime = runtime(VectorMemory::default());
+    assert!(matches!(
+        BTreeMap::create(
+            runtime.open_memory("test.tree.v1").unwrap(),
+            Config {
+                max_key_bytes: 0,
+                ..Config::default()
+            },
+            Lexicographic,
+        ),
+        Err(ic_storage::Error::Configuration)
+    ));
+    let tree = BTreeMap::create(
+        runtime.open_memory("test.tree.v1").unwrap(),
+        Config::default(),
+        Lexicographic,
+    )
+    .unwrap();
+    assert!(matches!(
+        runtime.open_memory("test.tree.v1"),
+        Err(RuntimeOpenError::AlreadyOpen { .. })
+    ));
+    drop(tree);
+    assert!(matches!(
+        BTreeMap::open(
+            runtime.open_memory("test.tree.v1").unwrap(),
+            Config {
+                max_value_bytes: 1,
+                ..Config::default()
+            },
+            Lexicographic
+        ),
+        Err(ic_storage::Error::Configuration)
+    ));
+    let tree = BTreeMap::open(
+        runtime.open_memory("test.tree.v1").unwrap(),
+        Config::default(),
+        Lexicographic,
+    )
+    .unwrap();
+    assert!(tree.is_empty());
+}
+
+#[test]
 fn map_clear_persists_empty_state_and_reuses_its_allocation() {
     let backing = VectorMemory::default();
     {
@@ -119,7 +195,13 @@ fn map_clear_persists_empty_state_and_reuses_its_allocation() {
         for key in 0..256 {
             map.insert(key, key + 1);
         }
+        let capacity = backing.borrow().len();
         map.clear_new();
+        assert_eq!(backing.borrow().len(), capacity);
+        assert!(matches!(
+            runtime.open_memory("test.map.v1"),
+            Err(RuntimeOpenError::AlreadyOpen { .. })
+        ));
         assert!(map.is_empty());
         assert_eq!(map.len(), 0);
         assert!(map.iter().next().is_none());

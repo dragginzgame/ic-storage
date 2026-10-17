@@ -9,6 +9,9 @@ pub(super) const PAYLOAD: usize = SIZE - 24;
 pub(super) const DEGREE: usize = 16;
 pub(super) const MAX: usize = 2 * DEGREE - 1;
 pub(super) const MAX_HEIGHT: usize = 64;
+pub(super) const KEY_INLINE_BYTES: usize = 32;
+pub(super) const VALUE_INLINE_BYTES: usize = 16;
+const RECORD_BYTES: usize = 32 + KEY_INLINE_BYTES + VALUE_INLINE_BYTES;
 pub(super) const FREE: u8 = 1;
 pub(super) const BLOB: u8 = 2;
 const LEAF: u8 = 3;
@@ -91,9 +94,35 @@ pub(super) struct Record {
     pub key_len: u64,
     pub value: u64,
     pub value_len: u64,
-    pub key_inline: [u8; 32],
-    pub value_inline: [u8; 16],
+    pub key_inline: [u8; KEY_INLINE_BYTES],
+    pub value_inline: [u8; VALUE_INLINE_BYTES],
 }
+impl Record {
+    pub fn new(key: &[u8], value: &[u8], key_page: u64, value_page: u64) -> Self {
+        Self {
+            key: key_page,
+            key_len: key.len() as u64,
+            value: value_page,
+            value_len: value.len() as u64,
+            key_inline: inline_bytes(key),
+            value_inline: inline_bytes(value),
+        }
+    }
+    pub fn set_value(&mut self, value: &[u8], first_page: u64) {
+        self.value = first_page;
+        self.value_len = value.len() as u64;
+        self.value_inline = inline_bytes(value);
+    }
+}
+
+fn inline_bytes<const N: usize>(bytes: &[u8]) -> [u8; N] {
+    let mut inline = [0; N];
+    if bytes.len() <= N {
+        inline[..bytes.len()].copy_from_slice(bytes);
+    }
+    inline
+}
+
 #[derive(Clone)]
 pub(super) struct Node {
     pub entries: Vec<Record>,
@@ -120,16 +149,17 @@ impl Node {
         };
         put(&mut page, 8, self.entries.len() as u64);
         for (i, entry) in self.entries.iter().enumerate() {
-            let at = 16 + i * 80;
+            let at = 16 + i * RECORD_BYTES;
             put(&mut page, at, entry.key);
             put(&mut page, at + 8, entry.key_len);
             put(&mut page, at + 16, entry.value);
             put(&mut page, at + 24, entry.value_len);
-            page[at + 32..at + 64].copy_from_slice(&entry.key_inline);
-            page[at + 64..at + 80].copy_from_slice(&entry.value_inline);
+            page[at + 32..at + 32 + KEY_INLINE_BYTES].copy_from_slice(&entry.key_inline);
+            page[at + 32 + KEY_INLINE_BYTES..at + RECORD_BYTES]
+                .copy_from_slice(&entry.value_inline);
         }
         for (i, child) in self.children.iter().enumerate() {
-            put(&mut page, 16 + MAX * 80 + i * 8, *child);
+            put(&mut page, 16 + MAX * RECORD_BYTES + i * 8, *child);
         }
         seal(&mut page);
         Ok(page)
@@ -144,11 +174,11 @@ impl Node {
         }
         let mut entries = Vec::with_capacity(count);
         for i in 0..count {
-            let at = 16 + i * 80;
-            let mut key_inline = [0; 32];
-            let mut value_inline = [0; 16];
-            key_inline.copy_from_slice(&page[at + 32..at + 64]);
-            value_inline.copy_from_slice(&page[at + 64..at + 80]);
+            let at = 16 + i * RECORD_BYTES;
+            let mut key_inline = [0; KEY_INLINE_BYTES];
+            let mut value_inline = [0; VALUE_INLINE_BYTES];
+            key_inline.copy_from_slice(&page[at + 32..at + 32 + KEY_INLINE_BYTES]);
+            value_inline.copy_from_slice(&page[at + 32 + KEY_INLINE_BYTES..at + RECORD_BYTES]);
             let entry = Record {
                 key_inline,
                 value_inline,
@@ -161,8 +191,8 @@ impl Node {
                 || entry.value_len > u64::from(config.max_value_bytes)
                 || entry.key >= next
                 || entry.value >= next
-                || (entry.key == 0) != (entry.key_len <= 32)
-                || (entry.value == 0) != (entry.value_len <= 16)
+                || (entry.key == 0) != (entry.key_len <= KEY_INLINE_BYTES as u64)
+                || (entry.value == 0) != (entry.value_len <= VALUE_INLINE_BYTES as u64)
             {
                 return Err(Error::Corrupt);
             }
@@ -171,7 +201,7 @@ impl Node {
         let mut children = Vec::new();
         if page[0] == BRANCH {
             for i in 0..=count {
-                let child = number(page, 16 + MAX * 80 + i * 8);
+                let child = number(page, 16 + MAX * RECORD_BYTES + i * 8);
                 if child == 0 || child >= next {
                     return Err(Error::Corrupt);
                 }
@@ -317,12 +347,22 @@ pub(super) fn blob(
     start: u64,
     len: u64,
 ) -> Result<Vec<u8>, Error> {
+    read_blob_with(start, len, |id, output| read_into(memory, next, id, output))
+}
+
+// Readers validate page bounds and checksums before supplying each page. A
+// transaction reader must prefer staged pages; this helper owns chain framing.
+pub(super) fn read_blob_with(
+    start: u64,
+    len: u64,
+    mut read: impl FnMut(u64, &mut Page) -> Result<(), Error>,
+) -> Result<Vec<u8>, Error> {
     let len = usize::try_from(len).map_err(|_| Error::Corrupt)?;
     let mut output = Vec::with_capacity(len);
     let mut id = start;
     let mut page = [0; SIZE];
     while output.len() < len {
-        read_into(memory, next, id, &mut page)?;
+        read(id, &mut page)?;
         if page[0] != BLOB {
             return Err(Error::Corrupt);
         }
