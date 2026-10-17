@@ -3,7 +3,9 @@
 ## [0.4.1] - Unreleased
 
 - Add a governed bounded stable-cell adapter. Encodings are checked before writes
-  and on reads; rejected oversized replacements preserve stored bytes and cached values.
+  and on decode; rejected maximum/exact-size replacements preserve stored bytes
+  and cached values. Retained invalid records refuse opening without rewriting
+  bytes or retaining their allocation lease.
 
 ## [0.4.0] - 2026-10-17
 

@@ -189,12 +189,12 @@ fn constructor_errors_release_allocation_leases() {
 use ic_storage::adapter::storable::Bound;
 use std::borrow::Cow;
 #[derive(Clone, Debug, Eq, PartialEq)]
-struct Record(Vec<u8>);
+struct Record<const FIXED: bool = false>(Vec<u8>);
 
-impl Storable for Record {
+impl<const FIXED: bool> Storable for Record<FIXED> {
     const BOUND: Bound = Bound::Bounded {
         max_size: 4,
-        is_fixed_size: false,
+        is_fixed_size: FIXED,
     };
     fn to_bytes(&self) -> Cow<'_, [u8]> {
         Cow::Borrowed(&self.0)
@@ -246,10 +246,72 @@ fn bounded_cell_rejects_unbounded_types_and_oversized_initial_values() {
             if unbounded {
                 let _ = BoundedCell::init(memory, Vec::<u8>::new());
             } else {
-                let _ = BoundedCell::init(memory, Record(vec![1; 5]));
+                let _ = BoundedCell::init(memory, Record::<false>(vec![1; 5]));
             }
         }));
         assert!(rejected.is_err());
         assert_eq!(*backing.borrow(), before);
+    }
+}
+
+#[test]
+fn bounded_cell_rejects_short_and_long_fixed_replacements_before_writing() {
+    let backing = VectorMemory::default();
+    let runtime = runtime(backing.clone());
+    let mut cell = BoundedCell::init(
+        runtime.open_memory("test.cell.v1").unwrap(),
+        Record::<true>(vec![7; 4]),
+    );
+    let before = backing.borrow().clone();
+    for length in [0, 3, 5] {
+        let rejected = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            cell.set(Record(vec![8; length]));
+        }));
+        assert!(rejected.is_err());
+        assert_eq!(*backing.borrow(), before);
+        assert_eq!(cell.get(), &Record(vec![7; 4]));
+    }
+    assert_eq!(cell.set(Record(vec![9; 4])), Record(vec![7; 4]));
+    drop(cell);
+    let reopened = BoundedCell::init(
+        runtime.open_memory("test.cell.v1").unwrap(),
+        Record::<true>(vec![0; 4]),
+    );
+    assert_eq!(reopened.get(), &Record(vec![9; 4]));
+}
+
+#[test]
+fn bounded_cell_validates_retained_bytes_without_rewriting_or_leaking_lease() {
+    let backing = VectorMemory::default();
+    let runtime = runtime(backing.clone());
+    for fixed in [false, true] {
+        for length in [0, 3, 4, 5] {
+            let bytes = vec![7; length];
+            // Produce existing upstream cell bytes through the supported adapter.
+            let existing =
+                StableCell::new(runtime.open_memory("test.cell.v1").unwrap(), bytes.clone());
+            drop(existing);
+            let before = backing.borrow().clone();
+            let opened = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let memory = runtime.open_memory("test.cell.v1").unwrap();
+                if fixed {
+                    let cell = BoundedCell::init(memory, Record::<true>(vec![0; 4]));
+                    assert_eq!(cell.get().0, bytes);
+                } else {
+                    let cell = BoundedCell::init(memory, Record::<false>(vec![]));
+                    assert_eq!(cell.get().0, bytes);
+                }
+            }));
+            assert_eq!(
+                opened.is_ok(),
+                if fixed { length == 4 } else { length <= 4 }
+            );
+            assert_eq!(*backing.borrow(), before);
+            let existing = StableCell::init(
+                runtime.open_memory("test.cell.v1").unwrap(),
+                Vec::<u8>::new(),
+            );
+            assert_eq!(existing.get(), &bytes);
+        }
     }
 }
