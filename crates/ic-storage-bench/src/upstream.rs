@@ -44,12 +44,11 @@ impl<const K: u32, const KF: bool, const V: u32, const VF: bool> Map<K, KF, V, V
     pub fn remove(&mut self, key: Vec<u8>) -> Option<Vec<u8>> {
         self.inner.remove(&Bytes(key)).map(|v| v.0)
     }
-    pub fn scan(&self) -> Vec<u8> {
+    pub fn scan(&self, output: &mut Vec<u8>) {
         self.inner
             .iter()
             .take(SCAN_LIMIT)
-            .flat_map(|e| e.key().0.clone())
-            .collect()
+            .for_each(|e| output.extend_from_slice(&e.key().0));
     }
     pub fn scan_values(&self, output: &mut Vec<u8>) {
         self.inner

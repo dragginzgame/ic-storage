@@ -46,16 +46,17 @@ impl Tree {
         }
     }
     fn scan(&self) -> Vec<u8> {
+        let mut output = Vec::new();
         match self {
             Self::Ours(tree) => tree
                 .iter()
                 .take(SCAN_LIMIT)
-                .flat_map(|e| e.unwrap().key().to_vec())
-                .collect(),
-            Self::Index(tree) => tree.scan(),
-            Self::Journal(tree) => tree.scan(),
-            Self::Row(tree) => tree.scan(),
+                .for_each(|e| output.extend_from_slice(e.unwrap().key())),
+            Self::Index(tree) => tree.scan(&mut output),
+            Self::Journal(tree) => tree.scan(&mut output),
+            Self::Row(tree) => tree.scan(&mut output),
         }
+        output
     }
     fn scan_values(&self) -> Vec<u8> {
         let mut output = Vec::new();

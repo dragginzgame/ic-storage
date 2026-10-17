@@ -61,6 +61,17 @@ fn value(n: u64, generation: u8, index: bool) -> Vec<u8> {
         .collect()
 }
 
+fn targets(round: u8, operation: WorkloadOperation) -> impl Iterator<Item = u64> {
+    (0..WORKLOAD_BATCH).map(move |i| {
+        let n = (i * 149 + u64::from(round) * 43) % WORKLOAD_RECORDS;
+        if operation == ReadMix && i % 4 == 0 {
+            n + WORKLOAD_RECORDS
+        } else {
+            n
+        }
+    })
+}
+
 #[ic_cdk::update]
 fn workload_seed() -> bool {
     STATE.with_borrow_mut(|state| {
@@ -123,26 +134,31 @@ fn workload_measure(operation: u8) -> (u128, u128, u128, u64) {
             WORKLOAD_OPERATIONS[state.step % WORKLOAD_OPERATIONS.len()].0
         );
         let round = u8::try_from(state.step / WORKLOAD_OPERATIONS.len()).unwrap();
-        let lower = key(128 + u64::from(round));
-        let upper = key(384 + u64::from(round));
         let is_scan = matches!(
             operation,
             KeysForward | KeysReverse | ValuesForward | ValuesReverse
         );
         let reverse = matches!(operation, KeysReverse | ValuesReverse);
         let values = matches!(operation, ValuesForward | ValuesReverse);
-        // Allocate inputs and calculate independent expected results before timing.
-        let inputs = (0..WORKLOAD_BATCH)
-            .map(|i| {
-                let n = (i * 149 + u64::from(round) * 43) % WORKLOAD_RECORDS;
-                let n = if operation == ReadMix && i % 4 == 0 {
-                    n + WORKLOAD_RECORDS
-                } else {
-                    n
-                };
-                (key(n), value(n, round + 1, state.index))
-            })
-            .collect::<Vec<_>>();
+        // Allocate only the inputs consumed by this operation, before timing.
+        let (lower, upper) = if is_scan {
+            (key(128 + u64::from(round)), key(384 + u64::from(round)))
+        } else {
+            (Vec::new(), Vec::new())
+        };
+        let keys = if is_scan {
+            Vec::new()
+        } else {
+            targets(round, operation).map(key).collect::<Vec<_>>()
+        };
+        let values_to_write = if matches!(operation, FoldPut | Refill) {
+            targets(round, operation)
+                .map(|n| value(n, round + 1, state.index))
+                .collect::<Vec<_>>()
+        } else {
+            Vec::new()
+        };
+        // Calculate independent expected results outside the measured interval.
         let expected = if is_scan {
             let mut iter = state.model.range(lower.clone()..upper.clone());
             let mut output = Vec::new();
@@ -158,29 +174,26 @@ fn workload_measure(operation: u8) -> (u128, u128, u128, u64) {
             }
             vec![Some(output)]
         } else {
-            inputs
-                .iter()
-                .map(|(key, _)| state.model.get(key).cloned())
+            keys.iter()
+                .map(|key| state.model.get(key).cloned())
                 .collect::<Vec<_>>()
         };
         let before = Performance::counters();
-        let result = if is_scan {
-            vec![Some(scan(&state.tree, lower, upper, reverse, values))]
-        } else {
-            inputs
+        let result = match operation {
+            KeysForward | KeysReverse | ValuesForward | ValuesReverse => {
+                vec![Some(scan(&state.tree, lower, upper, reverse, values))]
+            }
+            ReadMix => keys.into_iter().map(|key| state.tree.get(key)).collect(),
+            FoldDelete => keys.into_iter().map(|key| state.tree.remove(key)).collect(),
+            FoldPut | Refill => keys
                 .into_iter()
-                .map(|(key, value)| match operation {
-                    ReadMix => state.tree.get(key),
-                    FoldPut | Refill => state.tree.insert(key, value),
-                    FoldDelete => state.tree.remove(key),
-                    _ => unreachable!(),
-                })
-                .collect::<Vec<_>>()
+                .zip(values_to_write)
+                .map(|(key, value)| state.tree.insert(key, value))
+                .collect(),
         };
         let after = Performance::counters();
         assert_eq!(result, expected);
-        for i in 0..WORKLOAD_BATCH {
-            let n = (i * 149 + u64::from(round) * 43) % WORKLOAD_RECORDS;
+        for n in targets(round, operation) {
             match operation {
                 FoldPut | Refill => {
                     state.model.insert(key(n), value(n, round + 1, state.index));

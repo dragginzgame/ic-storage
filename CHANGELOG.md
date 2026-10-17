@@ -2,6 +2,9 @@
 
 ## [0.4.1]
 
+- Prepare mixed-workload keys/values only for operations that consume them,
+  and append matrix scan keys directly into one output buffer. Record fresh
+  benchmark baselines for both engines; allocation histories and counts change.
 - Reclaim merged nodes and collapsed roots using their validated transaction
   state, avoiding a redundant page read/copy before staging the free record.
   Preserve corruption refusal, discarded failed mutations and the V1 format.

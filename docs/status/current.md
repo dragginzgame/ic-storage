@@ -1,5 +1,16 @@
 # Current handoff
 
+Pending 0.4.1 also removes unused benchmark values for reads/deletes and all
+unused batch inputs for scans. Matrix scans append borrowed key slices to one
+output buffer; the workload target schedule has one helper owner. Native/Wasm
+benchmark Clippy and the host protocol test pass. Both final suites pass 2,280
+measurements with exact repeats, matching model/results and stable capacities.
+Heap capacities change, so this establishes a fresh benchmark baseline. Our
+matrix key scans improve 12.8941%-86.0365%, but mixed row instructions increase
+0.9300%, with one scan increasing 87.9389%; see [the comparison](../design/canonical-workloads.md#benchmark-input-and-key-projection-cleanup).
+The benchmark PR is based on the node-reclamation PR and adds no library changes.
+Package/dependency versions are unchanged; full local release CI is not run.
+
 Pending 0.4.1 reclaims merged nodes and collapsed roots directly from validated
 transaction state. The removed free wrapper no longer rereads their pages.
 A regression first fails at six reads on 0.4.0, then passes at five; it also

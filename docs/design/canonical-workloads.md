@@ -564,3 +564,47 @@ Artifacts are retained at `target/reclamation-benchmark.sjh5wqb7/`, beneath
 `baseline-to-engine.csv` and `.json` retain comparisons. Wasm SHA-256:
 baseline `456e6a8990a04b41b4583d78c49dadcb6ba57abe856d25717d1a1b7b8aa244f2`;
 engine `484e55e15c63e68b7e4ef36a81cd88f48dd5285c07c70c33a88667031788fd28`.
+
+## Benchmark input and key projection cleanup
+
+The next 0.4.1 change is confined to the non-published benchmark. Reads/deletes
+prepare keys without unused values; scans prepare bounds without an unused
+32-record batch. Writes prepare keys and values, and one target-ID helper owns
+the unchanged permutation/miss schedule for preparation and model updates.
+Matrix key scans append borrowed slices directly into their output buffer,
+removing temporary per-key vectors in both engines. Key-only scans still never
+load value payloads. Wire IDs, operation order, CSV labels and model data remain
+unchanged. The measurement fixture and allocation histories deliberately change.
+
+Native all-target and Wasm benchmark Clippy and the host protocol test pass.
+The final canister passes all 2,024 matrix and 256 mixed measurements, with exact
+repeats, matching result sizes/model checks and unchanged stable capacities.
+Heap capacities differ from the engine-only build. A rebuild of the engine-only
+source in the second worktree reproduces its Wasm bytes exactly, establishing
+the comparison anchor. All builds use the same lockfile, runner and toolchain
+identities as the preceding node-reclamation qualification.
+
+| Engine / mixed workload | Engine-only baseline | New fixture | Change |
+| --- | ---: | ---: | ---: |
+| Ours / rows | 314,042,756 | 316,963,272 | +0.9300% |
+| Ours / index | 186,970,602 | 187,136,538 | +0.0887% |
+| Upstream / rows | 341,486,075 | 344,979,980 | +1.0231% |
+| Upstream / index | 114,279,492 | 114,176,042 | -0.0905% |
+
+All 46 matrix key-scan cases improve for each engine: our reductions range from
+12.8941% to 86.0365%, and upstream reductions from 0.4308% to 85.4517%. Across
+our complete 506-case matrix, 368 improve, 92 are unchanged and 46 increase,
+by at most 0.0187%. Wins against upstream remain 381/506.
+
+Mixed costs move in both directions: our largest decrease is 14.0497% for row
+values_forward_0; the largest increase is 87.9389% for row keys_forward_1.
+Removing unused inputs changes allocation/drop history outside and inside
+measurement windows. These are new benchmark-fixture baselines, not storage
+algorithm speedups or an isolation of the allocator/compiler cause. Keep them
+separate from the preceding engine-only comparison. Actual IcyDB codecs,
+recovery, macOS and full local release CI remain outside this qualification.
+
+The same `target/reclamation-benchmark.sjh5wqb7/` attempt retains the final build
+under `final/`, with runner, Wasm, lockfile and both CSV/log suites;
+`engine-to-final.csv` and `.json` retain comparisons. Final Wasm SHA-256:
+`2b7e204c3d743fcea60ae571ed2558cd361dfd221038a607921887d4016de325`.
