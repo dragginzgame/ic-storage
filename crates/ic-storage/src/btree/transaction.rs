@@ -47,10 +47,6 @@ impl<'a, M: Memory, C: Comparator> Transaction<'a, M, C> {
         }
         Ok(id)
     }
-    fn free(&mut self, id: u64) -> Result<(), Error> {
-        let mut page = [0; SIZE];
-        self.free_into(id, &mut page)
-    }
     // Keep the validated prior bytes in the caller's buffer for chain traversal.
     fn free_into(&mut self, id: u64, previous: &mut Page) -> Result<(), Error> {
         if id == 0 || id >= self.header.next {
@@ -287,7 +283,7 @@ impl<'a, M: Memory, C: Comparator> Transaction<'a, M, C> {
         left.entries.extend(right.entries);
         left.children.extend(right.children);
         self.put_node(left_id, &left)?;
-        self.free(right_id)?;
+        self.stage_free(right_id);
         Ok(left_id)
     }
     fn prepare_child(&mut self, parent: &mut Node, at: usize) -> Result<u64, Error> {
@@ -404,7 +400,7 @@ impl<'a, M: Memory, C: Comparator> Transaction<'a, M, C> {
         }
         let root = self.node(self.header.root)?;
         if root.entries.is_empty() && !root.children.is_empty() {
-            self.free(self.header.root)?;
+            self.stage_free(self.header.root);
             self.header.root = root.children[0];
         }
         Ok(Some(previous))

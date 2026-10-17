@@ -528,3 +528,39 @@ not rerun for this batch. An initial sandbox attempt failed to bind the local
 server; its failure CSV/log are retained separately from the successful run.
 Combined Wasm SHA-256:
 `634e2a1156d5bc787d9ac9188ee4220cab5a68f769bf9f0a10d24a6139038af1`.
+
+## Validated node reclamation
+
+The 0.4.1 patch stages free records for already decoded merge siblings and
+collapsed roots without reading them again. Overflow reclamation retains its
+validated page buffer and separate checks. A merging/root-collapse regression
+fails at six page reads on 0.4.0 and passes at five after the change. Corrupt
+sibling bytes still refuse deletion without writes; successful deletion audits
+and reopens with all other records intact. The V1 format is unchanged.
+
+All 39 regular storage tests, three public adapter tests, native/Wasm Clippy
+and the Rust 1.91 regression pass. The 320,000-operation extended differential
+campaign against upstream and the heap model passes. Full release CI is not run.
+
+Fresh baseline and engine-only builds use identical Cargo.lock selections,
+Rust 1.99, IC Memory 0.47, IC Testkit 0.51 and PocketIC server 16.0.0/client 16.1.0
+on Linux. Both builds pass 2,024 matrix and 256 mixed measurements, with exact
+repeats and unchanged heap/stable capacities and result sizes. Paired engines
+return matching result sizes; mixed operations also check their heap model.
+
+| Mixed workload | Our baseline | Our engine patch | Change |
+| --- | ---: | ---: | ---: |
+| Rows | 314,067,143 | 314,042,756 | -0.0078% |
+| Index | 186,990,419 | 186,970,602 | -0.0106% |
+
+Upstream totals remain 341,486,075 for rows and 114,279,492 for indexes. Of our
+506 matrix cases, 42 improve, 460 are unchanged and four increase. The best is
+row_inline/remove (-4.3108%); the worst is index_full_root/remove (+0.0128%).
+Our count beating upstream remains 381/506. These are synthetic fixtures, not
+deployed IcyDB codec or recovery qualification.
+
+Artifacts are retained at `target/reclamation-benchmark.sjh5wqb7/`, beneath
+`baseline/` and `engine/`, with runner, Wasm, lockfile and both CSV/log suites.
+`baseline-to-engine.csv` and `.json` retain comparisons. Wasm SHA-256:
+baseline `456e6a8990a04b41b4583d78c49dadcb6ba57abe856d25717d1a1b7b8aa244f2`;
+engine `484e55e15c63e68b7e4ef36a81cd88f48dd5285c07c70c33a88667031788fd28`.

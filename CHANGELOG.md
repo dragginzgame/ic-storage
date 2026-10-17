@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.1]
+
+- Reclaim merged nodes and collapsed roots using their validated transaction
+  state, avoiding a redundant page read/copy before staging the free record.
+  Preserve corruption refusal, discarded failed mutations and the V1 format.
+
 ## [0.4.0] - 2026-10-17
 
 - Adapt the benchmark runner to IC Testkit 0.51's explicit call principals and
