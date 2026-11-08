@@ -1,11 +1,10 @@
-use std::{cell::Cell, rc::Rc};
-
 use ic_metrics::{
     MeasurementAggregate as Aggregate, MeasurementCounter as Counter,
     MeasurementHistogram as Histogram, MeasurementSummary as Summary,
 };
 use ic_storage::{
-    Memory, RuntimeMemory, RuntimeOpenError, StorageConfig, VectorMemory, testing::fixture_runtime,
+    RuntimeMemory, RuntimeOpenError, StorageConfig, VectorMemory,
+    testing::{MeteredMemory, fixture_runtime},
 };
 
 use ic_storage::adapter::StableBTreeMap;
@@ -42,22 +41,22 @@ fn encode<T: crate::metric::StoredMetric>(identity: &MetricIdentity, value: &T) 
 }
 
 fn assert_rejected_record<T: crate::metric::StoredMetric + std::fmt::Debug>(
-    store: &mut MetricsStore<WriteCountingMemory>,
-    writes: &Cell<usize>,
+    store: &mut MetricsStore<MeteredMemory>,
+    writes: &MeteredMemory,
     key: &MetricKey,
     identity: &MetricIdentity,
     value: &T,
     (bytes, error): (Vec<u8>, StoreError),
 ) {
     // Callers install the record before this check, including before reopening.
-    writes.set(0);
+    writes.reset();
     assert_eq!(
         store.load::<T>(key, identity, value.configuration()),
         Err(error)
     );
     assert_eq!(store.save(key, identity, value), Err(error));
-    assert_eq!(store.map.get(&key.0).unwrap(), Some(bytes));
-    assert_eq!(writes.get(), 0);
+    assert_eq!(store.map.get(&key.0), Some(bytes));
+    assert_eq!(writes.counts().writes, 0);
 }
 
 // The independent fixture uses plain tuples with the declared field order.
@@ -83,51 +82,20 @@ fn wire_row(kind: u8, unit: &str, epoch: u64, state: &[u8]) -> Vec<u8> {
     bytes
 }
 
-// Observe native Memory effects, not IC instructions, cycles or timings.
-#[derive(Clone, Default)]
-struct WriteCountingMemory {
-    memory: VectorMemory,
-    writes: Rc<Cell<usize>>,
-}
-impl ic_storage::MemoryBacking for WriteCountingMemory {
-    fn backing_identity(&self) -> ic_storage::BackingIdentity {
-        ic_storage::MemoryBacking::backing_identity(&self.memory)
-    }
-}
-
-impl Memory for WriteCountingMemory {
-    fn size(&self) -> u64 {
-        self.memory.size()
-    }
-
-    fn grow(&self, pages: u64) -> i64 {
-        self.memory.grow(pages)
-    }
-
-    fn read(&self, offset: u64, dst: &mut [u8]) {
-        self.memory.read(offset, dst);
-    }
-
-    fn write(&self, offset: u64, src: &[u8]) {
-        self.writes.set(self.writes.get() + 1);
-        self.memory.write(offset, src);
-    }
-}
-
 fn assert_rejected_checkpoint<T: crate::metric::StoredMetric>(previous: &T, current: &T) {
-    let memory = WriteCountingMemory::default();
-    let writes = memory.writes.clone();
+    let memory = MeteredMemory::<VectorMemory>::default();
+    let writes = memory.clone();
     let mut store = MetricsStore::new(StableBTreeMap::create(admitted_memory(memory)).unwrap());
     let key = key("append");
     store.save(&key, &identity(), previous).unwrap();
-    let retained = store.map.get(&key.0).unwrap();
-    writes.set(0);
+    let retained = store.map.get(&key.0);
+    writes.reset();
     assert_eq!(
         store.save(&key, &identity(), current),
         Err(StoreError::StateRegression)
     );
-    assert_eq!(writes.get(), 0);
-    assert_eq!(store.map.get(&key.0).unwrap(), retained);
+    assert_eq!(writes.counts().writes, 0);
+    assert_eq!(store.map.get(&key.0), retained);
 }
 
 // Mutate persisted bytes independently of the decoder's field/range formulas.
@@ -135,8 +103,8 @@ fn assert_rejected_checkpoint<T: crate::metric::StoredMetric>(previous: &T, curr
 fn check_wire_mutations<T: crate::metric::StoredMetric + std::fmt::Debug>(
     value: &T,
 ) -> (usize, usize) {
-    let memory = WriteCountingMemory::default();
-    let writes = memory.writes.clone();
+    let memory = MeteredMemory::<VectorMemory>::default();
+    let writes = memory.clone();
     let mut store = MetricsStore::new(StableBTreeMap::create(admitted_memory(memory)).unwrap());
     let key = key("mutation");
     let identity = identity();
@@ -152,10 +120,10 @@ fn check_wire_mutations<T: crate::metric::StoredMetric + std::fmt::Debug>(
                     let adjacent = (offset + 1) % bytes.len();
                     bytes[adjacent] ^= mask;
                 }
-                store.map.insert(key.0.clone(), bytes.clone()).unwrap();
-                writes.set(0);
+                store.map.insert(key.0.clone(), bytes.clone());
+                writes.reset();
                 let loaded = store.load::<T>(&key, &identity, value.configuration());
-                assert_eq!(writes.get(), 0);
+                assert_eq!(writes.counts().writes, 0);
                 match loaded {
                     Err(error) => {
                         refused += 1;
@@ -173,11 +141,11 @@ fn check_wire_mutations<T: crate::metric::StoredMetric + std::fmt::Debug>(
                         // Every admitted record must retain its exact canonical bytes.
                         assert_eq!(encode(&identity, &restored), bytes);
                         store.save(&key, &identity, &restored).unwrap();
-                        assert_eq!(writes.get(), 0);
-                        assert_eq!(store.map.get(&key.0).unwrap(), Some(bytes.clone()));
+                        assert_eq!(writes.counts().writes, 0);
+                        assert_eq!(store.map.get(&key.0), Some(bytes.clone()));
                         match store.save(&key, &identity, value) {
                             Ok(()) => {
-                                assert_eq!(store.map.get(&key.0).unwrap(), Some(original.clone()));
+                                assert_eq!(store.map.get(&key.0), Some(original.clone()));
                                 assert_eq!(
                                     store
                                         .load::<T>(&key, &identity, value.configuration())
@@ -188,8 +156,8 @@ fn check_wire_mutations<T: crate::metric::StoredMetric + std::fmt::Debug>(
                             }
                             Err(error) => {
                                 assert_eq!(error, StoreError::StateRegression);
-                                assert_eq!(writes.get(), 0);
-                                assert_eq!(store.map.get(&key.0).unwrap(), Some(bytes));
+                                assert_eq!(writes.counts().writes, 0);
+                                assert_eq!(store.map.get(&key.0), Some(bytes));
                             }
                         }
                     }

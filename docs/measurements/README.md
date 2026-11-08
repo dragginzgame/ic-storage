@@ -6,6 +6,7 @@ within the 5 MiB repository budget. These are limits, not storage targets.
 
 | Topic | Summary | Selected data |
 | --- | --- | --- |
+| Architectural hard cut | [Selected cuts, rejected iterator and matched sizes](../audits/recurring/architectural-reduction-2026-11-08.md) | Inline eight-selection size matrix and qualification scope |
 | Storage/ICSS type matrix | [Current coverage/results](../audits/recurring/benchmark-full-catalogue-2026-11-05.md) | [565 selected rows](storage-comparison-selected.csv), [compact identities](storage-comparison-identities.json) |
 | Storage 0.68 follow-through | [Three-step comparisons](../audits/recurring/storage-068-followup-2026-11-06.md) | [Instruction matrix](storage-068-followup-instructions.csv), [IO/codec matrix](storage-068-followup-io.csv) |
 | Governed backing parity | [Attribution and routing-read comparisons](../audits/recurring/storage-icss-backing-parity-2026-11-06.md) | [Step/round and diagnostic counters](storage-icss-backing-steps.csv), [payload costs](storage-icss-backing-payloads.csv); published Runtime ≥0.19.4 |

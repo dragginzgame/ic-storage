@@ -1,7 +1,7 @@
 # Repository Instructions
 
 For scope, delegated delivery, validation, compiler support and reporting, use
-[Shared policy at c528579](https://github.com/dragginzgame/shared-tooling/blob/c5285791991c731d266fb5c85dc3ee876d29f6b9/DRAGGINZGAME.md)
+[Shared policy at eb3c8e0](https://github.com/dragginzgame/shared-tooling/blob/eb3c8e0d2274d2c7babb2c15b3355bb80a796f0f/DRAGGINZGAME.md)
 and its revision-bound references over older snapshot or local-guide wording.
 This includes Rust 1.99.1 as minimum and pinned development/release compiler;
 check local declarations and qualification before claiming adoption is complete.
@@ -177,8 +177,9 @@ executor, CDK, guard, Types or Candid. No `ic-stable-structures` dependency is
 allowed in the production graph. Memory, codec traits, allocation metadata and
 collection integration are owned here. The maintainer selected copied ICSS 0.7.2
 engines under private `src/engine`; retain provenance and notices. The public
-`adapter` layer preserves governed leases and successful-call APIs, with ICSS
-trap behavior. No ICSS memory manager or retired image readers are admitted.
+`adapter` layer preserves governed leases with ICSS trap behavior. Ordinary
+collection operations and iterator items return successful values directly;
+constructors and map-region admission retain typed errors. No ICSS memory manager or retired image readers are admitted.
 Changes require appropriate native corruption, growth, custody and installed
 IO/upgrade qualification. Do not restore old manager
 or collection compatibility paths during the rewrite.

@@ -35,7 +35,7 @@ from the copied collection engine. The ordinary `dfinity` reference continues
 to use ICSS's own manager; its default benchmark bucket is eight Wasm pages.
 
 ```sh
-BENCH_REFERENCE=dfinity-governed BENCH_CASES=U64U64,Region-U64-U64 \
+BENCH_REFERENCE=dfinity-governed BENCH_CASES=Map-U64-U64,Region-U64-U64 \
   BENCH_PATTERNS=uniform BENCH_ROUNDS=3 make benchmark-storage
 ```
 
@@ -119,8 +119,7 @@ retains verified runtime failures. Raw samples and complete retained-state check
 remain mandatory for every supported case. CSV tuple labels are quoted correctly.
 Configuration and source/module hashes retain exact measured inputs.
 The [current coverage summary](../../../../docs/audits/recurring/benchmark-full-catalogue-2026-11-05.md)
-retains selected results and compatibility counts. The earlier 58-case selection
-is superseded. Full per-run tables and artifacts belong in transient target
+retains selected results and compatibility counts. Curated workloads and the full matrix use the same structured cases and type catalogue. Full per-run tables and artifacts belong in transient target
 evidence, rather than tracked per-run reports.
 
 ### Iterator coverage
@@ -244,7 +243,7 @@ The preset bounds reply volume. Use the existing selection for wide-value
 controls at the ordinary 1/32-item limits:
 
 ```sh
-BENCH_CASES=VectorBytes BENCH_PAYLOADS=4096 BENCH_ROUNDS=3 \
+BENCH_CASES=Vector-U64-Chunk BENCH_PAYLOADS=4096 BENCH_ROUNDS=3 \
   BENCH_PATTERNS=uniform make benchmark-storage BENCH_ROWS=256 BENCH_SAMPLES=1
 ```
 
@@ -342,47 +341,11 @@ test supplies malloc counts or a page-fault oracle. Canic configuration projecti
 caller-to-index lookup and Auth's inner `Session::decode()` remain outside scope.
 See the [qualified results](../../../../docs/audits/recurring/icss-engine-baseline-2026-11-05.md).
 
-The original results above use the historical checksummed Vector. The following
+The original results above use the historical checksummed Vector. The historical
 ICVEC002 experiment is also superseded. The current copied ICSS SVC1 baseline
 reads the durable eight-byte length and, for a successful lookup at this bound,
 two length bytes plus the payload. New runs retain their own binary/source
 identities. Neither historical format's measurements describe the current engine.
-
-### Stable-read alignment diagnostic
-
-The independent examples below reproduce actual source addresses from saved
-original Vector Wasm. They fully populate each vector, capture its stable image,
-upgrade to a passive read-only probe, then time prefix/payload/repeated reads
-and a combined-read control. The raw IO is confined to this diagnostic fixture;
-production integrations continue to use governed leases.
-
-```sh
-cargo build --locked --offline --manifest-path testing/runtime-qualification/Cargo.toml \
-  -p ic-storage-benchmarks --example stable-read-probe-wasm --features owned \
-  --target wasm32-unknown-unknown --profile comparison --target-dir target/storage-comparison-build/owned
-cargo build --locked --offline --manifest-path testing/runtime-qualification/Cargo.toml \
-  -p ic-storage-benchmarks --example stable-read-probe --target-dir target/runtime-qualification
-probe_cli=$(bash scripts/dev/install-rust-tools.sh --consumer "$PWD" \
-  --package ic-testkit --version 0.79.0 --bin ic-testkit-server \
-  --profile release --features cli --check)
-"$probe_cli" run --directory .tools/ic-testkit-server --ttl 900 -- \
-target/runtime-qualification/debug/examples/stable-read-probe \
-  --baseline-wasm target/storage-comparison/attempt.c6YVkt/owned.wasm \
-  --candidate-wasm target/storage-comparison/attempt.xIWOoI/owned.wasm \
-  --probe-wasm target/storage-comparison-build/owned/wasm32-unknown-unknown/comparison/examples/stable_read_probe_wasm.wasm \
-  --output target/vector-read-probe-report
-```
-
-The output directory must be new. Frozen input Wasm and source archives remain
-part of the earlier studies; this command neither reconstructs nor relabels them.
-The selected matrix covers 512/1,024/2,048 rows, both payload sizes, first and
-last indices with neighbours, and compact-layout index 2,015 with its neighbours.
-It checks all returned bytes against the captured image. All heap destinations
-are filled before timing; no source stable pages are read before the measured
-sequence. Each sequence is a fresh query execution. The CSV's region counts
-are physical range intersections, not independently observed fault counters.
-The raw system-call experiment excludes Vector traversal, decoding and normal
-host state. Its result is not a whole-Get or whole-endpoint benchmark.
 
 ### Extended controls
 
@@ -393,15 +356,14 @@ remains published 0.7.2. The Git control does not enter production qualification
 graphs. Prepare its locked source with the existing explicit fetch command.
 
 ```sh
-BENCH_REFERENCE=dfinity-head BENCH_CASES=U64U64,VectorU64 \
+BENCH_REFERENCE=dfinity-head BENCH_CASES=Map-U64-U64,Vector-U64-U64 \
 BENCH_PATTERNS=uniform,hot16,zipf BENCH_SHUFFLED=1 BENCH_ROUNDS=3 \
 BENCH_UPSTREAM_CACHE_SLOTS=32 \
 make benchmark-storage BENCH_ROWS=4096 BENCH_SAMPLES=1
 ```
 
-Case selection uses the exact case names from `types.rs`. Storage's copied
-0.7.2 engine has no node cache. Positive `BENCH_CACHE_BYTES` now refuses, so an
-inert ceiling cannot be mislabeled as an active cache. Published ICSS 0.7.2 also
+Case selection uses `Collection-Key-Value` labels from the shared catalogue (for example `Map-U64-Bytes`). Storage's copied
+0.7.2 engine has no node cache. Published ICSS 0.7.2 also
 has no cache; only the optional Git reference supports upstream slot counts.
 `BENCH_COLD_CACHE=1` affects that Git reference's ordinary maps; it adds no
 Storage cache or cold-reopen measurement. Historical cached-engine runs remain
@@ -417,7 +379,7 @@ but consume the fixed 32,768-bucket manager limit sooner and can change IO costs
 
 ```sh
 for pages in 1 8 128; do
-    BENCH_UPSTREAM_BUCKET_PAGES=$pages BENCH_CASES=U64U64 \
+    BENCH_UPSTREAM_BUCKET_PAGES=$pages BENCH_CASES=Map-U64-U64 \
     BENCH_PATTERNS=uniform,hot16,zipf BENCH_SHUFFLED=1 BENCH_ROUNDS=3 \
     make benchmark-storage BENCH_ROWS=4096 BENCH_SAMPLES=1
 done
@@ -448,7 +410,7 @@ selected cases. Every selected case must admit every supplied size; invalid
 combinations refuse before contacting the server. Omitting the variable preserves
 the ordinary payload matrix. It cannot be combined with `BENCH_WORKLOAD`.
 
-`BENCH_GROWTH_CYCLES=1` requires `BENCH_CASES=U64Bytes` and replaces the normal
+`BENCH_GROWTH_CYCLES=1` requires `BENCH_CASES=Map-U64-Bytes` and replaces the normal
 operation sequence with SmallReplace → SmallGet → Grow → LargeGet. Each round
 uses `sample + 1` as its seed, so the same existing keys repeatedly change size;
 no empty-value, removal or reinsertion phase intervenes. For 33/80-byte bases,
@@ -460,7 +422,7 @@ rounds can hide first-growth costs; use `round-summary.csv` or raw per-sample
 trace totals when comparing recurring work.
 
 ```sh
-BENCH_CASES=U64Bytes BENCH_PAYLOADS=33,80 BENCH_PATTERNS=uniform,hot16 \
+BENCH_CASES=Map-U64-Bytes BENCH_PAYLOADS=33,80 BENCH_PATTERNS=uniform,hot16 \
 BENCH_SHUFFLED=1 BENCH_ROUNDS=12 BENCH_GROWTH_CYCLES=1 \
 make benchmark-storage BENCH_ROWS=4096 BENCH_SAMPLES=2
 # Optional: select the Git reference and BENCH_UPSTREAM_CACHE_SLOTS to study its cache.
@@ -514,7 +476,7 @@ for pages in 1 8 128; do
     make benchmark-storage BENCH_WORKLOAD=depth BENCH_UPSTREAM_BUCKET_PAGES=$pages
 done
 # Repeated growth of the same keys, without the intervening removal phases:
-BENCH_CASES=U64Bytes BENCH_PAYLOADS=33,80 BENCH_PATTERNS=uniform,hot16 \
+BENCH_CASES=Map-U64-Bytes BENCH_PAYLOADS=33,80 BENCH_PATTERNS=uniform,hot16 \
 BENCH_SHUFFLED=1 BENCH_ROUNDS=6 BENCH_GROWTH_CYCLES=1 \
 make benchmark-storage BENCH_ROWS=4096 BENCH_SAMPLES=3
 ```
@@ -563,7 +525,7 @@ The boundary recipe probes adjacent payload sizes around candidate inline and
 allocation-size transitions; these are not claims that both engines share layout
 thresholds. It includes growth, shrink, removal and reinsertion where supported.
 Use `BENCH_WORKLOAD=boundaries BENCH_SAMPLES=1 make benchmark-storage`.
-For Set locality, use `BENCH_CASES=SetU64,SetString,SetI64,SetBytes64` with
+For Set locality, use `BENCH_CASES=Set-U64-Unit,Set-String-Unit,Set-Signed64-Unit,Set-Array64-Unit` with
 `BENCH_PATTERNS=sequential BENCH_SHUFFLED=1 BENCH_ROUNDS=3`.
 
 A recipe owns population (so `BENCH_ROWS` is unused), cases, payload sizes,
@@ -593,7 +555,7 @@ from a successful smoke run.
 
 | Structure | Types | Logical value bytes |
 | --- | --- | --- |
-| Map | u64 → bytes | 0, 31, 32, 33, 1024, 4096 |
+| Map | u64 → bytes | 0, 31, 32, 33, 256, 1024, 4096 |
 | Map | String → String | 0, 32, 1024, 4096 |
 | Map | u64 → u64/u128; u128 → u128 | 8; 16 |
 | Map | Signed64 → Signed64 | 8 |
@@ -602,16 +564,18 @@ from a successful smoke run.
 | Set | u64; String; Signed64; [u8;64] | unit values |
 | Vector | u64; Signed64; u128; f64; [u8;32]; WireRecord; ChunkBytes | 8; 8; 16; 8; 32; 60; 0/31/32/33/1024/4096 |
 | Vector | SessionEnvelope (variable 4,096-byte bound) | 256, 2048 inner bytes |
-| Cell | bytes; WireRecord; u128; [u8;32] | 0, 31, 32, 33, 1024, 4096; 60; 16; 32 |
-| Map region | u64 → bytes | 0, 31, 32, 33, 1024, 4096 |
+| Cell | bytes; WireRecord; u128; [u8;32] | 0, 31, 32, 33, 256, 1024, 4096; 60; 16; 32 |
+| Map region | u64 → bytes | 0, 31, 32, 33, 256, 1024, 4096 |
 
 All are real generic instantiations. `WireRecord` has an account ID, u128 balance,
 generation and 32-byte tag, using the same IC Wire codec on both backends. Its
 60 field bytes are not its encoded size; the declared encoding ceiling is 256
 bytes. Fixed array keys and zero-padded string keys preserve logical ID order.
 String values use two-byte UTF-8 characters. Scalars exercise high bits.
-There are 30 concrete cases and 54 type/size combinations in the ordinary matrix.
-`VectorBytes` is included by default: both backends declare a variable-length
+The ordinary selection retains 30 concrete cases; payloads come from the same
+catalogue as the full matrix, including the union of former named-case and
+typed-case boundary values.
+`Vector-U64-Chunk` is included by default: both backends declare a variable-length
 1 MiB maximum (`ChunkBytes`), matching Canic’s chunk vector. Both current Vector engines reserve
 that maximum even for shorter values. The 31/32/33-byte
 fixed and variable Map values preserve the earlier threshold controls; fixed
@@ -788,12 +752,6 @@ Counters include setup and mutations within each labelled phase, not diagnostics
 This is native memory accounting, not an IC instruction or fault-charge model.
 It preserves the production custody boundary for Storage, with ICSS confined to
 the independent research graph. Native helper dependencies are explicitly optional.
-
-The native helper also retains a historical geometry probe with predictions
-for the retired power-of-two allocator and its 20-byte record prefix. Those
-predictions do not describe the copied ICSS allocator and cannot qualify current
-layout efficiency. Actual capacity/IO fields remain observations; use the matched
-current workload for present comparisons.
 
 The completed matched study is recorded in
 [the memory audit](../../../../docs/local-memory-audit.md#completed-bucket-and-shared-backing-study).

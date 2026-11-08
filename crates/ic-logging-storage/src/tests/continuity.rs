@@ -46,18 +46,18 @@ fn empty_and_exhausted_checkpoints_preserve_watermarks_across_reopen() {
 
 #[test]
 fn identical_and_refused_checkpoints_do_not_write_or_rewrite_issued_history() {
-    let memory = CountedMemory::default();
-    let writes = memory.writes.clone();
+    let memory = MeteredMemory::<VectorMemory>::default();
+    let writes = memory.clone();
     let mut store = LoggingStore::new(StableBTreeMap::create(admitted(memory)).unwrap());
     let mut log = Log::new(limits());
     for time in 10..13 {
         log.append(input(time, "event")).unwrap();
     }
     store.save(&key(), identity(), &log).unwrap();
-    let bytes = store.map.get(&key().0).unwrap();
-    writes.set(0);
+    let bytes = store.map.get(&key().0);
+    writes.reset();
     store.save(&key(), identity(), &log).unwrap();
-    assert_eq!(writes.get(), 0);
+    assert_eq!(writes.counts().writes, 0);
     for mode in 0..3 {
         let mut state = log.snapshot();
         match mode {
@@ -76,19 +76,19 @@ fn identical_and_refused_checkpoints_do_not_write_or_rewrite_issued_history() {
             store.save(&key(), identity(), &invalid),
             Err(StoreError::StateRegression)
         );
-        assert_eq!(writes.get(), 0);
-        assert_eq!(store.map.get(&key().0).unwrap(), bytes);
+        assert_eq!(writes.counts().writes, 0);
+        assert_eq!(store.map.get(&key().0), bytes);
     }
     let original = log.snapshot();
     log.prune_expired(13, 0, 4);
     store.save(&key(), identity(), &log).unwrap();
-    writes.set(0);
+    writes.reset();
     let resurrected = Log::restore(original).unwrap();
     assert_eq!(
         store.save(&key(), identity(), &resurrected),
         Err(StoreError::StateRegression)
     );
-    assert_eq!(writes.get(), 0);
+    assert_eq!(writes.counts().writes, 0);
     assert!(
         store
             .load(&key(), identity(), limits())
@@ -100,8 +100,8 @@ fn identical_and_refused_checkpoints_do_not_write_or_rewrite_issued_history() {
 
 #[test]
 fn rolling_retention_preserves_overlap_and_refuses_rewrites_without_writes() {
-    let memory = CountedMemory::default();
-    let writes = memory.writes.clone();
+    let memory = MeteredMemory::<VectorMemory>::default();
+    let writes = memory.clone();
     let mut store = LoggingStore::new(StableBTreeMap::create(admitted(memory)).unwrap());
     let mut log = Log::new(limits());
     for time in 0..4 {
@@ -112,17 +112,17 @@ fn rolling_retention_preserves_overlap_and_refuses_rewrites_without_writes() {
         log.append(input(time, "continued")).unwrap();
     }
     store.save(&key(), identity(), &log).unwrap();
-    let before = store.map.get(&key().0).unwrap();
+    let before = store.map.get(&key().0);
     let mut rewritten = log.snapshot();
     rewritten.entries[0].message = "rewritten overlap".into();
     let rewritten = Log::restore(rewritten).unwrap();
-    writes.set(0);
+    writes.reset();
     assert_eq!(
         store.save(&key(), identity(), &rewritten),
         Err(StoreError::StateRegression)
     );
-    assert_eq!(writes.get(), 0);
-    assert_eq!(store.map.get(&key().0).unwrap(), before);
+    assert_eq!(writes.counts().writes, 0);
+    assert_eq!(store.map.get(&key().0), before);
     // Retention can subsequently remove the entire previously retained window.
     for time in 6..10 {
         log.append(input(time, "new window")).unwrap();

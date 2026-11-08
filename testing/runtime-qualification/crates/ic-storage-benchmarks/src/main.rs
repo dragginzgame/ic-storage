@@ -11,7 +11,7 @@ use std::{collections::BTreeMap, fs, io::Write, path::PathBuf};
 #[command(about = "Compare original Wasm map workloads on a prepared PocketIC server")]
 struct Arguments {
     /// Fixed consumer workload; owns cases, sizes, population, batching and access patterns.
-    #[arg(long, value_enum, conflicts_with_all = ["rows", "cases", "payloads", "growth_cycles", "patterns", "shuffled", "cache_bytes", "upstream_cache_slots", "cold_cache", "rounds"])]
+    #[arg(long, value_enum, conflicts_with_all = ["rows", "cases", "payloads", "growth_cycles", "patterns", "shuffled", "upstream_cache_slots", "cold_cache", "rounds"])]
     workload: Option<Workload>,
     /// Type-suite shard; the Make runner executes all five automatically.
     #[arg(long, value_enum)]
@@ -37,14 +37,14 @@ struct Arguments {
     rows: u32,
     #[arg(long, default_value_t = 3, value_parser = clap::value_parser!(u32).range(1..=20))]
     samples: u32,
-    /// Optional concrete case names, e.g. U64U64,VectorU64.
+    /// Optional concrete case names, e.g. Map-U64-U64,Vector-U64-U64.
     #[arg(long, value_delimiter = ',')]
     cases: Vec<String>,
     /// Select admitted payload sizes instead of each case's default matrix.
     #[arg(long, value_delimiter = ',')]
     payloads: Vec<u32>,
     /// Repeat small replacement/read and fourfold growth/read on the same keys.
-    /// Restricted to U64Bytes; does not remove records or shrink them to empty.
+    /// Restricted to Map-U64-Bytes; does not remove records or shrink them to empty.
     #[arg(long)]
     growth_cycles: bool,
     #[arg(
@@ -56,8 +56,6 @@ struct Arguments {
     patterns: Vec<Pattern>,
     #[arg(long)]
     shuffled: bool,
-    #[arg(long, default_value_t = 0)]
-    cache_bytes: usize,
     #[arg(long, default_value_t = 0)]
     upstream_cache_slots: usize,
     /// ICSS MemoryManager bucket size, in 64 KiB pages; does not affect Storage.
@@ -77,6 +75,18 @@ struct Measurement {
 }
 type Samples = BTreeMap<(Case, u32, u32, Pattern, String, String), Vec<Measurement>>;
 fn phases(case: Case, growth_cycles: bool, workload: Option<Workload>) -> Vec<(String, Operation)> {
+    if matches!(workload, Some(Workload::AuthLookups)) {
+        return [
+            Operation::Control,
+            Operation::Get,
+            Operation::WarmGet,
+            Operation::Decode,
+            Operation::MissAbove,
+        ]
+        .into_iter()
+        .map(|operation| (format!("{operation:?}"), operation))
+        .collect();
+    }
     if matches!(workload, Some(Workload::VectorReads | Workload::VectorOpen)) {
         assert!(!growth_cycles && case.structure() == "Vector");
         let mut phases: Vec<_> = [
@@ -109,7 +119,7 @@ fn phases(case: Case, growth_cycles: bool, workload: Option<Workload>) -> Vec<(S
     }
     if matches!(
         case,
-        Case::Typed {
+        Case {
             collection: Collection::Cell,
             ..
         }
@@ -194,12 +204,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     validate_diagnostics(&args)?;
     if args.collection.is_some() && !matches!(args.workload, Some(Workload::Types)) {
         return Err("--collection requires --workload types".into());
-    }
-    if args.cache_bytes != 0 {
-        return Err(
-            "Storage's copied ICSS 0.7.2 baseline has no node cache; --cache-bytes must be zero"
-                .into(),
-        );
     }
     if matches!(
         args.workload,
@@ -322,13 +326,12 @@ fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
         args.workload
             .map_or_else(|| case.payloads(), |workload| workload.payloads(case))
     };
-    let explicit: Vec<_> = CASES.iter().chain(MATRIX_CASES).copied().collect();
     let catalogue = if matches!(args.workload, Some(Workload::Types)) {
         MATRIX_CASES
     } else if args.cases.is_empty() {
         DEFAULT_CASES
     } else {
-        &explicit
+        MATRIX_CASES
     };
     let cases: Vec<_> = catalogue
         .iter()
@@ -350,8 +353,8 @@ fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
         "payload selection must be admitted by every selected case"
     );
     assert!(
-        !args.growth_cycles || cases == [Case::U64Bytes],
-        "growth cycles require only U64Bytes"
+        !args.growth_cycles || cases == [ic_storage_benchmarks::case!(Map, U64, Bytes)],
+        "growth cycles require only Map-U64-Bytes"
     );
     let cases: Vec<_> = cases
         .into_iter()
@@ -371,10 +374,10 @@ fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
             "vector_open_measurement": "allocation owner retained; lease/Vector opening, existing operation preparation/result conversion and Vector/lease drop inside the timer; initialization separately includes the complete init handler",
             "read_trace_batch_limit": (args.trace_stable_reads && matches!(args.workload, Some(Workload::Depth))).then_some(1),
             "execution_measurement": args.trace_execution_cost.then_some("exported benchmark handler including request decoding, input preparation, collection loop, response encoding/reply and cleanup; includes boundary probe overhead; excludes installation/population and host execution setup"),
-            "execution_mode": if args.query {"query"} else {"update"}, "rows": args.rows, "structures": ["Map","Set","Vector","Cell","Region"], "samples": args.samples, "cases": cases.iter().map(|case| serde_json::json!({"case":case, "key_type":case.key_type(), "value_type":case.value_type(), "key_bound":case.key_bound(), "value_bound":case.value_bound(), "logical_value_bytes":payloads(*case), "structure":case.structure(), "operations":case.operations(), "phases":phases(*case,args.growth_cycles,args.workload), "payload_scope":match case {Case::Typed{value,..}=>value.payload_scope(),_=>"logical-value-bytes"}, "population_rows":case.rows(args.rows)})).collect::<Vec<_>>(), "batch_sizes": batches, "workload": args.workload,
+            "execution_mode": if args.query {"query"} else {"update"}, "rows": args.rows, "structures": ["Map","Set","Vector","Cell","Region"], "samples": args.samples, "cases": cases.iter().map(|case| serde_json::json!({"case":case, "key_type":case.key_type(), "value_type":case.value_type(), "key_bound":case.key_bound(), "value_bound":case.value_bound(), "logical_value_bytes":payloads(*case), "structure":case.structure(), "operations":case.operations(), "phases":phases(*case,args.growth_cycles,args.workload), "payload_scope":case.value.payload_scope(), "population_rows":case.rows(args.rows)})).collect::<Vec<_>>(), "batch_sizes": batches, "workload": args.workload,
             "patterns": args.patterns, "seed": if args.growth_cycles { "sample + 1 (same keys across rounds)" } else { "sample + 1 + round * 7919" }, "shuffled": args.shuffled,
-            "growth_cycles": args.growth_cycles, "phase_override": args.growth_cycles.then(|| phases(Case::U64Bytes, true, args.workload).into_iter().map(|(name,_)|name).collect::<Vec<_>>()),
-            "cache_bytes": args.cache_bytes, "upstream_cache_slots": args.upstream_cache_slots, "cold_cache": args.cold_cache, "cache_scope": "Storage has no node cache; optional Git reference ordinary Map only", "rounds": args.rounds, "reference_revision": args.reference_revision,
+            "growth_cycles": args.growth_cycles, "phase_override": args.growth_cycles.then(|| phases(ic_storage_benchmarks::case!(Map, U64, Bytes), true, args.workload).into_iter().map(|(name,_)|name).collect::<Vec<_>>()),
+            "upstream_cache_slots": args.upstream_cache_slots, "cold_cache": args.cold_cache, "cache_scope": "Storage has no node cache; optional Git reference ordinary Map only", "rounds": args.rounds, "reference_revision": args.reference_revision,
             "upstream_bucket_pages": args.upstream_bucket_pages,
             "backend_order": "alternates each sample", "measurement": if args.trace_stable_reads { "instrumented diagnostic: operation counts include probe overhead; stable-read records cover the entire call, allocator counters cover the timed loop; not production timings" } else { "performance_counter(0) around operations; setup, trace/value creation, validation and Wire response excluded" },
             "owned_wasm_bytes": module_size(&wasm[0]), "dfinity_wasm_bytes": module_size(&wasm[1]),
@@ -467,7 +470,6 @@ fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
                                     0,
                                     &Initialization {
                                         case,
-                                        cache_bytes: args.cache_bytes,
                                         upstream_cache_slots: args.upstream_cache_slots,
                                         upstream_bucket_pages: args.upstream_bucket_pages,
                                         cold_cache: args.cold_cache,
@@ -635,7 +637,7 @@ fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
                                     raw.flush()?;
                                     assert_eq!(
                                         actual.decode.is_some(),
-                                        case == Case::VectorSession
+                                        case.measures_decode(operation)
                                     );
                                     if let Some(metrics) = actual.decode {
                                         let calls = if operation == Operation::MissAbove
@@ -817,10 +819,7 @@ fn write_summary(
                 b.map_or_else(String::new, |n| format!("{:.4}", a as f64 / n as f64)),
                 b_pages.map_or_else(String::new, |n| n.to_string()),
                 bucket_pages,
-                match case {
-                    Case::Typed { value, .. } => value.payload_scope(),
-                    _ => "logical-value-bytes",
-                },
+                case.value.payload_scope(),
                 selected_round.map_or_else(String::new, |round| format!(",{round}"))
             )?;
         }
@@ -858,10 +857,7 @@ fn csv_field(text: &str) -> String {
     }
 }
 fn case_sources(case: Case) -> (&'static str, &'static str) {
-    match case {
-        Case::Typed { key, value, .. } => (key.source(), value.source()),
-        _ => ("storage", "storage"),
-    }
+    (case.key.source(), case.value.source())
 }
 fn probe_refusal(
     pic: &ic_platform::pocket_ic::PocketIc,
@@ -874,7 +870,6 @@ fn probe_refusal(
     pic.add_cycles(canister, 100_000_000_000_000)?;
     let settings = Initialization {
         case,
-        cache_bytes: 0,
         upstream_cache_slots: 0,
         upstream_bucket_pages: bucket,
         cold_cache: false,

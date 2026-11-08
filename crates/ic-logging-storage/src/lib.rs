@@ -165,7 +165,7 @@ impl<M: Memory> LoggingStore<M> {
     ) -> Result<Option<Log>, StoreError> {
         validate_limits(limits)?;
         self.map
-            .get(&key.0)?
+            .get(&key.0)
             .map(|bytes| codec::decode(&bytes, identity, limits))
             .transpose()
     }
@@ -188,7 +188,7 @@ impl<M: Memory> LoggingStore<M> {
     ) -> Result<(), StoreError> {
         validate_limits(log.limits())?;
         let current = log.checkpoint();
-        if let Some(bytes) = self.map.get(&key.0)? {
+        if let Some(bytes) = self.map.get(&key.0) {
             let previous = codec::decode(&bytes, identity, current.limits())?;
             let previous = previous.checkpoint();
             if previous.next_sequence() == current.next_sequence()
@@ -200,7 +200,7 @@ impl<M: Memory> LoggingStore<M> {
             validate_checkpoint(previous, current)?;
         }
         let bytes = codec::encode(identity, current)?;
-        self.map.insert(key.0.clone(), bytes)?;
+        self.map.insert(key.0.clone(), bytes);
         Ok(())
     }
 
@@ -223,7 +223,7 @@ impl<M: Memory> LoggingStore<M> {
         if self.load(key, identity, limits)?.is_none() {
             return Ok(false);
         }
-        self.map.remove(&key.0)?;
+        self.map.remove(&key.0);
         Ok(true)
     }
 }

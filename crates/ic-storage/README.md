@@ -46,17 +46,18 @@ let grants = AllocationGrants::new(vec![MemoryAuthority::new("app", "app.")?])?;
 host.bootstrap(&requests, &grants, &GenericAllocationPolicy)?;
 let key = StableKey::parse("app.rows.v1")?;
 let mut rows = StableBTreeMap::<u64, u64>::create(host.open_memory(&key)?)?;
-rows.insert(7, 11)?;
+rows.insert(7, 11);
 drop(rows);
 let rows = StableBTreeMap::<u64, u64>::load(host.open_memory(&key)?)?;
-assert_eq!(rows.get(&7)?, Some(11));
+assert_eq!(rows.get(&7), Some(11));
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
 ## Current storage contract
 
-This is a hard cut. Previous manager, ledger, map, set, vector and region images
-are retired. There is no legacy decoder or automatic reset. Hosts must install
+The Storage 0.68 engine baseline was a hard cut. Earlier manager, ledger, map,
+set, vector and region images are retired. The subsequent direct-result API cut
+preserves the current images. There is no legacy decoder or automatic reset. Hosts must install
 fresh backing or explicitly retire the complete old storage image; never reset
 only allocation governance while retaining unmanaged application data. Rebuild
 consumers against Storage's owned codec and backing traits. Primitive numeric
@@ -66,9 +67,8 @@ Allocation directory encoding and checksums are unchanged. Collection images
 now use current ICSS framing: Map/Set/regions use `BTR` version 2 with explicit
 page-size metadata, Vector uses `SVC` version 1 with a 64-byte header, and Cell
 uses `SCL` version 1 with an eight-byte header. The copied engines contain no
-readers for retired Storage formats or ICSS version-1 B-trees. **Every existing
-Storage collection must be explicitly rebuilt/reset or placed in fresh admitted
-allocations.** Hosts must update their collection framing checks, including
+readers for retired Storage formats or ICSS version-1 B-trees. **Collections predating the Storage 0.68 engine baseline must be explicitly
+rebuilt/reset or placed in fresh admitted allocations.** Hosts must update their collection framing checks, including
 region admission. No reader converts or silently resets old images.
 
 Collection payloads have no Storage integrity checksum. Valid-looking byte
@@ -77,8 +77,9 @@ and reserves its maximum slot width, plus a 1/2/4-byte length for variable recor
 Cell retains its u32 length envelope; `StableCell::load(memory, maximum_bytes)`
 admits a caller-selected ceiling before allocating its payload buffer.
 
-The public codec trait remains fallible, and successful-call `Result` signatures
-remain available. **Inside collections, codec failures, malformed engine state
+The public codec trait remains fallible. Ordinary Map, Set, Vector and Cell
+operations return their successful values directly; iteration yields entries or
+values directly. **Inside collections, codec failures, malformed engine state
 and engine allocation failures trap**, following ICSS behavior. Explicit framing
 admission and page reservations can still return typed errors. Do not rely on
 mutation failures returning `CollectionError`, iterators yielding an error, or
@@ -93,9 +94,8 @@ poisons the shared allocation owner; discard the runtime and all leases, then
 explicitly recover or replace the backing. Cached lengths and Cell values are
 not recovery APIs. The native unwind guard is absent on Wasm.
 
-The baseline map caches no routing nodes. `set_node_cache_budget` remains a
-ceiling hint satisfied by zero cached bytes; supplying a positive ceiling does
-not enable caching. Vector reads its durable length and has no custom cached
+The map caches no routing nodes and exposes no cache configuration. Vector
+reads its durable length and has no custom cached
 length, scan windows or mutation epochs. See [source provenance and deliberate
 adaptations](../../docs/storage/upstreams.md) before changing this baseline.
 

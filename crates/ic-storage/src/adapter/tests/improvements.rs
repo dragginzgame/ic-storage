@@ -14,12 +14,12 @@ fn bounded_map_keys_and_mixed_end_ranges_preserve_order() {
     )
     .unwrap();
     for key in 0..100 {
-        map.insert(key, vec![7; 16384]).unwrap();
+        map.insert(key, vec![7; 16384]);
     }
     let mut keys = map.keys_range(10..14);
-    assert_eq!(keys.next().unwrap().unwrap(), 10);
-    assert_eq!(keys.next_back().unwrap().unwrap(), 13);
-    assert_eq!(keys.collect::<Result<Vec<_>, _>>().unwrap(), vec![11, 12]);
+    assert_eq!(keys.next().unwrap(), 10);
+    assert_eq!(keys.next_back().unwrap(), 13);
+    assert_eq!(keys.collect::<Vec<_>>(), vec![11, 12]);
 }
 
 fn fixed_key_history<const N: usize>() {
@@ -33,7 +33,7 @@ fn fixed_key_history<const N: usize>() {
     // N=0 also verifies empty slices without chunks_exact(0) or extra key IO.
     for number in (0..240_u8).rev() {
         let key = [number; N];
-        assert_eq!(map.insert(key, ()).unwrap().is_none(), model.insert(key));
+        assert_eq!(map.insert(key, ()).is_none(), model.insert(key));
     }
     drop(map);
     drop(host);
@@ -41,15 +41,13 @@ fn fixed_key_history<const N: usize>() {
     let mut map = StableBTreeMap::<[u8; N], ()>::load(host.open_memory(&binding).unwrap()).unwrap();
     for number in 0..240_u8 {
         let key = [number; N];
-        assert_eq!(map.get(&key).unwrap(), model.contains(&key).then_some(()));
+        assert_eq!(map.get(&key), model.contains(&key).then_some(()));
         if number % 3 == 0 {
-            assert_eq!(map.remove(&key).unwrap().is_some(), model.remove(&key));
+            assert_eq!(map.remove(&key).is_some(), model.remove(&key));
         }
     }
     assert_eq!(
-        map.iter()
-            .map(|entry| entry.unwrap().into_pair().unwrap())
-            .collect::<Vec<_>>(),
+        map.iter().map(MapEntry::into_pair).collect::<Vec<_>>(),
         model.into_iter().map(|key| (key, ())).collect::<Vec<_>>()
     );
 }
@@ -84,10 +82,10 @@ fn stored_value_decode_failure_traps_and_keys_remain_readable() {
             .unwrap(),
     )
     .unwrap();
-    map.insert(7, RejectDecode(42)).unwrap();
+    map.insert(7, RejectDecode(42));
     let before = backing.borrow().clone();
     assert!(catch_unwind(AssertUnwindSafe(|| map.get(&7))).is_err());
-    assert_eq!(map.keys().collect::<Result<Vec<_>, _>>().unwrap(), vec![7]);
+    assert_eq!(map.keys().collect::<Vec<_>>(), vec![7]);
     assert_eq!(*backing.borrow(), before);
     // Upstream updates before decoding a displaced value. A native panic must
     // poison the shared owner; IC executions use rollback instead.

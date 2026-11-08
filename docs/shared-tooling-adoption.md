@@ -7,7 +7,29 @@ revision, selected roots, payload hashes and executable modes. The former
 live-policy exception is retired: dirty sibling rules never override the reviewed
 local baseline. Future policy changes require reviewed snapshot adoption.
 
-## Current 0.31.10 source selection
+## Current 0.31.12 source selection
+
+Storage selects pushed Shared Tooling 0.31.12 at
+`eb3c8e0d2274d2c7babb2c15b3355bb80a796f0f`. The canonical exporter refreshed
+and independently verified the 161-file closure. The sibling exporter was under
+active development, so the approved clean source checkout at
+`.tools/shared-tooling-source-eb3c8e0` supplies committed export inputs; none of
+its sibling's uncommitted changes are adopted. Canonical transient execution
+scratch uses `/dev/shm`; retained evidence is under `target/evidence/shared-03112/`.
+
+The refresh adds CLOC terminal colours and an updating sibling-scan counter,
+and adopts the clarified ordinary-issue closure policy: focused local fixes can
+close issues with delivery state stated explicitly; issue-specific external
+acceptance requirements remain binding. No release, publication, hook activation,
+compiler change or dependency selection is part of this adoption. Pending
+architectural changes and both incoming lockfiles remain intact.
+
+Focused checks pass: snapshot/source verification, dependency pins, local
+documentation links, shell/Perl syntax and the native `ic-storage::engine` CLOC
+selection. Redirected output is plain; terminal rendering is checked separately.
+No hosted CI, release or publication qualification is claimed.
+
+## Previous 0.31.10 source selection
 
 Storage selects pushed Shared Tooling 0.31.10 at
 `c5285791991c731d266fb5c85dc3ee876d29f6b9` through the canonical exporter.

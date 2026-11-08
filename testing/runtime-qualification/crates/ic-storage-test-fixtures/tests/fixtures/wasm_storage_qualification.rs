@@ -92,7 +92,6 @@ mod canister {
             "storage.map.v1".to_owned(),
             "storage.cell.v1".to_owned(),
             "storage.region.v1".to_owned(),
-            "storage.journal.v1".to_owned(),
             "storage.probe.v1".to_owned(),
             "storage.set.v1".to_owned(),
             "storage.vector.v1".to_owned(),
@@ -153,17 +152,17 @@ mod canister {
                     .unwrap(),
             )
             .unwrap();
-            set.insert(10).unwrap();
+            set.insert(10);
             let vector = StableVec::<u64>::create(
                 runtime
                     .open_memory(&ic_storage::StableKey::parse("storage.vector.v1").unwrap())
                     .unwrap(),
             )
             .unwrap();
-            vector.push(&10).unwrap();
+            vector.push(&10);
             let records = sessions(runtime, true);
-            records.push(&SessionBytes(vec![10; 256])).unwrap();
-            records.push(&SessionBytes(vec![11; 2048])).unwrap();
+            records.push(&SessionBytes(vec![10; 256]));
+            records.push(&SessionBytes(vec![11; 2048]));
             let _ = StableCell::create(
                 runtime
                     .open_memory(&ic_storage::StableKey::parse("storage.extra.n1023.v1").unwrap())
@@ -180,19 +179,12 @@ mod canister {
             let mut view = region(runtime);
             view.initialize().unwrap();
             for key in 0..128 {
-                map.insert(key, key + 10).unwrap();
+                map.insert(key, key + 10);
                 view.insert(key, key + 20).unwrap();
             }
             let _ = StableCell::create(
                 runtime
                     .open_memory(&ic_storage::StableKey::parse("storage.cell.v1").unwrap())
-                    .unwrap(),
-                30_u64,
-            )
-            .unwrap();
-            let _ = StableCell::create(
-                runtime
-                    .open_memory(&ic_storage::StableKey::parse("storage.journal.v1").unwrap())
                     .unwrap(),
                 30_u64,
             )
@@ -214,24 +206,21 @@ mod canister {
                     .unwrap(),
             )
             .unwrap();
-            map.set_node_cache_budget(16 * 1024);
-            // Warm routing before the mutation exercised by update/rollback.
-            let _ = map.get(&10).unwrap();
-            let previous = set.iter().next().unwrap().unwrap();
-            assert!(set.remove(&previous).unwrap());
-            set.insert(value).unwrap();
+            let previous = set.iter().next().unwrap();
+            assert!(set.remove(&previous));
+            set.insert(value);
             let vector = StableVec::<u64>::load(
                 runtime
                     .open_memory(&ic_storage::StableKey::parse("storage.vector.v1").unwrap())
                     .unwrap(),
             )
             .unwrap();
-            vector.set(0, &value).unwrap();
+            vector.set(0, &value);
             let records = sessions(runtime, false);
             let byte = u8::try_from(value).unwrap();
-            records.set(0, &SessionBytes(vec![byte; 2048])).unwrap();
-            records.set(1, &SessionBytes(vec![byte + 1; 256])).unwrap();
-            map.insert(0, value).unwrap();
+            records.set(0, &SessionBytes(vec![byte; 2048]));
+            records.set(1, &SessionBytes(vec![byte + 1; 256]));
+            map.insert(0, value);
             region(runtime).insert(0, value + 1).unwrap();
             StableCell::<u64>::load(
                 runtime
@@ -240,17 +229,7 @@ mod canister {
                 16 * 1024 * 1024,
             )
             .unwrap()
-            .set(value + 2)
-            .unwrap();
-            StableCell::<u64>::load(
-                runtime
-                    .open_memory(&ic_storage::StableKey::parse("storage.journal.v1").unwrap())
-                    .unwrap(),
-                16 * 1024 * 1024,
-            )
-            .unwrap()
-            .set(value + 2)
-            .unwrap();
+            .set(value + 2);
             assert!(
                 runtime
                     .open_memory(&ic_storage::StableKey::parse("storage.map.v1").unwrap())
@@ -355,17 +334,9 @@ mod canister {
                 16 * 1024 * 1024,
             )
             .unwrap();
-            let journal = StableCell::<u64>::load(
-                runtime
-                    .open_memory(&ic_storage::StableKey::parse("storage.journal.v1").unwrap())
-                    .unwrap(),
-                16 * 1024 * 1024,
-            )
-            .unwrap();
-            assert_eq!(journal.get(), cell.get());
             assert!(
                 runtime
-                    .open_memory(&ic_storage::StableKey::parse("storage.journal.v1").unwrap())
+                    .open_memory(&ic_storage::StableKey::parse("storage.cell.v1").unwrap())
                     .is_err()
             );
             assert_eq!(
@@ -386,24 +357,18 @@ mod canister {
                     .unwrap(),
             )
             .unwrap();
-            assert_eq!(
-                set.iter().collect::<Result<Vec<_>, _>>().unwrap(),
-                [map.get(&0).unwrap().unwrap()]
-            );
-            assert_eq!(
-                vector.iter().collect::<Result<Vec<_>, _>>().unwrap(),
-                [map.get(&0).unwrap().unwrap()]
-            );
+            assert_eq!(set.iter().collect::<Vec<_>>(), [map.get(&0).unwrap()]);
+            assert_eq!(vector.iter().collect::<Vec<_>>(), [map.get(&0).unwrap()]);
             let records = sessions(runtime, false);
-            let value = u8::try_from(map.get(&0).unwrap().unwrap()).unwrap();
+            let value = u8::try_from(map.get(&0).unwrap()).unwrap();
             let (first, second) = if value == 10 {
                 (256, 2048)
             } else {
                 (2048, 256)
             };
             assert_eq!(records.len(), 2);
-            assert_eq!(records.get(0).unwrap().unwrap().0, vec![value; first]);
-            assert_eq!(records.get(1).unwrap().unwrap().0, vec![value + 1; second]);
+            assert_eq!(records.get(0).unwrap().0, vec![value; first]);
+            assert_eq!(records.get(1).unwrap().0, vec![value + 1; second]);
             let high = StableCell::<u64>::load(
                 runtime
                     .open_memory(&ic_storage::StableKey::parse("storage.extra.n1023.v1").unwrap())
@@ -417,7 +382,7 @@ mod canister {
             protocol::Snapshot {
                 generation: runtime.committed_generation().unwrap(),
                 values: [
-                    map.get(&0).unwrap().unwrap(),
+                    map.get(&0).unwrap(),
                     view.get(&0).unwrap().unwrap(),
                     *cell.get(),
                 ],

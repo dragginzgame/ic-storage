@@ -2,8 +2,6 @@
 use super::*;
 use crate::{VectorMemory, testing::MeteredMemory};
 
-struct Backing(MeteredMemory<VectorMemory>);
-
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd)]
 struct Key(u64);
 
@@ -23,41 +21,18 @@ impl crate::engine::Storable for Key {
     }
 }
 
-impl Memory for Backing {
-    fn size(&self) -> u64 {
-        crate::Memory::size(&self.0)
-    }
-    fn grow(&self, pages: u64) -> i64 {
-        crate::Memory::grow(&self.0, pages)
-    }
-    fn read(&self, offset: u64, dst: &mut [u8]) {
-        crate::Memory::read(&self.0, offset, dst);
-    }
-    unsafe fn read_unsafe(&self, offset: u64, dst: *mut u8, count: usize) {
-        // SAFETY: forward the caller's complete initializing-read contract.
-        unsafe { crate::Memory::read_unsafe(&self.0, offset, dst, count) };
-    }
-    fn write(&self, offset: u64, src: &[u8]) {
-        crate::Memory::write(&self.0, offset, src);
-    }
-}
-
 #[test]
 fn empty_values_load_and_extract_without_payload_reads() {
     use super::super::{Node, NodeType};
 
     let backing = MeteredMemory::<VectorMemory>::default();
-    let mut allocator = Allocator::new(
-        Backing(backing.clone()),
-        Address::from(0),
-        Bytes::from(128u32),
-    );
+    let mut allocator = Allocator::new(backing.clone(), Address::from(0), Bytes::from(128u32));
     let address = allocator.allocate();
-    let mut node = Node::new_v2(address, NodeType::Leaf, PageSize::Value(128));
+    let mut node = Node::new_v2(address, NodeType::Leaf, PageSize(128));
     node.push_entry((Key(1), vec![]));
     node.push_entry((Key(2), vec![7, 8, 9]));
     node.save(&mut allocator);
-    let mut node = Node::<Key>::load(address, PageSize::Value(128), allocator.memory());
+    let mut node = Node::<Key>::load(address, PageSize(128), allocator.memory());
     backing.reset();
     assert_eq!(node.value(0, allocator.memory()), [] as [u8; 0]);
     assert_eq!(backing.counts().reads, 0);
@@ -65,7 +40,7 @@ fn empty_values_load_and_extract_without_payload_reads() {
     assert_eq!(backing.counts().reads, 1);
     assert_eq!(backing.counts().read_bytes, 3);
     // Reload to exercise extracting a still-lazy empty value, not its cached copy.
-    node = Node::load(address, PageSize::Value(128), allocator.memory());
+    node = Node::load(address, PageSize(128), allocator.memory());
     backing.reset();
     assert_eq!(
         node.swap_value(0, vec![4], allocator.memory()),
@@ -73,7 +48,7 @@ fn empty_values_load_and_extract_without_payload_reads() {
     );
     assert_eq!(backing.counts().reads, 0);
     node.save(&mut allocator);
-    let node = Node::<Key>::load(address, PageSize::Value(128), allocator.memory());
+    let node = Node::<Key>::load(address, PageSize(128), allocator.memory());
     assert_eq!(node.value(0, allocator.memory()), [4]);
     assert_eq!(node.value(1, allocator.memory()), [7, 8, 9]);
 }
@@ -81,13 +56,9 @@ fn empty_values_load_and_extract_without_payload_reads() {
 #[test]
 fn empty_fields_preserve_logical_extent_without_payload_writes() {
     let backing = MeteredMemory::<VectorMemory>::default();
-    let mut allocator = Allocator::new(
-        Backing(backing.clone()),
-        Address::from(0),
-        Bytes::from(128u32),
-    );
+    let mut allocator = Allocator::new(backing.clone(), Address::from(0), Bytes::from(128u32));
     let address = allocator.allocate();
-    let mut writer = NodeWriter::new(address, vec![], PageSize::Value(128), &mut allocator);
+    let mut writer = NodeWriter::new(address, vec![], PageSize(128), &mut allocator);
     backing.reset();
     for offset in [0, 15, 127, 128] {
         writer.write(Address::from(offset), &[]);
@@ -116,11 +87,7 @@ fn empty_fields_preserve_logical_extent_without_payload_writes() {
 #[test]
 fn overflow_tails_stay_terminated_without_redundant_finish_writes() {
     let backing = MeteredMemory::<VectorMemory>::default();
-    let mut allocator = Allocator::new(
-        Backing(backing.clone()),
-        Address::from(0),
-        Bytes::from(128u32),
-    );
+    let mut allocator = Allocator::new(backing.clone(), Address::from(0), Bytes::from(128u32));
     let address = allocator.allocate();
     let mut overflows = Vec::new();
     // 113 initial payload bytes and 117 per overflow page. Cover exact ends,
@@ -143,7 +110,7 @@ fn overflow_tails_stay_terminated_without_redundant_finish_writes() {
     ] {
         let old_pages = overflows.len();
         let first = overflows.first().copied().unwrap_or(NULL);
-        let mut writer = NodeWriter::new(address, overflows, PageSize::Value(128), &mut allocator);
+        let mut writer = NodeWriter::new(address, overflows, PageSize(128), &mut allocator);
         writer.write_u64(Address::from(7), first.get());
         let payload = vec![0x5a; length];
         writer.write(Address::from(15), &payload);
@@ -175,7 +142,7 @@ fn overflow_tails_stay_terminated_without_redundant_finish_writes() {
         let reader = NodeReader {
             address,
             overflows: &overflows,
-            page_size: PageSize::Value(128),
+            page_size: PageSize(128),
             memory: allocator.memory(),
         };
         let mut restored = vec![0; length];

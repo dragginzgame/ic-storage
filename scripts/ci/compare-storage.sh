@@ -16,7 +16,7 @@ reference="${BENCH_REFERENCE:-dfinity}"
 [[ "$reference" == dfinity || "$reference" == dfinity-head || "$reference" == dfinity-governed ]]
 if [[ -n "${BENCH_WORKLOAD:-}" ]]; then
     # Named workloads own the knobs below. Refuse silently mixed experiments.
-    for variable in BENCH_CASES BENCH_PAYLOADS BENCH_GROWTH_CYCLES BENCH_PATTERNS BENCH_ROUNDS BENCH_SHUFFLED BENCH_CACHE_BYTES BENCH_UPSTREAM_CACHE_SLOTS BENCH_COLD_CACHE; do
+    for variable in BENCH_CASES BENCH_PAYLOADS BENCH_GROWTH_CYCLES BENCH_PATTERNS BENCH_ROUNDS BENCH_SHUFFLED BENCH_UPSTREAM_CACHE_SLOTS BENCH_COLD_CACHE; do
         if [[ -n "${!variable:-}" ]]; then
             echo "$variable cannot be combined with BENCH_WORKLOAD" >&2; exit 2
         fi
@@ -24,7 +24,7 @@ if [[ -n "${BENCH_WORKLOAD:-}" ]]; then
     arguments=(--workload "$BENCH_WORKLOAD")
 else
     arguments=(--rows "$rows" --patterns "${BENCH_PATTERNS:-uniform,hot16}" --rounds "${BENCH_ROUNDS:-1}"
-        --cache-bytes "${BENCH_CACHE_BYTES:-0}" --upstream-cache-slots "${BENCH_UPSTREAM_CACHE_SLOTS:-0}")
+        --upstream-cache-slots "${BENCH_UPSTREAM_CACHE_SLOTS:-0}")
     [[ -z "${BENCH_CASES:-}" ]] || arguments+=(--cases "$BENCH_CASES")
     [[ -z "${BENCH_PAYLOADS:-}" ]] || arguments+=(--payloads "$BENCH_PAYLOADS")
     [[ "${BENCH_GROWTH_CYCLES:-0}" != 1 ]] || arguments+=(--growth-cycles)

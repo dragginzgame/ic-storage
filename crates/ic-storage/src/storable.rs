@@ -22,6 +22,21 @@ pub enum Bound {
     },
 }
 
+impl Bound {
+    pub(crate) const fn check(self, bytes: &[u8]) -> Result<(), CodecError> {
+        if let Self::Bounded {
+            max_size,
+            is_fixed_size,
+        } = self
+            && !(bytes.len() <= max_size as usize
+                && (!is_fixed_size || bytes.len() == max_size as usize))
+        {
+            return Err(CodecError::Bounds);
+        }
+        Ok(())
+    }
+}
+
 ///
 /// `CodecError`
 ///
@@ -43,6 +58,7 @@ pub enum CodecError {
 ///
 /// Encode and decode a collection record. The caller owns its schema; Storage
 /// enforces its declared byte bound before writes and after reading bytes.
+/// Collection checks are independent of overrides of the convenience helpers.
 ///
 pub trait Storable: Sized {
     /// Record size contract.
@@ -69,16 +85,7 @@ pub trait Storable: Sized {
     /// # Errors
     /// Returns `CodecError::Bounds` when the declared maximum or exact width is violated.
     fn check_bounds(bytes: &[u8]) -> Result<(), CodecError> {
-        if let Bound::Bounded {
-            max_size,
-            is_fixed_size,
-        } = Self::BOUND
-            && !(bytes.len() <= max_size as usize
-                && (!is_fixed_size || bytes.len() == max_size as usize))
-        {
-            return Err(CodecError::Bounds);
-        }
-        Ok(())
+        Self::BOUND.check(bytes)
     }
     /// Encode and enforce the declared bound.
     ///
@@ -86,7 +93,7 @@ pub trait Storable: Sized {
     /// Returns an encoding error or `CodecError::Bounds` if the encoded bytes violate the declared bound.
     fn to_bytes_checked(&self) -> Result<Cow<'_, [u8]>, CodecError> {
         let bytes = self.to_bytes()?;
-        Self::check_bounds(&bytes)?;
+        Self::BOUND.check(&bytes)?;
         Ok(bytes)
     }
     /// Consume, encode and enforce the declared bound.
@@ -95,7 +102,7 @@ pub trait Storable: Sized {
     /// Returns an encoding error or `CodecError::Bounds` if the encoded bytes violate the declared bound.
     fn into_bytes_checked(self) -> Result<Vec<u8>, CodecError> {
         let bytes = self.into_bytes()?;
-        Self::check_bounds(&bytes)?;
+        Self::BOUND.check(&bytes)?;
         Ok(bytes)
     }
 }

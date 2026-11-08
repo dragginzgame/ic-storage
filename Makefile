@@ -239,7 +239,7 @@ validate-tooling:
 
 validate-storage-tests:
 	$(MAKE) --no-print-directory test-fixture-cell
-	+cargo +$(VALIDATION_TOOLCHAIN) test -p ic-storage --locked --offline -- --test-threads=1 --skip repo_tool::tests::
+	+cargo +$(VALIDATION_TOOLCHAIN) test -p ic-storage --locked --offline -- --test-threads=1 --skip repo_tool::
 
 validate-metrics-tests:
 	+cargo +$(VALIDATION_TOOLCHAIN) test -p ic-metrics-storage --locked --offline -- --test-threads=1

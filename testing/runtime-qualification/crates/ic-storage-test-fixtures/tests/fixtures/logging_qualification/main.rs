@@ -172,7 +172,7 @@ mod canister {
         assert_eq!(log.snapshot(), before);
         let mut map = store.into_map();
         let raw_key = b"fixture\0text_budget".to_vec();
-        let original = map.get(&raw_key).unwrap().unwrap();
+        let original = map.get(&raw_key).unwrap();
         // The frozen schema has four fixed limits after epoch. Lower only the
         // text ceiling; the retained rows then exceed it by one UTF-8 byte.
         let prefix = required(native::encode(
@@ -190,7 +190,7 @@ mod canister {
         let offset = 4 + prefix.len();
         assert_eq!(forged[offset], 20);
         forged[offset] = 19;
-        map.insert(raw_key.clone(), forged.clone()).unwrap();
+        map.insert(raw_key.clone(), forged.clone());
         let store = LoggingStore::new(map);
         assert!(matches!(
             store.load(
@@ -206,8 +206,8 @@ mod canister {
             ))
         ));
         let mut map = store.into_map();
-        assert_eq!(map.get(&raw_key).unwrap(), Some(forged));
-        map.insert(raw_key, original).unwrap();
+        assert_eq!(map.get(&raw_key), Some(forged));
+        map.insert(raw_key, original);
         let store = LoggingStore::new(map);
         let restored = required(store.load(&text_key(), IDENTITY, TEXT_LIMITS)).unwrap();
         assert_eq!(restored.snapshot(), before);

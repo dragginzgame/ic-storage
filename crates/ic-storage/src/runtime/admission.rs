@@ -217,11 +217,13 @@ impl<'a> BootstrapAdmission<'a> {
         self.selected.push(request);
         Ok(())
     }
-    pub(super) fn complete(self) -> Result<Vec<MemoryRequest>, AdmissionError> {
+    pub(super) fn complete(
+        self,
+    ) -> Result<(Vec<MemoryRequest>, BTreeSet<StableKey>), AdmissionError> {
         if let Some(error) = self.failure {
             Err(error)
         } else {
-            Ok(self.selected)
+            Ok((self.selected, self.keys))
         }
     }
 }

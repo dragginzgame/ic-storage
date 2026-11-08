@@ -42,21 +42,23 @@ fn terminal_history<K: Storable + Ord + Clone + Debug>(key: impl Fn(u64) -> K) {
         .unwrap();
         let mut model = std::collections::BTreeMap::new();
         for n in (0..population).rev() {
-            map.insert(key(n), n * 3).unwrap();
-            set.insert(key(n)).unwrap();
+            map.insert(key(n), n * 3);
+            set.insert(key(n));
             model.insert(key(n), n * 3);
         }
         let pairs: Vec<_> = model.iter().map(|(k, v)| (k.clone(), *v)).collect();
         let keys: Vec<_> = model.keys().cloned().collect();
         for (front, back) in [(0, 0), (1, 0), (0, 1), (2, 3), (100, 0), (0, 100)] {
-            remaining_last(map.iter(), &pairs, front, back, |e| {
-                e.unwrap().into_pair().unwrap()
-            });
-            remaining_last(set.iter(), &keys, front, back, Result::unwrap);
+            remaining_last(map.iter(), &pairs, front, back, MapEntry::into_pair);
+            remaining_last(set.iter(), &keys, front, back, std::convert::identity);
             let reversed: Vec<_> = pairs.iter().rev().cloned().collect();
-            remaining_last(map.iter().rev(), &reversed, front, back, |e| {
-                e.unwrap().into_pair().unwrap()
-            });
+            remaining_last(
+                map.iter().rev(),
+                &reversed,
+                front,
+                back,
+                MapEntry::into_pair,
+            );
             for bounds in [
                 (Unbounded, Included(key(90))),
                 (Included(key(7)), Excluded(key(82))),
@@ -68,9 +70,13 @@ fn terminal_history<K: Storable + Ord + Clone + Debug>(key: impl Fn(u64) -> K) {
                     .range(bounds.clone())
                     .map(|(k, v)| (k.clone(), *v))
                     .collect();
-                remaining_last(map.range(bounds), &expected, front, back, |e| {
-                    e.unwrap().into_pair().unwrap()
-                });
+                remaining_last(
+                    map.range(bounds),
+                    &expected,
+                    front,
+                    back,
+                    MapEntry::into_pair,
+                );
             }
         }
     }
@@ -94,21 +100,15 @@ fn last_reads_a_tree_path_without_walking_the_population() {
     )
     .unwrap();
     for n in 0..512 {
-        map.insert(n, n * 3).unwrap();
+        map.insert(n, n * 3);
     }
     backing.reset();
     for (n, entry) in map.iter().enumerate() {
-        assert_eq!(
-            entry.unwrap().into_pair().unwrap(),
-            (n as u64, n as u64 * 3)
-        );
+        assert_eq!(entry.into_pair(), (n as u64, n as u64 * 3));
     }
     let scan = backing.counts();
     backing.reset();
-    assert_eq!(
-        map.iter().last().unwrap().unwrap().into_pair().unwrap(),
-        (511, 1533)
-    );
+    assert_eq!(map.iter().last().unwrap().into_pair(), (511, 1533));
     let last = backing.counts();
     assert!(!scan.overflowed && !last.overflowed);
     assert_eq!((last.writes, last.grows), (0, 0));
@@ -117,4 +117,40 @@ fn last_reads_a_tree_path_without_walking_the_population() {
         last.read_bytes * 8 < scan.read_bytes,
         "last={last:?}, scan={scan:?}"
     );
+}
+
+#[test]
+fn skipped_entries_do_not_read_large_value_payloads() {
+    let backing = MeteredMemory::<VectorMemory>::default();
+    let host = runtime(backing.clone());
+    let mut map = StableBTreeMap::<u64, Vec<u8>, _>::create(
+        host.open_memory(&crate::StableKey::parse(KEYS[0]).unwrap())
+            .unwrap(),
+    )
+    .unwrap();
+    for n in 0..97 {
+        map.insert(n, vec![7; 4096]);
+    }
+    // Exhausting either direction must pay only for routing and keys, even
+    // when the iterator's item owns the encoded value of yielded entries.
+    for reverse in [false, true] {
+        backing.reset();
+        let mut keys = map.keys();
+        let result = if reverse {
+            keys.nth_back(97)
+        } else {
+            keys.nth(97)
+        };
+        assert!(result.is_none());
+        let expected = backing.counts();
+        backing.reset();
+        let mut entries = map.iter();
+        let result = if reverse {
+            entries.nth_back(97)
+        } else {
+            entries.nth(97)
+        };
+        assert!(result.is_none());
+        assert_eq!(backing.counts(), expected);
+    }
 }

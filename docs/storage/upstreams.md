@@ -7,7 +7,7 @@ this source baseline instead of another independently maintained implementation.
 There is no production dependency or public re-export of ICSS.
 
 [The source inventory](icss-source.json) records original source SHA-256 hashes.
-The relevant map/node/allocator/iterator, BaseVec/Vec, Cell, address and helper
+The relevant map/node/allocator/iterator, Vector, Cell, address and helper
 code is copied under `crates/ic-storage/src/engine/`. Each copied file retains
 DFINITY attribution and an Apache-2.0 notice; the package includes LICENSE-APACHE.
 Storage-authored code remains MIT. This is adapted source, not an unchanged
@@ -17,9 +17,10 @@ vendored executable snapshot.
 
 - Private `engine` owns one implementation of each algorithm. Set uses the same
   map engine with unit values; region views use that map over a bounded lease.
-- Public `adapter` preserves successful-call API shapes and requires admitted
-  `RuntimeMemory` handles. Its private bridge connects Storage's existing
-  `Memory`, `Storable` and `Bound` contracts to the copied private traits.
+- Public `adapter` requires admitted `RuntimeMemory` handles. Ordinary operations
+  return successful values directly; admission and region failures remain typed.
+  Engines use Storage's `Memory` and `Bound` directly. The private codec bridge
+  checks the public fallible codec contract before trapping on failure.
 
 The old independent tree, block allocator, record envelopes, node cache, Vector
 windows and mutation epochs are deleted. No alternative production engine stays
@@ -62,12 +63,12 @@ Integration and safety adaptations:
   SVC1 and SCL1 images are admitted. No previous Storage image is read or reset.
   Map and region framing admission shares the engine's header read; foreign
   framing returns the existing typed error before allocator access.
-- The backing bridge forwards ICSS's `Memory::read_unsafe` contract through
+- Storage's canonical `Memory::read_unsafe` contract passes through
   governed handles, preserving its ability to avoid preliminary zeroing.
   Callers admit a non-overlapping writable destination; implementations must
   initialize the complete range on success. Existing custom backings retain
-  an initializing default. Private engine views must implement the hook
-  explicitly so adapters cannot silently inherit that fallback. Public
+  an initializing default. Governed and region views explicitly forward the hook
+  so their optimized reads do not inherit that fallback. Public
   collection operations remain safe.
   Wasm uses published Runtime >=0.19.4 for the safe uninitialized stable-read
   export, with only its `ic0` feature selected.
@@ -102,8 +103,11 @@ Integration and safety adaptations:
   preserving valid bytes without constructing an invalid Rust bool on corruption.
 - Native mutation unwind guards poison the shared owner after a panic. They add
   no Wasm journal or runtime work; IC rollback remains the atomicity mechanism.
-- An owned raw-value iterator adapter retains Storage's public MapEntry API.
-  Skipping delegates to the engine before materializing the selected entry.
+- Private shared-node iterator entries project into public owned `MapEntry`
+  values. Skipping traverses routing before materializing the selected entry;
+  it does not read discarded value payloads.
+- Vector has one engine module; copied single-variant runtime version and lazy
+  object wrappers are removed without changing persisted headers.
 - Remove unused APIs and upstream tests; qualify the copied subset using Storage
   models and the separately published reference. Rust 2024 unsafe blocks, checked
   conversions, lint fixes and narrowly explained expectations are mechanical
@@ -150,9 +154,10 @@ matched matrix. Eager keys still borrow their shared read buffer. The choice
 folds at compile time and changes neither images nor successful decoding semantics.
 
 Codec and engine failures trap. Framing admission and explicit reservations can
-still return typed errors; Result signatures do not promise pre-write rejection.
-There are no collection checksums. Existing Storage collection images require an
-explicit host rebuild/reset or fresh allocations. The directory format and its
+still return typed errors. Ordinary operation and iterator results are direct.
+There are no collection checksums. Images predating the copied ICSS baseline
+require an explicit host rebuild/reset or fresh allocations; the architectural
+simplification preserves current images. The directory format and its
 integrity checks are unchanged. See [the collection contract](../../crates/ic-storage/README.md).
 
 ## Qualification and research controls

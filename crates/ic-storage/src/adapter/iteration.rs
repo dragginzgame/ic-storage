@@ -1,8 +1,7 @@
 //! Owned entries and iterator views over the copied ICSS engine.
 use super::{
     Memory, Storable,
-    bridge::{Backing, Codec, TreeMemory},
-    error::Result,
+    bridge::{Codec, TreeMemory},
 };
 use crate::{DefaultMemoryImpl, engine};
 use std::{borrow::Cow, marker::PhantomData};
@@ -23,29 +22,23 @@ impl<K, V: Storable> MapEntry<K, V> {
         &self.key
     }
     /// Decode the value. Malformed stored bytes trap.
-    /// # Errors
-    /// Engine failures trap instead of returning an ordinary error.
-    pub fn value(&self) -> Result<V> {
-        Ok(<Codec<V> as engine::Storable>::from_bytes(Cow::Borrowed(&self.bytes)).0)
+    pub fn value(&self) -> V {
+        <Codec<V> as engine::Storable>::from_bytes(Cow::Borrowed(&self.bytes)).0
     }
     /// Consume the entry and decode its value.
-    /// # Errors
-    /// Engine failures trap instead of returning an ordinary error.
-    pub fn into_pair(self) -> Result<(K, V)> {
-        Ok((
+    pub fn into_pair(self) -> (K, V) {
+        (
             self.key,
             <Codec<V> as engine::Storable>::from_bytes(Cow::Owned(self.bytes)).0,
-        ))
+        )
     }
     /// Consume only the key without decoding its value.
     pub fn into_key(self) -> K {
         self.key
     }
     /// Consume and decode only the value.
-    /// # Errors
-    /// Engine failures trap instead of returning an ordinary error.
-    pub fn into_value(self) -> Result<V> {
-        Ok(<Codec<V> as engine::Storable>::from_bytes(Cow::Owned(self.bytes)).0)
+    pub fn into_value(self) -> V {
+        <Codec<V> as engine::Storable>::from_bytes(Cow::Owned(self.bytes)).0
     }
 }
 ///
@@ -54,10 +47,10 @@ impl<K, V: Storable> MapEntry<K, V> {
 /// Bidirectional ICSS traversal retaining its governed map borrow.
 ///
 pub struct MapIter<'a, K: Storable + Ord + Clone, V: Storable, M: Memory = DefaultMemoryImpl>(
-    pub(super) engine::btreemap::Iter<'a, Codec<K>, Codec<V>, Backing<TreeMemory<M>>>,
+    pub(super) engine::btreemap::Iter<'a, Codec<K>, Codec<V>, TreeMemory<M>>,
 );
 fn entry<K: Storable + Ord + Clone, V: Storable, M: Memory>(
-    entry: engine::btreemap::LazyEntry<'_, Codec<K>, Codec<V>, Backing<TreeMemory<M>>>,
+    entry: engine::btreemap::LazyEntry<'_, Codec<K>, Codec<V>, TreeMemory<M>>,
 ) -> MapEntry<K, V> {
     let (key, bytes) = entry.into_raw();
     MapEntry {
@@ -67,12 +60,12 @@ fn entry<K: Storable + Ord + Clone, V: Storable, M: Memory>(
     }
 }
 impl<K: Storable + Ord + Clone, V: Storable, M: Memory> Iterator for MapIter<'_, K, V, M> {
-    type Item = Result<MapEntry<K, V>>;
+    type Item = MapEntry<K, V>;
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|e| Ok(entry(e)))
+        self.0.next().map(entry)
     }
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
-        self.0.nth(n).map(|e| Ok(entry(e)))
+        self.0.nth(n).map(entry)
     }
     fn last(mut self) -> Option<Self::Item> {
         // The reverse cursor already respects bounds and consumption from either end.
@@ -89,9 +82,9 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> DoubleEndedIterator
     for MapIter<'_, K, V, M>
 {
     fn next_back(&mut self) -> Option<Self::Item> {
-        self.0.next_back().map(|e| Ok(entry(e)))
+        self.0.next_back().map(entry)
     }
     fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
-        self.0.nth_back(n).map(|e| Ok(entry(e)))
+        self.0.nth_back(n).map(entry)
     }
 }

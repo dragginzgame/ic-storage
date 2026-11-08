@@ -62,7 +62,7 @@ impl<M: Memory> Owner<M> {
         report.live_leases = self.0.live.borrow().len();
         Ok(report)
     }
-    pub fn bind(&self, keys: Vec<StableKey>) -> Result<(), Error> {
+    pub fn bind(&self, keys: &BTreeSet<StableKey>) -> Result<(), Error> {
         let mut store = self.0.store.borrow_mut();
         store.healthy()?;
         if keys
@@ -127,7 +127,7 @@ impl<M: Memory> Lease<M> {
             .checked_add(pages)
             .ok_or(Error::ArithmeticOverflow)?;
         if pages != 0 {
-            store.mutate(vec![], &[(self.id, pages)])?;
+            store.mutate(&BTreeSet::new(), &[(self.id, pages)])?;
         }
         Ok(previous)
     }

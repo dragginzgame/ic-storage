@@ -62,7 +62,7 @@ use crate::engine::{
 };
 use allocator::Allocator;
 pub use iter::{Iter, LazyEntry};
-use node::{Entry, Node, NodeType, PageSize, Version};
+use node::{Entry, Node, NodeType, PageSize};
 use std::borrow::Cow;
 use std::marker::PhantomData;
 use std::ops::RangeBounds;
@@ -77,7 +77,7 @@ const ALLOCATOR_OFFSET: usize = 52;
 // The default page size to use in BTreeMap V2 in bytes.
 const DEFAULT_PAGE_SIZE: u32 = 1024;
 
-// A marker to indicate that the `PageSize` stored in the header is a `PageSize::Value`.
+// The current header marker for an explicit page size.
 const PAGE_SIZE_VALUE_MARKER: u32 = u32::MAX;
 pub struct BTreeMap<K, V, M>
 where
@@ -89,7 +89,7 @@ where
     // is set to NULL.
     root_addr: Address,
 
-    version: Version,
+    page_size: PageSize,
 
     // An allocator used for managing memory and allocating nodes.
     allocator: Allocator<M>,
@@ -103,7 +103,7 @@ where
 
 #[derive(PartialEq, Debug)]
 struct BTreeHeader {
-    version: Version,
+    page_size: PageSize,
     root_addr: Address,
     length: u64,
     // Reserved bytes for future extensions
@@ -135,12 +135,10 @@ where
                 // nodes have <= 8 entries. We can therefore use a page size that's 8/11 the
                 // maximum size with little performance difference but with a significant storage
                 // saving. We round the 8/11 to be 3/4.
-                PageSize::Value(
-                    u32::try_from(max_node_size * 3 / 4).expect("bounded node page size"),
-                )
+                PageSize(u32::try_from(max_node_size * 3 / 4).expect("bounded node page size"))
             }
             // Use a default page size.
-            _ => PageSize::Value(DEFAULT_PAGE_SIZE),
+            _ => PageSize(DEFAULT_PAGE_SIZE),
         };
 
         let btree = Self {
@@ -150,7 +148,7 @@ where
                 Address::from(ALLOCATOR_OFFSET as u64),
                 page_size.get().into(),
             ),
-            version: Version::V2(page_size),
+            page_size,
             length: 0,
             _phantom: PhantomData,
         };
@@ -168,7 +166,7 @@ where
         Some(Self {
             root_addr: header.root_addr,
             allocator: Allocator::load(memory, allocator_addr),
-            version: header.version,
+            page_size: header.page_size,
             length: header.length,
             _phantom: PhantomData,
         })
@@ -189,19 +187,19 @@ where
             LAYOUT_VERSION_2 => {
                 // Load the page size.
                 let page_size = {
-                    // Page sizes can be stored either as a direct value or as max/value sizes.
+                    // Admit the current explicit page-size representation.
                     let a = u32::from_le_bytes(buf[4..8].try_into().unwrap());
                     let b = u32::from_le_bytes(buf[8..12].try_into().unwrap());
 
                     if b != PAGE_SIZE_VALUE_MARKER {
                         return None;
                     }
-                    PageSize::Value(a)
+                    PageSize(a)
                 };
 
                 // Deserialize the fields
                 Some(BTreeHeader {
-                    version: Version::V2(page_size),
+                    page_size,
                     root_addr: Address::from(u64::from_le_bytes(buf[12..20].try_into().unwrap())),
                     length: u64::from_le_bytes(buf[20..28].try_into().unwrap()),
                 })
@@ -210,7 +208,7 @@ where
         }
     }
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
-        let value = value.into_bytes_checked();
+        let value = value.into_bytes();
 
         let root = if self.root_addr == NULL {
             // No root present. Allocate one.
@@ -831,9 +829,7 @@ where
         into
     }
     fn allocate_node(&mut self, node_type: NodeType) -> Node<K> {
-        match self.version {
-            Version::V2(page_size) => Node::new_v2(self.allocator.allocate(), node_type, page_size),
-        }
+        Node::new_v2(self.allocator.allocate(), node_type, self.page_size)
     }
     #[inline]
     fn deallocate_node(&mut self, node: Node<K>) {
@@ -841,7 +837,7 @@ where
     }
     #[inline]
     fn load_node(&self, address: Address) -> Node<K> {
-        Node::load(address, self.version.page_size(), self.memory())
+        Node::load(address, self.page_size, self.memory())
     }
     #[inline]
     fn save_node(&mut self, node: &mut Node<K>) {
@@ -854,7 +850,7 @@ where
     }
     fn save_header(&self) {
         let header = BTreeHeader {
-            version: self.version,
+            page_size: self.page_size,
             root_addr: self.root_addr,
             length: self.length,
         };
@@ -865,13 +861,9 @@ where
         // Serialize the header
         let mut buf = [0; PACKED_HEADER_SIZE];
         buf[0..3].copy_from_slice(MAGIC.as_slice());
-        match header.version {
-            Version::V2(PageSize::Value(page_size)) => {
-                buf[3] = LAYOUT_VERSION_2;
-                buf[4..8].copy_from_slice(&page_size.to_le_bytes());
-                buf[8..12].copy_from_slice(&PAGE_SIZE_VALUE_MARKER.to_le_bytes());
-            }
-        }
+        buf[3] = LAYOUT_VERSION_2;
+        buf[4..8].copy_from_slice(&header.page_size.get().to_le_bytes());
+        buf[8..12].copy_from_slice(&PAGE_SIZE_VALUE_MARKER.to_le_bytes());
         buf[12..20].copy_from_slice(&header.root_addr.get().to_le_bytes());
         buf[20..28].copy_from_slice(&header.length.to_le_bytes());
         // Write the header

@@ -71,17 +71,14 @@ fn map_images_cross_read_after_splits_overflows_and_removals() {
             key.to_le_bytes()[0];
             [0, 31, 256, 4096, 65536][usize::try_from(key % 5).unwrap()]
         ];
-        map.insert(key, bytes.clone()).unwrap();
+        map.insert(key, bytes.clone());
         model.insert(key, bytes);
     }
     // Replace values throughout the populated tree, including internal entries
     // and records spanning overflow pages, before admitting the same image in ICSS.
     for (&key, value) in &mut model {
         let replacement = vec![key.to_le_bytes()[0].wrapping_add(1); value.len()];
-        assert_eq!(
-            map.insert(key, replacement.clone()).unwrap().as_ref(),
-            Some(&*value)
-        );
+        assert_eq!(map.insert(key, replacement.clone()).as_ref(), Some(&*value));
         *value = replacement;
     }
     // Shrink, regrow and reuse overflow chains before cross-reading every
@@ -90,7 +87,7 @@ fn map_images_cross_read_after_splits_overflows_and_removals() {
         for key in (0..300).step_by(13) {
             let replacement = vec![0xa5; size];
             assert_eq!(
-                map.insert(key, replacement.clone()).unwrap(),
+                map.insert(key, replacement.clone()),
                 model.insert(key, replacement)
             );
         }
@@ -124,9 +121,7 @@ fn map_images_cross_read_after_splits_overflows_and_removals() {
     drop(stock);
     let map = StableBTreeMap::<u64, Vec<u8>>::load(memory(&runtime)).unwrap();
     assert_eq!(
-        map.iter()
-            .map(|x| x.unwrap().into_pair().unwrap())
-            .collect::<Vec<_>>(),
+        map.iter().map(|x| x.into_pair()).collect::<Vec<_>>(),
         model.into_iter().collect::<Vec<_>>()
     );
 }
@@ -148,7 +143,7 @@ where
     drop(stock);
     let mut map = StableBTreeMap::<K, u64>::load(memory(&runtime)).unwrap();
     for (key, value) in &model {
-        assert_eq!(map.get(key).unwrap(), Some(*value));
+        assert_eq!(map.get(key), Some(*value));
     }
     let expected: Vec<_> = model
         .iter()
@@ -164,10 +159,7 @@ where
             } else {
                 (actual.next_back(), expected.next_back())
             };
-            assert_eq!(
-                a.map(|entry| entry.unwrap().into_pair().unwrap()),
-                b.cloned()
-            );
+            assert_eq!(a.map(|entry| entry.into_pair()), b.cloned());
             if b.is_none() {
                 break;
             }
@@ -176,10 +168,10 @@ where
     }
     for (index, (key, _)) in expected.iter().enumerate() {
         if index % 3 == 0 {
-            assert_eq!(map.remove(key).unwrap(), model.remove(key));
+            assert_eq!(map.remove(key), model.remove(key));
         } else {
             assert_eq!(
-                map.insert(key.clone(), 1000).unwrap(),
+                map.insert(key.clone(), 1000),
                 model.insert(key.clone(), 1000)
             );
         }
@@ -239,12 +231,10 @@ fn variable_vector_images_cross_read_and_update() {
     let runtime = runtime();
     let vector = StableVec::<Bytes>::create(memory(&runtime)).unwrap();
     for index in 0..1024 {
-        vector
-            .push(&Bytes(vec![
-                u8::try_from(index % 251).unwrap();
-                if index % 2 == 0 { 256 } else { 2048 }
-            ]))
-            .unwrap();
+        vector.push(&Bytes(vec![
+            u8::try_from(index % 251).unwrap();
+            if index % 2 == 0 { 256 } else { 2048 }
+        ]));
     }
     drop(vector);
     let stock = icss::Vec::<Bytes, _>::init(Checked(memory(&runtime)));
@@ -255,15 +245,15 @@ fn variable_vector_images_cross_read_and_update() {
     drop(stock);
     let vector = StableVec::<Bytes>::load(memory(&runtime)).unwrap();
     assert_eq!(vector.len(), 1025);
-    assert_eq!(vector.get(0).unwrap().unwrap().0, vec![9; 4096]);
-    assert_eq!(vector.pop().unwrap().unwrap().0, vec![10; 32]);
+    assert_eq!(vector.get(0).unwrap().0, vec![9; 4096]);
+    assert_eq!(vector.pop().unwrap().0, vec![10; 32]);
 }
 #[test]
 fn fixed_vector_images_cross_read_and_update() {
     let runtime = runtime();
     let vector = StableVec::<u64>::create(memory(&runtime)).unwrap();
     for key in 0..129 {
-        vector.push(&key).unwrap();
+        vector.push(&key);
     }
     drop(vector);
     let stock = icss::Vec::<Reference<u64>, _>::init(Checked(memory(&runtime)));
@@ -271,7 +261,7 @@ fn fixed_vector_images_cross_read_and_update() {
     stock.set(64, &Reference(u64::MAX));
     drop(stock);
     let vector = StableVec::<u64>::load(memory(&runtime)).unwrap();
-    assert_eq!(vector.get(64).unwrap(), Some(u64::MAX));
+    assert_eq!(vector.get(64), Some(u64::MAX));
 }
 #[test]
 fn cell_images_cross_read_and_update() {
@@ -289,7 +279,7 @@ fn set_images_cross_read_and_update() {
     let runtime = runtime();
     let mut set = StableBTreeSet::<u64>::create(memory(&runtime)).unwrap();
     for key in (0..129).rev() {
-        set.insert(key).unwrap();
+        set.insert(key);
     }
     drop(set);
     let mut stock = icss::BTreeSet::<Reference<u64>, _>::init(Checked(memory(&runtime)));
@@ -297,9 +287,9 @@ fn set_images_cross_read_and_update() {
     stock.insert(Reference(500));
     drop(stock);
     let set = StableBTreeSet::<u64>::load(memory(&runtime)).unwrap();
-    assert!(!set.contains(&64).unwrap());
-    assert!(set.contains(&500).unwrap());
-    assert_eq!(set.iter().next_back().unwrap().unwrap(), 500);
+    assert!(!set.contains(&64));
+    assert!(set.contains(&500));
+    assert_eq!(set.iter().next_back().unwrap(), 500);
 }
 #[test]
 fn governed_region_images_cross_read_and_update() {

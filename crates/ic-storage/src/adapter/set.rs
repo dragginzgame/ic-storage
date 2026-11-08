@@ -39,16 +39,14 @@ impl<K: Storable + Ord + Clone, M: Memory> StableBTreeSet<K, M> {
     }
     /// Perform `insert` on the governed ordered set.
     ///
-    /// # Errors
-    /// Engine and codec failures trap, possibly after writes on native hosts.
-    pub fn insert(&mut self, key: K) -> Result<bool> {
-        Ok(self.inner.insert(key, ())?.is_none())
+    /// Engine and codec failures trap.
+    pub fn insert(&mut self, key: K) -> bool {
+        self.inner.insert(key, ()).is_none()
     }
     /// Perform `contains` on the governed ordered set.
     ///
-    /// # Errors
-    /// Engine and codec failures trap instead of returning an ordinary error.
-    pub fn contains(&self, key: &K) -> Result<bool> {
+    /// Engine and codec failures trap.
+    pub fn contains(&self, key: &K) -> bool {
         self.inner.contains_key(key)
     }
     /// Perform `is_empty` on the governed ordered set.
@@ -64,10 +62,9 @@ impl<K: Storable + Ord + Clone, M: Memory> StableBTreeSet<K, M> {
     }
     /// Perform `remove` on the governed ordered set.
     ///
-    /// # Errors
-    /// Engine and codec failures trap, possibly after writes on native hosts.
-    pub fn remove(&mut self, key: &K) -> Result<bool> {
-        Ok(self.inner.remove(key)?.is_some())
+    /// Engine and codec failures trap.
+    pub fn remove(&mut self, key: &K) -> bool {
+        self.inner.remove(key).is_some()
     }
     /// Perform `iter` on the governed ordered set.
     #[must_use]
@@ -77,7 +74,7 @@ impl<K: Storable + Ord + Clone, M: Memory> StableBTreeSet<K, M> {
 }
 
 impl<'a, K: Storable + Ord + Clone, M: Memory> IntoIterator for &'a StableBTreeSet<K, M> {
-    type Item = Result<K>;
+    type Item = K;
     type IntoIter = SetIter<'a, K, M>;
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -91,38 +88,28 @@ impl<'a, K: Storable + Ord + Clone, M: Memory> IntoIterator for &'a StableBTreeS
 ///
 pub struct SetIter<'a, K: Storable + Ord + Clone, M: Memory>(MapIter<'a, K, (), M>);
 impl<K: Storable + Ord + Clone, M: Memory> Iterator for SetIter<'_, K, M> {
-    type Item = Result<K>;
-    fn next(&mut self) -> Option<Result<K>> {
-        self.0
-            .next()
-            .map(|entry| entry.map(super::MapEntry::into_key))
+    type Item = K;
+    fn next(&mut self) -> Option<K> {
+        self.0.next().map(super::MapEntry::into_key)
     }
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
-        self.0
-            .nth(n)
-            .map(|entry| entry.map(super::MapEntry::into_key))
+        self.0.nth(n).map(super::MapEntry::into_key)
     }
     fn count(self) -> usize {
         self.0.count()
     }
     fn last(self) -> Option<Self::Item> {
-        self.0
-            .last()
-            .map(|entry| entry.map(super::MapEntry::into_key))
+        self.0.last().map(super::MapEntry::into_key)
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.0.size_hint()
     }
 }
 impl<K: Storable + Ord + Clone, M: Memory> DoubleEndedIterator for SetIter<'_, K, M> {
-    fn next_back(&mut self) -> Option<Result<K>> {
-        self.0
-            .next_back()
-            .map(|entry| entry.map(super::MapEntry::into_key))
+    fn next_back(&mut self) -> Option<K> {
+        self.0.next_back().map(super::MapEntry::into_key)
     }
     fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
-        self.0
-            .nth_back(n)
-            .map(|entry| entry.map(super::MapEntry::into_key))
+        self.0.nth_back(n).map(super::MapEntry::into_key)
     }
 }

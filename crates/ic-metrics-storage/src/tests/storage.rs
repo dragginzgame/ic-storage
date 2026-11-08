@@ -195,16 +195,16 @@ fn histogram_equality_shortcut_preserves_full_state_comparison() {
 
 #[test]
 fn public_histogram_load_admits_expected_bounds_before_reading_a_row() {
-    let memory = WriteCountingMemory::default();
-    let writes = memory.writes.clone();
+    let memory = MeteredMemory::<VectorMemory>::default();
+    let writes = memory.clone();
     let mut store = MetricsStore::new(StableBTreeMap::create(admitted_memory(memory)).unwrap());
     let key = key("app");
     let identity = identity();
     for retained in [None, Some(vec![0])] {
         if let Some(bytes) = retained.as_ref() {
-            store.map.insert(key.0.clone(), bytes.clone()).unwrap();
+            store.map.insert(key.0.clone(), bytes.clone());
         }
-        writes.set(0);
+        writes.reset();
         for bounds in [[10, 10], [10, 0]] {
             assert_eq!(
                 store.load_histogram(&key, &identity, &bounds),
@@ -217,7 +217,7 @@ fn public_histogram_load_admits_expected_bounds_before_reading_a_row() {
             store.load_histogram(&key, &identity, &[0; 257]),
             Err(StoreError::TooManyBounds)
         );
-        assert_eq!(store.map.get(&key.0).unwrap(), retained);
-        assert_eq!(writes.get(), 0);
+        assert_eq!(store.map.get(&key.0), retained);
+        assert_eq!(writes.counts().writes, 0);
     }
 }

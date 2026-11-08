@@ -19,7 +19,7 @@ fn main() {
     )
     .expect("create measurement vector");
     for _ in 0..8192 {
-        rows.push(&[7; 1024]).expect("append measurement row");
+        rows.push(&[7; 1024]);
     }
     println!("{:#?}", host.memory_allocations().unwrap());
 }

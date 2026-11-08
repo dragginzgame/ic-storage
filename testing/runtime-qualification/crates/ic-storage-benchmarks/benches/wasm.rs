@@ -24,9 +24,8 @@ mod canister {
     thread_local! { static MAP: RefCell<Option<Box<dyn Benchmark>>> = const { RefCell::new(None) }; }
     thread_local! { static INITIALIZATION_COST: Cell<u64> = const { Cell::new(0) }; }
 
-    // A failed Storage operation fails the benchmark; upstream reports failures
-    // through traps. Successful-path admission stays inside the timed operation.
-    macro_rules! checked {
+    // Application codec traits differ; collection operations share trap behavior.
+    macro_rules! codec {
         ($operation:expr) => {{
             #[cfg(feature = "owned")]
             {
@@ -159,11 +158,9 @@ mod canister {
         map: &mut Map<K, V>,
         settings: Initialization,
     ) {
-        #[cfg(feature = "owned")]
-        map.set_node_cache_budget(settings.cache_bytes);
         #[cfg(feature = "dfinity-head")]
         map.node_cache_resize(settings.upstream_cache_slots);
-        #[cfg(feature = "dfinity")]
+        #[cfg(not(feature = "dfinity-head"))]
         let _ = (map, settings);
     }
     fn configured_map<K: BenchKey + Storable, V: BenchValue + Storable>(
@@ -197,6 +194,7 @@ mod canister {
             MAP.with(|slot| *slot.borrow_mut() = Some(vector_open::new(settings)));
             return;
         }
+        #[cfg(feature = "footprint")]
         macro_rules! typed {
             ($key:ty, $value:ty) => {
                 Box::new(TypedMap::<$key, $value> {
@@ -215,20 +213,18 @@ mod canister {
                 "footprint build excludes vector-open"
             );
             match case {
-                Case::U64U64 => typed!(u64, u64),
-                Case::U64Bytes => typed!(u64, Vec<u8>),
-                Case::SetU64 => {
+                ic_storage_benchmarks::case!(Map, U64, U64) => typed!(u64, u64),
+                ic_storage_benchmarks::case!(Map, U64, Bytes) => typed!(u64, Vec<u8>),
+                ic_storage_benchmarks::case!(Set, U64, Unit) => {
                     Box::new(TypedSet::<u64>::new(case, settings.upstream_bucket_pages))
                 }
-                Case::VectorU64 => Box::new(TypedVector::<u64>::new(
-                    case,
-                    settings.upstream_bucket_pages,
-                )),
-                Case::CellFixed32 => Box::new(TypedCell::<[u8; 32]>::new(
-                    case,
-                    settings.upstream_bucket_pages,
-                )),
-                Case::Typed {
+                ic_storage_benchmarks::case!(Vector, U64, U64) => Box::new(
+                    TypedVector::<u64>::new(case, settings.upstream_bucket_pages),
+                ),
+                ic_storage_benchmarks::case!(Cell, U64, Array32) => Box::new(
+                    TypedCell::<[u8; 32]>::new(case, settings.upstream_bucket_pages),
+                ),
+                Case {
                     collection: Collection::Region,
                     key: DataType::U64,
                     value: DataType::U64,
@@ -240,166 +236,7 @@ mod canister {
             }
         };
         #[cfg(not(feature = "footprint"))]
-        let map = match case {
-            Case::Typed {
-                collection,
-                key,
-                value,
-            } => matrix::create(case, collection, key, value, settings),
-            Case::U32U32 => typed!(u32, u32),
-            Case::U64Unit => typed!(u64, ()),
-            Case::U64BoundedBytes => typed!(u64, BoundedBytes<255>),
-            Case::BoundedBytesU64 => typed!(BoundedBytes<255>, u64),
-            Case::BoundedBytesBoundedBytes => typed!(BoundedBytes<255>, BoundedBytes<255>),
-            Case::BoundedBytesBytes => typed!(BoundedBytes<255>, Vec<u8>),
-            Case::BytesU64 => typed!(Vec<u8>, u64),
-            Case::BytesBoundedBytes => typed!(Vec<u8>, BoundedBytes<255>),
-            Case::BytesBytes => typed!(Vec<u8>, Vec<u8>),
-            Case::TupleOption => typed!(TupleKey, OptionalU64),
-            Case::SetBytes => Box::new(TypedSet::<Vec<u8>>::new(
-                case,
-                settings.upstream_bucket_pages,
-            )),
-            Case::SetBoundedBytes => Box::new(TypedSet::<BoundedBytes<255>>::new(
-                case,
-                settings.upstream_bucket_pages,
-            )),
-            Case::SetTuple => Box::new(TypedSet::<TupleKey>::new(
-                case,
-                settings.upstream_bucket_pages,
-            )),
-            Case::VectorUnit => {
-                Box::new(TypedVector::<()>::new(case, settings.upstream_bucket_pages))
-            }
-            Case::VectorU8 => {
-                Box::new(TypedVector::<u8>::new(case, settings.upstream_bucket_pages))
-            }
-            Case::VectorU16 => Box::new(TypedVector::<u16>::new(
-                case,
-                settings.upstream_bucket_pages,
-            )),
-            Case::VectorU32 => Box::new(TypedVector::<u32>::new(
-                case,
-                settings.upstream_bucket_pages,
-            )),
-            Case::VectorBool => Box::new(TypedVector::<bool>::new(
-                case,
-                settings.upstream_bucket_pages,
-            )),
-            Case::VectorF32 => Box::new(TypedVector::<f32>::new(
-                case,
-                settings.upstream_bucket_pages,
-            )),
-            Case::VectorOption => Box::new(TypedVector::<OptionalU64>::new(
-                case,
-                settings.upstream_bucket_pages,
-            )),
-            Case::VectorBounded255 => Box::new(TypedVector::<BoundedBytes<255>>::new(
-                case,
-                settings.upstream_bucket_pages,
-            )),
-            Case::VectorBounded256 => Box::new(TypedVector::<BoundedBytes<256>>::new(
-                case,
-                settings.upstream_bucket_pages,
-            )),
-            Case::VectorBounded65535 => Box::new(TypedVector::<BoundedBytes<65535>>::new(
-                case,
-                settings.upstream_bucket_pages,
-            )),
-            Case::VectorBounded65536 => Box::new(TypedVector::<BoundedBytes<65536>>::new(
-                case,
-                settings.upstream_bucket_pages,
-            )),
-            Case::CellString => Box::new(TypedCell::<String>::new(
-                case,
-                settings.upstream_bucket_pages,
-            )),
-            Case::CellUnit => Box::new(TypedCell::<()>::new(case, settings.upstream_bucket_pages)),
-            Case::CellBool => {
-                Box::new(TypedCell::<bool>::new(case, settings.upstream_bucket_pages))
-            }
-            Case::CellOption => Box::new(TypedCell::<OptionalU64>::new(
-                case,
-                settings.upstream_bucket_pages,
-            )),
-            Case::U64Bytes => typed!(u64, Vec<u8>),
-            Case::U64U64 => typed!(u64, u64),
-            Case::U64U128 => typed!(u64, u128),
-            Case::Bytes32Bytes32 => typed!([u8; 32], [u8; 32]),
-            Case::StringString => typed!(String, String),
-            Case::U64Record => typed!(u64, WireRecord),
-            Case::SetU64 => Box::new(TypedSet::<u64>::new(case, settings.upstream_bucket_pages)),
-            Case::SetString => Box::new(TypedSet::<String>::new(
-                case,
-                settings.upstream_bucket_pages,
-            )),
-            Case::VectorU64 => Box::new(TypedVector::<u64>::new(
-                case,
-                settings.upstream_bucket_pages,
-            )),
-            Case::VectorBytes32 => Box::new(TypedVector::<[u8; 32]>::new(
-                case,
-                settings.upstream_bucket_pages,
-            )),
-            Case::VectorBytes => Box::new(TypedVector::<ChunkBytes>::new(
-                case,
-                settings.upstream_bucket_pages,
-            )),
-            Case::VectorSession => Box::new(TypedVector::<SessionEnvelope>::new(
-                case,
-                settings.upstream_bucket_pages,
-            )),
-            Case::VectorRecord => Box::new(TypedVector::<WireRecord>::new(
-                case,
-                settings.upstream_bucket_pages,
-            )),
-            Case::CellBytes => Box::new(TypedCell::<Vec<u8>>::new(
-                case,
-                settings.upstream_bucket_pages,
-            )),
-            Case::CellRecord => Box::new(TypedCell::<WireRecord>::new(
-                case,
-                settings.upstream_bucket_pages,
-            )),
-            Case::RegionBytes => Box::new(Region::<u64, Vec<u8>>::new(
-                case,
-                settings.upstream_bucket_pages,
-            )),
-            Case::I64I64 => typed!(Signed64, Signed64),
-            Case::U128U128 => typed!(u128, u128),
-            Case::Bytes64U128 => typed!([u8; 64], u128),
-            Case::U64Fixed31 => typed!(u64, [u8; 31]),
-            Case::U64Fixed32 => typed!(u64, [u8; 32]),
-            Case::U64Fixed33 => typed!(u64, [u8; 33]),
-            Case::U64Fixed256 => typed!(u64, [u8; 256]),
-            Case::SetI64 => Box::new(TypedSet::<Signed64>::new(
-                case,
-                settings.upstream_bucket_pages,
-            )),
-            Case::SetBytes64 => Box::new(TypedSet::<[u8; 64]>::new(
-                case,
-                settings.upstream_bucket_pages,
-            )),
-            Case::VectorI64 => Box::new(TypedVector::<Signed64>::new(
-                case,
-                settings.upstream_bucket_pages,
-            )),
-            Case::VectorU128 => Box::new(TypedVector::<u128>::new(
-                case,
-                settings.upstream_bucket_pages,
-            )),
-            Case::VectorF64 => Box::new(TypedVector::<f64>::new(
-                case,
-                settings.upstream_bucket_pages,
-            )),
-            Case::CellU128 => {
-                Box::new(TypedCell::<u128>::new(case, settings.upstream_bucket_pages))
-            }
-            Case::CellFixed32 => Box::new(TypedCell::<[u8; 32]>::new(
-                case,
-                settings.upstream_bucket_pages,
-            )),
-        };
+        let map = matrix::create(case, case.collection, case.key, case.value, settings);
         MAP.with(|slot| *slot.borrow_mut() = Some(map));
     }
     #[unsafe(export_name = "canister_query initialization_cost")]
@@ -423,7 +260,7 @@ mod canister {
     #[unsafe(export_name = "canister_query benchmark_read")]
     extern "C" fn benchmark_read() {
         let r: Request = argument(RUN_ID);
-        assert_eq!(r.case, Case::VectorSession);
+        assert_eq!(r.case, ic_storage_benchmarks::case!(Vector, U64, Session));
         assert!((1..=max_batch(r.case)).contains(&r.count));
         assert!(matches!(
             r.operation,
@@ -446,11 +283,9 @@ mod canister {
             assert!(self.case.accepts_payload(r.payload));
             for id in population_ids(&r) {
                 assert!(
-                    checked!(
-                        self.map
-                            .insert(K::from_id(id), V::make(id, r.payload, false))
-                    )
-                    .is_none()
+                    self.map
+                        .insert(K::from_id(id), V::make(id, r.payload, false))
+                        .is_none()
                 );
             }
             self.map.len()
@@ -460,7 +295,7 @@ mod canister {
                 .range(K::from_id(r.start)..)
                 .take(r.count as usize)
                 .map(|entry| {
-                    let (key, value) = checked!(checked!(entry).into_pair());
+                    let (key, value) = entry.into_pair();
                     (key.id(), value.canonical())
                 })
                 .collect()
@@ -522,29 +357,29 @@ mod canister {
             if r.operation == Operation::IterLast {
                 for _ in 0..r.count {
                     if let Some(entry) = self.map.iter().last() {
-                        let (key, value) = checked!(checked!(entry).into_pair());
+                        let (key, value) = entry.into_pair();
                         entries.push((key, Some(value)));
                     }
                 }
             } else if r.operation == Operation::KeysLast {
                 for _ in 0..r.count {
                     if let Some(key) = self.map.keys().last() {
-                        key_entries.push(checked!(key));
+                        key_entries.push(key);
                     }
                 }
             } else if r.operation == Operation::ValuesLast {
                 for _ in 0..r.count {
                     if let Some(value) = self.map.values().last() {
-                        values.push(checked!(value));
+                        values.push(value);
                     }
                 }
             } else if r.operation == Operation::KeysScan {
                 for key in self.map.keys().take(r.count as usize) {
-                    key_entries.push(checked!(key));
+                    key_entries.push(key);
                 }
             } else if r.operation == Operation::ReverseKeysScan {
                 for key in self.map.keys().rev().take(r.count as usize) {
-                    key_entries.push(checked!(key));
+                    key_entries.push(key);
                 }
             } else if r.operation == Operation::BoundedKeysScan {
                 for key in self
@@ -552,11 +387,11 @@ mod canister {
                     .keys_range(scan_start..scan_end.expect("bounded key scan endpoint"))
                     .take(r.count as usize)
                 {
-                    key_entries.push(checked!(key));
+                    key_entries.push(key);
                 }
             } else if r.operation == Operation::ValuesScan {
                 for value in self.map.values().take(r.count as usize) {
-                    values.push(checked!(value));
+                    values.push(value);
                 }
             } else if matches!(r.operation, Operation::Nth | Operation::NthBack) {
                 for skip in skips {
@@ -565,8 +400,7 @@ mod canister {
                     } else {
                         self.map.iter().nth_back(skip)
                     };
-                    let (key, value) =
-                        checked!(checked!(entry.expect("admitted ordered index")).into_pair());
+                    let (key, value) = entry.expect("admitted ordered index").into_pair();
                     entries.push((key, Some(value)));
                 }
             } else if r.operation == Operation::AlternatingScan {
@@ -580,15 +414,15 @@ mod canister {
                     let Some(entry) = entry else {
                         break;
                     };
-                    let (key, value) = checked!(checked!(entry).into_pair());
+                    let (key, value) = entry.into_pair();
                     entries.push((key, Some(value)));
                 }
             } else if matches!(r.operation, Operation::First | Operation::Last) {
                 for _ in 0..r.count {
                     let entry = if r.operation == Operation::First {
-                        checked!(self.map.first_key_value())
+                        self.map.first_key_value()
                     } else {
-                        checked!(self.map.last_key_value())
+                        self.map.last_key_value()
                     };
                     if let Some((key, value)) = entry {
                         entries.push((key, Some(value)));
@@ -600,17 +434,17 @@ mod canister {
                     .range(scan_start..scan_end.expect("bounded scan endpoint"))
                     .take(r.count as usize)
                 {
-                    let (key, value) = checked!(checked!(entry).into_pair());
+                    let (key, value) = entry.into_pair();
                     entries.push((key, Some(value)));
                 }
             } else if r.operation == Operation::ReverseScan {
                 for entry in self.map.range(..=scan_start).rev().take(r.count as usize) {
-                    let (key, value) = checked!(checked!(entry).into_pair());
+                    let (key, value) = entry.into_pair();
                     entries.push((key, Some(value)));
                 }
             } else if r.operation == Operation::Scan {
                 for entry in self.map.range(scan_start..).take(r.count as usize) {
-                    let (key, value) = checked!(checked!(entry).into_pair());
+                    let (key, value) = entry.into_pair();
                     entries.push((key, Some(value)));
                 }
             } else {
@@ -620,19 +454,17 @@ mod canister {
                             std::hint::black_box(&key);
                             None
                         }
-                        Operation::Get | Operation::MissAbove => checked!(self.map.get(&key)),
+                        Operation::Get | Operation::MissAbove => self.map.get(&key),
                         Operation::Replace
                         | Operation::Insert
                         | Operation::Reinsert
                         | Operation::Grow
-                        | Operation::Shrink => {
-                            checked!(self.map.insert(key, value.unwrap()))
-                        }
+                        | Operation::Shrink => self.map.insert(key, value.unwrap()),
                         Operation::Remove | Operation::RemoveMiss | Operation::RemoveInserted => {
-                            checked!(self.map.remove(&key))
+                            self.map.remove(&key)
                         }
                         Operation::Contains => {
-                            let found = checked!(self.map.contains_key(&key));
+                            let found = self.map.contains_key(&key);
                             booleans.push((result_key, found));
                             continue;
                         }

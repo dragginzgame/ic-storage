@@ -3,6 +3,14 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/metrics-stable/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.71.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Integrate Storage's direct collection results. Hosts exchanging governed maps
+  with Metrics Storage must use the matching Storage API. Metric checkpoint
+  bytes, continuity checks and adapter results are unchanged.
+
 ## [0.70.0] - 2026-11-06
 
 ### ⚠️ Breaking

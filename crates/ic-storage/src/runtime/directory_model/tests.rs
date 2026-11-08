@@ -126,7 +126,8 @@ fn recovery_rejects_overlap_duplicate_keys_bounds_and_bad_wire() {
 // Private fixture helpers; excluded from production compilation.
 impl Directory {
     fn apply(&mut self, keys: Vec<StableKey>, growth: &[(AllocationId, u64)]) -> Result<(), Error> {
-        let image = self.candidate_image(keys, growth, self.image.next_page)?;
+        let image =
+            self.candidate_image(&keys.into_iter().collect(), growth, self.image.next_page)?;
         let candidate = Self::validate(image, self.budget, 1)?;
         candidate.image.encode(self.budget)?;
         *self = candidate;

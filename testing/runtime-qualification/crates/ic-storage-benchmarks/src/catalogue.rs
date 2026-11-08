@@ -41,7 +41,7 @@ macro_rules! type_catalogue {
         F64 => (f64, "f64", "both", false, "fixed", &[8], false);
         Bool => (bool, "bool", "both", true, "fixed", &[1], false);
         Unit => ((), "()", "both", true, "fixed", &[0], false);
-        Bytes => (Vec<u8>, "Vec<u8>", "both", true, "unbounded", &[0,31,32,33,1024,4096], false);
+        Bytes => (Vec<u8>, "Vec<u8>", "both", true, "unbounded", &[0,31,32,33,256,1024,4096], false);
         String => (String, "String", "both", true, "unbounded", &[0,32,1024,4096], false);
         Array20 => ([u8;20], "[u8;20]", "both", true, "fixed", &[20], false);
         Array31 => ([u8;31], "[u8;31]", "storage", true, "fixed", &[31], false);
@@ -56,7 +56,7 @@ macro_rules! type_catalogue {
         Blob48 => ($crate::ReferenceValue<$crate::codec_reference::storable::Blob<48>>, "ICSS Blob<48>", "icss", true, "bounded-variable", &[0,8,48], false);
         Blob80 => ($crate::ReferenceValue<$crate::codec_reference::storable::Blob<80>>, "ICSS Blob<80>", "icss", true, "bounded-variable", &[0,8,80], false);
         Blob300 => ($crate::ReferenceValue<$crate::codec_reference::storable::Blob<300>>, "ICSS Blob<300>", "icss", true, "bounded-variable", &[0,8,300], false);
-        Blob65536 => ($crate::ReferenceValue<$crate::codec_reference::storable::Blob<65536>>, "ICSS Blob<65536>", "icss", true, "bounded-variable", &[0,8,65536], false);
+        Blob65536 => ($crate::ReferenceValue<$crate::codec_reference::storable::Blob<65536>>, "ICSS Blob<65536>", "icss", true, "bounded-variable", &[0,8,256,65536], false);
         PairFixed => ($crate::ReferenceValue<(u64,[u8;20])>, "(u64,[u8;20])", "icss", true, "fixed", &[28], false);
         TripleFixed => ($crate::ReferenceValue<(u64,[u8;20],[u8;20])>, "(u64,[u8;20],[u8;20])", "icss", true, "fixed", &[48], false);
         Pair48 => ($crate::ReferenceValue<(u64,$crate::codec_reference::storable::Blob<48>)>, "(u64,Blob<48>)", "icss", true, "bounded-variable", &[0,8], false);
@@ -103,8 +103,8 @@ macro_rules! type_catalogue {
         AppOptional => ($crate::OptionalU64, "Storage OptionalU64", "storage", true, "bounded-variable", &[9], false);
         Bounded255 => ($crate::BoundedBytes<255>, "Storage BoundedBytes<255>", "storage", true, "bounded-variable", &[0,8,255], false);
         Bounded256 => ($crate::BoundedBytes<256>, "Storage BoundedBytes<256>", "storage", true, "bounded-variable", &[0,8,256], false);
-        Bounded65535 => ($crate::BoundedBytes<65535>, "Storage BoundedBytes<65535>", "storage", true, "bounded-variable", &[0,8,65535], false);
-        Bounded65536 => ($crate::BoundedBytes<65536>, "Storage BoundedBytes<65536>", "storage", true, "bounded-variable", &[0,8,65536], false);
+        Bounded65535 => ($crate::BoundedBytes<65535>, "Storage BoundedBytes<65535>", "storage", true, "bounded-variable", &[0,8,256,65535], false);
+        Bounded65536 => ($crate::BoundedBytes<65536>, "Storage BoundedBytes<65536>", "storage", true, "bounded-variable", &[0,8,256,65536], false);
     }};
 }
 macro_rules! define_catalogue {
@@ -276,7 +276,7 @@ const EXTRA_PAIRS: &[(DataType, DataType)] = &[
 ];
 const CAPACITY: usize = DATA_TYPES.len() * 7 + 40 + EXTRA_PAIRS.len() * 2;
 const fn build_matrix() -> ([Case; CAPACITY], usize) {
-    let blank = Case::Typed {
+    let blank = Case {
         collection: Collection::Map,
         key: DataType::U64,
         value: DataType::U64,
@@ -342,20 +342,15 @@ const fn push_case(
 ) {
     let mut i = 0;
     while i < *n {
-        if let Case::Typed {
-            collection,
-            key,
-            value,
-        } = out[i]
-            && collection as u8 == c as u8
-            && key as u8 == k as u8
-            && value as u8 == v as u8
+        if out[i].collection as u8 == c as u8
+            && out[i].key as u8 == k as u8
+            && out[i].value as u8 == v as u8
         {
             return;
         }
         i += 1;
     }
-    out[*n] = Case::Typed {
+    out[*n] = Case {
         collection: c,
         key: k,
         value: v,
@@ -367,14 +362,11 @@ pub const MATRIX_CASES: &[Case] = MATRIX_STORAGE.0.split_at(MATRIX_STORAGE.1).0;
 
 pub fn operations(case: Case) -> Vec<Operation> {
     use Operation::*;
-    let Case::Typed {
+    let Case {
         collection,
         key,
         value,
-    } = case
-    else {
-        unreachable!()
-    };
+    } = case;
     let base = match collection {
         Collection::Map => crate::OPERATIONS.to_vec(),
         Collection::Region => vec![
@@ -453,14 +445,11 @@ pub fn operations(case: Case) -> Vec<Operation> {
 }
 /// Expected availability is a separately verified result, never a fake timing.
 pub fn unavailable(case: Case, reference: bool) -> Option<(&'static str, &'static str)> {
-    let Case::Typed {
+    let Case {
         collection,
         key,
         value,
-    } = case
-    else {
-        return None;
-    };
+    } = case;
     if matches!(
         collection,
         Collection::Map | Collection::Set | Collection::Region
@@ -489,12 +478,11 @@ pub fn unavailable(case: Case, reference: bool) -> Option<(&'static str, &'stati
 impl Case {
     pub fn label(self) -> String {
         match self {
-            Self::Typed {
+            Self {
                 collection,
                 key,
                 value,
             } => format!("{}-{key:?}-{value:?}", collection.name()),
-            _ => format!("{self:?}"),
         }
     }
 }

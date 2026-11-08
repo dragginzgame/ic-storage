@@ -4,32 +4,6 @@ use super::region::RegionMemory;
 use crate::{Memory, RuntimeMemory, engine};
 use std::borrow::Cow;
 
-pub(super) struct Backing<M>(pub M);
-impl<M: Memory> engine::Memory for Backing<M> {
-    fn size(&self) -> u64 {
-        self.0.size()
-    }
-    fn grow(&self, pages: u64) -> i64 {
-        self.0.grow(pages)
-    }
-    fn read(&self, offset: u64, bytes: &mut [u8]) {
-        self.0.read(offset, bytes);
-    }
-    #[inline]
-    #[expect(
-        unsafe_code,
-        reason = "Forward the copied ICSS raw-read contract through governed backing"
-    )]
-    unsafe fn read_unsafe(&self, offset: u64, dst: *mut u8, count: usize) {
-        // SAFETY: both traits require the same exclusive destination and full
-        // initialization on success; no address or count changes here.
-        unsafe { self.0.read_unsafe(offset, dst, count) }
-    }
-    fn write(&self, offset: u64, bytes: &[u8]) {
-        self.0.write(offset, bytes);
-    }
-}
-
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 #[repr(transparent)]
 pub(super) struct Codec<T>(pub T);
@@ -45,28 +19,25 @@ impl<T> Codec<T> {
     }
 }
 impl<T: Storable> engine::Storable for Codec<T> {
-    const BOUND: engine::storable::Bound = match T::BOUND {
-        super::Bound::Unbounded => engine::storable::Bound::Unbounded,
-        super::Bound::Bounded {
-            max_size,
-            is_fixed_size,
-        } => engine::storable::Bound::Bounded {
-            max_size,
-            is_fixed_size,
-        },
-    };
+    const BOUND: crate::storable::Bound = T::BOUND;
     fn to_bytes(&self) -> Cow<'_, [u8]> {
-        self.0
-            .to_bytes_checked()
-            .expect("collection encoding failed")
+        let bytes = self.0.to_bytes().expect("collection encoding failed");
+        T::BOUND
+            .check(&bytes)
+            .expect("collection encoding exceeds codec bounds");
+        bytes
     }
     fn into_bytes(self) -> Vec<u8> {
-        self.0
-            .into_bytes_checked()
-            .expect("collection encoding failed")
+        let bytes = self.0.into_bytes().expect("collection encoding failed");
+        T::BOUND
+            .check(&bytes)
+            .expect("collection encoding exceeds codec bounds");
+        bytes
     }
     fn from_bytes(bytes: Cow<'_, [u8]>) -> Self {
-        T::check_bounds(&bytes).expect("stored collection value exceeds codec bounds");
+        T::BOUND
+            .check(&bytes)
+            .expect("stored collection value exceeds codec bounds");
         Self(T::from_bytes(bytes).expect("stored collection value failed to decode"))
     }
 }
@@ -126,7 +97,7 @@ impl<M: Memory> Memory for TreeMemory<M> {
         }
     }
 }
-pub(super) type Map<K, V, M> = engine::BTreeMap<Codec<K>, Codec<V>, Backing<TreeMemory<M>>>;
+pub(super) type Map<K, V, M> = engine::BTreeMap<Codec<K>, Codec<V>, TreeMemory<M>>;
 
 pub(super) fn reserve<M: Memory>(memory: &M) -> super::error::Result<()> {
     if memory.size() == 0 && memory.grow(1) == -1 {

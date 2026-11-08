@@ -10,7 +10,6 @@
     clippy::inline_always,
     reason = "Retain ICSS baseline inlining choices for the initial comparison"
 )]
-mod base_vec;
 pub mod btreemap;
 pub mod cell;
 pub mod storable;
@@ -25,15 +24,7 @@ use std::{
 pub use storable::Storable;
 use types::Address;
 const WASM_PAGE_SIZE: u64 = crate::WASM_PAGE_SIZE_BYTES;
-pub trait Memory {
-    fn size(&self) -> u64;
-    fn grow(&self, pages: u64) -> i64;
-    fn read(&self, offset: u64, dst: &mut [u8]);
-    // Every private view must explicitly forward initialization. Backing's
-    // former inherited zeroing fallback silently lost ICSS's fast-read path.
-    unsafe fn read_unsafe(&self, offset: u64, dst: *mut u8, count: usize);
-    fn write(&self, offset: u64, src: &[u8]);
-}
+pub use crate::Memory;
 fn read_to_vec<M: Memory>(m: &M, addr: Address, dst: &mut std::vec::Vec<u8>, count: usize) {
     dst.clear();
     dst.reserve_exact(count);

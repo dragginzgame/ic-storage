@@ -1,7 +1,6 @@
 //! Matched map workload and bounded benchmark protocol; not a production API.
 use serde::{Deserialize, Serialize};
 pub mod catalogue;
-pub mod read_probe;
 mod types;
 pub use catalogue::{Collection, DataType, MATRIX_CASES, ReferenceValue};
 pub use ic_principal::Principal as BenchmarkPrincipal;
@@ -35,7 +34,6 @@ pub enum Pattern {
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Initialization {
     pub case: Case,
-    pub cache_bytes: usize,
     pub upstream_cache_slots: usize,
     pub upstream_bucket_pages: std::num::NonZeroU16,
     pub cold_cache: bool,

@@ -40,7 +40,7 @@ pub enum NodeType {
 pub type Entry<K> = (K, Vec<u8>);
 pub type EntryRef<'a, K> = (&'a K, &'a [u8]);
 
-type LazyEntry<K> = (LazyKey<K>, LazyValue);
+type LazyEntry<K> = (LazyObject<K>, LazyObject<Vec<u8>>);
 #[derive(Debug)]
 #[expect(
     clippy::struct_field_names,
@@ -55,7 +55,7 @@ pub struct Node<K: Storable + Ord + Clone> {
     // child of this key and children[I + 1] points to the right child.
     children: Vec<Address>,
     node_type: NodeType,
-    version: Version,
+    page_size: PageSize,
 
     // The address of the overflow page.
     // In V2, a node can span multiple pages if it exceeds a certain size.
@@ -73,9 +73,7 @@ impl<K: Storable + Ord + Clone> Node<K> {
         }
     }
     pub fn save<M: Memory>(&mut self, allocator: &mut Allocator<M>) {
-        match self.version {
-            Version::V2(_) => self.save_v2(allocator),
-        }
+        self.save_v2(allocator);
     }
     pub const fn address(&self) -> Address {
         self.address
@@ -99,7 +97,7 @@ impl<K: Storable + Ord + Clone> Node<K> {
                         .children
                         .last()
                         .expect("An internal node must have children."),
-                    self.version.page_size(),
+                    self.page_size,
                     memory,
                 );
                 last_child.get_max(memory)
@@ -117,7 +115,7 @@ impl<K: Storable + Ord + Clone> Node<K> {
                 let first_child = Self::load(
                     // NOTE: an internal node must have children, so this access is safe.
                     self.children[0],
-                    self.version.page_size(),
+                    self.page_size,
                     memory,
                 );
                 first_child.get_min(memory)
@@ -128,7 +126,7 @@ impl<K: Storable + Ord + Clone> Node<K> {
         self.entries.len() >= CAPACITY
     }
     pub fn swap_value<M: Memory>(&mut self, idx: usize, new: Vec<u8>, memory: &M) -> Vec<u8> {
-        let old = core::mem::replace(&mut self.entries[idx].1, LazyValue::by_value(new));
+        let old = core::mem::replace(&mut self.entries[idx].1, LazyObject::by_value(new));
         self.extract_value(old, memory)
     }
     pub fn swap_entry<M: Memory>(
@@ -139,7 +137,7 @@ impl<K: Storable + Ord + Clone> Node<K> {
     ) -> Entry<K> {
         let (old_key, old_value) = core::mem::replace(
             &mut self.entries[idx],
-            (LazyKey::by_value(key), LazyValue::by_value(value)),
+            (LazyObject::by_value(key), LazyObject::by_value(value)),
         );
         (
             self.extract_key(old_key, memory),
@@ -167,10 +165,10 @@ impl<K: Storable + Ord + Clone> Node<K> {
     pub fn value<M: Memory>(&self, idx: usize, memory: &M) -> &[u8] {
         self.get_value(&self.entries[idx], memory)
     }
-    fn extract_key<M: Memory>(&self, key: LazyKey<K>, memory: &M) -> K {
+    fn extract_key<M: Memory>(&self, key: LazyObject<K>, memory: &M) -> K {
         key.take_or_load(|offset, size| self.load_key_from_memory(offset, size, memory))
     }
-    fn extract_value<M: Memory>(&self, value: LazyValue, memory: &M) -> Vec<u8> {
+    fn extract_value<M: Memory>(&self, value: LazyObject<Vec<u8>>, memory: &M) -> Vec<u8> {
         value.take_or_load(|offset, size| self.load_value_from_memory(offset, size, memory))
     }
     fn load_key_from_memory<M: Memory>(
@@ -186,16 +184,11 @@ impl<K: Storable + Ord + Clone> Node<K> {
             memory,
         };
 
-        let size = match self.version {
-            Version::V2(_) => {
-                // V2: use fixed size if available, otherwise the one loaded from memory.
-                if K::BOUND.is_fixed_size() {
-                    K::BOUND.max_size()
-                } else {
-                    offset += U32_SIZE;
-                    loaded_size
-                }
-            }
+        let size = if K::BOUND.is_fixed_size() {
+            K::BOUND.max_size()
+        } else {
+            offset += U32_SIZE;
+            loaded_size
         } as usize;
 
         let mut bytes = Vec::with_capacity(size);
@@ -241,7 +234,7 @@ impl<K: Storable + Ord + Clone> Node<K> {
     }
 
     const fn page_size(&self) -> PageSize {
-        self.version.page_size()
+        self.page_size
     }
     pub fn child(&self, idx: usize) -> Address {
         self.children[idx]
@@ -262,8 +255,10 @@ impl<K: Storable + Ord + Clone> Node<K> {
         self.children.pop()
     }
     pub fn insert_entry(&mut self, idx: usize, (key, value): Entry<K>) {
-        self.entries
-            .insert(idx, (LazyKey::by_value(key), LazyValue::by_value(value)));
+        self.entries.insert(
+            idx,
+            (LazyObject::by_value(key), LazyObject::by_value(value)),
+        );
     }
     pub fn extract_entry_at<M: Memory>(&mut self, idx: usize, memory: &M) -> Entry<K> {
         let (key, value) = self.entries.swap_remove(idx);
@@ -281,7 +276,7 @@ impl<K: Storable + Ord + Clone> Node<K> {
     }
     pub fn push_entry(&mut self, (key, value): Entry<K>) {
         self.entries
-            .push((LazyKey::by_value(key), LazyValue::by_value(value)));
+            .push((LazyObject::by_value(key), LazyObject::by_value(value)));
     }
     pub fn pop_entry<M: Memory>(&mut self, memory: &M) -> Option<Entry<K>> {
         let len = self.entries_len();
@@ -456,78 +451,11 @@ impl<T> LazyObject<T> {
     }
 }
 
-type Blob = Vec<u8>;
-
-#[derive(Debug)]
-struct LazyValue(LazyObject<Blob>);
-
-impl LazyValue {
-    #[inline(always)]
-    pub const fn by_value(value: Blob) -> Self {
-        Self(LazyObject::by_value(value))
-    }
-
-    #[inline(always)]
-    pub const fn by_ref(offset: Bytes, size: u32) -> Self {
-        Self(LazyObject::by_ref(offset, size))
-    }
-
-    #[inline(always)]
-    pub fn get_or_load(&self, load: impl FnOnce(Bytes, u32) -> Blob) -> &Blob {
-        self.0.get_or_load(load)
-    }
-
-    #[inline(always)]
-    pub fn take_or_load(self, load: impl FnOnce(Bytes, u32) -> Blob) -> Blob {
-        self.0.take_or_load(load)
-    }
-}
-
-#[derive(Debug)]
-struct LazyKey<K>(LazyObject<K>);
-
-impl<K> LazyKey<K> {
-    #[inline(always)]
-    pub const fn by_value(value: K) -> Self {
-        Self(LazyObject::by_value(value))
-    }
-
-    #[inline(always)]
-    pub const fn by_ref(offset: Bytes, size: u32) -> Self {
-        Self(LazyObject::by_ref(offset, size))
-    }
-
-    #[inline(always)]
-    pub fn get_or_load(&self, load: impl FnOnce(Bytes, u32) -> K) -> &K {
-        self.0.get_or_load(load)
-    }
-
-    #[inline(always)]
-    pub fn take_or_load(self, load: impl FnOnce(Bytes, u32) -> K) -> K {
-        self.0.take_or_load(load)
-    }
-}
 #[derive(Debug, PartialEq, Copy, Clone, Eq)]
-pub enum Version {
-    V2(PageSize),
-}
-
-impl Version {
-    pub const fn page_size(self) -> PageSize {
-        match self {
-            Self::V2(page_size) => page_size,
-        }
-    }
-}
-#[derive(Debug, PartialEq, Copy, Clone, Eq)]
-pub enum PageSize {
-    Value(u32),
-}
+pub struct PageSize(pub u32);
 
 impl PageSize {
     pub const fn get(self) -> u32 {
-        match self {
-            Self::Value(page_size) => page_size,
-        }
+        self.0
     }
 }

@@ -997,8 +997,9 @@ blind retries.
   source separately from a committed revision. Include affected callers/hosts
   and the smallest useful verification.
 - Track upstream acceptance separately from verified consumer adoption. Close
-  producer issues when their own delivered implementation and required checks
-  are complete; keep concrete, independently actionable adoption work in linked
+  producer issues when their own implementation and focused checks are complete
+  under the issue maintenance procedure; delivery is not a default prerequisite.
+  Keep concrete, independently actionable adoption work in linked
   consumer-owned issues. Shared waiting findings follow the rule below.
   Do not keep or reopen a completed producer issue solely for fleet adoption,
   or create a second open tracker for the same consumer obligations. The

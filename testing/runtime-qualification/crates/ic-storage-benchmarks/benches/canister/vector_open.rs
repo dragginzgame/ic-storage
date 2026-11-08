@@ -84,12 +84,24 @@ impl<V: BenchValue + Storable> Benchmark for ReopenedVector<V> {
 }
 pub(super) fn new(settings: Initialization) -> Box<dyn Benchmark> {
     match settings.case {
-        Case::VectorU64 => Box::new(ReopenedVector::<u64>::new(settings)),
-        Case::VectorBytes32 => Box::new(ReopenedVector::<[u8; 32]>::new(settings)),
-        Case::VectorBounded255 => Box::new(ReopenedVector::<BoundedBytes<255>>::new(settings)),
-        Case::VectorBounded256 => Box::new(ReopenedVector::<BoundedBytes<256>>::new(settings)),
-        Case::VectorBytes => Box::new(ReopenedVector::<ChunkBytes>::new(settings)),
-        Case::VectorRecord => Box::new(ReopenedVector::<WireRecord>::new(settings)),
+        ic_storage_benchmarks::case!(Vector, U64, U64) => {
+            Box::new(ReopenedVector::<u64>::new(settings))
+        }
+        ic_storage_benchmarks::case!(Vector, U64, Array32) => {
+            Box::new(ReopenedVector::<[u8; 32]>::new(settings))
+        }
+        ic_storage_benchmarks::case!(Vector, U64, Bounded255) => {
+            Box::new(ReopenedVector::<BoundedBytes<255>>::new(settings))
+        }
+        ic_storage_benchmarks::case!(Vector, U64, Bounded256) => {
+            Box::new(ReopenedVector::<BoundedBytes<256>>::new(settings))
+        }
+        ic_storage_benchmarks::case!(Vector, U64, Chunk) => {
+            Box::new(ReopenedVector::<ChunkBytes>::new(settings))
+        }
+        ic_storage_benchmarks::case!(Vector, U64, WireRecord) => {
+            Box::new(ReopenedVector::<WireRecord>::new(settings))
+        }
         _ => panic!("unsupported vector-open type"),
     }
 }

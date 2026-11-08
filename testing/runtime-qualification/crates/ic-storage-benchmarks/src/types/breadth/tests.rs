@@ -139,7 +139,7 @@ mod reference {
         let reference = icss::Vec::<BoundedBytes<MAX>, _>::new(icss::VectorMemory::default());
         for size in [0, 8, MAX] {
             let value = BoundedBytes::<MAX>::make(7, size, false);
-            vector.push(&value).unwrap();
+            vector.push(&value);
             reference.push(&value);
         }
         drop(vector);
@@ -147,15 +147,12 @@ mod reference {
             StableVec::<BoundedBytes<MAX>, _>::load(runtime.open_memory(&key).unwrap()).unwrap();
         for (index, size) in [0, 8, MAX].into_iter().enumerate() {
             backing.reset();
-            assert_eq!(
-                vector.get(index as u64).unwrap(),
-                reference.get(index as u64)
-            );
+            assert_eq!(vector.get(index as u64), reference.get(index as u64));
             assert_eq!(backing.counts().read_bytes, 8 + prefix + u64::from(size));
             assert_eq!((backing.counts().writes, backing.counts().grows), (0, 0));
         }
         assert_eq!(
-            vector.iter().collect::<Result<Vec<_>, _>>().unwrap(),
+            vector.iter().collect::<Vec<_>>(),
             reference.iter().collect::<Vec<_>>()
         );
     }

@@ -51,15 +51,5 @@ path = "benches/collection_io.rs"
 required-features = ["owned", "dfinity"]
 
 [[example]]
-name = "stable-read-probe"
-path = "benches/stable_read_probe/main.rs"
-
-[[example]]
-name = "stable-read-probe-wasm"
-path = "benches/stable_read_probe/wasm.rs"
-crate-type = ["cdylib"]
-required-features = ["owned"]
-
-[[example]]
 name = "size-consumers"
 path = "benches/size_consumer/runner.rs"

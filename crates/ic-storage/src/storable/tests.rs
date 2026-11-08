@@ -37,3 +37,35 @@ fn boolean_codec_borrows_and_rejects_non_boolean_bytes() {
         assert!(bool::from_bytes(Cow::Borrowed(bytes)).is_err());
     }
 }
+
+#[test]
+fn canonical_bounds_distinguish_empty_variable_and_exact_width_records() {
+    for (bound, accepted) in [
+        (Bound::Unbounded, [true, true, true, true]),
+        (
+            Bound::Bounded {
+                max_size: 2,
+                is_fixed_size: false,
+            },
+            [true, true, true, false],
+        ),
+        (
+            Bound::Bounded {
+                max_size: 2,
+                is_fixed_size: true,
+            },
+            [false, false, true, false],
+        ),
+        (
+            Bound::Bounded {
+                max_size: 0,
+                is_fixed_size: true,
+            },
+            [true, false, false, false],
+        ),
+    ] {
+        for (len, accepted) in accepted.into_iter().enumerate() {
+            assert_eq!(bound.check(&vec![0; len]).is_ok(), accepted);
+        }
+    }
+}

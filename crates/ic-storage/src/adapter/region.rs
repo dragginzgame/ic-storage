@@ -1,5 +1,5 @@
 //! Operation-local collection access within a retained allocation region.
-use super::bridge::{self, Backing, Codec, TreeMemory};
+use super::bridge::{self, Codec, TreeMemory};
 use super::error::{CollectionError as Error, Result as CollectionResult, ensure};
 use super::{Memory, Storable};
 use crate::DefaultMemoryImpl;
@@ -93,7 +93,7 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> BTreeMapRegion<K, V, M> 
         bridge::reserve(&self.memory)?;
         #[cfg(not(target_arch = "wasm32"))]
         let _guard = self.memory.memory.poison_on_unwind();
-        bridge::Map::<K, V, _>::new(Backing(TreeMemory::Region(self.memory.clone())));
+        bridge::Map::<K, V, _>::new(TreeMemory::Region(self.memory.clone()));
         Ok(())
     }
 
@@ -200,7 +200,7 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> BTreeMapRegion<K, V, M> 
     }
 
     fn current_map(&self) -> CollectionResult<bridge::Map<K, V, M>> {
-        bridge::Map::load(Backing(TreeMemory::Region(self.memory.clone()))).ok_or(Error::Format)
+        bridge::Map::load(TreeMemory::Region(self.memory.clone())).ok_or(Error::Format)
     }
 }
 

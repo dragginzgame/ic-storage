@@ -32,13 +32,13 @@ the payload's granules remain untouched and its first read bypasses that charge.
 
 ## Actual original images, not assumed addresses
 
-The [host diagnostic](../../../testing/runtime-qualification/crates/ic-storage-benchmarks/benches/stable_read_probe/main.rs)
+The [host diagnostic](https://github.com/dragginzgame/ic-storage/blob/3c4734d9bd413b8a902f23458ebdc222255cd9e7/testing/runtime-qualification/crates/ic-storage-benchmarks/benches/stable_read_probe/main.rs)
 installs each original Wasm from the checksummed baseline `attempt.c6YVkt` and
 compact candidate `attempt.xIWOoI`. It fully populates 512/1,024/2,048 rows with
 256/2,048-byte inner payloads through their original governed setup endpoints.
 It captures the stable image and locates each unique complete Wire envelope.
 It checks the preceding length field, then passively upgrades to the
-[probe](../../../testing/runtime-qualification/crates/ic-storage-benchmarks/benches/stable_read_probe/wasm.rs)
+[probe](https://github.com/dragginzgame/ic-storage/blob/3c4734d9bd413b8a902f23458ebdc222255cd9e7/testing/runtime-qualification/crates/ic-storage-benchmarks/benches/stable_read_probe/wasm.rs)
 without resetting stable memory.
 
 The probe performs no collection access. It fills every heap destination with

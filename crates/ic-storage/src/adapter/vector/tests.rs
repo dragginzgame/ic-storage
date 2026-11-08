@@ -52,7 +52,7 @@ fn header_open_reads_once_without_writing_or_caching_length() {
     let backing = MeteredMemory::<crate::VectorMemory>::default();
     let runtime = runtime(backing.clone());
     let vector = StableVec::<u64, _>::create(runtime.open_memory(&key()).unwrap()).unwrap();
-    vector.push(&73).unwrap();
+    vector.push(&73);
     drop(vector);
     let memory = runtime.open_memory(&key()).unwrap();
     backing.reset();
@@ -62,7 +62,7 @@ fn header_open_reads_once_without_writing_or_caching_length() {
         (io.reads, io.read_bytes, io.writes, io.grows),
         (1, 17, 0, 0)
     );
-    assert_eq!(vector.get(0).unwrap(), Some(73));
+    assert_eq!(vector.get(0), Some(73));
     backing.reset();
     assert_eq!(vector.len(), 1);
     assert_eq!(
@@ -148,7 +148,7 @@ fn populated_lookups_read_one_length_one_slot_and_decode_once_after_reopen() {
             for id in 0..population {
                 let mut bytes = vec![42; payload];
                 bytes[..8].copy_from_slice(&id.to_le_bytes());
-                vector.push(&Record(bytes)).unwrap();
+                vector.push(&Record(bytes));
             }
             drop(vector);
             let vector =
@@ -156,7 +156,7 @@ fn populated_lookups_read_one_length_one_slot_and_decode_once_after_reopen() {
             for index in [0, population / 2, population - 1] {
                 backing.reset();
                 DECODES.with(|x| x.set((0, 0)));
-                let item = vector.get(index).unwrap().unwrap();
+                let item = vector.get(index).unwrap();
                 assert_eq!(&item.0[..8], &index.to_le_bytes());
                 let io = backing.counts();
                 assert!(!io.overflowed);
@@ -170,7 +170,7 @@ fn populated_lookups_read_one_length_one_slot_and_decode_once_after_reopen() {
             }
             backing.reset();
             DECODES.with(|x| x.set((0, 0)));
-            assert!(vector.get(population).unwrap().is_none());
+            assert!(vector.get(population).is_none());
             assert_eq!(
                 (backing.counts().reads, backing.counts().read_bytes),
                 (1, 8)
@@ -191,19 +191,17 @@ fn check_geometry<const MAXIMUM: u32, const FIXED: bool>(prefix: u64) {
         vec![0, MAXIMUM.min(32) as usize, MAXIMUM as usize]
     };
     for (i, &n) in sizes.iter().enumerate() {
-        vector
-            .push(&Record(vec![u8::try_from(i).unwrap(); n]))
-            .unwrap();
+        vector.push(&Record(vec![u8::try_from(i).unwrap(); n]));
     }
     for (i, &n) in sizes.iter().enumerate() {
         backing.reset();
         assert_eq!(
-            vector.get(i as u64).unwrap().unwrap().0,
+            vector.get(i as u64).unwrap().0,
             vec![u8::try_from(i).unwrap(); n]
         );
         assert_eq!(backing.counts().read_bytes, n as u64 + prefix + 8);
     }
-    assert_eq!(vector.pop().unwrap().unwrap().0, vec![2; sizes[2]]);
+    assert_eq!(vector.pop().unwrap().0, vec![2; sizes[2]]);
     drop(vector);
     let vector =
         StableVec::<Record<MAXIMUM, FIXED>, _>::load(runtime.open_memory(&key()).unwrap()).unwrap();
@@ -224,19 +222,19 @@ fn check_fixed_array<const WIDTH: usize>() {
     let runtime = runtime(backing.clone());
     let vector = StableVec::<[u8; WIDTH], _>::create(runtime.open_memory(&key()).unwrap()).unwrap();
     for byte in [3, 7, 11] {
-        vector.push(&[byte; WIDTH]).unwrap();
+        vector.push(&[byte; WIDTH]);
     }
     backing.reset();
-    assert_eq!(vector.get(1).unwrap(), Some([7; WIDTH]));
+    assert_eq!(vector.get(1), Some([7; WIDTH]));
     // Read exactly the encoded width, including zero and either side of 32.
     assert_eq!(backing.counts().read_bytes, 8 + WIDTH as u64);
-    vector.set(1, &[19; WIDTH]).unwrap();
-    assert_eq!(vector.pop().unwrap(), Some([11; WIDTH]));
+    vector.set(1, &[19; WIDTH]);
+    assert_eq!(vector.pop(), Some([11; WIDTH]));
     drop(vector);
     let vector = StableVec::<[u8; WIDTH], _>::load(runtime.open_memory(&key()).unwrap()).unwrap();
     assert_eq!(vector.len(), 2);
-    assert_eq!(vector.get(1).unwrap(), Some([19; WIDTH]));
-    assert_eq!(vector.get(2).unwrap(), None);
+    assert_eq!(vector.get(1), Some([19; WIDTH]));
+    assert_eq!(vector.get(2), None);
 }
 #[test]
 fn fixed_arrays_read_exact_width_across_scratch_boundary_and_reopen() {
@@ -252,12 +250,12 @@ fn fixed_heap_owned_records_keep_the_owned_decode_handoff() {
     let runtime = runtime(crate::VectorMemory::default());
     let vector =
         StableVec::<Record<32, true>, _>::create(runtime.open_memory(&key()).unwrap()).unwrap();
-    vector.push(&Record(vec![5; 32])).unwrap();
+    vector.push(&Record(vec![5; 32]));
     BORROWED_DECODES.set(0);
-    let saved = vector.get(0).unwrap().unwrap();
-    vector.set(0, &Record(vec![9; 32])).unwrap();
+    let saved = vector.get(0).unwrap();
+    vector.set(0, &Record(vec![9; 32]));
     assert_eq!(saved.0, vec![5; 32]);
-    assert_eq!(vector.pop().unwrap().unwrap().0, vec![9; 32]);
+    assert_eq!(vector.pop().unwrap().0, vec![9; 32]);
     // The decoder can take the read buffer instead of allocating and copying it.
     assert_eq!(BORROWED_DECODES.get(), 0);
 }
@@ -266,21 +264,21 @@ fn iterators_see_writes_and_match_upstream_truncation_and_skipping() {
     let runtime = runtime(crate::VectorMemory::default());
     let vector = StableVec::<u64, _>::create(runtime.open_memory(&key()).unwrap()).unwrap();
     for value in 0..20 {
-        vector.push(&value).unwrap();
+        vector.push(&value);
     }
     let mut iter = vector.iter();
-    assert_eq!(iter.next().unwrap().unwrap(), 0);
-    vector.set(1, &99).unwrap();
-    assert_eq!(iter.next().unwrap().unwrap(), 99);
-    assert_eq!(vector.pop().unwrap(), Some(19));
+    assert_eq!(iter.next().unwrap(), 0);
+    vector.set(1, &99);
+    assert_eq!(iter.next().unwrap(), 99);
+    assert_eq!(vector.pop(), Some(19));
     assert!(iter.next_back().is_none());
-    vector.push(&77).unwrap();
-    assert_eq!(iter.next_back().unwrap().unwrap(), 77);
-    assert_eq!(iter.nth(2).unwrap().unwrap(), 4);
-    assert_eq!(iter.nth_back(2).unwrap().unwrap(), 16);
-    assert_eq!(iter.last().unwrap().unwrap(), 15);
+    vector.push(&77);
+    assert_eq!(iter.next_back().unwrap(), 77);
+    assert_eq!(iter.nth(2).unwrap(), 4);
+    assert_eq!(iter.nth_back(2).unwrap(), 16);
+    assert_eq!(iter.last().unwrap(), 15);
     assert_eq!(
-        vector.iter().rev().collect::<Result<Vec<_>>>().unwrap(),
+        vector.iter().rev().collect::<Vec<_>>(),
         [vec![77], (2..19).rev().collect(), vec![99, 0]].concat()
     );
 }
@@ -292,7 +290,7 @@ fn iterator_skips_and_count_delegate_without_decoding_discarded_records() {
     for id in 0u64..256 {
         let mut bytes = vec![42; 256];
         bytes[..8].copy_from_slice(&id.to_le_bytes());
-        vector.push(&Record(bytes)).unwrap();
+        vector.push(&Record(bytes));
     }
     for reverse in [false, true] {
         backing.reset();
@@ -304,7 +302,7 @@ fn iterator_skips_and_count_delegate_without_decoding_discarded_records() {
             iter.nth(254)
         };
         let expected = if reverse { 1u64 } else { 254u64 };
-        assert_eq!(&item.unwrap().unwrap().0[..8], &expected.to_le_bytes());
+        assert_eq!(&item.unwrap().0[..8], &expected.to_le_bytes());
         DECODES.with(|x| assert_eq!(x.get(), (1, 256)));
         assert_eq!(backing.counts().read_bytes, 8 + 8 + 2 + 256);
         assert_eq!((backing.counts().writes, backing.counts().grows), (0, 0));
@@ -320,8 +318,8 @@ fn malformed_slot_length_traps_before_payload_allocation_or_decode() {
     let backing = MeteredMemory::<crate::VectorMemory>::default();
     let runtime = runtime(backing.clone());
     let vector = StableVec::<Record, _>::create(runtime.open_memory(&key()).unwrap()).unwrap();
-    vector.push(&Record(vec![7; 256])).unwrap();
-    vector.inner.memory().0.write(64, &4097u16.to_le_bytes());
+    vector.push(&Record(vec![7; 256]));
+    vector.inner.memory().write(64, &4097u16.to_le_bytes());
     backing.reset();
     DECODES.with(|x| x.set((0, 0)));
     assert!(catch_unwind(AssertUnwindSafe(|| vector.get(0))).is_err());
@@ -340,7 +338,7 @@ fn last_matches_forward_iteration_after_consumption_and_length_changes() {
                     let vector =
                         StableVec::<u64, _>::create(runtime.open_memory(&key()).unwrap()).unwrap();
                     for value in 0..initial {
-                        vector.push(&value).unwrap();
+                        vector.push(&value);
                     }
                     let mut direct = vector.iter();
                     let mut forward = vector.iter();
@@ -351,10 +349,10 @@ fn last_matches_forward_iteration_after_consumption_and_length_changes() {
                         assert_eq!(direct.next_back(), forward.next_back());
                     }
                     while vector.len() > final_len {
-                        vector.pop().unwrap();
+                        let _ = vector.pop();
                     }
                     while vector.len() < final_len {
-                        vector.push(&(100 + vector.len())).unwrap();
+                        vector.push(&(100 + vector.len()));
                     }
                     let expected = forward.fold(None, |_, value| Some(value));
                     assert_eq!(direct.last(), expected);
@@ -371,12 +369,12 @@ fn last_reads_and_decodes_only_the_selected_slot() {
         let runtime = runtime(backing.clone());
         let vector = StableVec::<Record, _>::create(runtime.open_memory(&key()).unwrap()).unwrap();
         for id in 0..population {
-            vector.push(&Record(id.to_le_bytes().to_vec())).unwrap();
+            vector.push(&Record(id.to_le_bytes().to_vec()));
         }
         backing.reset();
         DECODES.with(|x| x.set((0, 0)));
         assert_eq!(
-            vector.iter().last().unwrap().unwrap().0,
+            vector.iter().last().unwrap().0,
             (population - 1).to_le_bytes()
         );
         DECODES.with(|x| assert_eq!(x.get(), (1, 8)));

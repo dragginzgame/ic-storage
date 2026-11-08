@@ -120,6 +120,10 @@ when changing interfaces, persistence or installation/recovery behavior.
   continuation, PR delivery and readiness wording do not authorize them. Focused
   passing evidence suffices for ordinary handoff; an unrun full suite alone is
   not a blocker. Preserve approved local restrictions on focused execution.
+- Close ordinary issues after implementation and focused validation; pushing,
+  publishing and deployment are separate. State the local/delivery status and
+  preserve genuinely issue-specific acceptance under the
+  [issue closure policy](rules/agent-maintenance.md#issue-review-and-repair).
 - Run expensive hosted integration/native CI asynchronously for development,
   PR delivery and separately authorized merges. Report pending runs; do not poll
   or hold a turn open solely for the matrix. Enforced checks/reviews, known defects,

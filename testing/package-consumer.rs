@@ -25,7 +25,7 @@ fn main() {
             .open_memory(&ic_storage::StableKey::parse("archive.map.v1").unwrap())
             .unwrap();
         let mut map = StableBTreeMap::<u64, u64, _>::create(lease).unwrap();
-        assert_eq!(map.insert(7, 11).unwrap(), None);
+        assert_eq!(map.insert(7, 11), None);
         assert!(matches!(
             runtime.open_memory(&ic_storage::StableKey::parse("archive.map.v1").unwrap()),
             Err(RuntimeOpenError::AlreadyOpen { .. })
@@ -44,7 +44,7 @@ fn main() {
             .unwrap(),
     )
     .unwrap();
-    assert_eq!(map.get(&7).unwrap(), Some(11));
+    assert_eq!(map.get(&7), Some(11));
 
     let key = MetricKey::new("archive", "bytes").unwrap();
     let identity = MetricIdentity::new("bytes", 0).unwrap();

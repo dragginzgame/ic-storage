@@ -109,13 +109,13 @@ impl Stores for Owned {
         }
     }
     fn get(&self, s: usize, k: u64) -> Option<Vec<u8>> {
-        self.maps[s].get(&k).unwrap()
+        self.maps[s].get(&k)
     }
     fn put(&mut self, s: usize, k: u64, v: Vec<u8>) -> Option<Vec<u8>> {
-        self.maps[s].insert(k, v).unwrap()
+        self.maps[s].insert(k, v)
     }
     fn remove(&mut self, s: usize, k: u64) -> Option<Vec<u8>> {
-        self.maps[s].remove(&k).unwrap()
+        self.maps[s].remove(&k)
     }
     fn stats(&self) -> Value {
         json!({"directory":self.runtime.diagnostics().unwrap(), "allocations":self.runtime.memory_allocations().unwrap()})
@@ -265,30 +265,6 @@ fn exercise(stores: &mut dyn Stores, backing: &Backing, count: usize) -> Vec<Val
     }
     report
 }
-fn geometry() -> Vec<Value> {
-    let mut rows = vec![];
-    // The current external record prefix is 20 bytes. Adjacent payloads cross
-    // power-of-two allocation classes without changing tree shape or row count.
-    for payload in [
-        4076, 4077, 4096, 65516, 65517, 65536, 1_048_556, 1_048_557, 1_048_576,
-    ] {
-        let backing = Backing::default();
-        let mut stores = Owned::new(backing.clone(), 1);
-        stores.init();
-        backing.0.reset();
-        for key in 0..32 {
-            assert!(stores.put(0, key, vec![key as u8; payload]).is_none());
-        }
-        let populated = stores.stats();
-        let io = backing.0.counts();
-        assert!(!io.overflowed);
-        for key in 0..32 {
-            assert_eq!(stores.get(0, key), Some(vec![key as u8; payload]));
-        }
-        rows.push(json!({"payload_bytes":payload,"records":32,"logical_payload_bytes":payload*32,"predicted_value_block_bytes":(payload+20).max(256).next_power_of_two(),"populated":populated,"io":{"grows":io.grows,"writes":io.writes,"write_bytes":io.write_bytes}}));
-    }
-    rows
-}
 fn main() {
     let args = Arguments::parse();
     let output = args.output;
@@ -322,7 +298,7 @@ fn main() {
             runs.push(json!({"backend":if bucket==0 {"ic-storage"} else {"ic-stable-structures-0.7.2"},"allocations":count,"bucket_pages":if bucket==0 {None} else {Some(bucket)},"phases":phases}));
         }
     }
-    fs::write(output,serde_json::to_vec_pretty(&json!({"scope":"Native capacity and backing IO; not IC instructions. Diagnostics excluded from phase IO. One backing, interleaved operations; four delete/reinsert rounds.","runs":runs,"storage_geometry":geometry()})).unwrap()).unwrap();
+    fs::write(output,serde_json::to_vec_pretty(&json!({"scope":"Native capacity and backing IO; not IC instructions. Diagnostics excluded from phase IO. One backing, interleaved operations; four delete/reinsert rounds.","runs":runs})).unwrap()).unwrap();
 }
 
 fn small_records() -> Value {

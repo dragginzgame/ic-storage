@@ -128,22 +128,22 @@ impl State {
         let _ = &mut output;
         #[cfg(feature = "map")]
         {
-            output.push(self.map.insert(key, value).unwrap().unwrap_or(u64::MAX));
+            output.push(self.map.insert(key, value).unwrap_or(u64::MAX));
         }
         #[cfg(feature = "set")]
         {
-            output.push(u64::from(self.set.insert(key).unwrap()));
+            output.push(u64::from(self.set.insert(key)));
         }
         #[cfg(feature = "vector")]
         {
             output.push({
-                self.vector.push(&value).unwrap();
+                self.vector.push(&value);
                 self.vector.len()
             });
         }
         #[cfg(feature = "cell")]
         {
-            output.push(self.cell.set(value).unwrap());
+            output.push(self.cell.set(value));
         }
         #[cfg(feature = "region")]
         {
@@ -157,15 +157,15 @@ impl State {
         let _ = &mut output;
         #[cfg(feature = "map")]
         {
-            output.push(self.map.get(&key).unwrap().unwrap_or(u64::MAX));
+            output.push(self.map.get(&key).unwrap_or(u64::MAX));
         }
         #[cfg(feature = "set")]
         {
-            output.push(u64::from(self.set.contains(&key).unwrap()));
+            output.push(u64::from(self.set.contains(&key)));
         }
         #[cfg(feature = "vector")]
         {
-            output.push(self.vector.get(key).unwrap().unwrap_or(u64::MAX));
+            output.push(self.vector.get(key).unwrap_or(u64::MAX));
         }
         #[cfg(feature = "cell")]
         {
@@ -183,19 +183,19 @@ impl State {
         let _ = &mut output;
         #[cfg(feature = "map")]
         {
-            output.push(self.map.remove(&key).unwrap().unwrap_or(u64::MAX));
+            output.push(self.map.remove(&key).unwrap_or(u64::MAX));
         }
         #[cfg(feature = "set")]
         {
-            output.push(u64::from(self.set.remove(&key).unwrap()));
+            output.push(u64::from(self.set.remove(&key)));
         }
         #[cfg(feature = "vector")]
         {
-            output.push(self.vector.pop().unwrap().unwrap_or(u64::MAX));
+            output.push(self.vector.pop().unwrap_or(u64::MAX));
         }
         #[cfg(feature = "cell")]
         {
-            output.push(self.cell.set(0).unwrap());
+            output.push(self.cell.set(0));
         }
         #[cfg(feature = "region")]
         {
@@ -212,32 +212,17 @@ impl State {
                 self.map
                     .iter()
                     .take(16)
-                    .map(|entry| {
-                        let entry = entry.unwrap();
-                        *entry.key() ^ entry.value().unwrap()
-                    })
+                    .map(|entry| *entry.key() ^ entry.value())
                     .fold(0_u64, u64::wrapping_add),
             );
         }
         #[cfg(feature = "set")]
         {
-            output.push(
-                self.set
-                    .iter()
-                    .take(16)
-                    .map(Result::unwrap)
-                    .fold(0_u64, u64::wrapping_add),
-            );
+            output.push(self.set.iter().take(16).fold(0_u64, u64::wrapping_add));
         }
         #[cfg(feature = "vector")]
         {
-            output.push(
-                self.vector
-                    .iter()
-                    .take(16)
-                    .map(Result::unwrap)
-                    .fold(0_u64, u64::wrapping_add),
-            );
+            output.push(self.vector.iter().take(16).fold(0_u64, u64::wrapping_add));
         }
         #[cfg(feature = "cell")]
         {

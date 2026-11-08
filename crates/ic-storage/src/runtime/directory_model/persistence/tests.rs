@@ -51,10 +51,10 @@ fn key(index: usize) -> StableKey {
 fn translation_cache_checks_bounds_and_is_cleared_by_directory_publication() {
     let memory = Observed::default();
     let mut store = Store::create(memory, StorageConfig::default()).unwrap();
-    store.mutate(vec![key(0), key(1)], &[]).unwrap();
+    store.mutate(&[key(0), key(1)].into(), &[]).unwrap();
     let a = store.directory.by_key[&key(0)];
     let b = store.directory.by_key[&key(1)];
-    store.mutate(vec![], &[(a, 1), (b, 1), (a, 1)]).unwrap();
+    store.mutate(&[].into(), &[(a, 1), (b, 1), (a, 1)]).unwrap();
     store.write_data(a, PAGE - 2, &[1, 2, 3, 4]).unwrap();
     let mut bytes = [0; 4];
     store.read_data(a, PAGE - 2, &mut bytes).unwrap();
@@ -66,7 +66,7 @@ fn translation_cache_checks_bounds_and_is_cleared_by_directory_publication() {
     ));
     store.read_data(b, 0, &mut bytes).unwrap();
     assert_eq!(bytes, [0; 4]);
-    store.mutate(vec![], &[(a, 1)]).unwrap();
+    store.mutate(&[].into(), &[(a, 1)]).unwrap();
     assert!(store.last_span.get().is_none());
     store.read_data(a, 2 * PAGE, &mut bytes).unwrap();
     assert_eq!(bytes, [0; 4]);
@@ -81,9 +81,9 @@ fn translation_cache_checks_bounds_and_is_cleared_by_directory_publication() {
 fn diagnostics_never_write_or_grow_the_backing() {
     let memory = Observed::default();
     let mut store = Store::create(memory.clone(), StorageConfig::default()).unwrap();
-    store.mutate(vec![key(0)], &[]).unwrap();
+    store.mutate(&[key(0)].into(), &[]).unwrap();
     let id = store.directory.by_key[&key(0)];
-    store.mutate(vec![], &[(id, 3)]).unwrap();
+    store.mutate(&[].into(), &[(id, 3)]).unwrap();
     let before = (memory.writes.get(), memory.grows.get());
     let report = store.diagnostics().unwrap();
     assert_eq!(report.allocations, 1);
@@ -98,13 +98,13 @@ fn multi_page_directory_reserves_its_complete_record_before_application_growth()
     let budget = StorageConfig::default();
     let mut store = Store::create(memory.clone(), budget).unwrap();
     store
-        .mutate((0..budget.allocations).map(key).collect(), &[])
+        .mutate(&(0..budget.allocations).map(key).collect(), &[])
         .unwrap();
     let root = Root::decode(&store.root).unwrap();
     assert!(root.length > PAGE);
     assert!(root.end >= root.start + root.length.div_ceil(PAGE));
     let id = store.directory.by_key[&key(0)];
-    store.mutate(vec![], &[(id, 1)]).unwrap();
+    store.mutate(&[].into(), &[(id, 1)]).unwrap();
     assert_eq!(store.directory.page(id, 0), Some(root.end));
     let expected = store.directory.image.clone();
     drop(store);
@@ -116,7 +116,7 @@ fn multi_page_directory_reserves_its_complete_record_before_application_growth()
 fn reopen_more_than_256_allocations_preserves_data_and_metadata_separation() {
     let memory = Observed::default();
     let mut store = Store::create(memory.clone(), StorageConfig::default()).unwrap();
-    store.mutate((0..1_024).map(key).collect(), &[]).unwrap();
+    store.mutate(&(0..1_024).map(key).collect(), &[]).unwrap();
     let a = store.directory.by_key[&key(500)];
     let b = store.directory.by_key[&key(900)];
     assert!(
@@ -127,11 +127,11 @@ fn reopen_more_than_256_allocations_preserves_data_and_metadata_separation() {
             .iter()
             .any(|entry| entry.id.0 > 255)
     );
-    store.mutate(vec![], &[(a, 2), (b, 1), (a, 1)]).unwrap();
+    store.mutate(&[].into(), &[(a, 2), (b, 1), (a, 1)]).unwrap();
     let first = store.directory.page(a, 0).unwrap() * PAGE;
     memory.write(first, b"application payload");
     // A further metadata commit must not overwrite previously allocated data.
-    store.mutate(vec![key(2_000)], &[]).unwrap();
+    store.mutate(&[key(2_000)].into(), &[]).unwrap();
     let expected = store.directory.image.clone();
     let before = memory.bytes.borrow().clone();
     let writes = memory.writes.get();
@@ -156,14 +156,14 @@ fn growth_refusal_preserves_root_cache_and_bytes_and_allows_retry() {
     let writes = memory.writes.get();
     memory.refuse_growth.set(true);
     assert!(matches!(
-        store.mutate(vec![key(0)], &[]),
+        store.mutate(&[key(0)].into(), &[]),
         Err(Error::Growth)
     ));
     assert_eq!(store.directory.image, image);
     assert_eq!(*memory.bytes.borrow(), before);
     assert_eq!(memory.writes.get(), writes);
     memory.refuse_growth.set(false);
-    store.mutate(vec![key(0)], &[]).unwrap();
+    store.mutate(&[key(0)].into(), &[]).unwrap();
     assert!(
         Store::open(memory, StorageConfig::default())
             .unwrap()
@@ -183,12 +183,12 @@ fn interrupted_writes_poison_owner_and_never_guess_a_fallback_root() {
         let mut store = Store::create(memory.clone(), StorageConfig::default()).unwrap();
         let base = store.directory.image.clone();
         memory.fail_write.set(Some((remaining, prefix)));
-        assert!(catch_unwind(AssertUnwindSafe(|| store.mutate(vec![key(0)], &[]))).is_err());
+        assert!(catch_unwind(AssertUnwindSafe(|| store.mutate(&[key(0)].into(), &[]))).is_err());
         assert!(store.poisoned.get());
         assert_eq!(store.directory.image, base);
         memory.fail_write.set(None);
         assert!(matches!(
-            store.mutate(vec![key(1)], &[]),
+            store.mutate(&[key(1)].into(), &[]),
             Err(Error::Poisoned)
         ));
         drop(store);
@@ -226,18 +226,18 @@ fn mutation_rejects_a_changed_backing_before_growth_or_publication() {
     let mut other = Store::open(memory.clone(), StorageConfig::default()).unwrap();
     // Only this private fixture bypasses public backing custody, to exercise
     // the boundary check against a structurally valid foreign publication.
-    other.mutate(vec![key(0)], &[]).unwrap();
+    other.mutate(&[key(0)].into(), &[]).unwrap();
     let before = memory.bytes.borrow().clone();
     let effects = (memory.grows.get(), memory.writes.get());
     assert!(matches!(
-        store.mutate(vec![key(1)], &[]),
+        store.mutate(&[key(1)].into(), &[]),
         Err(Error::Invalid(_))
     ));
     assert!(store.poisoned.get());
     assert_eq!(*memory.bytes.borrow(), before);
     assert_eq!((memory.grows.get(), memory.writes.get()), effects);
     assert!(matches!(
-        store.mutate(vec![key(1)], &[]),
+        store.mutate(&[key(1)].into(), &[]),
         Err(Error::Poisoned)
     ));
 }
@@ -250,7 +250,7 @@ fn foreign_backing_and_metadata_aliases_refuse() {
     assert!(Store::open(memory, StorageConfig::default()).is_err());
     let memory = Observed::default();
     let mut store = Store::create(memory.clone(), StorageConfig::default()).unwrap();
-    store.mutate(vec![key(1)], &[]).unwrap();
+    store.mutate(&[key(1)].into(), &[]).unwrap();
 
     // A checksum-valid record still has to pass structural metadata separation.
     let mut root = Root::decode(&store.root).unwrap();
@@ -289,7 +289,7 @@ fn empty_growth_refusal_and_commit_budgets_have_no_writes() {
     let before = memory.bytes.borrow().clone();
     let grows = memory.grows.get();
     assert!(matches!(
-        store.mutate(vec![key(1)], &[]),
+        store.mutate(&[key(1)].into(), &[]),
         Err(Error::Budget)
     ));
     assert_eq!(*memory.bytes.borrow(), before);
@@ -319,7 +319,7 @@ fn mutation_checks_owner_allocation_and_wire_limits_before_backing_mutation() {
         let before = memory.bytes.borrow().clone();
         let effects = (memory.grows.get(), memory.writes.get());
         assert!(matches!(
-            receiver.mutate(vec![key(0), key(1)], &[]),
+            receiver.mutate(&[key(0), key(1)].into(), &[]),
             Err(Error::Budget | Error::Wire(_))
         ));
         assert_eq!(*memory.bytes.borrow(), before);
@@ -333,15 +333,15 @@ fn mutation_checks_owner_allocation_and_wire_limits_before_backing_mutation() {
 fn abandoned_tail_is_never_reused_as_zeroed_application_pages() {
     let memory = Observed::default();
     let mut store = Store::create(memory.clone(), StorageConfig::default()).unwrap();
-    store.mutate(vec![key(0)], &[]).unwrap();
+    store.mutate(&[key(0)].into(), &[]).unwrap();
     memory.fail_write.set(Some((0, 16)));
-    assert!(catch_unwind(AssertUnwindSafe(|| store.mutate(vec![key(1)], &[]))).is_err());
+    assert!(catch_unwind(AssertUnwindSafe(|| store.mutate(&[key(1)].into(), &[]))).is_err());
     let abandoned_end = memory.size();
     memory.fail_write.set(None);
     drop(store);
     let mut reopened = Store::open(memory.clone(), StorageConfig::default()).unwrap();
     let id = reopened.directory.by_key[&key(0)];
-    reopened.mutate(vec![], &[(id, 1)]).unwrap();
+    reopened.mutate(&[].into(), &[(id, 1)]).unwrap();
     let page = reopened.directory.page(id, 0).unwrap();
     assert!(page >= abandoned_end);
     let mut data = vec![1; usize::try_from(PAGE).unwrap()];
@@ -353,11 +353,11 @@ fn abandoned_tail_is_never_reused_as_zeroed_application_pages() {
 fn snapshot_arenas_bound_metadata_growth_and_coalesce_data_extents() {
     let memory = Observed::default();
     let mut store = Store::create(memory.clone(), StorageConfig::default()).unwrap();
-    store.mutate(vec![key(0)], &[]).unwrap();
+    store.mutate(&[key(0)].into(), &[]).unwrap();
     let id = store.directory.by_key[&key(0)];
     let base_pages = memory.size();
     for index in 0..100 {
-        store.mutate(vec![key(index + 1)], &[(id, 1)]).unwrap();
+        store.mutate(&[key(index + 1)].into(), &[(id, 1)]).unwrap();
         store
             .write_data(id, index as u64 * PAGE, &(index as u64).to_le_bytes())
             .unwrap();
@@ -379,17 +379,17 @@ fn interrupted_reuse_preserves_active_snapshot_and_retry_overwrites_inactive_byt
     for prefix in [0, 16, 1000] {
         let memory = Observed::default();
         let mut store = Store::create(memory.clone(), StorageConfig::default()).unwrap();
-        store.mutate(vec![key(0)], &[]).unwrap();
+        store.mutate(&[key(0)].into(), &[]).unwrap();
         let base = store.directory.image.clone();
         let pages = memory.size();
         memory.fail_write.set(Some((0, prefix)));
-        assert!(catch_unwind(AssertUnwindSafe(|| store.mutate(vec![key(1)], &[]))).is_err());
+        assert!(catch_unwind(AssertUnwindSafe(|| store.mutate(&[key(1)].into(), &[]))).is_err());
         assert!(store.poisoned.get());
         memory.fail_write.set(None);
         drop(store);
         let mut reopened = Store::open(memory.clone(), StorageConfig::default()).unwrap();
         assert_eq!(reopened.directory.image, base);
-        reopened.mutate(vec![key(2)], &[]).unwrap();
+        reopened.mutate(&[key(2)].into(), &[]).unwrap();
         assert_eq!(memory.size(), pages);
         assert!(!reopened.directory.by_key.contains_key(&key(1)));
         reopened.verify().unwrap();
@@ -400,13 +400,13 @@ fn interrupted_reuse_preserves_active_snapshot_and_retry_overwrites_inactive_byt
 fn larger_snapshot_arenas_are_reused_after_growth_and_reopen() {
     let memory = Observed::default();
     let mut store = Store::create(memory.clone(), StorageConfig::default()).unwrap();
-    store.mutate((0..3000).map(key).collect(), &[]).unwrap();
-    store.mutate(vec![key(3001)], &[]).unwrap();
+    store.mutate(&(0..3000).map(key).collect(), &[]).unwrap();
+    store.mutate(&[key(3001)].into(), &[]).unwrap();
     let pages = memory.size();
     drop(store);
     let mut store = Store::open(memory.clone(), StorageConfig::default()).unwrap();
     for index in 3002..3020 {
-        store.mutate(vec![key(index)], &[]).unwrap();
+        store.mutate(&[key(index)].into(), &[]).unwrap();
         store.verify().unwrap();
     }
     assert_eq!(memory.size(), pages);

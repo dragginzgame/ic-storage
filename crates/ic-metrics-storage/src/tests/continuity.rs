@@ -37,8 +37,8 @@ fn exact_caps_and_overflow_flags_survive_storage_and_continue() {
 
 #[test]
 fn counter_checkpoints_preserve_wide_caps_identity_and_explicit_resets() {
-    let memory = WriteCountingMemory::default();
-    let writes = memory.writes.clone();
+    let memory = MeteredMemory::<VectorMemory>::default();
+    let writes = memory.clone();
     let mut store =
         MetricsStore::new(StableBTreeMap::create(admitted_memory(memory.clone())).unwrap());
     let key = key("app");
@@ -57,7 +57,7 @@ fn counter_checkpoints_preserve_wide_caps_identity_and_explicit_resets() {
     let mut store = MetricsStore::new(StableBTreeMap::load(admitted_memory(memory)).unwrap());
     let retained = ic_metrics::persistence::restore_counter(u128::MAX, true).unwrap();
     assert_eq!(store.load_counter(&key, &identity), Ok(Some(retained)));
-    writes.set(0);
+    writes.reset();
     for regression in [
         Counter::ZERO,
         ic_metrics::persistence::restore_counter(u128::MAX, false).unwrap(),
@@ -92,7 +92,7 @@ fn counter_checkpoints_preserve_wide_caps_identity_and_explicit_resets() {
         store.save(&key, &identity, &Aggregate::EMPTY),
         Err(StoreError::KindMismatch)
     );
-    assert_eq!(writes.get(), 0);
+    assert_eq!(writes.counts().writes, 0);
     assert_eq!(store.load_counter(&key, &identity), Ok(Some(retained)));
     assert!(store.remove(&key, &identity).unwrap());
     let next = MetricIdentity::new("bytes", 8).unwrap();
@@ -106,8 +106,8 @@ fn counter_checkpoints_preserve_wide_caps_identity_and_explicit_resets() {
 
 #[test]
 fn inconsistent_summary_latest_rejects_load_and_save_without_overwrite() {
-    let memory = WriteCountingMemory::default();
-    let writes = memory.writes.clone();
+    let memory = MeteredMemory::<VectorMemory>::default();
+    let writes = memory.clone();
     let mut store =
         MetricsStore::new(StableBTreeMap::create(admitted_memory(memory.clone())).unwrap());
     let key = key("app");
@@ -118,7 +118,7 @@ fn inconsistent_summary_latest_rejects_load_and_save_without_overwrite() {
     let mut bytes = encode(&identity, &summary);
     // A present zero latest contradicts two tens.
     *bytes.last_mut().unwrap() = 0;
-    store.map.insert(key.0.clone(), bytes.clone()).unwrap();
+    store.map.insert(key.0.clone(), bytes.clone());
     drop(store);
     let mut reopened = MetricsStore::new(StableBTreeMap::load(admitted_memory(memory)).unwrap());
     assert_rejected_record(
@@ -180,8 +180,8 @@ fn bounded_inputs_empty_zero_and_idempotent_checkpoints() {
         store.save_histogram(&oversized_key, &identity(), &unsupported),
         Err(StoreError::TooManyBounds)
     );
-    assert!(store.map.get(&oversized_key.0).unwrap().is_none());
-    store.map.insert(oversized_key.0.clone(), vec![0]).unwrap();
+    assert!(store.map.get(&oversized_key.0).is_none());
+    store.map.insert(oversized_key.0.clone(), vec![0]);
     assert_eq!(
         store.load_histogram(&oversized_key, &identity(), unsupported.upper_bounds()),
         Err(StoreError::TooManyBounds)
@@ -190,7 +190,7 @@ fn bounded_inputs_empty_zero_and_idempotent_checkpoints() {
         store.save_histogram(&oversized_key, &identity(), &unsupported),
         Err(StoreError::TooManyBounds)
     );
-    assert_eq!(store.map.get(&oversized_key.0).unwrap(), Some(vec![0]));
+    assert_eq!(store.map.get(&oversized_key.0), Some(vec![0]));
     let bytes = vec![0; codec::MAX_RECORD_BYTES + 1];
     assert_eq!(
         codec::decode::<Aggregate>(&bytes, &identity(), &()),
@@ -353,20 +353,20 @@ fn checkpoint_continuity_preserves_exact_caps_and_clipped_appends() {
 #[test]
 fn identical_checkpoints_validate_without_stable_writes() {
     fn check<T: crate::metric::StoredMetric>(initial: &T, changed: &T) {
-        let memory = WriteCountingMemory::default();
-        let writes = memory.writes.clone();
+        let memory = MeteredMemory::<VectorMemory>::default();
+        let writes = memory.clone();
         let mut store = MetricsStore::new(StableBTreeMap::create(admitted_memory(memory)).unwrap());
         let key = key("app");
-        writes.set(0);
+        writes.reset();
         store.save(&key, &identity(), initial).unwrap();
-        assert!(writes.get() > 0); // Absent is different from a retained empty row.
+        assert!(writes.counts().writes > 0); // Absent is different from a retained empty row.
         for (value, changed) in [(initial, false), (changed, true)] {
-            writes.set(0);
+            writes.reset();
             store.save(&key, &identity(), value).unwrap();
-            assert_eq!(writes.get() > 0, changed);
-            writes.set(0);
+            assert_eq!(writes.counts().writes > 0, changed);
+            writes.reset();
             store.save(&key, &identity(), value).unwrap();
-            assert_eq!(writes.get(), 0);
+            assert_eq!(writes.counts().writes, 0);
             assert!(
                 store
                     .load::<T>(&key, &identity(), value.configuration())
@@ -375,20 +375,20 @@ fn identical_checkpoints_validate_without_stable_writes() {
                     == Some(value)
             );
         }
-        writes.set(0);
+        writes.reset();
         assert_eq!(
             store.save(&key, &MetricIdentity::new("bytes", 0).unwrap(), changed),
             Err(StoreError::IdentityMismatch)
         );
-        assert_eq!(writes.get(), 0);
-        store.map.insert(key.0.clone(), vec![0]).unwrap();
-        writes.set(0);
+        assert_eq!(writes.counts().writes, 0);
+        store.map.insert(key.0.clone(), vec![0]);
+        writes.reset();
         assert_eq!(
             store.save(&key, &identity(), changed),
             Err(StoreError::MalformedRecord)
         );
-        assert_eq!(writes.get(), 0);
-        assert_eq!(store.map.get(&key.0).unwrap(), Some(vec![0]));
+        assert_eq!(writes.counts().writes, 0);
+        assert_eq!(store.map.get(&key.0), Some(vec![0]));
     }
     let mut aggregate = Aggregate::EMPTY;
     aggregate.record(0);
@@ -489,17 +489,17 @@ fn histogram_checkpoints_preserve_each_bucket_count_and_flag() {
         ),
     ];
     for (previous, regressing) in pairs {
-        let memory = WriteCountingMemory::default();
-        let writes = memory.writes.clone();
+        let memory = MeteredMemory::<VectorMemory>::default();
+        let writes = memory.clone();
         let mut store = MetricsStore::new(StableBTreeMap::create(admitted_memory(memory)).unwrap());
         let key = key("app");
         store.save(&key, &identity(), &previous).unwrap();
-        writes.set(0);
+        writes.reset();
         assert_eq!(
             store.save(&key, &identity(), &regressing),
             Err(StoreError::StateRegression)
         );
-        assert_eq!(writes.get(), 0);
+        assert_eq!(writes.counts().writes, 0);
         assert_eq!(
             store.load_histogram(&key, &identity(), previous.upper_bounds()),
             Ok(Some(previous))

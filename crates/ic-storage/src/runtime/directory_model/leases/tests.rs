@@ -13,7 +13,7 @@ fn key(index: usize) -> StableKey {
 fn sparse_leases_exceed_256_and_retain_custody_after_owner_drop() {
     let memory = VectorMemory::default();
     let owner = Owner::init(memory.clone(), StorageConfig::default()).unwrap();
-    owner.bind((0..1_024).map(key).collect()).unwrap();
+    owner.bind(&(0..1_024).map(key).collect()).unwrap();
     let handles: Vec<_> = (0..1_024).map(|i| owner.lease(&key(i)).unwrap()).collect();
     assert!(handles.iter().any(|handle| handle.id.0 > 255));
     assert!(matches!(owner.lease(&key(0)), Err(Error::AlreadyOpen)));
@@ -44,7 +44,7 @@ fn sparse_leases_exceed_256_and_retain_custody_after_owner_drop() {
 fn interleaved_extents_translate_cross_page_io_and_preflight_bounds() {
     let memory = VectorMemory::default();
     let owner = Owner::init(memory.clone(), StorageConfig::default()).unwrap();
-    owner.bind(vec![key(0), key(1)]).unwrap();
+    owner.bind(&[key(0), key(1)].into()).unwrap();
     let a = owner.lease(&key(0)).unwrap();
     let b = owner.lease(&key(1)).unwrap();
     assert_eq!(a.try_grow(1).unwrap(), 0);
@@ -81,11 +81,11 @@ fn interleaved_extents_translate_cross_page_io_and_preflight_bounds() {
 fn admitted_indices_survive_directory_growth_and_interleaved_extents() {
     let memory = VectorMemory::default();
     let owner = Owner::init(memory.clone(), StorageConfig::default()).unwrap();
-    owner.bind(vec![key(900)]).unwrap();
+    owner.bind(&[key(900)].into()).unwrap();
     let first = owner.lease(&key(900)).unwrap();
     first.try_grow(1).unwrap();
     first.write(0, b"first");
-    owner.bind((0..512).map(key).collect()).unwrap();
+    owner.bind(&(0..512).map(key).collect()).unwrap();
     let second = owner.lease(&key(0)).unwrap();
     second.try_grow(2).unwrap();
     first.try_grow(2).unwrap();
@@ -167,7 +167,7 @@ fn uninitialized_reads_admit_full_range_and_poison_partial_native_failures() {
     }
     let memory = Faults::default();
     let owner = Owner::init(memory.clone(), StorageConfig::default()).unwrap();
-    owner.bind(vec![key(0), key(1)]).unwrap();
+    owner.bind(&[key(0), key(1)].into()).unwrap();
     let a = owner.lease(&key(0)).unwrap();
     let b = owner.lease(&key(1)).unwrap();
     a.try_grow(1).unwrap();
@@ -201,7 +201,7 @@ fn uninitialized_reads_admit_full_range_and_poison_partial_native_failures() {
 fn extent_spans_coalesce_io_and_rebuild_on_reopen() {
     let memory = Faults::default();
     let owner = Owner::init(memory.clone(), StorageConfig::default()).unwrap();
-    owner.bind(vec![key(0), key(1)]).unwrap();
+    owner.bind(&[key(0), key(1)].into()).unwrap();
     let a = owner.lease(&key(0)).unwrap();
     let b = owner.lease(&key(1)).unwrap();
     a.try_grow(3).unwrap();
@@ -235,7 +235,7 @@ fn extent_spans_coalesce_io_and_rebuild_on_reopen() {
 fn data_io_trusts_custody_and_growth_refusal_preserves_handles() {
     let memory = Faults::default();
     let owner = Owner::init(memory.clone(), StorageConfig::default()).unwrap();
-    owner.bind(vec![key(0)]).unwrap();
+    owner.bind(&[key(0)].into()).unwrap();
     let a = owner.lease(&key(0)).unwrap();
     assert_eq!(a.try_grow(1).unwrap(), 0);
     memory.reads.set(0);
@@ -259,7 +259,7 @@ fn backing_panics_and_boundary_corruption_poison_all_live_leases() {
     for read_failure in [false, true] {
         let memory = Faults::default();
         let owner = Owner::init(memory.clone(), StorageConfig::default()).unwrap();
-        owner.bind(vec![key(0), key(1)]).unwrap();
+        owner.bind(&[key(0), key(1)].into()).unwrap();
         let a = owner.lease(&key(0)).unwrap();
         let b = owner.lease(&key(1)).unwrap();
         a.try_grow(1).unwrap();
@@ -276,12 +276,12 @@ fn backing_panics_and_boundary_corruption_poison_all_live_leases() {
         );
         memory.fail_io.set(false);
         assert!(matches!(b.try_grow(1), Err(Error::Poisoned)));
-        assert!(matches!(owner.bind(vec![key(2)]), Err(Error::Poisoned)));
+        assert!(matches!(owner.bind(&[key(2)].into()), Err(Error::Poisoned)));
         assert!(catch_unwind(AssertUnwindSafe(|| a.size())).is_err());
     }
     let memory = VectorMemory::default();
     let owner = Owner::init(memory.clone(), StorageConfig::default()).unwrap();
-    owner.bind(vec![key(0), key(1)]).unwrap();
+    owner.bind(&[key(0), key(1)].into()).unwrap();
     let a = owner.lease(&key(0)).unwrap();
     // Deliberate fixture corruption at a checked lease-opening boundary.
     memory.borrow_mut()[0] ^= 1;
@@ -293,17 +293,16 @@ fn backing_panics_and_boundary_corruption_poison_all_live_leases() {
 fn cached_collection_reads_still_observe_poisoning_from_another_lease() {
     let memory = Faults::default();
     let owner = Owner::init(memory.clone(), StorageConfig::default()).unwrap();
-    owner.bind(vec![key(0), key(1)]).unwrap();
+    owner.bind(&[key(0), key(1)].into()).unwrap();
     let handle = crate::RuntimeMemory {
         lease: owner.lease(&key(0)).unwrap(),
     };
     let mut map = crate::adapter::StableBTreeMap::<u64, u64, _>::create(handle).unwrap();
-    map.set_node_cache_budget(16 * 1024);
-    map.insert(1, 2).unwrap();
-    map.insert(2, 3).unwrap();
-    assert_eq!(map.get(&1).unwrap(), Some(2));
+    map.insert(1, 2);
+    map.insert(2, 3);
+    assert_eq!(map.get(&1), Some(2));
     let mut iterator = map.iter();
-    assert!(iterator.next().unwrap().is_ok());
+    assert_eq!(iterator.next().unwrap().into_pair(), (1, 2));
     let other = owner.lease(&key(1)).unwrap();
     other.try_grow(1).unwrap();
     memory.fail_io.set(true);

@@ -29,14 +29,12 @@ impl<K: BenchKey + Storable> TypedSet<K> {
 impl<K: BenchKey + Storable> Benchmark for TypedSet<K> {
     fn setup(&mut self, r: Setup) -> u64 {
         for id in population_ids(&r) {
-            assert!(checked!(self.set.insert(K::from_id(id))));
+            assert!(self.set.insert(K::from_id(id)));
         }
         self.set.len()
     }
     fn verify(&self, r: Setup) -> Vec<(u64, Vec<u8>)> {
         let iter = self.set.iter();
-        #[cfg(feature = "owned")]
-        let iter = iter.map(|key| key.expect("set key"));
         iter.filter(|k| k.id() >= r.start)
             .take(r.count as usize)
             .map(|k| (k.id(), vec![]))
@@ -51,21 +49,21 @@ impl<K: BenchKey + Storable> Benchmark for TypedSet<K> {
         if r.operation == Operation::IterLast {
             for _ in 0..r.count {
                 if let Some(key) = self.set.iter().last() {
-                    scan.push(checked!(key));
+                    scan.push(key);
                 }
             }
         } else if r.operation == Operation::Scan {
             for k in self.set.iter().take(r.count as usize) {
-                scan.push(checked!(k));
+                scan.push(k);
             }
         } else if r.operation == Operation::Nth {
             for (_, index) in inputs {
-                scan.push(checked!(
+                scan.push(
                     self.set
                         .iter()
                         .nth(index as usize)
-                        .expect("admitted ordered index")
-                ));
+                        .expect("admitted ordered index"),
+                );
             }
         } else {
             for (k, id) in inputs {
@@ -74,10 +72,10 @@ impl<K: BenchKey + Storable> Benchmark for TypedSet<K> {
                         std::hint::black_box(&k);
                         None
                     }
-                    Operation::Get | Operation::MissAbove => Some(checked!(self.set.contains(&k))),
-                    Operation::Insert | Operation::Reinsert => Some(checked!(self.set.insert(k))),
+                    Operation::Get | Operation::MissAbove => Some(self.set.contains(&k)),
+                    Operation::Insert | Operation::Reinsert => Some(self.set.insert(k)),
                     Operation::Remove | Operation::RemoveMiss | Operation::RemoveInserted => {
-                        Some(checked!(self.set.remove(&k)))
+                        Some(self.set.remove(&k))
                     }
                     _ => unreachable!(),
                 };
@@ -122,13 +120,13 @@ impl<V: BenchValue + Storable> TypedVector<V> {
 impl<V: BenchValue + Storable> Benchmark for TypedVector<V> {
     fn setup(&mut self, r: Setup) -> u64 {
         for id in r.start..r.start + u64::from(r.count) {
-            checked!(self.vector.push(&V::make(id, r.payload, false)));
+            self.vector.push(&V::make(id, r.payload, false));
         }
         self.vector.len()
     }
     fn verify(&self, r: Setup) -> Vec<(u64, Vec<u8>)> {
         (r.start..self.vector.len().min(r.start + u64::from(r.count)))
-            .map(|i| (i, checked!(self.vector.get(i)).unwrap().canonical()))
+            .map(|i| (i, self.vector.get(i).unwrap().canonical()))
             .collect()
     }
     fn run(&mut self, r: Request) -> Response {
@@ -171,7 +169,7 @@ impl<V: BenchValue + Storable> Benchmark for TypedVector<V> {
                 .iter()
                 .map(|(id, _)| {
                     let value = V::make(*id, r.payload, false);
-                    checked!(value.to_bytes()).into_owned()
+                    codec!(value.to_bytes()).into_owned()
                 })
                 .collect()
         } else {
@@ -179,21 +177,21 @@ impl<V: BenchValue + Storable> Benchmark for TypedVector<V> {
         };
         if r.operation == Operation::WarmGet {
             for (id, _) in &inputs {
-                std::hint::black_box(checked!(self.vector.get(*id)));
+                std::hint::black_box(self.vector.get(*id));
             }
         }
-        if r.case == Case::VectorSession {
+        if r.case.measures_decode(r.operation) {
             reset_decode_metrics();
         }
         let mut entries = Vec::with_capacity(r.count as usize);
         let start = ic0::performance_counter(0);
         if r.operation == Operation::Scan {
             for (i, v) in self.vector.iter().take(r.count as usize).enumerate() {
-                entries.push((i as u64, Some(checked!(v))));
+                entries.push((i as u64, Some(v)));
             }
         } else if r.operation == Operation::ReverseScan {
             for (i, v) in self.vector.iter().rev().take(r.count as usize).enumerate() {
-                entries.push((len - 1 - i as u64, Some(checked!(v))));
+                entries.push((len - 1 - i as u64, Some(v)));
             }
         } else if r.operation == Operation::AlternatingScan {
             let mut iter = self.vector.iter();
@@ -203,15 +201,15 @@ impl<V: BenchValue + Storable> Benchmark for TypedVector<V> {
                 } else {
                     (len - 1 - step / 2, iter.next_back())
                 };
-                entries.push((id, Some(checked!(value.unwrap()))));
+                entries.push((id, Some(value.unwrap())));
             }
         } else if r.operation == Operation::ScanSet {
             let mut iter = self.vector.iter();
             for id in 0..u64::from(r.count).min(len) {
                 if id != 0 {
-                    checked!(self.vector.set(id, &changes[(id - 1) as usize]));
+                    self.vector.set(id, &changes[(id - 1) as usize]);
                 }
-                entries.push((id, Some(checked!(iter.next().unwrap()))));
+                entries.push((id, Some(iter.next().unwrap())));
             }
         } else {
             for (at, (id, value)) in inputs.into_iter().enumerate() {
@@ -221,35 +219,33 @@ impl<V: BenchValue + Storable> Benchmark for TypedVector<V> {
                         None
                     }
                     Operation::Get | Operation::WarmGet | Operation::MissAbove => {
-                        checked!(self.vector.get(id))
+                        self.vector.get(id)
                     }
-                    Operation::Decode => Some(checked!(V::from_bytes(std::borrow::Cow::Borrowed(
+                    Operation::Decode => Some(codec!(V::from_bytes(std::borrow::Cow::Borrowed(
                         &encoded[at]
                     )))),
-                    Operation::Nth => Some(checked!(
+                    Operation::Nth => Some(
                         self.vector
                             .iter()
                             .nth(id as usize)
-                            .expect("admitted vector index")
-                    )),
-                    Operation::NthBack => Some(checked!(
+                            .expect("admitted vector index"),
+                    ),
+                    Operation::NthBack => Some(
                         self.vector
                             .iter()
                             .nth_back((len - 1 - id) as usize)
-                            .expect("admitted reverse vector index")
-                    )),
-                    Operation::Last => Some(checked!(
-                        self.vector.iter().last().expect("populated vector")
-                    )),
+                            .expect("admitted reverse vector index"),
+                    ),
+                    Operation::Last => Some(self.vector.iter().last().expect("populated vector")),
                     Operation::Set => {
-                        checked!(self.vector.set(id, &value.unwrap()));
+                        self.vector.set(id, &value.unwrap());
                         None
                     }
                     Operation::Push => {
-                        checked!(self.vector.push(&value.unwrap()));
+                        self.vector.push(&value.unwrap());
                         None
                     }
-                    Operation::Pop => checked!(self.vector.pop()),
+                    Operation::Pop => self.vector.pop(),
                     _ => unreachable!(),
                 };
                 entries.push((id, result));
@@ -257,7 +253,7 @@ impl<V: BenchValue + Storable> Benchmark for TypedVector<V> {
         }
         let instructions = ic0::performance_counter(0) - start;
         Response {
-            decode: (r.case == Case::VectorSession).then(decode_metrics),
+            decode: (r.case.measures_decode(r.operation)).then(decode_metrics),
             instructions,
             entries: entries
                 .into_iter()
@@ -319,7 +315,7 @@ impl<V: BenchValue + Storable> Benchmark for TypedCell<V> {
                 }
                 Operation::Get => Some(cell.get().clone()),
                 Operation::Replace | Operation::Grow | Operation::Shrink => {
-                    Some(checked!(cell.set(value.unwrap())))
+                    Some(cell.set(value.unwrap()))
                 }
                 _ => unreachable!(),
             };

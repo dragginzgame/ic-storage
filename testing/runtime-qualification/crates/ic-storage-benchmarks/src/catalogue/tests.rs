@@ -14,7 +14,7 @@ fn every_catalogue_type_has_every_collection_and_ordered_role() {
                 (DataType::U64, kind)
             };
             assert!(
-                unique.contains(&Case::Typed {
+                unique.contains(&Case {
                     collection,
                     key,
                     value
@@ -22,7 +22,7 @@ fn every_catalogue_type_has_every_collection_and_ordered_role() {
                 "{kind:?} {collection:?}"
             );
             if matches!(collection, Collection::Map | Collection::Region) {
-                assert!(unique.contains(&Case::Typed {
+                assert!(unique.contains(&Case {
                     collection,
                     key: kind,
                     value: DataType::U64
@@ -33,7 +33,7 @@ fn every_catalogue_type_has_every_collection_and_ordered_role() {
     for &key in &ICSS_KEYS {
         for &value in &ICSS_VALUES {
             for collection in [Collection::Map, Collection::Region] {
-                assert!(unique.contains(&Case::Typed {
+                assert!(unique.contains(&Case {
                     collection,
                     key,
                     value
@@ -78,7 +78,7 @@ fn concrete_catalogue_keys_and_complete_normalized_values_are_constructible() {
 
 #[test]
 fn limitations_are_per_backend_and_per_collection() {
-    let c = |collection, value| Case::Typed {
+    let c = |collection, value| Case {
         collection,
         key: DataType::U64,
         value,
@@ -99,7 +99,7 @@ fn limitations_are_per_backend_and_per_collection() {
     assert!(unavailable(c(Collection::Cell, DataType::OptionU64), true).is_none());
     assert_eq!(
         unavailable(
-            Case::Typed {
+            Case {
                 collection: Collection::Set,
                 key: DataType::F64,
                 value: DataType::Unit

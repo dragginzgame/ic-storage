@@ -113,8 +113,6 @@ pub enum Error {
     AlreadyClaimed,
     #[error("allocation does not exist")]
     Missing,
-    #[error("prepared directory belongs to a stale generation")]
-    Stale,
     #[error("backing growth refused")]
     Growth,
     #[error("directory owner is poisoned after interrupted backing IO")]
@@ -249,15 +247,14 @@ impl Directory {
     // merely to account for a native write's uncommitted physical tail.
     fn candidate_image(
         &self,
-        keys: Vec<StableKey>,
+        keys: &BTreeSet<StableKey>,
         growth: &[(AllocationId, u64)],
         physical_end: u64,
     ) -> Result<Image, Error> {
         let mut image = self.image.clone();
         image.next_page = image.next_page.max(physical_end);
-        let keys: BTreeSet<_> = keys.into_iter().collect();
         for key in keys {
-            if self.by_key.contains_key(&key) {
+            if self.by_key.contains_key(key) {
                 continue;
             }
             if image.entries.len() >= self.budget.allocations {
@@ -267,7 +264,7 @@ impl Directory {
             image.next_id = image.next_id.checked_add(1).ok_or(Error::Budget)?;
             image.entries.push(Entry {
                 id,
-                key,
+                key: key.clone(),
                 extents: vec![],
             });
         }

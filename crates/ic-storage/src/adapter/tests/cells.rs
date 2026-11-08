@@ -12,7 +12,7 @@ fn cell_current_header_ceiling_and_reopen_are_read_only() {
     let key = crate::StableKey::parse("test.cell.v1").unwrap();
     let mut cell = StableCell::create(runtime.open_memory(&key).unwrap(), vec![7; 256]).unwrap();
     backing.reset();
-    assert_eq!(cell.set(vec![8; 2048]).unwrap(), vec![7; 256]);
+    assert_eq!(cell.set(vec![8; 2048]), vec![7; 256]);
     let counts = backing.counts();
     assert!(!counts.overflowed);
     assert_eq!(

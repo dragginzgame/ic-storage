@@ -27,7 +27,7 @@ fn concrete_keys_preserve_order_and_identity() {
 }
 #[test]
 fn values_cover_declared_sizes_and_record_fields() {
-    for case in CASES {
+    for &case in DEFAULT_CASES {
         for &payload in case.payloads() {
             for key in [0, 255, 16_415, u64::MAX] {
                 let before = case.expected_value(key, payload, false);
@@ -37,7 +37,7 @@ fn values_cover_declared_sizes_and_record_fields() {
                 if payload > 0 {
                     assert_ne!(before, after);
                 }
-                if case == Case::StringString && payload > 0 {
+                if case == crate::case!(Map, String, String) && payload > 0 {
                     assert!(
                         std::str::from_utf8(&before)
                             .unwrap()

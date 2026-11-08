@@ -2,7 +2,7 @@
 use clap::Parser;
 use ic_stable_structures as icss;
 use ic_storage::{Memory, MemoryBacking, RuntimeMemory, VectorMemory, testing::MeteredMemory};
-use ic_storage_benchmarks::{Case, Operation, Pattern, Request, keys};
+use ic_storage_benchmarks::{Operation, Pattern, Request, keys};
 use serde_json::{Value as Json, json};
 use std::{
     borrow::Cow,
@@ -241,7 +241,7 @@ impl<const F: bool> Store<F> {
     fn get(&self, key: u64) -> Option<Value<F>> {
         let k = Key(key);
         match self {
-            Self::Storage(m) => m.get(&k).unwrap(),
+            Self::Storage(m) => m.get(&k),
             Self::StorageRegion(m) => m.get(&k).unwrap(),
             Self::Governed(m) => m.get(&k),
             Self::Icss(m) => m.get(&k),
@@ -252,7 +252,7 @@ impl<const F: bool> Store<F> {
     fn put(&mut self, key: u64, value: Value<F>) -> Option<Value<F>> {
         let k = Key(key);
         match self {
-            Self::Storage(m) => m.insert(k, value).unwrap(),
+            Self::Storage(m) => m.insert(k, value),
             Self::StorageRegion(m) => m.insert(k, value).unwrap(),
             Self::Governed(m) => m.insert(k, value),
             Self::Icss(m) => m.insert(k, value),
@@ -276,7 +276,7 @@ fn measure<const F: bool>(output: &mut fs::File, payload: usize) {
                             model.insert(id, v);
                         }
                         let selected = keys(Request {
-                            case: Case::U64U64,
+                            case: ic_storage_benchmarks::case!(Map, U64, U64),
                             operation: Operation::Get,
                             rows,
                             payload: 8,

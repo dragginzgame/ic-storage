@@ -60,13 +60,13 @@ fn collections_reopen_through_committed_runtime_allocations() {
     let runtime = runtime(backing.clone());
     let mut map =
         StableBTreeMap::<u64, u64>::create(runtime.open_memory(&keys[0]).unwrap()).unwrap();
-    map.insert(7, 11).unwrap();
+    map.insert(7, 11);
     let mut set = StableBTreeSet::<u64>::create(runtime.open_memory(&keys[1]).unwrap()).unwrap();
-    set.insert(9).unwrap();
+    set.insert(9);
     let mut cell = StableCell::create(runtime.open_memory(&keys[2]).unwrap(), 1u64).unwrap();
-    cell.set(3).unwrap();
+    cell.set(3);
     let vector = StableVec::create(runtime.open_memory(&keys[3]).unwrap()).unwrap();
-    vector.push(&5u64).unwrap();
+    vector.push(&5u64);
     for key in &keys {
         assert!(
             matches!(
@@ -85,15 +85,15 @@ fn collections_reopen_through_committed_runtime_allocations() {
     let runtime = self::runtime(backing);
     let map = StableBTreeMap::<u64, u64>::load(runtime.open_memory(&keys[0]).unwrap()).unwrap();
     let mut iter: MapIter<'_, u64, u64> = map.iter();
-    assert_eq!(iter.next().unwrap().unwrap().into_pair().unwrap(), (7, 11));
+    assert_eq!(iter.next().unwrap().into_pair(), (7, 11));
     let set = StableBTreeSet::<u64>::load(runtime.open_memory(&keys[1]).unwrap()).unwrap();
     let mut iter: SetIter<'_, u64> = set.iter();
-    assert_eq!(iter.next().transpose().unwrap(), Some(9));
+    assert_eq!(iter.next(), Some(9));
     let cell =
         StableCell::<u64>::load(runtime.open_memory(&keys[2]).unwrap(), 16 * 1024 * 1024).unwrap();
     assert_eq!(*cell.get(), 3);
     let vector = StableVec::<u64>::load(runtime.open_memory(&keys[3]).unwrap()).unwrap();
-    assert_eq!(vector.get(0).unwrap(), Some(5));
+    assert_eq!(vector.get(0), Some(5));
 }
 
 #[test]
@@ -105,7 +105,7 @@ fn reservation_clear_and_reset_retain_exclusive_leases() {
             .unwrap(),
     )
     .unwrap();
-    map.insert(7, 11).unwrap();
+    map.insert(7, 11);
     let (map, result) = map.reserve_pages(8);
     result.unwrap();
     let before = runtime.memory_allocations().unwrap();
@@ -114,13 +114,13 @@ fn reservation_clear_and_reset_retain_exclusive_leases() {
         result,
         Err(crate::RuntimeGrowError::ArithmeticOverflow | crate::RuntimeGrowError::CapacityExceeded)
     ));
-    assert_eq!(map.get(&7).unwrap(), Some(11));
+    assert_eq!(map.get(&7), Some(11));
     assert_eq!(runtime.memory_allocations().unwrap(), before);
     assert!(matches!(
         runtime.open_memory(&crate::StableKey::parse("test.map.v1").unwrap()),
         Err(RuntimeOpenError::AlreadyOpen { .. })
     ));
-    map.clear().unwrap();
+    map.clear();
     assert!(map.is_empty());
     drop(map);
     let memory = runtime
@@ -135,7 +135,7 @@ fn reservation_clear_and_reset_retain_exclusive_leases() {
             .unwrap(),
     )
     .unwrap();
-    vector.push(&5u64).unwrap();
+    vector.push(&5u64);
     drop(vector);
     let vector = StableVec::<u64>::reset(
         runtime
@@ -172,7 +172,7 @@ fn reservation_is_observable_effect_free_when_satisfied_and_retryable_after_refu
             .unwrap(),
     )
     .unwrap();
-    map.insert(7, 11).unwrap();
+    map.insert(7, 11);
     let (map, result) = map.reserve_pages(8);
     result.unwrap();
     let before = memory.backing.borrow().clone();
@@ -193,7 +193,7 @@ fn reservation_is_observable_effect_free_when_satisfied_and_retryable_after_refu
         result,
         Err(crate::RuntimeGrowError::BackingRefused { .. })
     ));
-    assert_eq!(map.get(&7).unwrap(), Some(11));
+    assert_eq!(map.get(&7), Some(11));
     assert_eq!(*memory.backing.borrow(), before);
     assert_eq!(runtime.memory_allocations().unwrap(), allocations);
     let (map, pages) = map.allocated_pages();
@@ -206,7 +206,7 @@ fn reservation_is_observable_effect_free_when_satisfied_and_retryable_after_refu
     memory.refuse_growth.set(false);
     let (mut map, result) = map.reserve_pages(129);
     result.unwrap();
-    map.insert(8, 12).unwrap();
+    map.insert(8, 12);
     drop(map);
     drop(runtime);
     let runtime = self::runtime(memory);
@@ -218,8 +218,8 @@ fn reservation_is_observable_effect_free_when_satisfied_and_retryable_after_refu
     .unwrap();
     let (map, pages) = map.allocated_pages();
     assert_eq!(pages, 129);
-    assert_eq!(map.get(&7).unwrap(), Some(11));
-    assert_eq!(map.get(&8).unwrap(), Some(12));
+    assert_eq!(map.get(&7), Some(11));
+    assert_eq!(map.get(&8), Some(12));
 }
 
 #[test]
@@ -244,17 +244,15 @@ fn map_sequences_match_model_across_splits_removals_and_reopens() {
                 .wrapping_add(1);
             let key = (state >> 32) % 400;
             if step % 3 == 0 && generation > 0 {
-                assert_eq!(map.remove(&key).unwrap(), model.remove(&key));
+                assert_eq!(map.remove(&key), model.remove(&key));
             } else {
-                assert_eq!(map.insert(key, state).unwrap(), model.insert(key, state));
+                assert_eq!(map.insert(key, state), model.insert(key, state));
             }
-            assert_eq!(map.get(&key).unwrap(), model.get(&key).copied());
+            assert_eq!(map.get(&key), model.get(&key).copied());
         }
         assert_eq!(map.len(), model.len() as u64);
         assert_eq!(
-            map.iter()
-                .map(|entry| entry.unwrap().into_pair().unwrap())
-                .collect::<Vec<_>>(),
+            map.iter().map(MapEntry::into_pair).collect::<Vec<_>>(),
             model
                 .iter()
                 .map(|(&key, &value)| (key, value))
@@ -262,7 +260,7 @@ fn map_sequences_match_model_across_splits_removals_and_reopens() {
         );
         assert_eq!(
             map.range(100..200)
-                .map(|entry| entry.unwrap().into_pair().unwrap())
+                .map(MapEntry::into_pair)
                 .collect::<Vec<_>>(),
             model
                 .range(100..200)

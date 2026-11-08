@@ -83,7 +83,7 @@ reply dominates: this does not justify changing geometry or the Vector algorithm
 
 ## Step 8: remove small fixed Vector read allocations
 
-[BaseVec](../../../crates/ic-storage/src/engine/base_vec.rs) uses a separate stack helper
+[BaseVec](https://github.com/dragginzgame/ic-storage/blob/3c4734d9bd413b8a902f23458ebdc222255cd9e7/crates/ic-storage/src/engine/base_vec.rs) uses a separate stack helper
 for direct Get/Pop of fixed-width values ≤32 bytes without destructors. Other
 values keep owned input; iterators reuse buffers. Isolating the helper removes
 the initial inline trial's miss regression. APIs, formats and policy are unchanged.

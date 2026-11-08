@@ -94,8 +94,16 @@ fn depth_profile_covers_all_forms_and_population_mutation_histories() {
             }
         }
     }
-    assert!(Case::U64Bytes.operations().contains(&Operation::Grow));
-    assert!(Case::U64Bytes.operations().contains(&Operation::Shrink));
+    assert!(
+        crate::case!(Map, U64, Bytes)
+            .operations()
+            .contains(&Operation::Grow)
+    );
+    assert!(
+        crate::case!(Map, U64, Bytes)
+            .operations()
+            .contains(&Operation::Shrink)
+    );
 }
 
 #[test]
@@ -131,7 +139,7 @@ fn iterator_profile_exercises_boundary_counts_and_complete_vector_operation_sets
         }
     }
     let invalid = Request {
-        case: Case::VectorU64,
+        case: crate::case!(Vector, U64, U64),
         operation: Operation::Scan,
         rows: 256,
         payload: 8,
@@ -141,7 +149,7 @@ fn iterator_profile_exercises_boundary_counts_and_complete_vector_operation_sets
     };
     assert!(std::panic::catch_unwind(|| crate::keys(invalid)).is_err());
     let ordinary_map = Request {
-        case: Case::U64U64,
+        case: crate::case!(Map, U64, U64),
         count: 129,
         ..invalid
     };
@@ -155,7 +163,7 @@ fn ordered_profile_covers_node_boundaries_inline_transitions_and_supported_set_o
         &[1, 5, 6, 11, 12, 31, 32, 64, 128]
     );
     assert_eq!(
-        Workload::Ordered.payloads(Case::U64Bytes),
+        Workload::Ordered.payloads(crate::case!(Map, U64, Bytes)),
         &[31, 32, 33, 256]
     );
     for &case in Workload::Ordered.cases() {

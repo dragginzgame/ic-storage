@@ -19,11 +19,11 @@ fn frozen_wire_rows_reopen_through_the_governed_map() {
         let mut bytes = b"ICMW".to_vec();
         bytes.extend_from_slice(&[kind, 1, b'x', 3, payload]);
         bytes.resize(bytes.len() + usize::from(payload), 0);
-        records.insert(key.0, bytes).unwrap();
+        records.insert(key.0, bytes);
     }
     let before: Vec<_> = records
         .iter()
-        .map(|entry| entry.unwrap().into_pair().unwrap())
+        .map(ic_storage::adapter::MapEntry::into_pair)
         .collect();
     drop(records);
     let store = MetricsStore::new(StableBTreeMap::load(admitted_memory(backing.clone())).unwrap());
@@ -48,7 +48,7 @@ fn frozen_wire_rows_reopen_through_the_governed_map() {
         store
             .into_map()
             .iter()
-            .map(|entry| entry.unwrap().into_pair().unwrap())
+            .map(ic_storage::adapter::MapEntry::into_pair)
             .collect::<Vec<_>>(),
         before
     );
@@ -63,7 +63,7 @@ fn frozen_wire_rows_reopen_through_the_governed_map() {
         .unwrap();
     drop(store);
     let records = StableBTreeMap::<Vec<u8>, Vec<u8>, _>::load(admitted_memory(backing)).unwrap();
-    let bytes = records.get(&key("counter").0).unwrap().unwrap();
+    let bytes = records.get(&key("counter").0).unwrap();
     assert_eq!(bytes, b"ICMW\x04\x01x\x03\x02\x09\x00");
 }
 
@@ -84,15 +84,15 @@ fn stored_kind_admission_rejects_every_unknown_tag_before_identity() {
 #[test]
 fn truncated_records_reject_all_metric_families_without_writes() {
     fn check<T: crate::metric::StoredMetric + std::fmt::Debug>(value: &T) {
-        let memory = WriteCountingMemory::default();
-        let writes = memory.writes.clone();
+        let memory = MeteredMemory::<VectorMemory>::default();
+        let writes = memory.clone();
         let mut store = MetricsStore::new(StableBTreeMap::create(admitted_memory(memory)).unwrap());
         let key = key("app");
         let identity = identity();
         let bytes = encode(&identity, value);
         for length in 0..bytes.len() {
             let truncated = bytes[..length].to_vec();
-            store.map.insert(key.0.clone(), truncated.clone()).unwrap();
+            store.map.insert(key.0.clone(), truncated.clone());
             assert_rejected_record(
                 &mut store,
                 &writes,
@@ -123,8 +123,8 @@ fn truncated_records_reject_all_metric_families_without_writes() {
 fn stored_unit_bytes_preserve_malformed_and_identity_errors() {
     let identity = MetricIdentity::new("x", 3).unwrap();
     let encoded = encode(&identity, &Aggregate::EMPTY);
-    let memory = WriteCountingMemory::default();
-    let writes = memory.writes.clone();
+    let memory = MeteredMemory::<VectorMemory>::default();
+    let writes = memory.clone();
     let mut store = MetricsStore::new(StableBTreeMap::create(admitted_memory(memory)).unwrap());
     let key = key("app");
     for byte in 0..=u8::MAX {
@@ -142,7 +142,7 @@ fn stored_unit_bytes_preserve_malformed_and_identity_errors() {
         } else {
             StoreError::MalformedRecord
         };
-        store.map.insert(key.0.clone(), bytes.clone()).unwrap();
+        store.map.insert(key.0.clone(), bytes.clone());
         assert_rejected_record(
             &mut store,
             &writes,
@@ -223,8 +223,7 @@ fn aggregate_wire_envelope_errors_and_explicit_removal() {
     );
     store
         .map
-        .insert(key.0.clone(), wire_row(1, "instructions", 0, &[4]))
-        .unwrap();
+        .insert(key.0.clone(), wire_row(1, "instructions", 0, &[4]));
     assert!(store.remove(&key, &identity()).unwrap());
 }
 
@@ -287,29 +286,28 @@ fn counter_wire_records_reject_corruption_before_checkpoint_or_reset() {
     let mut unknown_format = bytes;
     unknown_format[3] = 2;
     malformed.push((unknown_format, StoreError::UnsupportedFormat));
-    let memory = WriteCountingMemory::default();
-    let writes = memory.writes.clone();
+    let memory = MeteredMemory::<VectorMemory>::default();
+    let writes = memory.clone();
     let mut store = MetricsStore::new(StableBTreeMap::create(admitted_memory(memory)).unwrap());
     let key = key("app");
     for record in malformed {
-        store.map.insert(key.0.clone(), record.0.clone()).unwrap();
+        store.map.insert(key.0.clone(), record.0.clone());
         assert_rejected_record(&mut store, &writes, &key, &identity, &value, record);
     }
     assert_eq!(
         store.remove(&key, &identity),
         Err(StoreError::UnsupportedFormat)
     );
-    assert_eq!(writes.get(), 0);
+    assert_eq!(writes.counts().writes, 0);
     // Explicit disposition can retire a known envelope with invalid payload.
     store
         .map
-        .insert(key.0.clone(), wire_row(4, "x", 3, &[7, 2]))
-        .unwrap();
+        .insert(key.0.clone(), wire_row(4, "x", 3, &[7, 2]));
     assert!(store.remove(&key, &identity).unwrap());
     assert!(!store.remove(&key, &identity).unwrap());
     // An aggregate's existing kind cannot be reinterpreted as a scalar counter.
     store.save(&key, &identity, &Aggregate::EMPTY).unwrap();
-    writes.set(0);
+    writes.reset();
     assert_eq!(
         store.load_counter(&key, &identity),
         Err(StoreError::KindMismatch)
@@ -318,7 +316,7 @@ fn counter_wire_records_reject_corruption_before_checkpoint_or_reset() {
         store.save(&key, &identity, &value),
         Err(StoreError::KindMismatch)
     );
-    assert_eq!(writes.get(), 0);
+    assert_eq!(writes.counts().writes, 0);
 }
 
 #[test]
@@ -453,7 +451,7 @@ fn populated_wire_rows_reopen_without_reencoding() {
         ("counter", wire_state(4, &id, &(u128::MAX, true))),
     ] {
         let key = key(name);
-        map.insert(key.0.clone(), bytes.clone()).unwrap();
+        map.insert(key.0.clone(), bytes.clone());
         originals.push((key, bytes));
     }
     drop(map);
@@ -485,14 +483,14 @@ fn populated_wire_rows_reopen_without_reencoding() {
     );
     let map = store.into_map();
     for (key, bytes) in originals {
-        assert_eq!(map.get(&key.0).unwrap(), Some(bytes));
+        assert_eq!(map.get(&key.0), Some(bytes));
     }
 }
 
 #[test]
 fn wire_collection_and_frame_limits_refuse_without_replacement() {
-    let memory = WriteCountingMemory::default();
-    let writes = memory.writes.clone();
+    let memory = MeteredMemory::<VectorMemory>::default();
+    let writes = memory.clone();
     let mut store = MetricsStore::new(StableBTreeMap::create(admitted_memory(memory)).unwrap());
     let key = key("limits");
     let identity = identity();
@@ -509,7 +507,7 @@ fn wire_collection_and_frame_limits_refuse_without_replacement() {
         (too_many, StoreError::MalformedRecord),
         (too_large, StoreError::RecordTooLarge),
     ] {
-        store.map.insert(key.0.clone(), bytes.clone()).unwrap();
+        store.map.insert(key.0.clone(), bytes.clone());
         assert_rejected_record(&mut store, &writes, &key, &identity, &value, (bytes, error));
     }
     // The largest syntactic field widths must pass codec budgets even if their

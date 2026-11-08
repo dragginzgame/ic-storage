@@ -2,64 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 // See the package LICENSE-APACHE and docs/storage/icss-source.json.
 use std::borrow::Cow;
+/// Private trapping codec contract. Every encoder must enforce `BOUND` before
+/// returning bytes. Production implementations enter through the adapter's
+/// checked public codec, so collection engines must not repeat that validation.
 pub trait Storable {
     fn to_bytes(&self) -> Cow<'_, [u8]>;
     fn into_bytes(self) -> Vec<u8>;
     fn from_bytes(bytes: Cow<[u8]>) -> Self;
     const BOUND: Bound;
-    fn to_bytes_checked(&self) -> Cow<'_, [u8]> {
-        let bytes = self.to_bytes();
-        Self::check_bounds(&bytes);
-        bytes
-    }
-    fn into_bytes_checked(self) -> Vec<u8>
-    where
-        Self: Sized,
-    {
-        let bytes = self.into_bytes();
-        Self::check_bounds(&bytes);
-        bytes
-    }
-    #[inline]
-    fn check_bounds(bytes: &[u8]) {
-        if let Bound::Bounded {
-            max_size,
-            is_fixed_size,
-        } = Self::BOUND
-        {
-            let actual = bytes.len();
-            if is_fixed_size {
-                assert_eq!(
-                    actual, max_size as usize,
-                    "expected a fixed-size element with length {max_size} bytes, but found {actual} bytes"
-                );
-            } else {
-                assert!(
-                    actual <= max_size as usize,
-                    "expected an element with length <= {max_size} bytes, but found {actual} bytes"
-                );
-            }
-        }
-    }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum Bound {
-    Unbounded,
-    Bounded { max_size: u32, is_fixed_size: bool },
-}
+pub use crate::storable::Bound;
 
 impl Bound {
-    pub const fn max_size(&self) -> u32 {
+    pub(crate) const fn max_size(self) -> u32 {
         if let Self::Bounded { max_size, .. } = self {
-            *max_size
+            max_size
         } else {
             panic!("Cannot get max size of unbounded type.");
         }
     }
-    pub const fn is_fixed_size(&self) -> bool {
+    pub(crate) const fn is_fixed_size(self) -> bool {
         if let Self::Bounded { is_fixed_size, .. } = self {
-            *is_fixed_size
+            is_fixed_size
         } else {
             false
         }

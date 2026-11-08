@@ -29,7 +29,7 @@ fn traces_are_bounded_repeatable_and_missing_keys_are_disjoint() {
     ] {
         for operation in OPERATIONS {
             let r = Request {
-                case: Case::U64Bytes,
+                case: crate::case!(Map, U64, Bytes),
                 operation,
                 rows: 101,
                 payload: 1024,
@@ -65,7 +65,7 @@ fn traces_are_bounded_repeatable_and_missing_keys_are_disjoint() {
 #[test]
 fn sequential_trace_wraps_and_keeps_misses_outside_population() {
     let request = Request {
-        case: Case::U64U64,
+        case: crate::case!(Map, U64, U64),
         operation: Operation::Get,
         rows: 5,
         payload: 8,
@@ -99,7 +99,11 @@ fn sequential_trace_wraps_and_keeps_misses_outside_population() {
 
 #[test]
 fn insertion_and_missing_removal_ranges_are_disjoint_at_every_supported_batch_size() {
-    for case in [Case::U64Bytes, Case::SetString, Case::RegionBytes] {
+    for case in [
+        crate::case!(Map, U64, Bytes),
+        crate::case!(Set, String, Unit),
+        crate::case!(Region, U64, Bytes),
+    ] {
         for count in 1..=max_batch(case) {
             let request = Request {
                 case,
@@ -125,7 +129,7 @@ fn insertion_and_missing_removal_ranges_are_disjoint_at_every_supported_batch_si
 
 #[test]
 fn session_envelope_preserves_full_identity_and_rejects_malformed_outer_frames() {
-    for size in Case::VectorSession.payloads() {
+    for size in crate::case!(Vector, U64, Session).payloads() {
         for key in [0, 255, 256, 2047] {
             let value = SessionEnvelope::make(key, *size, false);
             let encoded = value.encode().unwrap();
@@ -144,7 +148,7 @@ fn session_envelope_preserves_full_identity_and_rejects_malformed_outer_frames()
         ] {
             assert_eq!(
                 keys(Request {
-                    case: Case::VectorSession,
+                    case: crate::case!(Vector, U64, Session),
                     operation: Operation::Get,
                     rows,
                     payload: 256,

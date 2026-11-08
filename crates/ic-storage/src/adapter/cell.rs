@@ -1,7 +1,7 @@
 //! Governed cached cell over the copied ICSS cell engine.
 use super::{
     Bound, Memory, Storable,
-    bridge::{self, Backing, Codec},
+    bridge::{self, Codec},
     error::{CollectionError as Error, Result, ensure},
 };
 use crate::{DefaultMemoryImpl, RuntimeMemory, engine};
@@ -13,7 +13,7 @@ use crate::{DefaultMemoryImpl, RuntimeMemory, engine};
 /// Stored values have no checksum. Malformed application records trap.
 ///
 pub struct StableCell<T: Storable, M: Memory = DefaultMemoryImpl> {
-    inner: engine::cell::Cell<Codec<T>, Backing<RuntimeMemory<M>>>,
+    inner: engine::cell::Cell<Codec<T>, RuntimeMemory<M>>,
 }
 impl<T: Storable, M: Memory> StableCell<T, M> {
     /// Create only in empty admitted memory.
@@ -31,7 +31,7 @@ impl<T: Storable, M: Memory> StableCell<T, M> {
         #[cfg(not(target_arch = "wasm32"))]
         let _guard = memory.poison_on_unwind();
         Ok(Self {
-            inner: engine::cell::Cell::new(Backing(memory), Codec(value)),
+            inner: engine::cell::Cell::new(memory, Codec(value)),
         })
     }
     /// Load without initializing. Admit the payload ceiling before allocation.
@@ -47,7 +47,7 @@ impl<T: Storable, M: Memory> StableCell<T, M> {
         let length = crate::stable_cell_payload_length(&memory, maximum)?;
         Ok(Self {
             inner: engine::cell::Cell::load_with_length(
-                Backing(memory),
+                memory,
                 u32::try_from(length).expect("admitted cell length"),
             ),
         })
@@ -57,11 +57,9 @@ impl<T: Storable, M: Memory> StableCell<T, M> {
         &self.inner.get().0
     }
     /// Persist a replacement and return the old value. Failures trap.
-    /// # Errors
-    /// Engine failures trap instead of returning an ordinary error.
-    pub fn set(&mut self, value: T) -> Result<T> {
+    pub fn set(&mut self, value: T) -> T {
         #[cfg(not(target_arch = "wasm32"))]
-        let _guard = self.inner.memory().0.poison_on_unwind();
-        Ok(self.inner.set(Codec(value)).0)
+        let _guard = self.inner.memory().poison_on_unwind();
+        self.inner.set(Codec(value)).0
     }
 }

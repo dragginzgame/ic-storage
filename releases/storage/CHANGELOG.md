@@ -3,6 +3,33 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/persistence/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.69.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Ordinary Map, Set, Vector and Cell operations and iterator items return their
+  successful values directly. Remove redundant `?`, `unwrap` and `expect` calls;
+  constructors, reservations and map-region admission retain typed errors.
+  Remove the ineffective map cache setting and obsolete collection error variants.
+  Codec failures still trap; current stored images need no reset or migration.
+
+### 🔧 Tooling
+
+- Adopt Shared Tooling 0.31.12, including clearer CLOC terminal output and the
+  updated issue-maintenance policy. Existing release and publication flows remain unchanged.
+
+### 🧹 Cleanup
+
+- Use one memory and bounds contract, one Vector engine and simpler node
+  representations. Carry canonical admitted keys through bootstrap without rebuilding
+  equivalent sets. Preserve governed custody, native failure handling and disk formats.
+
+### 🧪 Testing
+
+- Use one structured type catalogue across both benchmark backends, preserving
+  concrete type coverage and workload scopes. Retire historical Vector-layout
+  probes and obsolete allocator predictions; retain independent ICSS comparisons.
+
 ## [0.68.11] - 2026-11-08
 
 ### ⚡ Performance

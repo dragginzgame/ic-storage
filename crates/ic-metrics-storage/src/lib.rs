@@ -332,7 +332,7 @@ impl<M: Memory> MetricsStore<M> {
         configuration: &T::Configuration,
     ) -> Result<Option<T>, StoreError> {
         self.map
-            .get(&key.0)?
+            .get(&key.0)
             .map(|bytes| codec::decode::<T>(&bytes, identity, configuration))
             .transpose()
     }
@@ -355,7 +355,7 @@ impl<M: Memory> MetricsStore<M> {
             }
         }
         let bytes = codec::encode(identity, value)?;
-        self.map.insert(key.0.clone(), bytes)?;
+        self.map.insert(key.0.clone(), bytes);
         Ok(())
     }
 
@@ -373,11 +373,11 @@ impl<M: Memory> MetricsStore<M> {
         key: &MetricKey,
         identity: &MetricIdentity,
     ) -> Result<bool, StoreError> {
-        let Some(bytes) = self.map.get(&key.0)? else {
+        let Some(bytes) = self.map.get(&key.0) else {
             return Ok(false);
         };
         codec::envelope(&bytes, identity)?;
-        self.map.remove(&key.0)?;
+        self.map.remove(&key.0);
         Ok(true)
     }
 }

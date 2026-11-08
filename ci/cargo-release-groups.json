@@ -13,7 +13,7 @@
         "ic-storage"
       ],
       "metadata_files": [
-        "releases/storage/0.68.md"
+        "releases/storage/0.69.md"
       ]
     },
     {
@@ -28,7 +28,7 @@
         "ic-metrics-storage"
       ],
       "metadata_files": [
-        "releases/metrics-storage/0.70.md"
+        "releases/metrics-storage/0.71.md"
       ]
     },
     {
@@ -43,7 +43,7 @@
         "ic-logging-storage"
       ],
       "metadata_files": [
-        "releases/logging-storage/0.66.md"
+        "releases/logging-storage/0.67.md"
       ]
     }
   ],

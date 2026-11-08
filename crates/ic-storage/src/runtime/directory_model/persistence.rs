@@ -173,7 +173,7 @@ impl<M: Memory> Store<M> {
     // No prepared candidate escapes to another owner or a later generation.
     pub(super) fn mutate(
         &mut self,
-        keys: Vec<super::StableKey>,
+        keys: &std::collections::BTreeSet<super::StableKey>,
         growth: &[(super::AllocationId, u64)],
     ) -> Result<(), Error> {
         self.verify()?;

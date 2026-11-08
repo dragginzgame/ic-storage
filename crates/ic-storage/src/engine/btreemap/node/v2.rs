@@ -75,9 +75,9 @@
 //! Wasm pages.
 
 use super::{
-    Address, Borrow, Bytes, Cow, INTERNAL_NODE_TYPE, LAYOUT_VERSION_2, LEAF_NODE_TYPE, LazyKey,
-    LazyValue, MAGIC, Memory, Node, NodeHeader, NodeReader, NodeType, PageSize, Storable, U32_SIZE,
-    Version, read_address_vec, read_struct, read_to_vec, read_u32, read_u64,
+    Address, Borrow, Bytes, Cow, INTERNAL_NODE_TYPE, LAYOUT_VERSION_2, LEAF_NODE_TYPE, LazyObject,
+    MAGIC, Memory, Node, NodeHeader, NodeReader, NodeType, PageSize, Storable, U32_SIZE,
+    read_address_vec, read_struct, read_to_vec, read_u32, read_u64,
 };
 use crate::engine::btreemap::Allocator;
 use crate::engine::{btreemap::node::io::NodeWriter, types::NULL};
@@ -104,7 +104,7 @@ impl<K: Storable + Ord + Clone> Node<K> {
         Self {
             address,
             node_type,
-            version: Version::V2(page_size),
+            page_size,
             entries: vec![],
             children: vec![],
             overflows: Vec::new(),
@@ -195,7 +195,7 @@ impl<K: Storable + Ord + Clone> Node<K> {
             // Eager-load small keys, defer large ones.
             let key = if let Some(size) = batch_key_size {
                 let start = index * size;
-                LazyKey::by_value(K::from_bytes(Cow::Borrowed(&buf[start..start + size])))
+                LazyObject::by_value(K::from_bytes(Cow::Borrowed(&buf[start..start + size])))
             } else if key_size <= EAGER_LOAD_KEY_SIZE_THRESHOLD {
                 read_to_vec(
                     &reader,
@@ -203,20 +203,20 @@ impl<K: Storable + Ord + Clone> Node<K> {
                     &mut buf,
                     key_size as usize,
                 );
-                LazyKey::by_value(K::from_bytes(Cow::Borrowed(&buf)))
+                LazyObject::by_value(K::from_bytes(Cow::Borrowed(&buf)))
             } else {
-                LazyKey::by_ref(key_offset, key_size)
+                LazyObject::by_ref(key_offset, key_size)
             };
 
             offset += Bytes::from(key_size);
-            entries.push((key, LazyValue::by_ref(Bytes::from(0_u64), 0)));
+            entries.push((key, LazyObject::by_ref(Bytes::from(0_u64), 0)));
         }
 
         // Load the values
         for (_key, value) in &mut entries {
             // Load the values lazily.
             let value_size = read_u32(&reader, offset);
-            *value = LazyValue::by_ref(Bytes::from(offset.get()), value_size);
+            *value = LazyObject::by_ref(Bytes::from(offset.get()), value_size);
             offset += U32_SIZE + Bytes::from(u64::from(value_size));
         }
 
@@ -225,14 +225,14 @@ impl<K: Storable + Ord + Clone> Node<K> {
             entries,
             children,
             node_type,
-            version: Version::V2(page_size),
+            page_size,
             overflows,
         }
     }
 
     // Saves the node to memory.
     pub(super) fn save_v2<M: Memory>(&mut self, allocator: &mut Allocator<M>) {
-        let page_size = self.version.page_size().get();
+        let page_size = self.page_size.get();
         assert!(page_size >= MINIMUM_PAGE_SIZE);
 
         // Load all the entries. One pass is required to load all entries;
@@ -283,7 +283,7 @@ impl<K: Storable + Ord + Clone> Node<K> {
         // Write the keys.
         for i in 0..self.entries.len() {
             let key = self.key(i, writer.memory());
-            let key_bytes = key.to_bytes_checked();
+            let key_bytes = key.to_bytes();
 
             // Write the size of the key if it isn't fixed in size.
             if !K::BOUND.is_fixed_size() {

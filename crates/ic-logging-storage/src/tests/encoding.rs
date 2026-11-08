@@ -3,8 +3,8 @@ use super::*;
 
 #[test]
 fn record_budget_identity_and_configuration_refusals_preserve_retained_bytes() {
-    let memory = CountedMemory::default();
-    let writes = memory.writes.clone();
+    let memory = MeteredMemory::<VectorMemory>::default();
+    let writes = memory.clone();
     let mut store = LoggingStore::new(StableBTreeMap::create(admitted(memory)).unwrap());
     let limits = Limits {
         max_entries: NonZeroUsize::new(32).unwrap(),
@@ -13,8 +13,8 @@ fn record_budget_identity_and_configuration_refusals_preserve_retained_bytes() {
     };
     let mut log = Log::new(limits);
     store.save(&key(), identity(), &log).unwrap();
-    let bytes = store.map.get(&key().0).unwrap();
-    writes.set(0);
+    let bytes = store.map.get(&key().0);
+    writes.reset();
     let wrong = LogIdentity { epoch: 8 };
     assert!(matches!(
         store.load(&key(), wrong, limits),
@@ -52,8 +52,8 @@ fn record_budget_identity_and_configuration_refusals_preserve_retained_bytes() {
         store.save(&key(), identity(), &Log::new(unsupported)),
         Err(StoreError::UnsupportedLimits)
     );
-    assert_eq!(store.map.get(&key().0).unwrap(), bytes);
-    assert_eq!(writes.get(), 0);
+    assert_eq!(store.map.get(&key().0), bytes);
+    assert_eq!(writes.counts().writes, 0);
 }
 
 #[test]
@@ -102,12 +102,12 @@ fn malformed_bytes_are_never_empty_or_reset_fallbacks() {
     state.entries[0].truncated = true;
     let bytes = codec::encode_snapshot(identity(), &state).unwrap();
     let mut store = store();
-    store.map.insert(key().0, bytes.clone()).unwrap();
+    store.map.insert(key().0, bytes.clone());
     assert_eq!(
         store.save(&key(), identity(), &log),
         Err(StoreError::InvalidState(RestoreError::InvalidEntry))
     );
-    assert_eq!(store.map.get(&key().0).unwrap(), Some(bytes));
+    assert_eq!(store.map.get(&key().0), Some(bytes));
     assert!(matches!(
         codec::decode(&vec![0; MAX_RECORD_BYTES + 1], identity(), limits()),
         Err(StoreError::RecordTooLarge)
@@ -181,8 +181,8 @@ fn wire_budgets_admit_maximum_rows_and_large_valid_checkpoints() {
 
 #[test]
 fn text_budget_eviction_and_forged_retained_usage_are_admitted_before_writes() {
-    let memory = CountedMemory::default();
-    let writes = memory.writes.clone();
+    let memory = MeteredMemory::<VectorMemory>::default();
+    let writes = memory.clone();
     let mut store = LoggingStore::new(StableBTreeMap::create(admitted(memory)).unwrap());
     let bounded = Limits {
         max_text_bytes: 8,
@@ -200,16 +200,16 @@ fn text_budget_eviction_and_forged_retained_usage_are_admitted_before_writes() {
     assert_eq!(log.retained_text_bytes(), 8);
     store.save(&key(), identity(), &log).unwrap();
     let state = log.snapshot();
-    let bytes = store.map.get(&key().0).unwrap().unwrap();
+    let bytes = store.map.get(&key().0).unwrap();
     assert!(matches!(
         log.append(input(4, "12345678")),
         Err(AppendError::TextBudgetExceeded { .. })
     ));
     assert_eq!(log.snapshot(), state);
-    writes.set(0);
+    writes.reset();
     store.save(&key(), identity(), &log).unwrap();
-    assert_eq!(writes.get(), 0);
-    assert_eq!(store.map.get(&key().0).unwrap(), Some(bytes));
+    assert_eq!(writes.counts().writes, 0);
+    assert_eq!(store.map.get(&key().0), Some(bytes));
     let restored = store.load(&key(), identity(), bounded).unwrap().unwrap();
     assert_eq!(restored.retained_text_bytes(), 8);
     assert_eq!(restored.snapshot(), state);
@@ -217,8 +217,8 @@ fn text_budget_eviction_and_forged_retained_usage_are_admitted_before_writes() {
     let mut forged = state;
     forged.limits.max_text_bytes = 7;
     let forged_bytes = codec::encode_snapshot(identity(), &forged).unwrap();
-    store.map.insert(key().0, forged_bytes.clone()).unwrap();
-    writes.set(0);
+    store.map.insert(key().0, forged_bytes.clone());
+    writes.reset();
     assert!(matches!(
         store.load(&key(), identity(), forged.limits),
         Err(StoreError::InvalidState(RestoreError::TextBudgetExceeded))
@@ -231,8 +231,8 @@ fn text_budget_eviction_and_forged_retained_usage_are_admitted_before_writes() {
         store.remove(&key(), identity(), forged.limits),
         Err(StoreError::InvalidState(RestoreError::TextBudgetExceeded))
     );
-    assert_eq!(writes.get(), 0);
-    assert_eq!(store.map.get(&key().0).unwrap(), Some(forged_bytes));
+    assert_eq!(writes.counts().writes, 0);
+    assert_eq!(store.map.get(&key().0), Some(forged_bytes));
     assert!(matches!(
         store.load(
             &key(),
@@ -248,14 +248,14 @@ fn text_budget_eviction_and_forged_retained_usage_are_admitted_before_writes() {
 
 #[test]
 fn retired_checkpoint_requires_explicit_host_row_administration() {
-    let memory = CountedMemory::default();
-    let writes = memory.writes.clone();
+    let memory = MeteredMemory::<VectorMemory>::default();
+    let writes = memory.clone();
     let mut store = LoggingStore::new(StableBTreeMap::create(admitted(memory)).unwrap());
     let retired =
         b"ICL\x02\x07\x04\x40\x10\x01\x01\x01\x0a\x01\x00\x0a\x01\x00\x01w\x00\x0cutf8-message"
             .to_vec();
-    store.map.insert(key().0, retired.clone()).unwrap();
-    writes.set(0);
+    store.map.insert(key().0, retired.clone());
+    writes.reset();
     assert!(matches!(
         store.load(&key(), identity(), limits()),
         Err(StoreError::UnsupportedFormat)
@@ -268,10 +268,10 @@ fn retired_checkpoint_requires_explicit_host_row_administration() {
         store.remove(&key(), identity(), limits()),
         Err(StoreError::UnsupportedFormat)
     );
-    assert_eq!(store.map.get(&key().0).unwrap(), Some(retired));
-    assert_eq!(writes.get(), 0);
+    assert_eq!(store.map.get(&key().0), Some(retired));
+    assert_eq!(writes.counts().writes, 0);
     // The host deliberately retires this row; neither loading nor saving resets it.
-    store.map.remove(&key().0).unwrap();
+    store.map.remove(&key().0);
     store.save(&key(), identity(), &Log::new(limits())).unwrap();
     assert!(
         store

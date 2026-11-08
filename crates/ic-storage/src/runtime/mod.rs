@@ -174,18 +174,14 @@ impl<M: Memory> MemoryRuntime<M> {
         let mut admission =
             BootstrapAdmission::new(source, grants, &bindings, self.config.allocations)?;
         let result = policy.prepare_bootstrap(&mut admission);
-        let requests = admission.complete()?;
+        let (requests, admitted) = admission.complete()?;
         result.map_err(RuntimeBootstrapError::Policy)?;
-        for request in &requests {
+        for request in requests {
             policy
                 .validate_allocation(request.stable_key())
                 .map_err(RuntimeBootstrapError::Policy)?;
         }
-        let admitted: BTreeSet<_> = requests
-            .into_iter()
-            .map(|request| request.stable_key().clone())
-            .collect();
-        self.owner.bind(admitted.iter().cloned().collect())?;
+        self.owner.bind(&admitted)?;
         self.binding = Some(Binding {
             source: source.clone(),
             grants: grants.clone(),

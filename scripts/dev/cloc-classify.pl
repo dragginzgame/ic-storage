@@ -65,7 +65,7 @@ sub module_rows {
     @pending=map {[$_,$tree->{children}{$_},1]} reverse sort keys %{$tree->{children}};
     while (my $entry=pop @pending) {
         my ($label,$node,$level)=@$entry;
-        push @rows,[('  ' x ($level+1)).safe_label($label),$node->{counts}];
+        push @rows,[('  ' x ($level+1)).safe_label($label),$node->{counts},37];
         next if $level >= $depth || !keys %{$node->{children}};
         push @pending,map {[$_,$node->{children}{$_},$level+1]} reverse sort keys %{$node->{children}};
     }
@@ -106,14 +106,16 @@ if (($ARGV[0] // '') eq '--table') {
     my @rows;
     for my $w (@{$r->{workspaces} // [{name=>basename(dirname($r->{manifest})),report=>$r}]}) {
         if ($w->{report}) {
-            push @rows, [safe_label($w->{report}{selection} // $w->{name}), $w->{report}{totals}];
+            my $label=safe_label($w->{report}{selection} // $w->{name});
+            my $kind=$w->{report}{selection} ? ($w->{report}{selection} =~ /::/ ? 37 : 34) : 32;
+            push @rows, [$label, $w->{report}{totals},$kind];
             if (defined $depth) {
                 my %files_by_crate;
                 if ($depth) {
                     push @{$files_by_crate{$_->{crate}}},$_ for @{$w->{report}{files}};
                 }
                 for my $crate (@{$w->{report}{crates}}) {
-                    push @rows,['  '.safe_label($crate->{crate}),$crate->{counts}] unless $w->{report}{selection};
+                    push @rows,['  '.safe_label($crate->{crate}),$crate->{counts},34] unless $w->{report}{selection};
                     if ($depth) {
                         my @modules=module_rows($crate,$files_by_crate{$crate->{crate}} // [],$depth);
                         if ($w->{report}{selection}) { $_->[0] =~ s/^  // for @modules; }
@@ -121,8 +123,9 @@ if (($ARGV[0] // '') eq '--table') {
                     }
                 }
             }
-        } else { push @rows, [safe_label($w->{name}), {map {$_=>$w->{status}} (@categories,'total')}]; }
+        } else { push @rows, [safe_label($w->{name}), {map {$_=>$w->{status}} (@categories,'total')},32]; }
     }
+    my $colour=-t STDOUT && !length($ENV{NO_COLOR} // '') && ($ENV{TERM} // '') ne 'dumb';
     my $aggregate=exists $r->{workspaces};
     push @rows, [$r->{partial} ? 'TOTAL (partial)' : 'TOTAL', $r->{totals}] if $aggregate;
     my @keys=(@categories,'total');
@@ -143,7 +146,11 @@ if (($ARGV[0] // '') eq '--table') {
     print "\n",$separator;
     for my $i (0..$#rows) {
         print $separator if $aggregate && $i==$#rows;
-        printf '%-*s', $width,$rows[$i][0];
+        my $code=$colour ? $rows[$i][2] : undef;
+        print "\e[${code}m" if defined $code;
+        print $rows[$i][0];
+        print "\e[0m" if defined $code;
+        print ' ' x ($width-length($rows[$i][0]));
         for my $j (0..$#keys) {printf '%s%*s', $gaps[$j],$widths[$j],$rows[$i][1]{$keys[$j]} // 'n/a';}
         print "\n";
     }

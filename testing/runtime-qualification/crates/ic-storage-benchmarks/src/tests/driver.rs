@@ -53,22 +53,29 @@ fn vector_read_history_preserves_updates_and_restores_population_each_round() {
 
 #[test]
 fn growth_cycles_keep_the_same_external_records_and_preserve_default_phases() {
-    for case in CASES {
+    for &case in DEFAULT_CASES {
         assert_eq!(
             phases(case, false, None)
                 .into_iter()
+                .filter(|(phase, _)| phase != "GetAfterReplace")
                 .map(|(_, op)| op)
                 .collect::<Vec<_>>(),
             case.operations()
         );
     }
     let mut model = (0..64)
-        .map(|key| (key, Case::U64Bytes.expected_value(key, 33, false)))
+        .map(|key| {
+            (
+                key,
+                ic_storage_benchmarks::case!(Map, U64, Bytes).expected_value(key, 33, false),
+            )
+        })
         .collect();
     for _ in 0..4 {
-        for (phase, operation) in phases(Case::U64Bytes, true, None) {
+        for (phase, operation) in phases(ic_storage_benchmarks::case!(Map, U64, Bytes), true, None)
+        {
             let request = Request {
-                case: Case::U64Bytes,
+                case: ic_storage_benchmarks::case!(Map, U64, Bytes),
                 operation,
                 rows: 64,
                 payload: 33,
@@ -109,9 +116,9 @@ fn payload_selection_is_typed_and_conflicts_with_fixed_workloads() {
     assert!(
         args.payloads
             .iter()
-            .all(|size| Case::U64Bytes.accepts_payload(*size))
+            .all(|size| ic_storage_benchmarks::case!(Map, U64, Bytes).accepts_payload(*size))
     );
-    assert!(!Case::U64U64.accepts_payload(33));
+    assert!(!ic_storage_benchmarks::case!(Map, U64, U64).accepts_payload(33));
     assert!(Arguments::try_parse_from(base.into_iter().chain(["--payloads", "-1"])).is_err());
     assert!(
         Arguments::try_parse_from(base.into_iter().chain([
@@ -196,8 +203,7 @@ fn bucket_selection_is_nonzero_and_survives_initialization_encoding() {
             Arguments::try_parse_from(base.into_iter().chain(["--upstream-bucket-pages", value]))
                 .unwrap();
         let initialization = Initialization {
-            case: Case::U64U64,
-            cache_bytes: 0,
+            case: ic_storage_benchmarks::case!(Map, U64, U64),
             upstream_cache_slots: 0,
             upstream_bucket_pages: args.upstream_bucket_pages,
             cold_cache: false,
@@ -210,7 +216,6 @@ fn bucket_selection_is_nonzero_and_survives_initialization_encoding() {
     #[derive(serde::Serialize)]
     struct UncheckedInitialization {
         case: Case,
-        cache_bytes: usize,
         upstream_cache_slots: usize,
         upstream_bucket_pages: u16,
         cold_cache: bool,
@@ -218,8 +223,7 @@ fn bucket_selection_is_nonzero_and_survives_initialization_encoding() {
     }
     for pages in [0, 1] {
         let input = UncheckedInitialization {
-            case: Case::U64U64,
-            cache_bytes: 0,
+            case: ic_storage_benchmarks::case!(Map, U64, U64),
             upstream_cache_slots: 0,
             upstream_bucket_pages: pages,
             cold_cache: false,
@@ -233,35 +237,82 @@ fn bucket_selection_is_nonzero_and_survives_initialization_encoding() {
     }
 }
 #[test]
-fn mixed_mutation_rounds_preserve_phase_preconditions_and_population() {
-    for case in CASES {
+fn full_catalogue_mutation_histories_preserve_results_and_population() {
+    for &case in MATRIX_CASES {
+        // Refusal/trait cases have separate codec and installed admission proofs.
+        if catalogue::unavailable(case, false).is_some() {
+            continue;
+        }
+        let rows = case.rows(7);
+        let operations = case.operations();
         for &payload in case.payloads() {
+            let base = Request {
+                case,
+                rows,
+                payload,
+                count: 1,
+                operation: Operation::Grow,
+                seed: 1,
+                pattern: Pattern::Uniform,
+            };
+            let largest_payload = if operations.contains(&Operation::Grow) {
+                payload_for(base).max(payload)
+            } else {
+                payload
+            };
+            // Preserve 32-operation histories for small values, but bound the
+            // wider catalogue's composite/optional normalized results as well.
+            let largest_value = [payload, largest_payload]
+                .into_iter()
+                .flat_map(|size| {
+                    [0, 1].into_iter().flat_map(move |key| {
+                        [false, true]
+                            .map(|replacement| case.expected_value(key, size, replacement).len())
+                    })
+                })
+                .max()
+                .unwrap();
+            let count = 32.min(u32::try_from(transfer_rows(largest_value)).unwrap());
             for pattern in [
                 Pattern::Uniform,
                 Pattern::Hot16,
                 Pattern::Zipf,
                 Pattern::Sequential,
             ] {
-                let rows = case.rows(7);
                 let mut model: BTreeMap<_, _> = (0..u64::from(rows))
                     .map(|key| (key, case.expected_value(key, payload, false)))
                     .collect();
                 for round in 0..3 {
-                    for operation in case.operations() {
-                        expected(
-                            &mut model,
-                            Request {
-                                case,
-                                rows,
-                                payload,
-                                pattern,
-                                operation,
-                                count: 32,
-                                seed: 1 + round * 7919,
-                            },
-                        );
+                    for &operation in &operations {
+                        let request = Request {
+                            operation,
+                            count,
+                            pattern,
+                            seed: 1 + round * 7919,
+                            ..base
+                        };
+                        let entries = expected(&mut model, request);
+                        if operation == Operation::MissAbove {
+                            assert!(entries.iter().all(|(_, value)| {
+                                if case.collection == Collection::Set {
+                                    *value == Some(vec![0])
+                                } else {
+                                    value.is_none()
+                                }
+                            }));
+                        }
+                        if operation == Operation::Shrink {
+                            for key in keys(request) {
+                                // Composite/optional values retain other fields
+                                // when their variable component becomes empty.
+                                assert_eq!(model[&key], case.expected_value(key, 0, true));
+                            }
+                        }
+                        if operation == Operation::Pop || case.collection == Collection::Cell {
+                            assert_eq!(model.len(), rows as usize);
+                        }
                     }
-                    assert_eq!(model.len(), rows as usize);
+                    assert_eq!(model.len(), rows as usize, "{case:?} {pattern:?}");
                     assert!(model.keys().copied().eq(0..u64::from(rows)));
                 }
             }
@@ -271,7 +322,7 @@ fn mixed_mutation_rounds_preserve_phase_preconditions_and_population() {
 #[test]
 fn mislabeled_removal_and_growth_are_rejected_before_execution() {
     let r = Request {
-        case: Case::U64Bytes,
+        case: ic_storage_benchmarks::case!(Map, U64, Bytes),
         rows: 7,
         payload: 33,
         pattern: Pattern::Uniform,
@@ -297,7 +348,7 @@ fn mislabeled_removal_and_growth_are_rejected_before_execution() {
 fn endpoint_and_bounded_scan_models_admit_empty_and_exclude_upper_bound() {
     let mut model = BTreeMap::from([(0, vec![10]), (1, vec![11]), (2, vec![12])]);
     let mut r = Request {
-        case: Case::U64U64,
+        case: ic_storage_benchmarks::case!(Map, U64, U64),
         operation: Operation::BoundedScan,
         rows: 8,
         payload: 8,
@@ -321,7 +372,11 @@ fn endpoint_and_bounded_scan_models_admit_empty_and_exclude_upper_bound() {
 }
 #[test]
 fn reference_trace_handles_repeated_hot_updates_and_removals() {
-    for case in CASES.into_iter().filter(|c| c.structure() == "Map") {
+    for case in DEFAULT_CASES
+        .iter()
+        .copied()
+        .filter(|c| c.structure() == "Map")
+    {
         let payload = case.payloads()[0];
         let mut model: BTreeMap<_, _> = (0..8)
             .map(|key| (key, case.expected_value(key, payload, false)))
@@ -351,52 +406,12 @@ fn reference_trace_handles_repeated_hot_updates_and_removals() {
     assert_eq!(median(&[30, 10, 20]), 20);
 }
 #[test]
-fn structure_models_cover_cells_sets_vectors_and_regions() {
-    for case in CASES {
-        let rows = case.rows(7);
-        for &payload in case.payloads() {
-            let mut model: BTreeMap<_, _> = (0..u64::from(rows))
-                .map(|k| (k, case.expected_value(k, payload, false)))
-                .collect();
-            for operation in case.operations() {
-                let r = Request {
-                    case,
-                    rows,
-                    payload,
-                    operation,
-                    count: 32,
-                    seed: 1,
-                    pattern: Pattern::Hot16,
-                };
-                let entries = expected(&mut model, r);
-                if operation == Operation::MissAbove {
-                    assert!(entries.iter().all(|(_, v)| if case.structure() == "Set" {
-                        *v == Some(vec![0])
-                    } else {
-                        v.is_none()
-                    }));
-                }
-                if operation == Operation::Shrink {
-                    assert!(keys(r).iter().all(|key| model[key].is_empty()));
-                }
-                if operation == Operation::Pop {
-                    assert_eq!(model.len(), rows as usize);
-                }
-                if case.structure() == "Cell" {
-                    assert_eq!(model.len(), 1);
-                }
-            }
-        }
-    }
-}
-
-#[test]
 fn round_summary_keeps_initial_and_shrunk_cell_costs_separate() {
     let mut samples = Samples::new();
     for (backend, initial) in [("ic-storage", 100), ("ic-stable-structures", 10)] {
         samples.insert(
             (
-                Case::CellBytes,
+                ic_storage_benchmarks::case!(Cell, U64, Bytes),
                 1024,
                 1,
                 Pattern::Uniform,
@@ -448,10 +463,15 @@ fn round_summary_keeps_initial_and_shrunk_cell_costs_separate() {
 #[test]
 fn iterator_model_checks_skipping_mixed_ends_and_persisted_interleaved_writes() {
     let mut model: BTreeMap<_, _> = (0..8)
-        .map(|id| (id, Case::VectorU64.expected_value(id, 8, false)))
+        .map(|id| {
+            (
+                id,
+                ic_storage_benchmarks::case!(Vector, U64, U64).expected_value(id, 8, false),
+            )
+        })
         .collect();
     let request = Request {
-        case: Case::VectorU64,
+        case: ic_storage_benchmarks::case!(Vector, U64, U64),
         rows: 8,
         payload: 8,
         count: 3,
@@ -503,7 +523,10 @@ fn iterator_model_checks_skipping_mixed_ends_and_persisted_interleaved_writes() 
     );
     assert_eq!(rows[0], (0, Some(original[&0].clone())));
     for id in 1..4 {
-        assert_eq!(model[&id], Case::VectorU64.expected_value(id, 8, true));
+        assert_eq!(
+            model[&id],
+            ic_storage_benchmarks::case!(Vector, U64, U64).expected_value(id, 8, true)
+        );
     }
     for id in [0, 4, 5, 6, 7] {
         assert_eq!(model[&id], original[&id]);
@@ -518,7 +541,7 @@ fn ordered_iteration_model_preserves_key_identity_rank_and_range_endpoints() {
         .map(|key| (key, vec![key as u8]))
         .collect();
     let request = Request {
-        case: Case::U64Bytes,
+        case: ic_storage_benchmarks::case!(Map, U64, Bytes),
         operation: Operation::Nth,
         rows: 5,
         payload: 33,
@@ -565,7 +588,7 @@ fn ordered_iteration_model_preserves_key_identity_rank_and_range_endpoints() {
         expected(
             &mut model,
             Request {
-                case: Case::SetU64,
+                case: ic_storage_benchmarks::case!(Set, U64, Unit),
                 operation: Operation::IterLast,
                 payload: 0,
                 ..request
@@ -635,18 +658,18 @@ fn ordered_iteration_model_preserves_key_identity_rank_and_range_endpoints() {
 #[test]
 fn ordinary_selection_is_a_unique_subset_of_the_complete_type_suite() {
     let defaults: std::collections::BTreeSet<_> = DEFAULT_CASES.iter().copied().collect();
-    let complete: std::collections::BTreeSet<_> = CASES.into_iter().collect();
+    let complete: std::collections::BTreeSet<_> = MATRIX_CASES.iter().copied().collect();
     assert_eq!(defaults.len(), DEFAULT_CASES.len());
-    assert_eq!(complete.len(), CASES.len());
+    assert_eq!(complete.len(), MATRIX_CASES.len());
     assert!(defaults.is_subset(&complete));
-    assert!(defaults.contains(&Case::RegionBytes));
-    assert!(!defaults.contains(&Case::VectorBounded65536));
+    assert!(defaults.contains(&ic_storage_benchmarks::case!(Region, U64, Bytes)));
+    assert!(!defaults.contains(&ic_storage_benchmarks::case!(Vector, U64, Bounded65536)));
     assert_eq!(Workload::Types.cases(), MATRIX_CASES);
 }
 
 #[test]
 fn scalar_cell_type_trace_reads_both_original_and_replaced_optional_variants() {
-    let case = Case::Typed {
+    let case = Case {
         collection: Collection::Cell,
         key: DataType::U64,
         value: DataType::OptionU64,
@@ -680,7 +703,7 @@ fn scalar_cell_type_trace_reads_both_original_and_replaced_optional_variants() {
 }
 #[test]
 fn summary_quotes_tuple_labels_and_does_not_invent_missing_reference_costs() {
-    let case = Case::Typed {
+    let case = Case {
         collection: Collection::Map,
         key: DataType::PairFixed,
         value: DataType::U64,
@@ -883,7 +906,7 @@ fn execution_boundary_and_operation_probes_cannot_be_mixed() {
     for diagnostic in ["--trace-stable-reads", "--trace-execution-cost"] {
         let args = Arguments::try_parse_from(base.into_iter().chain([
             "--cases",
-            "VectorU8,VectorBool,CellBool",
+            "Vector-U64-U8,Vector-U64-Bool,Cell-U64-Bool",
             diagnostic,
         ]))
         .unwrap();
@@ -910,5 +933,38 @@ fn execution_boundary_and_operation_probes_cannot_be_mixed() {
             "vector-reads",
         ]))
         .is_ok()
+    );
+}
+
+#[test]
+fn session_lookup_scope_preserves_full_catalogue_mutations() {
+    let case = ic_storage_benchmarks::case!(Vector, U64, Session);
+    for operation in [
+        Operation::Set,
+        Operation::Push,
+        Operation::Pop,
+        Operation::Scan,
+    ] {
+        assert!(case.operations().contains(&operation));
+        assert!(!case.measures_decode(operation));
+    }
+    let actual: Vec<_> = phases(case, false, Some(Workload::AuthLookups))
+        .into_iter()
+        .map(|(_, operation)| operation)
+        .collect();
+    assert_eq!(
+        actual,
+        [
+            Operation::Control,
+            Operation::Get,
+            Operation::WarmGet,
+            Operation::Decode,
+            Operation::MissAbove
+        ]
+    );
+    assert!(
+        actual
+            .into_iter()
+            .all(|operation| case.measures_decode(operation))
     );
 }
