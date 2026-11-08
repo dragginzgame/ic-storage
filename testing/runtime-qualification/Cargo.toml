@@ -21,7 +21,7 @@ license = "MIT"
 [workspace.dependencies]
 clap = { version = "4.6", default-features = false, features = ["derive", "std", "help", "usage", "error-context"] }
 ic-logging = { version = "0.24.0", default-features = false }
-ic-logging-storage = { path = "../../crates/ic-logging-storage", version = "0.66.0" }
+ic-logging-storage = { path = "../../crates/ic-logging-storage", version = "0.67.0" }
 # Facade for the native client and composition fixture's Principal identity.
 # Testkit retains server selection and lifecycle.
 ic-platform = { version = "0.19.0", default-features = false }
