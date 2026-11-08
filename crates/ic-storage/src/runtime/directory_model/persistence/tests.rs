@@ -119,7 +119,14 @@ fn reopen_more_than_256_allocations_preserves_data_and_metadata_separation() {
     store.mutate((0..1_024).map(key).collect(), &[]).unwrap();
     let a = store.directory.by_key[&key(500)];
     let b = store.directory.by_key[&key(900)];
-    assert!(store.directory.by_id.keys().any(|id| id.0 > 255));
+    assert!(
+        store
+            .directory
+            .image
+            .entries
+            .iter()
+            .any(|entry| entry.id.0 > 255)
+    );
     store.mutate(vec![], &[(a, 2), (b, 1), (a, 1)]).unwrap();
     let first = store.directory.page(a, 0).unwrap() * PAGE;
     memory.write(first, b"application payload");

@@ -1,5 +1,5 @@
 //! Governed map operations over the copied ICSS B-tree.
-use super::bridge::{self, Backing, Codec};
+use super::bridge::{self, Backing, Codec, TreeMemory};
 use super::error::{CollectionError as Error, Result, ensure};
 use super::{MapIter, Memory, Storable};
 use crate::{DefaultMemoryImpl, RuntimeMemory};
@@ -12,7 +12,7 @@ use std::ops::RangeBounds;
 /// engine failures trap. Native callers must discard the runtime after a mutation panic.
 ///
 pub struct StableBTreeMap<K: Storable + Ord + Clone, V: Storable, M: Memory = DefaultMemoryImpl> {
-    inner: bridge::Map<K, V, RuntimeMemory<M>>,
+    inner: bridge::Map<K, V, M>,
 }
 impl<K: Storable + Ord + Clone, V: Storable, M: Memory> StableBTreeMap<K, V, M> {
     /// Create only in empty admitted memory.
@@ -30,7 +30,7 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> StableBTreeMap<K, V, M> 
         #[cfg(not(target_arch = "wasm32"))]
         let _guard = memory.poison_on_unwind();
         Ok(Self {
-            inner: bridge::Map::new(Backing(memory)),
+            inner: bridge::Map::new(Backing(TreeMemory::Allocation(memory))),
         })
     }
     /// Load the current BTR version without initialization or migration.
@@ -38,7 +38,8 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> StableBTreeMap<K, V, M> 
     /// Refuses empty or foreign framing.
     pub fn load(memory: RuntimeMemory<M>) -> Result<Self> {
         Ok(Self {
-            inner: bridge::Map::load(Backing(memory)).ok_or(Error::Format)?,
+            inner: bridge::Map::load(Backing(TreeMemory::Allocation(memory)))
+                .ok_or(Error::Format)?,
         })
     }
     /// Clear entries and reuse the map's existing backing capacity.
@@ -46,7 +47,7 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> StableBTreeMap<K, V, M> 
     /// Engine failures trap instead of returning an ordinary error.
     pub fn clear(&mut self) -> Result<()> {
         #[cfg(not(target_arch = "wasm32"))]
-        let _guard = self.inner.memory().0.poison_on_unwind();
+        let _guard = self.inner.memory().0.allocation().poison_on_unwind();
         self.inner.clear_new();
         Ok(())
     }
@@ -60,14 +61,20 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> StableBTreeMap<K, V, M> 
         self,
         minimum: u64,
     ) -> (Self, std::result::Result<(), crate::RuntimeGrowError>) {
-        let additional = minimum.saturating_sub(self.inner.memory().0.size());
-        let result = self.inner.memory().0.grow(additional).map(|_| ());
+        let additional = minimum.saturating_sub(self.inner.memory().0.allocation().size());
+        let result = self
+            .inner
+            .memory()
+            .0
+            .allocation()
+            .grow(additional)
+            .map(|_| ());
         (self, result)
     }
     /// Observe allocated pages while retaining exclusive custody.
     #[must_use]
     pub fn allocated_pages(self) -> (Self, u64) {
-        let pages = self.inner.memory().0.size();
+        let pages = self.inner.memory().0.allocation().size();
         (self, pages)
     }
     /// Insert or replace. Invalid codecs and allocation failures trap.
@@ -75,7 +82,7 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> StableBTreeMap<K, V, M> 
     /// Engine failures trap instead of returning an ordinary error.
     pub fn insert(&mut self, key: K, value: V) -> Result<Option<V>> {
         #[cfg(not(target_arch = "wasm32"))]
-        let _guard = self.inner.memory().0.poison_on_unwind();
+        let _guard = self.inner.memory().0.allocation().poison_on_unwind();
         Ok(self.inner.insert(Codec(key), Codec(value)).map(|v| v.0))
     }
     /// Read a matching value; malformed stored values trap.
@@ -105,7 +112,7 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> StableBTreeMap<K, V, M> 
     /// Engine failures trap instead of returning an ordinary error.
     pub fn remove(&mut self, key: &K) -> Result<Option<V>> {
         #[cfg(not(target_arch = "wasm32"))]
-        let _guard = self.inner.memory().0.poison_on_unwind();
+        let _guard = self.inner.memory().0.allocation().poison_on_unwind();
         Ok(self.inner.remove(Codec::borrowed(key)).map(|v| v.0))
     }
     /// First ordered key/value pair.

@@ -1,5 +1,5 @@
 //! Operation-local collection access within a retained allocation region.
-use super::bridge::{self, Backing, Codec};
+use super::bridge::{self, Backing, Codec, TreeMemory};
 use super::error::{CollectionError as Error, Result as CollectionResult, ensure};
 use super::{Memory, Storable};
 use crate::DefaultMemoryImpl;
@@ -93,7 +93,7 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> BTreeMapRegion<K, V, M> 
         bridge::reserve(&self.memory)?;
         #[cfg(not(target_arch = "wasm32"))]
         let _guard = self.memory.memory.poison_on_unwind();
-        bridge::Map::<K, V, _>::new(Backing(&self.memory));
+        bridge::Map::<K, V, _>::new(Backing(TreeMemory::Region(self.memory.clone())));
         Ok(())
     }
 
@@ -199,19 +199,31 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> BTreeMapRegion<K, V, M> 
             .into_iter())
     }
 
-    fn current_map(&self) -> CollectionResult<bridge::Map<K, V, &RegionMemory<M>>> {
-        bridge::Map::load(Backing(&self.memory)).ok_or(Error::Format)
+    fn current_map(&self) -> CollectionResult<bridge::Map<K, V, M>> {
+        bridge::Map::load(Backing(TreeMemory::Region(self.memory.clone()))).ok_or(Error::Format)
     }
 }
 
 // Private bounded IO over an admitted lease. Reads, writes and growth stay
 // inside the selected region, including initially absent regions.
-struct RegionMemory<M: Memory> {
+pub(super) struct RegionMemory<M: Memory> {
     memory: Rc<RuntimeMemory<M>>,
     pages: Range<u64>,
 }
 
+impl<M: Memory> Clone for RegionMemory<M> {
+    fn clone(&self) -> Self {
+        Self {
+            memory: Rc::clone(&self.memory),
+            pages: self.pages.clone(),
+        }
+    }
+}
 impl<M: Memory> RegionMemory<M> {
+    pub(super) fn allocation(&self) -> &RuntimeMemory<M> {
+        &self.memory
+    }
+
     fn reserve_pages(&self, minimum: u64) -> Result<(), RegionGrowError> {
         let maximum = self.pages.end - self.pages.start;
         if minimum > maximum {

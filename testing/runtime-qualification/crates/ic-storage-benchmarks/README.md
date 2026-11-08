@@ -18,10 +18,11 @@ make benchmark-storage BENCH_ROWS=64 BENCH_SAMPLES=1 # quick complete smoke matr
 Rows accept 1–1,000,000, samples 1–20. Cell always has one value, regardless of the
 selected population. Builds are locked/offline on Rust 1.99.1; the command never
 installs tools or changes locks. Testkit 0.79.0 manages the prepared PocketIC
-16.1.0 server through Platform 0.19's owned native client. Platform 0.18 removed
-its stable-structures facade, so only the DFINITY backend retains the named
-`ic-platform-stable-benchmark` alias for Platform 0.17. Both backends use Runtime
-0.19 for system calls. Client setup and installation failures stop the comparison;
+16.1.0 server through Platform 0.19's owned native client. The published reference uses ICSS 0.7.2 directly, without an older Platform
+facade. This is a dependency of the unpublished benchmark support library only;
+Cargo dev-dependencies cannot supply traits used by that library. Production
+Storage keeps one modified engine copy per collection under `src/engine` and
+has no ICSS dependency. Both backends use the selected Runtime for system calls. Client setup and installation failures stop the comparison;
 they are not retried or treated as collection results. The production graph has
 no DFINITY dependency. Both Wasm backends use the same comparison profile:
 optimization level 3, fat LTO, one codegen unit, abort panics, no Binaryen pass.
@@ -801,3 +802,145 @@ The fixed 32,768-bucket ICSS limit gives 2 GiB at one page, 16 GiB at eight and
 256 GiB at 128. Always name 128 explicitly when claiming a stock-default
 comparison. All nine qualification runs passed an explicit bucket argument;
 the subsequent default change does not reinterpret their configurations.
+
+## Compact Wasm footprint control
+
+The optional `footprint` feature compiles only the six existing `depth` cases,
+using the same handlers and operations as the full comparison. Both suppliers
+must select it together. The default build still includes the complete type
+catalogue; a compact result never replaces that size measurement. Unsupported
+cases and `vector-open` fail explicitly.
+
+Build each selected backend (`owned`, `dfinity`, or the diagnostic
+`dfinity-governed`) separately:
+
+```sh
+RUSTFLAGS='-C link-arg=-zstack-size=8388608' cargo build --locked --offline \
+  --manifest-path testing/runtime-qualification/Cargo.toml \
+  -p ic-storage-benchmarks --example storage-comparison-wasm \
+  --target wasm32-unknown-unknown --profile comparison \
+  --features owned,footprint --target-dir target/storage-comparison-build/owned
+```
+
+Save each module before another build overwrites it. Repeat with `--profile
+wasm-size` for size-oriented compilation; compare the same recipe on both sides.
+The latter strips symbols, while `comparison` retains names for attribution.
+Use the existing prepared Testkit runner and native comparison driver with those
+saved module paths, `--workload depth --samples 1 --upstream-bucket-pages 8`.
+The ordinary `make benchmark-storage` continues to build the full catalogue.
+
+Report raw module bytes, code-section bytes and gzip transport separately.
+The [size investigation](../../../../docs/audits/recurring/storage-wasm-gap-2026-11-08.md)
+records all three backing/engine combinations and the remaining gap to ICSS.
+
+## Matched consumer Wasm size
+
+Run from the repository root with the existing prepared tools and locked caches:
+
+```sh
+make benchmark-storage-size
+```
+
+This is the primary application-footprint comparison. The earlier full-catalogue
+and compact controls remain useful for attribution and instruction benchmarking;
+they must not be described as normal production application sizes.
+
+Two unpublished cdylib crates in this independent workspace keep the production
+normal dependency graphs separate:
+
+- [`storage-size-consumer`](../storage-size-consumer/) uses Storage's public
+  governed APIs, real declaration/grant admission and named allocations. It does
+  not enable `test-support` or depend on ICSS.
+- [`icss-size-consumer`](../icss-size-consumer/) uses published ICSS 0.7.2 directly,
+  with its normal MemoryManager and default bucket size. It does not depend on
+  Storage, IC Wire or the older Platform reference facade.
+
+Both use Runtime's `ic0` boundary for identical ingress/reply code. One shared
+[`app.rs`](benches/size_consumer/app.rs) is compiled into each consumer; the two
+backend modules contain their respective integration. No native runner, model,
+Candid codec, test catalogue, performance counter or backend selector enters the
+consumer Wasm. Ordinary Rust panic paths remain, as they do in applications.
+
+The runner builds eight feature selections separately for each crate: empty
+control, Map, Set, Vector, Cell, Region, Map+Region and all five. Every selection
+exports init, post-upgrade, put, get, remove and scan. Keys/values are `u64`; scans
+are bounded to 16 entries. The put request is two little-endian u64s, get/remove
+one, scan empty; replies contain one u64 per enabled collection in
+Map/Set/Vector/Cell/Region order. Missing optional results use u64::MAX. Vector
+put appends and remove pops; Cell put replaces and remove resets to zero. Stored
+codec bytes follow each library's defaults; logical requests/results are matched.
+
+Storage's region uses its bounded public region API; ICSS uses a B-tree reloaded
+per operation over `RestrictedMemory` with the same 0..64 page range. ICSS's raw
+memory view is not equivalent to Storage's complete governance/authority contract.
+This is a comparison of real supported integrations, not a claim that their
+failure guarantees match. Default allocation policies and memory buckets differ;
+physical stable-page consumption is not the Wasm byte measurement.
+
+Builds use Rust 1.99.1, `wasm-size` (`opt-level=z`, fat LTO, one codegen unit,
+abort panic, stripped symbols), normal stack settings and no Binaryen rewrite.
+The script records caller Rust flags, compiler identity, source archive/diff,
+lockfile, per-selection normal dependency graphs, build logs and artifact hashes.
+It refuses the opposite library in either consumer graph. The native runner
+checks the exact matching six canister exports and absence of function names,
+then installs every artifact, checks 96 inserts and replacements, reads, removals
+and scans against an independent model, and verifies two upgrades per artifact.
+Only after every artifact passes does it write `sizes.csv` and `results.json`.
+
+Evidence lives under `target/evidence/storage-consumer-size/attempt.*/`.
+`sizes.csv` contains raw stripped module bytes and the signed Storage-minus-ICSS
+gap. `results.json` additionally contains code/data section payload bytes, custom
+section encoded bytes and checked call/upgrade counts. Module totals include
+section headers; section payloads are not additive module totals. No gzip figure
+or instruction/throughput claim is substituted for the deployed module size.
+The empty control reveals common endpoint cost; it is reported, not subtracted
+from the application sizes. Its observed four-byte difference is source-path
+string/alignment data; both empty controls have exactly the same code size.
+
+This initial suite intentionally uses a small fixed type set. It measures useful
+minimal applications, not every codec, error path, schema, variable payload or
+consumer workload. Keep the broad catalogue for that separate coverage.
+
+### Reproducing size attribution
+
+`target/` is disposable. The two consumer crates, shared endpoints, runner, locked
+dependencies and `scripts/ci/compare-storage-size.sh` are maintained source.
+Rerun `make benchmark-storage-size` after cleaning; it creates a fresh validated
+evidence directory. Selected results and hashes are retained in
+[`docs/measurements`](../../../../docs/measurements/storage-consumer-wasm-size-identities.json).
+Exact old artifacts additionally require the same source revision/pending patch,
+lockfile, compiler and recorded build flags; current source recreates the current
+experiment, not automatically a historical hash.
+
+For symbol attribution, build the selected consumer with names retained. This is
+a diagnostic build, not the reported stripped module size:
+
+```sh
+mkdir -p target/evidence/consumer-size-attribution
+CARGO_PROFILE_WASM_SIZE_STRIP=none cargo build --locked --offline \
+  --manifest-path testing/runtime-qualification/Cargo.toml \
+  -p storage-size-consumer --lib --target wasm32-unknown-unknown \
+  --profile wasm-size --no-default-features --features cell \
+  --target-dir target/storage-size-symbols
+cp target/storage-size-symbols/wasm32-unknown-unknown/wasm-size/storage_size_consumer.wasm \
+  target/evidence/consumer-size-attribution/cell-storage.wasm
+perl scripts/ci/inspect-wasm-size.pl \
+  target/evidence/consumer-size-attribution/cell-storage.wasm \
+  > target/evidence/consumer-size-attribution/cell-storage.json
+```
+
+Repeat with `icss-size-consumer`/`icss_size_consumer`, and use `map` or
+`map,set,vector,cell,region` for other selections. The optional inspector requires
+GNU `c++filt` with Rust-v0 support on PATH (or `CXXFILT_BIN`); it never installs it.
+This diagnostic prerequisite is separate from the portable benchmark itself.
+The tool reads the module without rewriting it or creating scratch files. JSON
+contains exact section/function-body sizes and demangled owner groups. Stripped
+inputs can also be inspected for section accounting, but have no function-owner
+attribution. It currently admits function-only imports, matching these consumers.
+
+Compare code/data sections with the validated stripped baseline before drawing
+conclusions. Keeping symbols changed Storage's code payload by 44 bytes in the
+selected run (ICSS was unchanged); code ordering and offsets also differed. The
+symbol inventories locate dominant code, not an exact partition of production
+semantics. Inlining and shared helpers prevent treating group totals as savings
+available by deleting a source module.

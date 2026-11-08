@@ -1,6 +1,6 @@
 //! Native IO/codec attribution. Page sets describe stable byte ranges, not IC faults or fees.
 use clap::Parser;
-use ic_platform_stable_benchmark::stable_structures as icss;
+use ic_stable_structures as icss;
 use ic_storage::{Memory, MemoryBacking, RuntimeMemory, VectorMemory, testing::MeteredMemory};
 use ic_storage_benchmarks::{Case, Operation, Pattern, Request, keys};
 use serde_json::{Value as Json, json};

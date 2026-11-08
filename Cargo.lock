@@ -218,9 +218,9 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
 name = "ic-build"
-version = "0.78.0"
+version = "0.79.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f76b3173a2e04b6b133a08b1709ff8d1798af5484550dc86717a6ca8f3dd603c"
+checksum = "fd1623af0c35840ce4678271b14d6a82a19245de3aaf59bd0ff0f0e3286e788a"
 dependencies = [
  "cargo_metadata",
  "ic-host-artifacts",

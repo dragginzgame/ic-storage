@@ -63,6 +63,7 @@ help:
 	@echo 'Installed runtime: install-runtime-server (explicit Testkit setup), runtime-server-check (offline), test-runtime (prepared server and locked caches).'
 	@echo 'Focused installed Logging proof: test-runtime-logging (original Wasm only; no optimizer or other runtime suites).'
 	@echo 'Map comparison: benchmark-storage (prepared server/caches; BENCH_ROWS=256 BENCH_SAMPLES=3).'
+	@echo 'Consumer Wasm size: benchmark-storage-size (matched small apps; prepared server/caches).'
 	@echo 'Report: cloc (root workspace; CLOC_MANIFEST selects an independent Cargo manifest). Fleet reports run in Shared Tooling.'
 	@echo 'Maintainer releases: release-patch, release-minor, release-major; normal targets start fresh; release-resume VERSION=X.Y.Z recovers a saved attempt.'
 
@@ -106,6 +107,12 @@ BENCH_SAMPLES ?= $(if $(filter iterators ordered auth-lookups types,$(BENCH_WORK
 benchmark-storage: runtime-server-check
 	+@cli="$$($(TESTKIT_CLI) --check)" && \
 	  RUSTUP_TOOLCHAIN=$(VALIDATION_TOOLCHAIN) bash scripts/ci/compare-storage.sh "$(CURDIR)" "$$cli" "$(TESTKIT_SERVER_DIRECTORY)" "$(BENCH_ROWS)" "$(BENCH_SAMPLES)"
+
+# Small consumer footprints; separate from the broad performance catalogue.
+.PHONY: benchmark-storage-size
+benchmark-storage-size: runtime-server-check
+	+@cli="$$($(TESTKIT_CLI) --check)" && \
+	  RUSTUP_TOOLCHAIN=$(VALIDATION_TOOLCHAIN) bash scripts/ci/compare-storage-size.sh "$(CURDIR)" "$$cli" "$(TESTKIT_SERVER_DIRECTORY)"
 
 test-failure-evidence:
 	bash scripts/ci/test-failure-evidence.sh $${FAILURE_EVIDENCE_DIRECTORY:+"$$FAILURE_EVIDENCE_DIRECTORY"}

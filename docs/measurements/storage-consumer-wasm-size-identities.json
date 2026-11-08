@@ -1,0 +1,496 @@
+{
+  "source_commit": "9568c931397a441aa24e17a1d0c10d879cf61b18",
+  "pending_changes": true,
+  "evidence": "target/evidence/storage-consumer-size/attempt.k0WdIH",
+  "profile": "wasm-size",
+  "compiler": "rustc 1.99.1 (58cf8f9c3 2026-10-13)\nbinary: rustc\ncommit-hash: 58cf8f9c35b355199727627d07ae34a4e2846d67\ncommit-date: 2026-10-13\nhost: x86_64-unknown-linux-gnu\nrelease: 1.99.1\nLLVM version: 23.1.1\n",
+  "build_settings": "profile=wasm-size\nRUSTFLAGS=\nCARGO_ENCODED_RUSTFLAGS=\n",
+  "lock_sha256": "0cf0af63d9af47d57529595d5610c0fb6b0d8b9905b4e8d3f5805d73503fb7df",
+  "artifacts": {
+    "all-icss.wasm": "c75dcdf3231498926485d60f09c5af7fcbd2b51c06c3e38f1683027f41364509",
+    "all-storage.wasm": "e314d83adb204020da916c8541b0df18d5199d4c65a02c4ff762b6ce56d25b4a",
+    "base-icss.wasm": "df3d626b369b2e0dba2d14042ac15e726c45939e3c737387335204e8e81b3079",
+    "base-storage.wasm": "1944292bc1124bb323ec4a896ee4f809ad5ba122a05ab6c4abbdc451b33d6cd2",
+    "cell-icss.wasm": "1de66601187878319a0fe2884964ab27305b1f04f2153bd4726bb8a30294bb31",
+    "cell-storage.wasm": "5142a555bbecd7c94e2b0bb584facf655260daf59b50fc8bac33460d4f17fafc",
+    "map-icss.wasm": "85e8db333664fb30ef21d9f7463460d2576be42cdb3d111d8dec54c38807fd81",
+    "map-region-icss.wasm": "5d66935824b80777c7cebcb284c64d091fa9c38cf0f0f27cc55be79e69b19810",
+    "map-region-storage.wasm": "c438f68a95fb41d5999f3cd6e2693ef634b877358734bfff1ca9792b91739af6",
+    "map-storage.wasm": "451ebbf4c1fd79ec770c37faef4cdc69ea309129d023ebb980b7b2c94a455218",
+    "region-icss.wasm": "7a7d23bbac8ecf1d444d43655afa10c9217fb0c60a5e9882c518a6ffbefb70fa",
+    "region-storage.wasm": "e77d6e2e811776a67ed47652b0ffbdf40cf3e15595c3e1bb656c9f64212e6b93",
+    "set-icss.wasm": "c40c430b07beaa56e1614306c402006d131fba0916cc0b0a41d643dcf5eb8060",
+    "set-storage.wasm": "f762fa4adc19b8f58685ef4e4a258ba66619a6e85edd71b4c1108dc686e11ad4",
+    "vector-icss.wasm": "fe8a3190312961be5b8db6242ef517acb4f5e8912b80d03d36b99e619ab1de5e",
+    "vector-storage.wasm": "7854af772c8972903826f4bc5f899146915065a64b387b1885e7f40493e4b077"
+  },
+  "results": [
+    {
+      "backend": "storage",
+      "code_section_payload_bytes": 14818,
+      "custom_section_bytes": 0,
+      "data_section_payload_bytes": 1775,
+      "module_bytes": 16998,
+      "selection": "base",
+      "upgrades": 2,
+      "validated_calls": 118
+    },
+    {
+      "backend": "icss",
+      "code_section_payload_bytes": 14818,
+      "custom_section_bytes": 0,
+      "data_section_payload_bytes": 1771,
+      "module_bytes": 16994,
+      "selection": "base",
+      "upgrades": 2,
+      "validated_calls": 118
+    },
+    {
+      "backend": "storage",
+      "code_section_payload_bytes": 120281,
+      "custom_section_bytes": 0,
+      "data_section_payload_bytes": 15743,
+      "module_bytes": 137262,
+      "selection": "map",
+      "upgrades": 2,
+      "validated_calls": 118
+    },
+    {
+      "backend": "icss",
+      "code_section_payload_bytes": 49244,
+      "custom_section_bytes": 0,
+      "data_section_payload_bytes": 40140,
+      "module_bytes": 90264,
+      "selection": "map",
+      "upgrades": 2,
+      "validated_calls": 118
+    },
+    {
+      "backend": "storage",
+      "code_section_payload_bytes": 120068,
+      "custom_section_bytes": 0,
+      "data_section_payload_bytes": 15663,
+      "module_bytes": 136976,
+      "selection": "set",
+      "upgrades": 2,
+      "validated_calls": 118
+    },
+    {
+      "backend": "icss",
+      "code_section_payload_bytes": 48993,
+      "custom_section_bytes": 0,
+      "data_section_payload_bytes": 40192,
+      "module_bytes": 90064,
+      "selection": "set",
+      "upgrades": 2,
+      "validated_calls": 118
+    },
+    {
+      "backend": "storage",
+      "code_section_payload_bytes": 98858,
+      "custom_section_bytes": 0,
+      "data_section_payload_bytes": 12483,
+      "module_bytes": 112464,
+      "selection": "vector",
+      "upgrades": 2,
+      "validated_calls": 118
+    },
+    {
+      "backend": "icss",
+      "code_section_payload_bytes": 27627,
+      "custom_section_bytes": 0,
+      "data_section_payload_bytes": 36252,
+      "module_bytes": 64616,
+      "selection": "vector",
+      "upgrades": 2,
+      "validated_calls": 118
+    },
+    {
+      "backend": "storage",
+      "code_section_payload_bytes": 96361,
+      "custom_section_bytes": 0,
+      "data_section_payload_bytes": 11939,
+      "module_bytes": 109393,
+      "selection": "cell",
+      "upgrades": 2,
+      "validated_calls": 118
+    },
+    {
+      "backend": "icss",
+      "code_section_payload_bytes": 26115,
+      "custom_section_bytes": 0,
+      "data_section_payload_bytes": 36372,
+      "module_bytes": 63195,
+      "selection": "cell",
+      "upgrades": 2,
+      "validated_calls": 118
+    },
+    {
+      "backend": "storage",
+      "code_section_payload_bytes": 121280,
+      "custom_section_bytes": 0,
+      "data_section_payload_bytes": 15791,
+      "module_bytes": 138314,
+      "selection": "region",
+      "upgrades": 2,
+      "validated_calls": 118
+    },
+    {
+      "backend": "icss",
+      "code_section_payload_bytes": 49072,
+      "custom_section_bytes": 0,
+      "data_section_payload_bytes": 40036,
+      "module_bytes": 89989,
+      "selection": "region",
+      "upgrades": 2,
+      "validated_calls": 118
+    },
+    {
+      "backend": "storage",
+      "code_section_payload_bytes": 123703,
+      "custom_section_bytes": 0,
+      "data_section_payload_bytes": 15855,
+      "module_bytes": 140816,
+      "selection": "map-region",
+      "upgrades": 2,
+      "validated_calls": 118
+    },
+    {
+      "backend": "icss",
+      "code_section_payload_bytes": 69759,
+      "custom_section_bytes": 0,
+      "data_section_payload_bytes": 40204,
+      "module_bytes": 110914,
+      "selection": "map-region",
+      "upgrades": 2,
+      "validated_calls": 118
+    },
+    {
+      "backend": "storage",
+      "code_section_payload_bytes": 134220,
+      "custom_section_bytes": 0,
+      "data_section_payload_bytes": 17448,
+      "module_bytes": 153001,
+      "selection": "all",
+      "upgrades": 2,
+      "validated_calls": 118
+    },
+    {
+      "backend": "icss",
+      "code_section_payload_bytes": 77127,
+      "custom_section_bytes": 0,
+      "data_section_payload_bytes": 41228,
+      "module_bytes": 119378,
+      "selection": "all",
+      "upgrades": 2,
+      "validated_calls": 118
+    }
+  ],
+  "attribution": {
+    "evidence": "target/evidence/consumer-size-attribution",
+    "note": "Symbol builds retain names; Storage code payload is 44 bytes larger than the stripped baseline, ICSS code payload unchanged. Ownership includes inlined work; these are not isolated removable costs.",
+    "cell_storage_function_owner_bytes": {
+      "Rust heap B-trees": 13656,
+      "Rust helpers": 17548,
+      "Rust sorting": 14110,
+      "Storage runtime / codecs": 20972,
+      "adapters": 895,
+      "consumer": 10939,
+      "engine": 518,
+      "other": 15436,
+      "serialization": 2329
+    },
+    "cell_icss_function_owner_bytes": {
+      "ICSS memory manager": 1638,
+      "Rust helpers": 9240,
+      "consumer": 1541,
+      "engine": 1996,
+      "other": 11699
+    },
+    "data_arrays": {
+      "storage": {
+        "data_payload": 11939,
+        "longest_ff_run": 1,
+        "file_offset": 105485
+      },
+      "icss": {
+        "data_payload": 36372,
+        "longest_ff_run": 32768,
+        "file_offset": 28862
+      }
+    },
+    "demangler": "GNU c++filt (GNU Binutils for Ubuntu) 2.42\nCopyright (C) 2024 Free Software Foundation, Inc.\nThis program is free software; you may redistribute it under the terms of\nthe GNU General Public License version 3 or (at your option) any later version.\nThis program has absolutely no warranty.\n"
+  },
+  "directory_id_index_removal": {
+    "evidence": "target/evidence/storage-consumer-size/attempt.tvXumh",
+    "results": [
+      {
+        "backend": "storage",
+        "code_section_payload_bytes": 14818,
+        "custom_section_bytes": 0,
+        "data_section_payload_bytes": 1775,
+        "module_bytes": 16998,
+        "selection": "base",
+        "upgrades": 2,
+        "validated_calls": 118
+      },
+      {
+        "backend": "icss",
+        "code_section_payload_bytes": 14818,
+        "custom_section_bytes": 0,
+        "data_section_payload_bytes": 1771,
+        "module_bytes": 16994,
+        "selection": "base",
+        "upgrades": 2,
+        "validated_calls": 118
+      },
+      {
+        "backend": "storage",
+        "code_section_payload_bytes": 117350,
+        "custom_section_bytes": 0,
+        "data_section_payload_bytes": 15743,
+        "module_bytes": 134314,
+        "selection": "map",
+        "upgrades": 2,
+        "validated_calls": 118
+      },
+      {
+        "backend": "icss",
+        "code_section_payload_bytes": 49244,
+        "custom_section_bytes": 0,
+        "data_section_payload_bytes": 40140,
+        "module_bytes": 90264,
+        "selection": "map",
+        "upgrades": 2,
+        "validated_calls": 118
+      },
+      {
+        "backend": "storage",
+        "code_section_payload_bytes": 117137,
+        "custom_section_bytes": 0,
+        "data_section_payload_bytes": 15663,
+        "module_bytes": 134028,
+        "selection": "set",
+        "upgrades": 2,
+        "validated_calls": 118
+      },
+      {
+        "backend": "icss",
+        "code_section_payload_bytes": 48993,
+        "custom_section_bytes": 0,
+        "data_section_payload_bytes": 40192,
+        "module_bytes": 90064,
+        "selection": "set",
+        "upgrades": 2,
+        "validated_calls": 118
+      },
+      {
+        "backend": "storage",
+        "code_section_payload_bytes": 95942,
+        "custom_section_bytes": 0,
+        "data_section_payload_bytes": 12483,
+        "module_bytes": 109531,
+        "selection": "vector",
+        "upgrades": 2,
+        "validated_calls": 118
+      },
+      {
+        "backend": "icss",
+        "code_section_payload_bytes": 27627,
+        "custom_section_bytes": 0,
+        "data_section_payload_bytes": 36252,
+        "module_bytes": 64616,
+        "selection": "vector",
+        "upgrades": 2,
+        "validated_calls": 118
+      },
+      {
+        "backend": "storage",
+        "code_section_payload_bytes": 93445,
+        "custom_section_bytes": 0,
+        "data_section_payload_bytes": 11939,
+        "module_bytes": 106460,
+        "selection": "cell",
+        "upgrades": 2,
+        "validated_calls": 118
+      },
+      {
+        "backend": "icss",
+        "code_section_payload_bytes": 26115,
+        "custom_section_bytes": 0,
+        "data_section_payload_bytes": 36372,
+        "module_bytes": 63195,
+        "selection": "cell",
+        "upgrades": 2,
+        "validated_calls": 118
+      },
+      {
+        "backend": "storage",
+        "code_section_payload_bytes": 118344,
+        "custom_section_bytes": 0,
+        "data_section_payload_bytes": 15791,
+        "module_bytes": 135361,
+        "selection": "region",
+        "upgrades": 2,
+        "validated_calls": 118
+      },
+      {
+        "backend": "icss",
+        "code_section_payload_bytes": 49072,
+        "custom_section_bytes": 0,
+        "data_section_payload_bytes": 40036,
+        "module_bytes": 89989,
+        "selection": "region",
+        "upgrades": 2,
+        "validated_calls": 118
+      },
+      {
+        "backend": "storage",
+        "code_section_payload_bytes": 120781,
+        "custom_section_bytes": 0,
+        "data_section_payload_bytes": 15855,
+        "module_bytes": 137877,
+        "selection": "map-region",
+        "upgrades": 2,
+        "validated_calls": 118
+      },
+      {
+        "backend": "icss",
+        "code_section_payload_bytes": 69759,
+        "custom_section_bytes": 0,
+        "data_section_payload_bytes": 40204,
+        "module_bytes": 110914,
+        "selection": "map-region",
+        "upgrades": 2,
+        "validated_calls": 118
+      },
+      {
+        "backend": "storage",
+        "code_section_payload_bytes": 131298,
+        "custom_section_bytes": 0,
+        "data_section_payload_bytes": 17448,
+        "module_bytes": 150062,
+        "selection": "all",
+        "upgrades": 2,
+        "validated_calls": 118
+      },
+      {
+        "backend": "icss",
+        "code_section_payload_bytes": 77127,
+        "custom_section_bytes": 0,
+        "data_section_payload_bytes": 41228,
+        "module_bytes": 119378,
+        "selection": "all",
+        "upgrades": 2,
+        "validated_calls": 118
+      }
+    ],
+    "artifacts": {
+      "all-icss.wasm": "c75dcdf3231498926485d60f09c5af7fcbd2b51c06c3e38f1683027f41364509",
+      "all-storage.wasm": "1c8566bf99c98886ee1564e1be939e7d0b50dcdca596859ecdb8da7e09222f6f",
+      "base-icss.wasm": "df3d626b369b2e0dba2d14042ac15e726c45939e3c737387335204e8e81b3079",
+      "base-storage.wasm": "1944292bc1124bb323ec4a896ee4f809ad5ba122a05ab6c4abbdc451b33d6cd2",
+      "cell-icss.wasm": "1de66601187878319a0fe2884964ab27305b1f04f2153bd4726bb8a30294bb31",
+      "cell-storage.wasm": "ba99deb7f91c060a425f2bed2c518f6e76d73873a73a92c96600588085640f5b",
+      "map-icss.wasm": "85e8db333664fb30ef21d9f7463460d2576be42cdb3d111d8dec54c38807fd81",
+      "map-region-icss.wasm": "5d66935824b80777c7cebcb284c64d091fa9c38cf0f0f27cc55be79e69b19810",
+      "map-region-storage.wasm": "cd6e84c53fb6d3bb3e63284b0eba878121c88ff0f96dd5f6ed7382249d986db9",
+      "map-storage.wasm": "3e6a216b4a8d8b7b16825ab15386c58c70c333220dbae2644df62b4c375de07d",
+      "region-icss.wasm": "7a7d23bbac8ecf1d444d43655afa10c9217fb0c60a5e9882c518a6ffbefb70fa",
+      "region-storage.wasm": "2d4908c00f9a72898d66f6664bbaa49988dd873660dfe6b898bcf73961c49747",
+      "set-icss.wasm": "c40c430b07beaa56e1614306c402006d131fba0916cc0b0a41d643dcf5eb8060",
+      "set-storage.wasm": "eada11948f6c33593b5ab93207a5c407b2a559b4003ec07ec013507d41388dc8",
+      "vector-icss.wasm": "fe8a3190312961be5b8db6242ef517acb4f5e8912b80d03d36b99e619ab1de5e",
+      "vector-storage.wasm": "cab99b7ae6b3c1d8ba82be45c8e8aca0700a59de5bc02438118df334c825c2a9"
+    },
+    "baseline_evidence": "target/evidence/storage-consumer-size/attempt.k0WdIH",
+    "native_lookup_scope": "Optimized native representation comparison, 200000 mixed hit/miss lookups per population; not IC instructions. BTreeMap control uses bulk collection.",
+    "lifecycle_evidence": "target/qualification/runtime/attempt.dZEIjv",
+    "instruction_comparisons": {
+      "previous": {
+        "Map": {
+          "cells": 400,
+          "min_delta_percent": -4.943687242280214,
+          "max_delta_percent": 5.886581807417435,
+          "improved": 258,
+          "equal": 3,
+          "regressed": 139
+        },
+        "Set": {
+          "cells": 80,
+          "min_delta_percent": -1.9103059781458542,
+          "max_delta_percent": 7.597738203084048,
+          "improved": 23,
+          "equal": 3,
+          "regressed": 54
+        },
+        "Vector": {
+          "cells": 96,
+          "min_delta_percent": 0.0,
+          "max_delta_percent": 0.10607719682453887,
+          "improved": 0,
+          "equal": 64,
+          "regressed": 32
+        },
+        "Cell": {
+          "cells": 16,
+          "min_delta_percent": 0.0,
+          "max_delta_percent": 0.0,
+          "improved": 0,
+          "equal": 16,
+          "regressed": 0
+        },
+        "Region": {
+          "cells": 72,
+          "min_delta_percent": -3.873428736871831,
+          "max_delta_percent": 2.5071765598706497,
+          "improved": 44,
+          "equal": 0,
+          "regressed": 28
+        }
+      },
+      "icss": {
+        "Map": {
+          "cells": 400,
+          "min_delta_percent": -99.25268460421037,
+          "max_delta_percent": 6.454102920723237,
+          "improved": 367,
+          "equal": 0,
+          "regressed": 33
+        },
+        "Set": {
+          "cells": 80,
+          "min_delta_percent": -99.35004300555809,
+          "max_delta_percent": 1.0971095861925573,
+          "improved": 77,
+          "equal": 0,
+          "regressed": 3
+        },
+        "Vector": {
+          "cells": 96,
+          "min_delta_percent": -99.7973257744659,
+          "max_delta_percent": 2.1051656242761174,
+          "improved": 40,
+          "equal": 0,
+          "regressed": 56
+        },
+        "Cell": {
+          "cells": 16,
+          "min_delta_percent": -16.23361692343067,
+          "max_delta_percent": -0.083810848227861,
+          "improved": 16,
+          "equal": 0,
+          "regressed": 0
+        },
+        "Region": {
+          "cells": 72,
+          "min_delta_percent": -5.4528596238189175,
+          "max_delta_percent": 14.72794829917965,
+          "improved": 32,
+          "equal": 0,
+          "regressed": 40
+        }
+      }
+    }
+  }
+}

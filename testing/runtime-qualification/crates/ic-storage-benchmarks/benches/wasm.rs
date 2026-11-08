@@ -174,7 +174,9 @@ mod canister {
         map
     }
     mod collections;
+    #[cfg(not(feature = "footprint"))]
     mod matrix;
+    #[cfg(not(feature = "footprint"))]
     mod vector_open;
     use collections::{Region, TypedCell, TypedSet, TypedVector};
     #[unsafe(export_name = "canister_init")]
@@ -190,6 +192,7 @@ mod canister {
         std::panic::set_hook(Box::new(|info| ic0::trap(info.to_string().as_bytes())));
         let settings: Initialization = argument(0);
         let case = settings.case;
+        #[cfg(not(feature = "footprint"))]
         if settings.vector_open {
             MAP.with(|slot| *slot.borrow_mut() = Some(vector_open::new(settings)));
             return;
@@ -203,6 +206,40 @@ mod canister {
                 }) as Box<dyn Benchmark>
             };
         }
+        // A matched small-type control for Wasm footprint attribution. Keep the
+        // full catalogue as the default; both suppliers use these same cases.
+        #[cfg(feature = "footprint")]
+        let map: Box<dyn Benchmark> = {
+            assert!(
+                !settings.vector_open,
+                "footprint build excludes vector-open"
+            );
+            match case {
+                Case::U64U64 => typed!(u64, u64),
+                Case::U64Bytes => typed!(u64, Vec<u8>),
+                Case::SetU64 => {
+                    Box::new(TypedSet::<u64>::new(case, settings.upstream_bucket_pages))
+                }
+                Case::VectorU64 => Box::new(TypedVector::<u64>::new(
+                    case,
+                    settings.upstream_bucket_pages,
+                )),
+                Case::CellFixed32 => Box::new(TypedCell::<[u8; 32]>::new(
+                    case,
+                    settings.upstream_bucket_pages,
+                )),
+                Case::Typed {
+                    collection: Collection::Region,
+                    key: DataType::U64,
+                    value: DataType::U64,
+                } => Box::new(Region::<u64, u64>::new(
+                    case,
+                    settings.upstream_bucket_pages,
+                )),
+                _ => panic!("footprint build supports only depth workload cases"),
+            }
+        };
+        #[cfg(not(feature = "footprint"))]
         let map = match case {
             Case::Typed {
                 collection,
@@ -428,6 +465,13 @@ mod canister {
                 })
                 .collect()
         }
+        #[cfg_attr(
+            feature = "dfinity-governed",
+            expect(
+                clippy::double_ended_iterator_last,
+                reason = "Measure ICSS last() as requested, without substituting next_back()"
+            )
+        )]
         fn run(&mut self, r: Request) -> Response {
             if self.settings.cold_cache {
                 configure_cache(&mut self.map, self.settings);

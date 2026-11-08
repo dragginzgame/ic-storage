@@ -87,7 +87,9 @@ fn retained_region_interleaves_namespaces_and_cold_reopens() {
     admit(&application).unwrap();
     admit(&checkpoint).unwrap();
     assert!(*backing.borrow() == before);
+    let owners = Rc::strong_count(&lease);
     let snapshot = application.keys_range(namespace(1)).unwrap();
+    assert_eq!(Rc::strong_count(&lease), owners);
     assert!(application.initialize().is_err());
     assert!(*backing.borrow() == before);
 

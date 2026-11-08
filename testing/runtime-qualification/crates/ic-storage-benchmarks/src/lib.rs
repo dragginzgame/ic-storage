@@ -4,15 +4,15 @@ pub mod catalogue;
 pub mod read_probe;
 mod types;
 pub use catalogue::{Collection, DataType, MATRIX_CASES, ReferenceValue};
-pub use ic_platform_stable_benchmark::stable_structures as codec_reference;
 pub use ic_principal::Principal as BenchmarkPrincipal;
+pub use ic_stable_structures as codec_reference;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod workloads;
 #[cfg(all(
     feature = "dfinity",
     any(not(target_arch = "wasm32"), not(feature = "dfinity-head"))
 ))]
-pub use ic_platform_stable_benchmark::stable_structures as upstream;
+pub use ic_stable_structures as upstream;
 #[cfg(all(target_arch = "wasm32", feature = "dfinity-head"))]
 pub use ic_stable_structures_head as upstream;
 pub use types::*;

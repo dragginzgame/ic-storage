@@ -783,15 +783,6 @@ dependencies = [
 
 [[package]]
 name = "ic-platform"
-version = "0.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "813bed7d93c0adc82b80157f4ccbb0b31260f8764fa3b7695fadaf9bcd14e241"
-dependencies = [
- "ic-stable-structures 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "ic-platform"
 version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4c09ed6a8bafe4ba7f13b4ba12091839e85095766fad7b7dcd1640e81b53b346"
@@ -911,9 +902,9 @@ name = "ic-storage-benchmarks"
 version = "0.0.0"
 dependencies = [
  "clap",
- "ic-platform 0.17.0",
- "ic-platform 0.19.0",
+ "ic-platform",
  "ic-platform-runtime",
+ "ic-stable-structures 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ic-stable-structures 0.7.2 (git+https://github.com/dfinity/stable-structures?rev=b5d1650463f477affb3d358e86b1113953fc9937)",
  "ic-storage",
  "ic-wire",
@@ -934,7 +925,7 @@ dependencies = [
 name = "ic-storage-platform-qualification"
 version = "0.0.0"
 dependencies = [
- "ic-platform 0.19.0",
+ "ic-platform",
  "ic-platform-runtime",
  "ic-storage",
 ]
@@ -944,7 +935,7 @@ name = "ic-storage-runtime-qualification"
 version = "0.0.0"
 dependencies = [
  "clap",
- "ic-platform 0.19.0",
+ "ic-platform",
  "ic-storage-test-fixtures",
  "ic-wire",
  "serde",
@@ -1003,6 +994,14 @@ dependencies = [
  "serde",
  "sha2",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "icss-size-consumer"
+version = "0.0.0"
+dependencies = [
+ "ic-platform-runtime",
+ "ic-stable-structures 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2047,6 +2046,14 @@ dependencies = [
  "libc",
  "psm",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "storage-size-consumer"
+version = "0.0.0"
+dependencies = [
+ "ic-platform-runtime",
+ "ic-storage",
 ]
 
 [[package]]

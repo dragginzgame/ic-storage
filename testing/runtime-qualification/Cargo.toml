@@ -7,6 +7,8 @@ members = [
     "crates/ic-storage-platform-qualification",
     "crates/ic-storage-runtime-qualification",
     "crates/ic-storage-test-fixtures",
+    "crates/icss-size-consumer",
+    "crates/storage-size-consumer",
 ]
 default-members = ["crates/ic-storage-runtime-qualification"]
 
@@ -24,9 +26,8 @@ ic-logging-storage = { path = "../../crates/ic-logging-storage", version = "0.66
 # Testkit retains server selection and lifecycle.
 ic-platform = { version = "0.19.0", default-features = false }
 ic-platform-runtime = { version = "0.20.0", default-features = false }
-# Platform 0.18 removed the upstream collection facade. Keep it solely for
-# the unpublished DFINITY comparison; production and native clients use 0.19.
-ic-platform-stable-benchmark = { package = "ic-platform", version = "0.17.0", default-features = false }
+# Published reference engines, confined to this unpublished benchmark workspace.
+ic-stable-structures = "0.7.2"
 # Explicit research control for the maintainer-requested upstream comparison.
 # The facade cannot select unpublished upstream code; no production consumer uses this.
 ic-stable-structures-head = { package = "ic-stable-structures", git = "https://github.com/dfinity/stable-structures", rev = "b5d1650463f477affb3d358e86b1113953fc9937" }

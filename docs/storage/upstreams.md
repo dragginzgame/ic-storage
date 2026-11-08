@@ -27,6 +27,26 @@ selected or maintained. Directory allocation remains Storage's implementation:
 ICSS's MemoryManager, ID assignment and unrestricted backing constructors are
 not copied. Physical access still passes through checked Storage handles.
 
+## Independent benchmark reference
+
+The unpublished `testing/runtime-qualification` workspace selects published
+`ic-stable-structures` 0.7.2 directly. It does not keep another source copy in
+this repository or route the reference through the old Platform facade. The
+benchmark support library uses ICSS traits and codecs, so this is a normal Cargo
+dependency of that development-only package, not a `[dev-dependencies]` entry
+(which would be unavailable to its library target). Production Storage and both
+published adapters have no ICSS dependency. The optional pinned Git-head control
+is also external and confined to the comparison workspace.
+
+Keep the modified production engines here; do not overwrite them with pristine
+reference code when updating a benchmark dependency. Map, Set and regions share
+one B-tree source implementation. A shared private `TreeMemory<M>` now selects
+whole-allocation or bounded-region IO at runtime, so identical key/value/backing
+types share engine specializations. Different key/value types still specialize.
+The whole-allocation variant owns its lease; each region operation clones the
+existing Rc and drops that temporary reference with its freshly loaded tree.
+Region bounds, growth refusal and owned scan snapshots remain unchanged.
+
 ## Deliberate adaptations
 
 The algorithms, current node/overflow layouts, fixed-stride Vector slots and
@@ -137,8 +157,8 @@ integrity checks are unchanged. See [the collection contract](../../crates/ic-st
 
 ## Qualification and research controls
 
-The independent workspace retains published ICSS 0.7.2 through its Platform 0.17
-benchmark facade and optional Git `b5d1650` as separate research controls. Neither
+The independent workspace retains published ICSS 0.7.2 directly and optional
+Git `b5d1650` as separate research controls. Neither
 enters production. Same-image tests exchange current collections using matching
 application codecs and governed Storage backing. Installed lifecycle tests and
 matched IC benchmarks establish behavior and costs separately.

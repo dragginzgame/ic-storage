@@ -62,17 +62,26 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # reviewed Shared Tooling pin
         with:
           persist-credentials: false
+          fetch-depth: 0
       - run: make shared-tooling-check
+      - uses: dragginzgame/shared-tooling/.github/actions/cache-tool-downloads@c5285791991c731d266fb5c85dc3ee876d29f6b9
       - name: Install exact validation tools
         shell: bash
         run: |
           tool_dir="$RUNNER_TEMP/ic-storage-tools"
           actionlint_bin="$(bash scripts/ci/install-ci-tool.sh actionlint --install-dir "$tool_dir")"
           shellcheck_bin="$(bash scripts/ci/install-ci-tool.sh shellcheck --install-dir "$tool_dir")"
+          gitleaks_bin="$(bash scripts/ci/install-ci-tool.sh gitleaks --install-dir "$tool_dir")"
           {
+            echo "GITLEAKS_BIN=$gitleaks_bin"
             echo "ACTIONLINT_BIN=$actionlint_bin"
             echo "SHELLCHECK_BIN=$shellcheck_bin"
           } >> "$GITHUB_ENV"
+      - uses: dragginzgame/shared-tooling/.github/actions/cache-tool-downloads@c5285791991c731d266fb5c85dc3ee876d29f6b9
+        with:
+          mode: save
+      - name: Scan complete repository history
+        run: '"$GITLEAKS_BIN" git --redact=100 --no-banner --no-color --log-level error'
       - run: make lint-tooling
 
   test:
@@ -123,6 +132,8 @@ jobs:
           targets: wasm32-unknown-unknown
       - run: make shared-tooling-check
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
+      - uses: dragginzgame/shared-tooling/.github/actions/cache-tool-downloads@c5285791991c731d266fb5c85dc3ee876d29f6b9
+        if: ${{ needs.change-scope.outputs.scope != 'docs' }}
       - name: Prepare host tools and identify common Cargo tool cache
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
         id: common-tool-cache-key
@@ -166,6 +177,26 @@ jobs:
             ${{ steps.common-tool-cache-key.outputs.root }}/cargo-cache
             ${{ steps.common-tool-cache-key.outputs.root }}/rust-*
           key: common-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.common-tool-cache-key.outputs.key }}-${{ hashFiles('ci/release-tools.env') }}
+      - name: Prepare native ShellCheck
+        if: ${{ needs.change-scope.outputs.scope != 'docs' }}
+        shell: bash
+        run: |
+          # Official v0.11.0 native assets; the shared default catalog is Linux-only.
+          case "$(uname -s):$(uname -m)" in
+            Linux:x86_64) checksum=8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198 ;;
+            Darwin:arm64) checksum=56affdd8de5527894dca6dc3d7e0a99a873b0f004d7aabc30ae407d3f48b0a79 ;;
+            Darwin:x86_64) checksum=3c89db4edcab7cf1c27bff178882e0f6f27f7afdf54e859fa041fca10febe4c6 ;;
+            *) echo 'Unsupported native ShellCheck qualification host' >&2; exit 1 ;;
+          esac
+          SHELLCHECK_BIN="$(bash scripts/ci/install-ci-tool.sh shellcheck --version 0.11.0 --sha256 "$checksum" --install-dir "$RUNNER_TEMP/ic-storage-tools")"
+          echo "SHELLCHECK_BIN=$SHELLCHECK_BIN" >> "$GITHUB_ENV"
+      - uses: dragginzgame/shared-tooling/.github/actions/cache-tool-downloads@c5285791991c731d266fb5c85dc3ee876d29f6b9
+        if: ${{ needs.change-scope.outputs.scope != 'docs' }}
+        with:
+          mode: save
+      - name: Qualify exact-input ShellCheck reuse across release groups
+        if: ${{ needs.change-scope.outputs.scope != 'docs' }}
+        run: make test-validation-stage-reuse 2>&1 | tee "$RUNNER_TEMP/stage-reuse.log"
       - name: Qualify native shared host, IC and Cargo reuse offline
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
         shell: bash
@@ -178,20 +209,6 @@ jobs:
           shasum -a 256 Cargo.lock
           rustc -Vv
           uname -sm
-      - name: Qualify exact-input ShellCheck reuse across release groups
-        if: ${{ needs.change-scope.outputs.scope != 'docs' }}
-        shell: bash
-        run: |
-          # Official v0.11.0 native assets; the shared default catalog is Linux-only.
-          case "$(uname -s):$(uname -m)" in
-            Linux:x86_64) checksum=8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198 ;;
-            Darwin:arm64) checksum=56affdd8de5527894dca6dc3d7e0a99a873b0f004d7aabc30ae407d3f48b0a79 ;;
-            Darwin:x86_64) checksum=3c89db4edcab7cf1c27bff178882e0f6f27f7afdf54e859fa041fca10febe4c6 ;;
-            *) echo 'Unsupported native ShellCheck qualification host' >&2; exit 1 ;;
-          esac
-          SHELLCHECK_BIN="$(bash scripts/ci/install-ci-tool.sh shellcheck --version 0.11.0 --sha256 "$checksum" --install-dir "$RUNNER_TEMP/ic-storage-tools")"
-          export SHELLCHECK_BIN
-          make test-validation-stage-reuse 2>&1 | tee "$RUNNER_TEMP/stage-reuse.log"
       - name: Qualify pinned toolchain and retain native failure-evidence archive
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
         id: evidence
@@ -306,6 +323,8 @@ jobs:
           targets: wasm32-unknown-unknown
       - run: make shared-tooling-check
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
+      - uses: dragginzgame/shared-tooling/.github/actions/cache-tool-downloads@c5285791991c731d266fb5c85dc3ee876d29f6b9
+        if: ${{ needs.change-scope.outputs.scope != 'docs' }}
       - name: Prepare host tools and identify runtime tool cache
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
         id: runtime-tool-cache-key
@@ -349,6 +368,10 @@ jobs:
             ${{ steps.runtime-tool-cache-key.outputs.root }}/rust-*
             .tools/ic-testkit-server
           key: runtime-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.runtime-tool-cache-key.outputs.key }}-${{ hashFiles('ci/runtime-tools.env', 'ci/ic-tools.tsv') }}
+      - uses: dragginzgame/shared-tooling/.github/actions/cache-tool-downloads@c5285791991c731d266fb5c85dc3ee876d29f6b9
+        if: ${{ needs.change-scope.outputs.scope != 'docs' }}
+        with:
+          mode: save
       - name: Prepare both tracked dependency graphs
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
         shell: bash

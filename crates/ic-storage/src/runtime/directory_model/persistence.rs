@@ -298,7 +298,7 @@ impl<M: Memory> Store<M> {
         end: u64,
         mut io: impl FnMut(u64, std::ops::Range<usize>),
     ) -> Result<(), Error> {
-        let index = *self.directory.by_id.get(&id).ok_or(Error::Missing)?;
+        let index = self.directory.entry_index(id)?;
         let ends = &self.directory.logical_ends[index];
         let capacity = ends
             .last()

@@ -1,0 +1,25 @@
+[package]
+name = "storage-size-consumer"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[package.metadata.shared-tooling.loc]
+category = "benchmarks"
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+default = ["map", "set", "vector", "cell", "region"]
+map = ["dep:ic-storage"]
+set = ["dep:ic-storage"]
+vector = ["dep:ic-storage"]
+cell = ["dep:ic-storage"]
+region = ["dep:ic-storage"]
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+ic-platform-runtime = { workspace = true, features = ["ic0"] }
+ic-storage = { workspace = true, optional = true }

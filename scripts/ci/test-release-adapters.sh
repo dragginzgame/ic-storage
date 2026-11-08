@@ -411,6 +411,10 @@ reader="${BASH_REMATCH[2]}"; writer="${BASH_REMATCH[3]}"
 : <&"$reader"
 : >&"$writer"
 printf '%s [%s] (%s) %s\n' "${0##*/}" "$PWD" "${RUSTUP_TOOLCHAIN:-}" "$*" >> "$JOBSERVER_EVENTS"
+if [[ "${0##*/}" == cargo && "${1:-}" == metadata ]]; then
+    printf '{"workspace_root":"%s","workspace_members":["a","b"],"workspace_default_members":["a"],"packages":[{"id":"a","name":"fixture-a","manifest_path":"%s/Cargo.toml"},{"id":"b","name":"fixture-b","manifest_path":"%s/Cargo.toml"}]}\n' "$PWD" "$PWD" "$PWD"
+    exit 0
+fi
 if [[ "${0##*/}" == rustfmt ]]; then
     if [[ "$*" == --version && "${RUSTFMT_TEST_FAIL_VERSION:-0}" == 1 ]]; then
         echo 'fixture standalone formatter admission failure' >&2; exit 37
@@ -438,18 +442,18 @@ for target in fmt fmt-check test-tooling test fetch-dependencies wasm-size versi
         "$target" TOOL=./helper) > "$jobserver/$target.log" 2>&1
 done
 grep -Fx "cargo [$jobserver] ($FIXTURE_TOOLCHAIN) sort --workspace --grouped" "$JOBSERVER_EVENTS"
-grep -Fx "cargo [$jobserver] ($FIXTURE_TOOLCHAIN) fmt --all" "$JOBSERVER_EVENTS"
+grep -Fx "cargo [$jobserver] ($FIXTURE_TOOLCHAIN) fmt --package fixture-a --package fixture-b" "$JOBSERVER_EVENTS"
 grep -Fx "cargo [$jobserver/testing/runtime-qualification] ($FIXTURE_TOOLCHAIN) sort --workspace --grouped" "$JOBSERVER_EVENTS"
-grep -Fx "cargo [$jobserver/testing/runtime-qualification] ($FIXTURE_TOOLCHAIN) fmt --all" "$JOBSERVER_EVENTS"
+grep -Fx "cargo [$jobserver/testing/runtime-qualification] ($FIXTURE_TOOLCHAIN) fmt --package fixture-a --package fixture-b" "$JOBSERVER_EVENTS"
 grep -Fx "rustfmt [$jobserver] ($FIXTURE_TOOLCHAIN) --edition 2024 $jobserver/testing/package-consumer.rs" "$JOBSERVER_EVENTS"
 grep -Fx "rustfmt [$jobserver] ($FIXTURE_TOOLCHAIN) --edition 2024 --check $jobserver/testing/package-consumer.rs" "$JOBSERVER_EVENTS"
-awk '/ (sort --workspace --grouped|fmt --all|--edition 2024)( |$)/ { print; if (++passes == 5) exit }' \
+awk '/ (sort --workspace --grouped|fmt --package fixture-a --package fixture-b|--edition 2024)( |$)/ { print; if (++passes == 5) exit }' \
     "$JOBSERVER_EVENTS" > "$jobserver/observed-order"
 printf '%s\n' \
     "cargo [$jobserver] ($FIXTURE_TOOLCHAIN) sort --workspace --grouped" \
-    "cargo [$jobserver] ($FIXTURE_TOOLCHAIN) fmt --all" \
+    "cargo [$jobserver] ($FIXTURE_TOOLCHAIN) fmt --package fixture-a --package fixture-b" \
     "cargo [$jobserver/testing/runtime-qualification] ($FIXTURE_TOOLCHAIN) sort --workspace --grouped" \
-    "cargo [$jobserver/testing/runtime-qualification] ($FIXTURE_TOOLCHAIN) fmt --all" \
+    "cargo [$jobserver/testing/runtime-qualification] ($FIXTURE_TOOLCHAIN) fmt --package fixture-a --package fixture-b" \
     "rustfmt [$jobserver] ($FIXTURE_TOOLCHAIN) --edition 2024 $jobserver/testing/package-consumer.rs" \
     > "$jobserver/expected-order"
 cmp "$jobserver/expected-order" "$jobserver/observed-order"
@@ -470,7 +474,7 @@ for phase in admission pass; do
         (cd "$jobserver"; PATH="$jobserver/bin:$PATH" RUSTFMT_TEST_FAIL_PASS=1 \
             make --no-print-directory "${parallel[@]}" fmt-check) > "$jobserver/$phase.log" 2>&1 || status=$?
         expected=39
-        grep -qF 'fmt --all -- --check' "$JOBSERVER_EVENTS"
+        grep -qF 'fmt --package fixture-a --package fixture-b -- --check' "$JOBSERVER_EVENTS"
     fi
     [[ "$status" == 2 ]] || exit 1
     grep -qF "FAILED (exit $expected," "$jobserver/$phase.log"
@@ -498,9 +502,9 @@ for compiler_origin in environment command; do
         > "$jobserver/compiler-$compiler_origin.log" 2>&1
     sed -e 's/--edition 2024 /--edition 2024 --check /' \
         -e 's/sort --workspace --grouped$/sort --workspace --grouped --check/' \
-        -e 's/fmt --all$/fmt --all -- --check/' \
+        -e 's/fmt --package fixture-a --package fixture-b$/fmt --package fixture-a --package fixture-b -- --check/' \
         "$jobserver/expected-order" > "$jobserver/expected-check-order"
-    awk '/ (sort --workspace --grouped|fmt --all|--edition 2024)( |$)/ { print }' \
+    awk '/ (sort --workspace --grouped|fmt --package fixture-a --package fixture-b|--edition 2024)( |$)/ { print }' \
         "$JOBSERVER_EVENTS" > "$jobserver/compiler-order"
     cmp "$jobserver/expected-check-order" "$jobserver/compiler-order"
 done

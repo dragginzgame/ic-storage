@@ -85,7 +85,7 @@ fn recovery_rejects_overlap_duplicate_keys_bounds_and_bad_wire() {
     let budget = StorageConfig::default();
     let mut d = Directory::empty(budget, 1).unwrap();
     d.apply(vec![key(0), key(1)], &[]).unwrap();
-    let ids: Vec<_> = d.by_id.keys().copied().collect();
+    let ids: Vec<_> = d.image.entries.iter().map(|entry| entry.id).collect();
     d.apply(vec![], &[(ids[0], 2), (ids[1], 2)]).unwrap();
     for mutation in 0..5 {
         let mut image = d.image.clone();
@@ -134,7 +134,7 @@ impl Directory {
     }
 
     fn page_span(&self, id: AllocationId, logical: u64) -> Option<(u64, u64)> {
-        let index = *self.by_id.get(&id)?;
+        let index = self.entry_index(id).ok()?;
         let ends = &self.logical_ends[index];
         let slot = ends.partition_point(|&end| end <= logical);
         let extent = self.image.entries[index].extents.get(slot)?;
@@ -144,5 +144,101 @@ impl Directory {
 
     pub(super) fn page(&self, id: AllocationId, logical: u64) -> Option<u64> {
         self.page_span(id, logical).map(|(page, _)| page)
+    }
+}
+
+#[test]
+fn sparse_opaque_ids_reopen_and_grow_the_correct_entries() {
+    let budget = StorageConfig::default();
+    let mut directory = Directory::empty(budget, 1).unwrap();
+    directory.apply(vec![key(0), key(1), key(2)], &[]).unwrap();
+    let ids = [7, 1_000, u64::MAX - 2];
+    for (entry, id) in directory.image.entries.iter_mut().zip(ids) {
+        entry.id = AllocationId(id);
+    }
+    directory.image.next_id = u64::MAX - 1;
+    let mut recovered =
+        Directory::decode(&directory.image.encode(budget).unwrap(), budget, 1).unwrap();
+    for (index, id) in ids.into_iter().enumerate() {
+        let id = AllocationId(id);
+        assert_eq!(recovered.by_key[&key(index)], id);
+        recovered.apply(vec![], &[(id, 1)]).unwrap();
+        assert_eq!(recovered.page(id, 0), Some(1 + index as u64));
+        assert_eq!(recovered.page(id, 1), None);
+    }
+    let before = recovered.image.clone();
+    for id in [0, 6, 8, 999, 1_001, u64::MAX - 1, u64::MAX] {
+        assert!(matches!(
+            recovered.apply(vec![], &[(AllocationId(id), 0)]),
+            Err(Error::Missing)
+        ));
+        assert_eq!(recovered.image, before);
+    }
+    for mutation in 0..2 {
+        let mut invalid = before.clone();
+        if mutation == 0 {
+            invalid.entries.swap(0, 1);
+        } else {
+            invalid.entries[1].id = invalid.entries[0].id;
+        }
+        assert!(Directory::decode(&invalid.encode(budget).unwrap(), budget, 1).is_err());
+    }
+}
+
+// Explicit native diagnostic; timings are not an IC instruction/page-charge model.
+#[test]
+#[ignore = "manual optimized native comparison of the two ID lookup representations"]
+fn compare_id_lookup_representations() {
+    use std::{hint::black_box, time::Instant};
+    for count in [1, 32, 256, 1_024, 4_096] {
+        let mut directory = Directory::empty(StorageConfig::default(), 1).unwrap();
+        directory.apply((0..count).map(key).collect(), &[]).unwrap();
+        for (index, entry) in directory.image.entries.iter_mut().enumerate() {
+            entry.id = AllocationId(2 * index as u64 + 1);
+        }
+        directory.image.next_id = 2 * count as u64 + 1;
+        let directory = Directory::validate(directory.image, StorageConfig::default(), 1).unwrap();
+        let tree: BTreeMap<_, _> = directory
+            .image
+            .entries
+            .iter()
+            .enumerate()
+            .map(|(index, entry)| (entry.id, index))
+            .collect();
+        let mut seed = 1_u64;
+        let queries: Vec<_> = (0..200_000)
+            .map(|_| {
+                seed = seed.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1);
+                AllocationId((seed >> 32) % (2 * count as u64 + 1))
+            })
+            .collect();
+        let start = Instant::now();
+        let mut old_sum = 0_usize;
+        for &id in &queries {
+            old_sum = old_sum.wrapping_add(
+                black_box(&tree)
+                    .get(&black_box(id))
+                    .copied()
+                    .unwrap_or(count),
+            );
+        }
+        let tree_time = start.elapsed();
+        let start = Instant::now();
+        let mut new_sum = 0_usize;
+        for &id in &queries {
+            new_sum = new_sum.wrapping_add(
+                black_box(&directory)
+                    .entry_index(black_box(id))
+                    .unwrap_or(count),
+            );
+        }
+        let vector_time = start.elapsed();
+        assert_eq!(old_sum, new_sum);
+        println!(
+            "allocations={count},lookups={},tree_ns={},entries_ns={}",
+            queries.len(),
+            tree_time.as_nanos(),
+            vector_time.as_nanos()
+        );
     }
 }

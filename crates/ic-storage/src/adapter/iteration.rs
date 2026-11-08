@@ -1,10 +1,10 @@
 //! Owned entries and iterator views over the copied ICSS engine.
 use super::{
     Memory, Storable,
-    bridge::{Backing, Codec},
+    bridge::{Backing, Codec, TreeMemory},
     error::Result,
 };
-use crate::{DefaultMemoryImpl, RuntimeMemory, engine};
+use crate::{DefaultMemoryImpl, engine};
 use std::{borrow::Cow, marker::PhantomData};
 
 ///
@@ -54,10 +54,10 @@ impl<K, V: Storable> MapEntry<K, V> {
 /// Bidirectional ICSS traversal retaining its governed map borrow.
 ///
 pub struct MapIter<'a, K: Storable + Ord + Clone, V: Storable, M: Memory = DefaultMemoryImpl>(
-    pub(super) engine::btreemap::Iter<'a, Codec<K>, Codec<V>, Backing<RuntimeMemory<M>>>,
+    pub(super) engine::btreemap::Iter<'a, Codec<K>, Codec<V>, Backing<TreeMemory<M>>>,
 );
 fn entry<K: Storable + Ord + Clone, V: Storable, M: Memory>(
-    entry: engine::btreemap::LazyEntry<'_, Codec<K>, Codec<V>, Backing<RuntimeMemory<M>>>,
+    entry: engine::btreemap::LazyEntry<'_, Codec<K>, Codec<V>, Backing<TreeMemory<M>>>,
 ) -> MapEntry<K, V> {
     let (key, bytes) = entry.into_raw();
     MapEntry {

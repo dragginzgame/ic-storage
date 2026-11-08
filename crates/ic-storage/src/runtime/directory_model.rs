@@ -127,7 +127,6 @@ pub enum Error {
 struct Directory {
     image: Image,
     by_key: BTreeMap<StableKey, AllocationId>,
-    by_id: BTreeMap<AllocationId, usize>,
     // Derived only from validated extents; never persisted as a second authority.
     logical_ends: Vec<Vec<u64>>,
     budget: StorageConfig,
@@ -156,7 +155,6 @@ impl Directory {
             return Err(Error::Invalid("root boundary or identity watermark"));
         }
         let mut by_key = BTreeMap::new();
-        let mut by_id = BTreeMap::new();
         if image.metadata.len() > 128 {
             return Err(Error::Budget);
         }
@@ -173,7 +171,7 @@ impl Directory {
         }
         let mut data_extents = 0;
         let mut previous = None;
-        for (index, entry) in image.entries.iter().enumerate() {
+        for entry in &image.entries {
             if entry.id.0 == 0
                 || entry.id.0 >= image.next_id
                 || previous.is_some_and(|id| id >= entry.id)
@@ -184,7 +182,6 @@ impl Directory {
             if by_key.insert(entry.key.clone(), entry.id).is_some() {
                 return Err(Error::Invalid("duplicate stable key"));
             }
-            by_id.insert(entry.id, index);
             if entry.extents.len() > budget.extents.saturating_sub(data_extents) {
                 return Err(Error::Budget);
             }
@@ -223,10 +220,18 @@ impl Directory {
         Ok(Self {
             image,
             by_key,
-            by_id,
             logical_ends,
             budget,
         })
+    }
+
+    // Validation admits strictly increasing opaque IDs, including gaps. The
+    // canonical entries already provide this index; no second heap tree is needed.
+    fn entry_index(&self, id: AllocationId) -> Result<usize, Error> {
+        self.image
+            .entries
+            .binary_search_by_key(&id, |entry| entry.id)
+            .map_err(|_| Error::Missing)
     }
 
     fn decode(bytes: &[u8], budget: StorageConfig, data_start: u64) -> Result<Self, Error> {
@@ -268,7 +273,7 @@ impl Directory {
         }
         for &(id, pages) in growth {
             // Growth applies only to bindings already present in the base.
-            let index = *self.by_id.get(&id).ok_or(Error::Missing)?;
+            let index = self.entry_index(id)?;
             if pages == 0 {
                 continue;
             }

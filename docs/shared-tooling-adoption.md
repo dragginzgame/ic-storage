@@ -7,7 +7,63 @@ revision, selected roots, payload hashes and executable modes. The former
 live-policy exception is retired: dirty sibling rules never override the reviewed
 local baseline. Future policy changes require reviewed snapshot adoption.
 
-## Current source selection
+## Current 0.31.10 source selection
+
+Storage selects pushed Shared Tooling 0.31.10 at
+`c5285791991c731d266fb5c85dc3ee876d29f6b9` through the canonical exporter.
+The 161-file closure adds source selectors to CLOC and authenticated tool-download
+caching. CI uses the revision-pinned shared cache action before host/CI setup,
+then saves after setup before product checks. One full-history Gitleaks scan runs
+in the non-matrix tooling job, including documentation-only changes; release and
+publication targets do not install or run the scanner. Hosted execution remains
+CI qualification, not something established by local workflow lint.
+IC Build/editor stays at 0.79.0; both lockfiles and pending benchmark work are
+preserved. Snapshot/pin checks, workflow actionlint and the
+`ic-storage::engine` CLOC selection pass. Evidence lives under
+`target/evidence/shared-03110/`.
+
+## Previous 0.31.9 source selection
+
+Storage selects Shared Tooling 0.31.9 at
+`d95f271bc7b49951ccf286c3655cef7446b8cf56`, verified against pushed main.
+The canonical exporter reads that exact committed revision from the existing
+sibling object store; its uncommitted 0.31.10 changes remain untouched and are
+not adopted. The independently verified closure contains 161 files. No new
+checkout, live sibling-policy inheritance or hand-edited vendor payload is used.
+
+This refresh scopes formatting to explicit owned Cargo members, adds nested
+LOC reporting through `CLOC_DEPTH`/`cloc.sh -d`, adopts the shared hash dependency
+inventory and clarifies publication impact for private maintenance. Existing
+stored hashes and algorithms are unchanged. Root Cargo admission uses the shared
+external-IC/hash guard; the independent research graph keeps its existing
+explicit boundary policy because its optional ICSS Git comparison is intentional.
+Review of that graph finds no new direct hashing dependencies. No new release
+mode, automatic publication or cleanup is selected.
+
+IC Build 0.79.0 is published and selected both as the helper dependency and the
+exact metadata-editor executable. Storage uses Build Cargo metadata, environment,
+lock projection and archive qualification APIs; it has no removed
+`WasmBuildBatchConfig` or outcome-variant imports to migrate. Existing Host 0.75
+requirements remain compatible. The only new root-lock selection is IC Build;
+incoming Runtime/Wire edits and the independent lockfile are preserved.
+Rust 1.99.1 remains the support floor and selected compiler.
+
+Focused qualification passes: snapshot verification, dependency pins and both
+Cargo boundaries, workspace formatting, selected editor admission, nested CLOC,
+88 native release-helper tests and strict helper Clippy. Consumer dispatch and
+interrupted-metadata bootstrap fixtures pass, as does ShellCheck 0.11.0 for the
+edited fixture. The formatter's explicit member selection exposed an obsolete
+empty-metadata stub; the corrected stub exercises all members despite a narrower
+default-member list and preserves jobserver checks. The initial failed run is
+retained. The independent lockfile matches its incoming hash; the root lock delta
+against incoming work contains only IC Build's version and checksum.
+
+Evidence and incoming lock identities live under
+`target/evidence/shared-0319-build-079/`. Source selection, installed editor
+admission and focused consumer qualification are distinct from release delivery.
+No package versions, commits, tags or publication are changed by this adoption.
+
+## Previous 0.31.0 qualification
 
 Storage selects Shared Tooling 0.31.0 at
 `74313941af2fce4399bec0e6909ca6229673c3f8`, verified against pushed main and
@@ -316,7 +372,7 @@ records and runtime ownership remain unchanged.
 
 Storage 0.65.0 and Metrics Storage 0.66.0 delivered Build 0.74.0 and Host 0.74.1;
 Logging Storage 0.64.0 subsequently completed its separate publication.
-The current native helper selects Host 0.75.0 and Build 0.78.0 together because
+The current native helper selects Host 0.75.0 and Build 0.79.0 together because
 archive qualification passes Host process-limit types into Build. The removed
 Host provenance/sampling and Build wrapper, prepared-input and progress APIs have
 no Storage callers. The metadata editor follows the selected Build version;

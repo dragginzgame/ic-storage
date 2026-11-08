@@ -1,7 +1,7 @@
 # Repository Instructions
 
 For scope, delegated delivery, validation, compiler support and reporting, use
-[Shared policy at 7431394](https://github.com/dragginzgame/shared-tooling/blob/74313941af2fce4399bec0e6909ca6229673c3f8/DRAGGINZGAME.md)
+[Shared policy at c528579](https://github.com/dragginzgame/shared-tooling/blob/c5285791991c731d266fb5c85dc3ee876d29f6b9/DRAGGINZGAME.md)
 and its revision-bound references over older snapshot or local-guide wording.
 This includes Rust 1.99.1 as minimum and pinned development/release compiler;
 check local declarations and qualification before claiming adoption is complete.

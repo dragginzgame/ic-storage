@@ -21,6 +21,7 @@ owned = ["dep:ic-storage"]
 dfinity = []
 dfinity-governed = ["dfinity", "dep:ic-storage"]
 dfinity-head = ["dep:ic-stable-structures-head"]
+footprint = []
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 ic-platform-runtime = { workspace = true, features = ["ic0"] }
@@ -28,7 +29,7 @@ ic-stable-structures-head = { workspace = true, optional = true }
 ic-storage = { workspace = true, optional = true }
 
 [dependencies]
-ic-platform-stable-benchmark = { workspace = true, features = ["stable-structures"] }
+ic-stable-structures.workspace = true
 ic-wire.workspace = true
 ic_principal.workspace = true
 serde.workspace = true
@@ -58,3 +59,7 @@ name = "stable-read-probe-wasm"
 path = "benches/stable_read_probe/wasm.rs"
 crate-type = ["cdylib"]
 required-features = ["owned"]
+
+[[example]]
+name = "size-consumers"
+path = "benches/size_consumer/runner.rs"

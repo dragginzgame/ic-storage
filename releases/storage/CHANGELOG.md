@@ -3,6 +3,38 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/persistence/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.68.11] - Unreleased
+
+### ⚡ Performance
+
+- Remove the redundant allocation-ID B-tree and search validated entries directly.
+  Minimal consumers shrink by 2.9 KB; compact-loop timing is mixed (up to 7.60%
+  slower for a Set case). Governance, APIs and stored images are unchanged.
+
+- Share compiled B-tree code between ordinary maps and bounded regions. Full
+  benchmark Wasm drops by 2,589,089 bytes and the consumer fixture by 9,183 bytes;
+  memory dispatch adds instruction overhead. APIs and stored images are unchanged.
+
+### 🔧 Tooling
+
+- Adopt Shared Tooling 0.31.10 and IC Build 0.79.0 for owned-workspace formatting,
+  nested LOC reports and the native release helper/metadata editor. Preserve
+  runtime contracts and keep private maintenance separate from publication. CI
+  adopts shared download caching and one repository-wide secret scan.
+
+### 🧪 Testing
+
+- Add two isolated, matched small-consumer Wasm crates and `benchmark-storage-size`;
+  report stripped sizes only after installed operation and upgrade checks pass.
+  Retain offline section/function inspection and attribution reproduction commands.
+
+- Replace the old Platform reference facade with direct published ICSS in the
+  unpublished benchmark workspace; preserve the modified production engines.
+
+- Add an opt-in compact Wasm comparison using the existing depth cases for both
+  Storage and ICSS. Keep full-catalogue coverage as the default and distinguish
+  fixed governance costs from type-matrix expansion. [Details](0.68.md).
+
 ## [0.68.10] - 2026-11-08
 
 ### ⚡ Performance

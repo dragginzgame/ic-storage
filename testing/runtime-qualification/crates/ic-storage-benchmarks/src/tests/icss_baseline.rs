@@ -1,5 +1,5 @@
 //! Cross-read actual collection images with the published ICSS reference.
-use ic_platform_stable_benchmark::stable_structures as icss;
+use ic_stable_structures as icss;
 use ic_storage::{
     Memory, RuntimeMemory, StableKey, StorageConfig,
     adapter::{StableBTreeMap, StableBTreeSet, StableCell, StableVec},

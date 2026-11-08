@@ -1,6 +1,6 @@
 //! Native capacity/IO experiment over one backing; never an IC instruction benchmark.
 use clap::Parser;
-use ic_platform_stable_benchmark::stable_structures as icss;
+use ic_stable_structures as icss;
 use ic_storage::{Memory, MemoryBacking, MemoryRuntime, VectorMemory, testing::MeteredMemory};
 use serde_json::{Value, json};
 use std::{fs, path::PathBuf};

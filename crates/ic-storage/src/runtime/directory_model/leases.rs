@@ -86,7 +86,7 @@ impl<M: Memory> Owner<M> {
         Ok(Lease {
             state: Rc::clone(&self.0),
             id,
-            index: *store.directory.by_id.get(&id).ok_or(Error::Missing)?,
+            index: store.directory.entry_index(id)?,
         })
     }
 }
