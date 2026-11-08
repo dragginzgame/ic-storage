@@ -1,5 +1,4 @@
 # Current handoff — 2026-11-08
-
 ## Delivered: Storage 0.68.9
 
 Published `eeb93638a9624196c1c020882e3ee69fb602a05f`, tag `storage-v0.68.9`, from `b7ffcc0e0267fa533c48ed65dabfa9d38841fad5`; registry/download/receipt checksum `e1c2d0696f4960153a07d9d17c6ac1bffcfb50203972293ebcbc03c0be6ccafe` and clean archive VCS identity match.
@@ -108,6 +107,8 @@ See [Storage](../../releases/storage/0.68.md),
 [Logging Storage](../../releases/logging-storage/0.66.md) release notes.
 
 ## Current tooling and comparison evidence
+
+Pending 0.68.10: [Cell writer sharing](../audits/recurring/storage-cell-outline-2026-11-08.md) reduces comparison Wasm by 42,717 bytes (code −30,334), consumer fixture by 193 bytes. One shared writer replaces per-codec memory IO; fixed-32 writes cost 22 extra instructions each (handler +0.081% worst). APIs/images unchanged; all 73 Cell types, native, interoperability, lint and installed Storage qualification pass. Tuple handler follow-up ranges −0.103% to +0.077%. Raw evidence: `target/evidence/storage-cell-outline/`; frozen baseline `attempt.xOASTZ`, candidate `attempt.LRun1o`. Not deployed.
 
 Delivered **Storage 0.68.9** keeps combined Vector header IO and shared framing admission, with no API/image change. The [opening study](../audits/recurring/storage-vector-open-2026-11-08.md) records 704/0/0 improved/equal/regressed reopen handler cells (−689 instructions each), unchanged 712 depth controls, benchmark Wasm −22,199 bytes and consumer fixture +96 bytes. Native admission/IO, ICSS interoperability, benchmark/lint and installed Storage upgrade/rollback pass; full delivery is recorded above. Evidence: `target/evidence/storage-vector-open/`, baseline `attempt.LcZri5`, candidate `attempt.ClisQS`. Root Wire 0.17.12 remains unrelated, unadopted and preserved; delivered 0.68.8 codec evidence remains in the [codec study](../audits/recurring/storage-byte-codecs-2026-11-07.md).
 Shared Tooling 0.31.0 remains selected; [adoption boundaries](../shared-tooling-adoption.md) retain its proof. The [node-load study](../audits/recurring/storage-node-loads-2026-11-07.md) rejects all three earlier trials; those source changes remain reverted. Evidence stays under `target/evidence/storage-{sibling-load,split-load,split-owned}/`; isolate population/heap-page effects before more node-lifetime changes.

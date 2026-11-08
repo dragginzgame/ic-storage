@@ -4,7 +4,7 @@
 //! A serializable value stored in the stable memory.
 use crate::engine::storable::Storable;
 use crate::engine::{Memory, WASM_PAGE_SIZE, read_to_vec};
-use std::borrow::{Borrow, Cow};
+use std::borrow::Cow;
 
 const MAGIC: &[u8; 3] = b"SCL"; // short for "stable cell"
 const HEADER_V1_SIZE: u64 = 8;
@@ -66,38 +66,42 @@ impl<T: Storable, M: Memory> Cell<T, M> {
     }
     fn flush_value(memory: &M, value: &T) -> Result<(), ValueError> {
         let encoded = value.to_bytes();
-        let bytes: &[u8] = encoded.borrow();
-        let len = bytes.len();
-        if len > u32::MAX as usize {
+        flush_bytes(memory, encoded.as_ref())
+    }
+}
+
+// Keep memory IO shared across value codecs instead of repeating it for every T.
+#[inline(never)]
+fn flush_bytes<M: Memory>(memory: &M, bytes: &[u8]) -> Result<(), ValueError> {
+    let len = bytes.len();
+    if len > u32::MAX as usize {
+        return Err(ValueError::ValueTooLarge {
+            value_size: len as u64,
+        });
+    }
+    let size = memory.size();
+    let available_space = size * WASM_PAGE_SIZE;
+    if len as u64 > available_space.saturating_sub(HEADER_V1_SIZE) || size == 0 {
+        let grow_by = (len as u64 + HEADER_V1_SIZE + WASM_PAGE_SIZE - size * WASM_PAGE_SIZE - 1)
+            / WASM_PAGE_SIZE;
+        if memory.grow(grow_by) < 0 {
             return Err(ValueError::ValueTooLarge {
                 value_size: len as u64,
             });
         }
-        let size = memory.size();
-        let available_space = size * WASM_PAGE_SIZE;
-        if len as u64 > available_space.saturating_sub(HEADER_V1_SIZE) || size == 0 {
-            let grow_by =
-                (len as u64 + HEADER_V1_SIZE + WASM_PAGE_SIZE - size * WASM_PAGE_SIZE - 1)
-                    / WASM_PAGE_SIZE;
-            if memory.grow(grow_by) < 0 {
-                return Err(ValueError::ValueTooLarge {
-                    value_size: len as u64,
-                });
-            }
-        }
-
-        debug_assert!(memory.size() * WASM_PAGE_SIZE >= len as u64 + HEADER_V1_SIZE);
-
-        let mut header = [0; 8];
-        header[..3].copy_from_slice(MAGIC);
-        header[3] = LAYOUT_VERSION;
-        header[4..].copy_from_slice(
-            &u32::try_from(len)
-                .expect("admitted cell length")
-                .to_le_bytes(),
-        );
-        memory.write(0, &header);
-        memory.write(HEADER_V1_SIZE, bytes);
-        Ok(())
     }
+
+    debug_assert!(memory.size() * WASM_PAGE_SIZE >= len as u64 + HEADER_V1_SIZE);
+
+    let mut header = [0; 8];
+    header[..3].copy_from_slice(MAGIC);
+    header[3] = LAYOUT_VERSION;
+    header[4..].copy_from_slice(
+        &u32::try_from(len)
+            .expect("admitted cell length")
+            .to_le_bytes(),
+    );
+    memory.write(0, &header);
+    memory.write(HEADER_V1_SIZE, bytes);
+    Ok(())
 }

@@ -3,6 +3,14 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/persistence/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.68.10] - Unreleased
+
+### ⚡ Performance
+
+- Share Cell memory-writing code across value codecs to reduce Wasm size, with
+  unchanged APIs and stored bytes. Measured 32-byte writes trade 22 instructions
+  each for the smaller binary. [Details](0.68.md).
+
 ## [0.68.9] - 2026-11-08
 
 ### ⚡ Performance
