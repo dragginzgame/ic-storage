@@ -30,7 +30,7 @@ ic-platform-stable-benchmark = { package = "ic-platform", version = "0.17.0", de
 # Explicit research control for the maintainer-requested upstream comparison.
 # The facade cannot select unpublished upstream code; no production consumer uses this.
 ic-stable-structures-head = { package = "ic-stable-structures", git = "https://github.com/dfinity/stable-structures", rev = "b5d1650463f477affb3d358e86b1113953fc9937" }
-ic-storage = { path = "../../crates/ic-storage", version = "0.68.8" }
+ic-storage = { path = "../../crates/ic-storage", version = "0.68.9" }
 ic-storage-test-fixtures = { path = "crates/ic-storage-test-fixtures" }
 ic-wire = "0.17.0"
 ic_principal = { version = "0.1", default-features = false }
