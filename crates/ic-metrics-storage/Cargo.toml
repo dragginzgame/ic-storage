@@ -10,6 +10,9 @@ description = "Optional single-map stable storage for IC Metrics"
 readme = "README.md"
 publish = ["crates-io"]
 
+[package.metadata.cargo-machete]
+ignored = ["toko-tooling"]
+
 [dependencies]
 ic-metrics.workspace = true
 ic-storage.workspace = true
@@ -20,6 +23,7 @@ thiserror.workspace = true
 [dev-dependencies]
 # Native backing support, excluded from the production feature set.
 ic-storage = { workspace = true, features = ["test-support"] }
+toko-tooling.workspace = true
 
 [lints.rust]
 missing_docs = "warn"

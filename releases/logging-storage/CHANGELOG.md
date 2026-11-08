@@ -3,6 +3,14 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/logging-stable/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.67.1] - Unreleased
+
+### 🔧 Tooling
+
+- Inherit the workspace's exact Toko Tooling 0.36.0 dev-dependency and
+  cargo-machete exemption. Publish against Storage 0.69.1 with its B-tree
+  improvements; adapter APIs and checkpoint formats are unchanged.
+
 ## [0.67.0] - 2026-11-08
 
 ### ⚠️ Breaking

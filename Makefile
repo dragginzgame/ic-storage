@@ -135,6 +135,13 @@ test-offline-tool-reuse:
 fetch-dependencies:
 	+cargo +$(VALIDATION_TOOLCHAIN) fetch --locked
 
+.PHONY: check-runtime-tooling-selection
+check-pins: check-runtime-tooling-selection
+check-runtime-tooling-selection:
+	@root="$$(perl scripts/dev/tooling-lock.pl "$(CURDIR)")" && \
+	  runtime="$$(perl scripts/dev/tooling-lock.pl "$(CURDIR)/testing/runtime-qualification")" && \
+	  test "$$root" = "$$runtime" || { echo 'Workspace tooling selections must agree.' >&2; exit 1; }
+
 check-pins:
 	+RUSTUP_TOOLCHAIN=$(VALIDATION_TOOLCHAIN) RUSTUP_AUTO_INSTALL=0 CARGO_NET_OFFLINE=true bash scripts/ci/check-dependency-pins.sh --cargo-inheritance
 

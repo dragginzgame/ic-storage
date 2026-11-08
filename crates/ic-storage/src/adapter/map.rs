@@ -45,7 +45,7 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> StableBTreeMap<K, V, M> 
     pub fn clear(&mut self) {
         #[cfg(not(target_arch = "wasm32"))]
         let _guard = self.inner.memory().allocation().poison_on_unwind();
-        self.inner.clear_new();
+        self.inner.clear();
     }
     /// Reserve backing pages without promising entry capacity.
     pub fn reserve_pages(

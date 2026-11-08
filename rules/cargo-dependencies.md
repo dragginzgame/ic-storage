@@ -474,21 +474,23 @@ in [the Cargo Book](https://doc.rust-lang.org/cargo/reference/specifying-depende
 
 ## Shared Tooling during dependency updates
 
-Toko Tooling is a repository-level source-bundle dependency, independent of Cargo's
-application graph. Root `[workspace.metadata.toko-tooling]` (or standalone root
-`[package.metadata.toko-tooling]`) declares an exact published version.
-`toko-tooling.lock` records its crates.io archive checksum. Do not declare it as a
-normal, dev or build dependency, or create a workspace package to hold it.
+Select Toko Tooling once in root `[workspace.dependencies]` with an exact
+`=X.Y.Z` crates.io pin. Every real workspace package must inherit it under
+`[dev-dependencies]` with `toko-tooling.workspace = true`, including root, private
+and test packages. A standalone package uses an exact root dev-dependency.
+The producer itself is exempt from self-dependency. No selection-only package,
+normal/build dependency or artificial Rust import is allowed. Merge an intentional
+`toko-tooling` exemption into each package's cargo-machete ignored entries.
 
-After intentionally changing the root tooling version, run
-`make shared-tooling-update` to resolve and install it. `make shared-tooling-install`
-reinstalls the existing lock. Both authenticate actual crates.io source bytes and
-prepare/check tools. Offline `make shared-tooling-check` requires the declaration,
-lock and installed receipt to agree; common CI/release entrypoints run it
-before effects. Custom application deployment adapters must also admit tooling.
-No Cargo build script or ordinary check installs tooling.
+`cargo update -v` exposes newer releases without changing the exact pin. After
+editing that pin, update Cargo.lock with `cargo update -p toko-tooling` and run
+`make shared-tooling-update` to install the actual authenticated source bundle.
+`make shared-tooling-install` installs the existing lock. Offline
+`make shared-tooling-check` verifies every member, root pin, Cargo.lock checksum
+and installed snapshot before common CI/release effects. Custom deployment
+adapters must also admit tooling. No Cargo build or ordinary check installs it.
 
-Application `cargo update` has no effect on tooling selection. Remove the former
-Cargo dependency and any selection-only package during migration, preserving real
-tools/tests and updating affected membership/group rosters. Follow
-[the migration procedure](../docs/consuming-snapshots.md#migration-from-cargo-dependencies).
+Remove obsolete tooling metadata tables, `toko-tooling.lock` and selection-only
+packages while preserving real tools/tests. Follow
+[the migration procedure](../docs/consuming-snapshots.md#migration-from-cargo-dependencies)
+for source-archive bootstrap, independent workspaces and non-Cargo repositories.

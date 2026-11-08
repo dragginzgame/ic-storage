@@ -84,84 +84,108 @@ neither role labels nor cached build success establishes it.
 
 ## Cargo selection and installation
 
-Starting with 0.34, repository tooling is independent of Cargo's package graph.
-Declare one exact published release in the repository-root `Cargo.toml`:
+Starting with 0.36, Cargo owns tooling selection so `cargo update -v` reports
+newer available releases. Declare the exact version once in root `Cargo.toml`:
 
 ```toml
-[workspace.metadata.toko-tooling]
-version = "0.34.0"
+[workspace.dependencies]
+toko-tooling = "=0.36.0"
 ```
 
-A standalone root package may instead use `[package.metadata.toko-tooling]`.
-Declare only one table. Versions are exact stable `X.Y.Z` identities, not ranges;
-change this field intentionally to select a different release. No workspace member,
-normal dependency, dev-dependency, Rust import or cargo-machete exception is needed.
-Non-Cargo repositories may use the same metadata-only root file.
+Every real workspace package, including a root package and private/test packages,
+must inherit it unconditionally:
+
+```toml
+[dev-dependencies]
+toko-tooling.workspace = true
+
+[package.metadata.cargo-machete]
+ignored = ["toko-tooling"]
+```
+
+Merge the cargo-machete exemption with existing entries: the dependency supplies
+installed source tooling, not imported Rust APIs. Do not add an artificial Rust
+import. Do not create a package to hold this dependency. A standalone package
+without `[workspace]` declares `toko-tooling = "=0.36.0"` directly in its root
+`[dev-dependencies]`, with the same exemption. The producer `toko-tooling` itself
+is exempt from consuming its own package; it validates the packaged payload.
+
+"Every manifest" means maintained workspace packages, not vendored dependencies,
+build output or intentionally isolated fixture manifests. Independent maintained
+workspaces apply the same rule at their own root. Non-Cargo repositories do not
+create synthetic packages for notifications; they can use the authenticated
+snapshot exporter directly, but have no `cargo update` visibility or Cargo-based
+admission. The standard `shared-tooling-*` selection commands require a real
+Cargo workspace/package.
+
+An exact pin allows `cargo update -v` to show a newer available version without
+silently adopting it. After deliberately editing the root pin:
 
 ```bash
-make shared-tooling-update   # resolve declared release, write lock, install
-make shared-tooling-install  # reinstall the existing lock, without resolving
-make shared-tooling-check    # offline declaration/lock/snapshot admission
-make shared-tooling-status   # offline installed/selected identity report
+cargo update -p toko-tooling # update Cargo.lock; leave unrelated selections alone
+make shared-tooling-update  # install the selected authenticated crate and tools
+make shared-tooling-check   # offline member/pin/lock/snapshot admission
 ```
 
-Commit `toko-tooling.lock` with the root declaration and `.shared-tooling.snapshot`.
-The JSON lock records format, package name, exact version, crates.io source and
-archive SHA-256. Update obtains the checksum from the crates.io index and rejects
-missing/yanked releases. Install authenticates the downloaded crate before running
-its exporter. Existing locked releases remain installable if subsequently yanked.
-Neither command changes application Cargo.lock or package dependency declarations.
-A failed installation may leave the new lock selected; check then refuses the
-old installed snapshot until installation succeeds. Failed evidence is retained.
+`make shared-tooling-install` also installs the existing Cargo.lock selection;
+`make shared-tooling-status` reports selected and installed identities offline.
+Neither install nor update edits manifests or Cargo.lock. Commit the root pin,
+member declarations, Cargo.lock and `.shared-tooling.snapshot` together. Cargo.lock
+supplies the exact crates.io version and archive SHA-256; no separate tooling lock
+or metadata version is used. Installation downloads the actual scripts, Make
+interfaces, rules, pins, licenses and documentation from crates.io, authenticates
+the archive, and preserves consumer-owned edits and recorded entrypoints.
 
-The offline check requires the root declaration, tooling lock and installed
-version/checksum to agree, and verifies installed file bytes/modes. It refuses a
-missing declaration or lock, including after workspace members change. Normal
-CI and release entrypoints from `make/consumer.mk` require this check. Custom
-application deployment adapters must invoke it before effects if they bypass
-those entrypoints. Checks never resolve, download or repair tooling.
+Offline admission checks every workspace member, not just default-members, for
+one inherited dev-dependency at the root pin. It rejects missing declarations,
+local version overrides, normal/build dependencies, aliases, target-specific
+selection and non-registry source overrides. Cargo.lock must contain exactly one
+matching crates.io entry, and the installed receipt's version/checksum and owned
+files must agree. Deleting a member cannot remove the dependency from remaining
+members; deleting the last declaration fails admission. A changed Cargo selection
+never silently installs tools. Common CI/release entrypoints require admission;
+custom deployment adapters must invoke it before effects when bypassing them.
 
 ### Migration from Cargo dependencies
 
-Undo the 0.33 selection scheme as part of this migration:
+This migration replaces both the 0.34–0.35 metadata/lock scheme and the earlier
+selection-only package approach:
 
-1. Add the root metadata table above. Bootstrap with the new 0.34 installer from
-   a reviewed Toko Tooling checkout or an authenticated 0.34 crate extraction;
-   the old installed helper cannot read the new lock:
+1. Add the root exact dependency and inherited dev-dependency to every maintained
+   workspace package, with the cargo-machete exemption above. Remove old
+   `workspace.metadata.toko-tooling` / `package.metadata.toko-tooling` tables and
+   `toko-tooling.lock`. Remove renamed, normal, build or independently versioned
+   tooling dependencies; retain one inherited dev-dependency per package.
+2. Remove packages created solely to hold tooling selection and their workspace,
+   default-member, release-group, CI and documentation references. Preserve
+   packages with real tools, tests or qualification code. No new helper package,
+   `crates/Cargo.toml` or Rust import is needed.
+3. Update Cargo.lock with Cargo. Bootstrap with the 0.36 installer from a reviewed
+   producer checkout or an authenticated published 0.36+ crate extraction, since
+   the old installer still expects metadata and a separate lock:
 
    ```bash
    bash /home/adam/projects/toko-tooling/scripts/dev/shared-tooling.sh update \
      --consumer "$PWD"
    ```
 
-   New payload bytes still come from crates.io. For a historical Git receipt,
-   also pass `--source /home/adam/projects/toko-tooling` for one-time old-file
-   ownership proof. Existing registry receipts use their previous authenticated
-   archive. Recorded entrypoints and consumer-owned edits remain protected.
-   For first adoption, pass `--entrypoint make/consumer.mk --entrypoint DRAGGINZGAME.md`
-   and any other required roots. Wire the consumer Makefile to include
-   `make/consumer.mk` before setup; the exporter installs it first.
-2. Remove every old `toko-tooling` normal/dev/build dependency and root catalog
-   entry, including renamed entries, and any dedicated cargo-machete exception.
-   Remove packages created solely to hold that dependency, along with their
-   workspace/default-member, release-group, dependency-boundary, CI and documentation
-   references. Preserve packages that contain real tools or qualification code.
-3. Refresh the application lock with Cargo to remove obsolete graph entries;
-   preserve unrelated selections. Remove old Cargo-based bootstrap/update
-   instructions from consumer-owned AGENTS and guides. Use the root metadata,
-   dedicated lock and normal Make commands going forward.
-4. Run `make shared-tooling-check`, focused caller checks and the consumer's
-   existing membership/release-group validation. Confirm no obsolete selection-only
-   package or dependency remains. Do not hand-edit snapshot-owned files or receipts.
+   The selected version must already be published. Payload bytes still come from
+   crates.io. Historical Git receipts also need `--source` pointing at the old
+   checkout for ownership proof; registry receipts use their prior authenticated
+   archive. For first adoption, pass `--entrypoint make/consumer.mk
+   --entrypoint DRAGGINZGAME.md` and other required roots, and include
+   `make/consumer.mk` from the consumer Makefile before setup.
+4. Run `make shared-tooling-check`, focused caller checks and existing membership/
+   release-group validation. Replace obsolete metadata/lock and helper-package
+   instructions in consumer-owned guides. Never hand-edit snapshot-owned files
+   or receipts. Do not migrate consumers to an unpublished producer release.
 
 Prepare the project's compiler/native prerequisites and host parsers first.
-The installer requires jq, Mike Farah yq, Perl Archive::Tar and
-IO::Uncompress::Gunzip. It runs `make install-tools` and `make tools-check` after
-installation and reports incomplete adoption if setup fails. Cargo builds do not
-install tools. Ordinary application dependency updates no longer select or update
-Toko Tooling. The repository for source review is
-`https://github.com/dragginzgame/toko-tooling`; the crate supplies the actual scripts,
-Make interfaces, CI actions, rules, pins, licenses and documentation.
+Installation requires Cargo, jq, Mike Farah yq, Perl Archive::Tar and
+IO::Uncompress::Gunzip, then runs `make install-tools` and `make tools-check`.
+Failure leaves evidence and reports incomplete adoption. Cargo builds themselves
+never install tooling. Source review lives at
+`https://github.com/dragginzgame/toko-tooling`.
 
 ## Upgrade impact
 

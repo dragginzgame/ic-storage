@@ -9,6 +9,9 @@ authors.workspace = true
 description = "Optional governed stable checkpoints for IC Logging"
 readme = "README.md"
 
+[package.metadata.cargo-machete]
+ignored = ["toko-tooling"]
+
 [dependencies]
 ic-logging.workspace = true
 ic-storage.workspace = true
@@ -18,6 +21,7 @@ thiserror.workspace = true
 
 [dev-dependencies]
 ic-storage = { workspace = true, features = ["test-support"] }
+toko-tooling.workspace = true
 
 [lints.rust]
 missing_docs = "warn"

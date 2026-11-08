@@ -28,7 +28,7 @@ fn empty_values_load_and_extract_without_payload_reads() {
     let backing = MeteredMemory::<VectorMemory>::default();
     let mut allocator = Allocator::new(backing.clone(), Address::from(0), Bytes::from(128u32));
     let address = allocator.allocate();
-    let mut node = Node::new_v2(address, NodeType::Leaf, PageSize(128));
+    let mut node = Node::new(address, NodeType::Leaf, PageSize(128));
     node.push_entry((Key(1), vec![]));
     node.push_entry((Key(2), vec![7, 8, 9]));
     node.save(&mut allocator);

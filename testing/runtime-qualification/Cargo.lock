@@ -912,6 +912,7 @@ dependencies = [
  "serde",
  "serde_bytes",
  "serde_json",
+ "toko-tooling",
 ]
 
 [[package]]
@@ -919,6 +920,7 @@ name = "ic-storage-default-qualification"
 version = "0.0.0"
 dependencies = [
  "ic-storage",
+ "toko-tooling",
 ]
 
 [[package]]
@@ -928,6 +930,7 @@ dependencies = [
  "ic-platform",
  "ic-platform-runtime",
  "ic-storage",
+ "toko-tooling",
 ]
 
 [[package]]
@@ -939,6 +942,7 @@ dependencies = [
  "ic-storage-test-fixtures",
  "ic-wire",
  "serde",
+ "toko-tooling",
 ]
 
 [[package]]
@@ -951,6 +955,7 @@ dependencies = [
  "ic-storage",
  "ic-wire",
  "serde",
+ "toko-tooling",
 ]
 
 [[package]]
@@ -1002,6 +1007,7 @@ version = "0.0.0"
 dependencies = [
  "ic-platform-runtime",
  "ic-stable-structures 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "toko-tooling",
 ]
 
 [[package]]
@@ -2054,6 +2060,7 @@ version = "0.0.0"
 dependencies = [
  "ic-platform-runtime",
  "ic-storage",
+ "toko-tooling",
 ]
 
 [[package]]
@@ -2290,6 +2297,12 @@ dependencies = [
  "pin-project-lite",
  "tokio",
 ]
+
+[[package]]
+name = "toko-tooling"
+version = "0.36.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "de0dd05b6437061622a76942baa25d40d2181497e7ba66d9fd809132a3082936"
 
 [[package]]
 name = "tower"

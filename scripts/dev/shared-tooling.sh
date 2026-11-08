@@ -31,7 +31,7 @@ main() {
         shift 2
     done
     [[ -z "$precise" || ( "$mode" == update && "$precise" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ) ]] || {
-        echo '--version selects a registry version during update; install uses toko-tooling.lock unchanged' >&2; return 2;
+        echo '--version confirms the Cargo selection during update; install uses Cargo.lock unchanged' >&2; return 2;
     }
     case "/$manifest/" in //*|*'/../'*|*'/./'*|*'//'*) echo 'manifest must be a canonical relative path' >&2; return 2 ;; esac
     case "$consumer$previous_source$manifest" in *$'\n'*|*$'\r'*) echo 'paths must not contain line breaks' >&2; return 2 ;; esac
@@ -50,36 +50,20 @@ main() {
     elif [[ -e "$consumer/$manifest" || -L "$consumer/$manifest" ]]; then
         echo 'snapshot manifest is not a regular file' >&2; return 1
     fi
-    local requirement
-    [[ -f "$consumer/Cargo.toml" && ! -L "$consumer/Cargo.toml" ]] || { echo 'Root Cargo.toml tooling metadata is required.' >&2; return 1; }
-    requirement="$(yq -p toml -o json '.' "$consumer/Cargo.toml" | jq -er '
-        [.workspace.metadata["toko-tooling"], .package.metadata["toko-tooling"]] | map(select(. != null)) |
-        if length == 1 then .[0].version else error("select exactly one root tooling metadata table") end |
-        select(type == "string") | select(test("^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"))')" || {
-        echo 'Declare [workspace.metadata.toko-tooling] version = "X.Y.Z" in root Cargo.toml.' >&2; return 1;
-    }
-    [[ -z "$precise" || "$precise" == "$requirement" ]] || { echo '--version must match root tooling metadata; edit that declaration first.' >&2; return 1; }
-    if [[ "$mode" == update ]]; then
-        [[ ! -L "$consumer/target" && ! -L "$consumer/target/tmp" ]] || return 1
-        mkdir -p "$consumer/target/tmp"
-        scratch="$(mktemp -d "$consumer/target/tmp/toko-tooling-install.XXXXXX")"
-        curl --fail --silent --show-error --location --retry 3 --connect-timeout 20 --max-time 120 \
-            https://index.crates.io/to/ko/toko-tooling -o "$scratch/index.jsonl" || return 1
-        perl "$script_root/scripts/dev/tooling-lock.pl" resolve "$requirement" "$scratch/index.jsonl" "$consumer/toko-tooling.lock" >/dev/null || return 1
-    fi
-    lock_record="$(perl "$script_root/scripts/dev/tooling-lock.pl" check "$requirement" "$consumer/toko-tooling.lock")" || return 1
+    lock_record="$(perl "$script_root/scripts/dev/tooling-lock.pl" "$consumer")" || return 1
     lock_version="$(printf '%s' "$lock_record" | jq -r .version)"
+    [[ -z "$precise" || "$precise" == "$lock_version" ]] || { echo "--version must match Cargo selection; edit the root pin and update Cargo.lock first." >&2; return 1; }
     lock_checksum="$(printf '%s' "$lock_record" | jq -r .checksum)"
     printf 'Installed: %s (%s)\nSelected from crates.io: %s (%s)\n' "$installed_version" "$installed_revision" "$lock_version" "$lock_checksum"
     if [[ "$mode" == check || "$mode" == status ]]; then
         [[ -n "$records" ]] || { echo 'No installed snapshot. Run shared-tooling-install with the initial --entrypoint selection.' >&2; return 1; }
         bash "$script_root/scripts/ci/verify-shared-tooling-snapshot.sh" --consumer "$consumer" --manifest "$manifest" || return 1
         if [[ "$installed_source" != https://crates.io/crates/toko-tooling || "$installed_revision" != "$lock_checksum" || "$installed_version" != "$lock_version" ]]; then
-            echo 'The tooling lock selects different toko-tooling bytes. Run make shared-tooling-install before using or deploying this snapshot.' >&2
+            echo 'Cargo.lock selects different toko-tooling bytes. Run make shared-tooling-install before using or deploying this snapshot.' >&2
             [[ "$mode" == status ]] && return 0
             return 1
         fi
-        echo 'Root tooling declaration, lock and installed snapshot agree.'
+        echo 'Every package declaration, Cargo.lock and installed snapshot agree.'
         return 0
     fi
     [[ -n "$records" || ${#entrypoints[@]} -gt 0 ]] || { echo 'Initial installation requires explicit --entrypoint selections.' >&2; return 2; }

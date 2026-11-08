@@ -1,8 +1,8 @@
 # Repository Instructions
 
 For scope, delegated delivery, validation, compiler support and reporting, use
-[the reviewed local baseline](DRAGGINZGAME.md) and its linked rules. Root Cargo.toml metadata
-selects an exact crates.io `toko-tooling` release; `toko-tooling.lock` records its
+[the reviewed local baseline](DRAGGINZGAME.md) and its linked rules. Each maintained workspace root selects exact crates.io `toko-tooling` in its
+dependency catalog; normal Cargo.lock records its
 authenticated archive identity and [.shared-tooling.snapshot](.shared-tooling.snapshot)
 records the authenticated package checksum and installed payload. Rust 1.99.1
 remains the minimum and pinned development/release compiler. Product-specific
@@ -20,11 +20,13 @@ authorized under the shared contribution rules.
 Before changing tooling, formatting, release adapters or retention, read
 [the local adoption boundaries](docs/shared-tooling-adoption.md). Never patch
 vendored files or attribute dirty shared source to a registry installation.
-Use `make shared-tooling-update` after intentionally changing
-`[workspace.metadata.toko-tooling].version`, or `make shared-tooling-install`
-to reinstall the existing `toko-tooling.lock` selection. Tooling is not a Cargo
-dependency and needs no private selection-only member. Commit the root declaration,
-tooling lock and snapshot receipt together. Custom deployment targets must run
+Every real package inherits `toko-tooling.workspace = true` in unconditional
+`[dev-dependencies]` and records its cargo-machete exemption. Both maintained
+workspace roots pin `=0.36.0`; no selection-only package or artificial Rust import
+is needed. After changing the exact pins, resolve each normal Cargo.lock with
+Cargo, then run `make shared-tooling-update`. Use `make shared-tooling-install`
+to reinstall the existing Cargo selection. Commit declarations, Cargo lockfiles
+and snapshot receipt together. Custom deployment targets must run
 `shared-tooling-check` before effects. The three public package gates remain unchanged.
 
 The virtual repository-root workspace owns shared package metadata and the

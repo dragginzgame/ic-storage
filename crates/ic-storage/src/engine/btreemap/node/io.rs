@@ -3,7 +3,7 @@
 // See the package LICENSE-APACHE and docs/storage/icss-source.json.
 use super::{Address, Bytes, Memory, PageSize, write};
 use crate::engine::btreemap::allocator::Allocator;
-use crate::engine::btreemap::node::v2::{
+use crate::engine::btreemap::node::layout::{
     OVERFLOW_ADDRESS_OFFSET, OVERFLOW_MAGIC, PAGE_OVERFLOW_DATA_OFFSET, PAGE_OVERFLOW_NEXT_OFFSET,
 };
 use crate::engine::{types::NULL, write_u64};
@@ -350,7 +350,7 @@ impl<'a, M: Memory> NodeWriter<'a, M> {
         assert!(overflow_pages_needed <= self.overflows.len());
 
         // Loaded chains already end in NULL; allocation initializes each new
-        // tail likewise. The initial node link is written by save_v2(). Only
+        // tail likewise. The initial node link is written by save(). Only
         // removing pages changes which link must terminate the chain.
         if overflow_pages_needed == self.overflows.len() {
             return;

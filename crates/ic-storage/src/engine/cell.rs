@@ -7,14 +7,13 @@ use crate::engine::{Memory, WASM_PAGE_SIZE, read_to_vec};
 use std::borrow::Cow;
 
 const MAGIC: &[u8; 3] = b"SCL"; // short for "stable cell"
-const HEADER_V1_SIZE: u64 = 8;
+const HEADER_SIZE: u64 = 8;
 const LAYOUT_VERSION: u8 = 1;
 
-// NOTE: the size of this structure should be equal to [HEADER_V1_SIZE].
-// NOTE: if you have to add more fields, you need to increase the version and handle decoding of
-// previous versions in `Cell::read_header`.
+// NOTE: the size of this structure should be equal to [HEADER_SIZE].
+// Changing these fields requires an explicit persisted-format decision.
 //
-// # V1 layout
+// # Memory layout
 //
 // -------------------------------
 // Magic "SCL"         ↕ 3 bytes
@@ -52,7 +51,7 @@ impl<T: Storable, M: Memory> Cell<T, M> {
 
     fn read_value(memory: &M, len: u32) -> T {
         let mut buf = vec![];
-        read_to_vec(memory, HEADER_V1_SIZE.into(), &mut buf, len as usize);
+        read_to_vec(memory, HEADER_SIZE.into(), &mut buf, len as usize);
         T::from_bytes(Cow::Owned(buf))
     }
 
@@ -81,8 +80,8 @@ fn flush_bytes<M: Memory>(memory: &M, bytes: &[u8]) -> Result<(), ValueError> {
     }
     let size = memory.size();
     let available_space = size * WASM_PAGE_SIZE;
-    if len as u64 > available_space.saturating_sub(HEADER_V1_SIZE) || size == 0 {
-        let grow_by = (len as u64 + HEADER_V1_SIZE + WASM_PAGE_SIZE - size * WASM_PAGE_SIZE - 1)
+    if len as u64 > available_space.saturating_sub(HEADER_SIZE) || size == 0 {
+        let grow_by = (len as u64 + HEADER_SIZE + WASM_PAGE_SIZE - size * WASM_PAGE_SIZE - 1)
             / WASM_PAGE_SIZE;
         if memory.grow(grow_by) < 0 {
             return Err(ValueError::ValueTooLarge {
@@ -91,7 +90,7 @@ fn flush_bytes<M: Memory>(memory: &M, bytes: &[u8]) -> Result<(), ValueError> {
         }
     }
 
-    debug_assert!(memory.size() * WASM_PAGE_SIZE >= len as u64 + HEADER_V1_SIZE);
+    debug_assert!(memory.size() * WASM_PAGE_SIZE >= len as u64 + HEADER_SIZE);
 
     let mut header = [0; 8];
     header[..3].copy_from_slice(MAGIC);
@@ -102,6 +101,6 @@ fn flush_bytes<M: Memory>(memory: &M, bytes: &[u8]) -> Result<(), ValueError> {
             .to_le_bytes(),
     );
     memory.write(0, &header);
-    memory.write(HEADER_V1_SIZE, bytes);
+    memory.write(HEADER_SIZE, bytes);
     Ok(())
 }

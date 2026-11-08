@@ -9,5 +9,11 @@ publish = false
 [package.metadata.shared-tooling.loc]
 category = "tests"
 
+[package.metadata.cargo-machete]
+ignored = ["toko-tooling"]
+
 [dependencies]
 ic-storage.workspace = true
+
+[dev-dependencies]
+toko-tooling.workspace = true

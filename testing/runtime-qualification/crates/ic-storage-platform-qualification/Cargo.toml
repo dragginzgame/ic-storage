@@ -9,9 +9,15 @@ publish = false
 [package.metadata.shared-tooling.loc]
 category = "tests"
 
+[package.metadata.cargo-machete]
+ignored = ["toko-tooling"]
+
 # Deliberately compose the canonical runtime with Storage's backing.
 # This isolated consumer catches executor guard conflicts reported in #152.
 [dependencies]
 ic-platform = { workspace = true, features = ["principal"] }
 ic-platform-runtime = { workspace = true, features = ["runtime"] }
 ic-storage.workspace = true
+
+[dev-dependencies]
+toko-tooling.workspace = true

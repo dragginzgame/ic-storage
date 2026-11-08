@@ -3,7 +3,7 @@
 // See the package LICENSE-APACHE and docs/storage/icss-source.json.
 //! A growable array in stable memory.
 //!
-//! # V1 layout
+//! # Memory layout
 //!
 //! ```text
 //! ---------------------------------------- <- Address 0
@@ -51,7 +51,7 @@ const DATA_OFFSET: u64 = 64;
 const LEN_OFFSET: u64 = 4;
 
 #[derive(Debug)]
-struct HeaderV1 {
+struct Header {
     magic: [u8; 3],
     version: u8,
     len: u64,
@@ -59,7 +59,7 @@ struct HeaderV1 {
     is_fixed_size: bool,
 }
 
-impl HeaderV1 {
+impl Header {
     // Keep the active header in one IO range without touching reserved bytes.
     fn write<M: Memory>(&self, memory: &M) -> Result<(), GrowFailed> {
         let mut bytes = [0; 17];
@@ -124,7 +124,7 @@ impl<T: Storable, M: Memory> Vec<T, M> {
     pub fn new(memory: M) -> Self {
         let t_bounds = bounds::<T>();
 
-        let header = HeaderV1 {
+        let header = Header {
             magic: MAGIC,
             version: LAYOUT_VERSION,
             len: 0,
@@ -141,7 +141,7 @@ impl<T: Storable, M: Memory> Vec<T, M> {
     }
     pub fn init(memory: M) -> Result<Self, InitError> {
         assert!(memory.size() != 0, "Cannot load empty vector memory");
-        let header = HeaderV1::read(&memory);
+        let header = Header::read(&memory);
         if header.magic != MAGIC {
             return Err(InitError::BadMagic {
                 actual: header.magic,

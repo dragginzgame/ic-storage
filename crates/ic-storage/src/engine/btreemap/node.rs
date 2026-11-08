@@ -4,7 +4,7 @@
 use crate::engine::{
     Memory,
     btreemap::Allocator,
-    read_address_vec, read_struct, read_to_vec, read_u32, read_u64,
+    read_address_vec, read_struct, read_to_vec, read_u32,
     storable::Storable,
     types::{Address, Bytes},
     write,
@@ -14,7 +14,7 @@ use std::cell::OnceCell;
 
 mod io;
 
-mod v2;
+mod layout;
 
 use io::NodeReader;
 
@@ -23,7 +23,7 @@ use io::NodeReader;
 const B: usize = 6;
 // The maximum number of entries per node.
 const CAPACITY: usize = 2 * B - 1;
-const LAYOUT_VERSION_2: u8 = 2;
+const LAYOUT_VERSION: u8 = 2;
 const MAGIC: &[u8; 3] = b"BTN";
 const LEAF_NODE_TYPE: u8 = 0;
 const INTERNAL_NODE_TYPE: u8 = 1;
@@ -58,23 +58,11 @@ pub struct Node<K: Storable + Ord + Clone> {
     page_size: PageSize,
 
     // The address of the overflow page.
-    // In V2, a node can span multiple pages if it exceeds a certain size.
+    // A node can span multiple allocator pages when its encoded entries require them.
     overflows: Vec<Address>,
 }
 
 impl<K: Storable + Ord + Clone> Node<K> {
-    pub fn load<M: Memory>(address: Address, page_size: PageSize, memory: &M) -> Self {
-        // Load the header to determine which version the node is, then load the node accordingly.
-        let header: NodeHeader = read_struct(address, memory);
-        assert_eq!(&header.magic, MAGIC, "Bad magic.");
-        match header.version {
-            LAYOUT_VERSION_2 => Self::load_v2(address, page_size, header, memory),
-            unknown_version => unreachable!("Unsupported version {unknown_version}."),
-        }
-    }
-    pub fn save<M: Memory>(&mut self, allocator: &mut Allocator<M>) {
-        self.save_v2(allocator);
-    }
     pub const fn address(&self) -> Address {
         self.address
     }

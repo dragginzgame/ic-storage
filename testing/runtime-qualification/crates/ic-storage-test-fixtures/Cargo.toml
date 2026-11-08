@@ -9,6 +9,9 @@ publish = false
 [package.metadata.shared-tooling.loc]
 category = "tests"
 
+[package.metadata.cargo-machete]
+ignored = ["toko-tooling"]
+
 [dependencies]
 ic-wire.workspace = true
 serde.workspace = true
@@ -20,6 +23,7 @@ ic-platform-runtime = { workspace = true, features = ["cdk"] }
 ic-logging.workspace = true
 ic-logging-storage.workspace = true
 ic-storage = { workspace = true, features = ["test-support"] }
+toko-tooling.workspace = true
 
 [[example]]
 name = "wasm-io-qualification"

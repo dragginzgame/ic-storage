@@ -23,6 +23,11 @@ select affected approved groups, semantic-version increments and dependency orde
 and execute necessary preparation and delivery without per-command confirmation.
 Preparing code/notes, asking how to deploy or checking readiness does not itself
 authorize execution. Preserve explicit target restrictions and required protections.
+An unqualified deploy, ship or release applies only to the current repository;
+including sibling repositories requires an explicit cross-repository request.
+All three authorize both GitHub delivery and crates.io publication of affected
+publishable groups, without a second confirmation. Complete and verify both
+steps; GitHub delivery alone completes repositories with no publishable crates.
 Before execution, disclose the working checkout and branch, remote destination
 and release effects. A scoped deploy request authorizes direct integration-branch
 pushes under the linked contribution rules; alternate checkout locations still
@@ -173,8 +178,10 @@ The default `RELEASE_DELIVERY=direct` workflow is:
 These commands finish with the branch and tag on GitHub. They do not implicitly
 publish packages, create GitHub Release objects, deploy products, bump to another
 development version or clean build/evidence directories. Those actions retain
-their own commands; a scoped ship/deploy request may already authorize publication
-or deployment, so do not request separate approval again. Cleanup and unrelated
+their own commands; a scoped release/ship/deploy request authorizes crates.io
+publication of affected publishable crates, so complete that step without
+requesting separate approval. Product deployment follows its established target.
+Cleanup and unrelated
 effects remain outside that scope. Keep the finalized release at the
 top of the changelog until subsequent work needs a new numbered, undated pending
 entry under the [automatic next-version rules](../rules/changelogs.md).
@@ -356,6 +363,33 @@ may mutate metadata. Use `make release-resume VERSION=X.Y.Z` to continue that
 specific attempt. Explicit recovery reads only the selected plan and preserves
 its source, version, date, staged payload and destination checks. A normal
 command is not an alias for recovery, even at unchanged HEAD.
+
+### Read-only release journal query
+
+Consumer resume guards must use the runner's validated journal interface instead
+of reading positional lines:
+
+```bash
+perl scripts/ci/release-plan.pl \
+  --plan .git/release-state/engine-0.2.0.plan --group engine --version 0.2.0
+```
+
+Pass `--group ''` for an ungrouped release. The exact path may refer to a retained
+historical journal outside the active state directory. JSON includes `schema`,
+`source`, `phase`, `group`, `candidate`, `previous`, `kind`, `date`, `remote`,
+`branch`, `destination`, `tree` and `delivery`. Empty group/tree values remain
+empty strings. All four direct/PR and grouped/ungrouped version-1 journal schemas
+use the same parser as runner recovery. Early phases and completed plans are
+reported unchanged; the caller owns policy-drift decisions before resume.
+
+Unknown schemas, invalid fields, identity mismatches, extra/truncated records and
+symlinked paths fail with nonzero status and no JSON. The query reads the named
+file, validates syntax and returns saved values; it does not require the saved
+commit to remain reachable. It creates no lock, journal, ref or metadata and
+dispatches no hooks, network or delivery. It can run while a release lock exists.
+Successful projection is not authorization to resume or proof that its source
+matches current policy. `--records` is internal transport for the release runner;
+consumers use the default JSON interface.
 
 If preflight or validation fails, fix the inputs and run the normal target again.
 The complete gate runs against current HEAD, without reusing earlier validation.
@@ -731,8 +765,9 @@ The maintainer may execute delivery or delegate its outcome to an agent under
 selects the affected groups and commands for the scoped repository and established
 destination. Naming a version, preparing notes, completing validation or asking
 for push readiness alone is not that delegation. A delivery request covers the
-documented complete gate, version preparation, release commit, tag
-and selected delivery effects. Direct delivery includes the atomic branch/tag
+documented complete gate, version preparation, release commit, tag,
+GitHub delivery and crates.io publication of affected publishable groups.
+Direct delivery includes the atomic branch/tag
 push; PR delivery includes its branch/PR, fresh validation after an authorized
 merge, and exact tag push. Permission to fix code, create a commit, open a PR,
 push a topic branch or change a version alone is not permission to run this flow.

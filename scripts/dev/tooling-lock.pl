@@ -1,48 +1,77 @@
 #!/usr/bin/env perl
+# Cargo owns selection; this adapter admits the source-bundle dependency contract.
 use strict;
 use warnings;
 use JSON::PP;
-use File::Temp qw(tempfile);
-use File::Basename qw(dirname);
-my ($mode, $version, $path, $destination) = @ARGV;
-defined($path) && defined($version) && $version =~ /\A(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\z/
-    or die "Select an exact X.Y.Z version in root Cargo.toml tooling metadata.\n";
-my ($major, $minor) = split /\./, $version;
-($major > 0 || $minor >= 34) or die "root tooling selection requires toko-tooling 0.34.0 or later\n";
-my $json = JSON::PP->new->canonical;
-my $source = 'https://crates.io/crates/toko-tooling';
--f $path && !-l $path or die "expected regular file: $path\n";
-open my $fh, '<', $path or die "read $path: $!\n";
-my $record;
-if ($mode eq 'check') {
-    local $/;
-    $record = $json->decode(<$fh>);
-    ref($record) eq 'HASH' && keys(%$record) == 5
-        && ($record->{format} // '') eq '1'
-        && ($record->{name} // '') eq 'toko-tooling'
-        && ($record->{source} // '') eq $source
-        && ($record->{version} // '') eq $version
-        && ($record->{checksum} // '') =~ /\A[0-9a-f]{64}\z/
-        or die "tooling declaration and lock disagree or lock is invalid; run make shared-tooling-update\n";
-} elsif ($mode eq 'resolve') {
-    while (my $line = <$fh>) {
-        my $entry = $json->decode($line);
-        next unless ($entry->{vers} // '') eq $version;
-        !defined($record) or die "duplicate registry version\n";
-        ($entry->{name} // '') eq 'toko-tooling' && exists($entry->{yanked}) && !$entry->{yanked}
-            && ($entry->{cksum} // '') =~ /\A[0-9a-f]{64}\z/
-            or die "registry release is yanked or invalid\n";
-        $record = {format => 1, name => 'toko-tooling', source => $source,
-            version => $version, checksum => $entry->{cksum}};
+use Cwd qw(abs_path);
+my $json=JSON::PP->new->canonical;
+@ARGV == 1 or die "usage: tooling-lock.pl CONSUMER\n";
+my $root=abs_path($ARGV[0]) // die "missing consumer\n";
+chdir $root or die "cannot enter consumer: $!\n";
+sub command_json {
+    open my $fh, '-|', @_ or die "cannot run $_[0]: $!\n";
+    local $/; my $text=<$fh>;
+    close $fh or die "tooling admission command failed: $_[0]\n";
+    return $json->decode($text);
+}
+sub toml {
+    my $path=shift;
+    -f $path && !-l $path or die "expected regular file: $path\n";
+    return command_json('yq','-p','toml','-o','json','.',$path);
+}
+my $manifest=toml("$root/Cargo.toml");
+my $workspace=exists($manifest->{workspace});
+!exists($manifest->{workspace}{metadata}{'toko-tooling'})
+    && !exists($manifest->{package}{metadata}{'toko-tooling'})
+    && !-e "$root/toko-tooling.lock" && !-l "$root/toko-tooling.lock"
+    or die "Remove the old toko-tooling metadata tables and toko-tooling.lock; select tooling through Cargo dependencies and Cargo.lock.\n";
+my $selection=$workspace ? $manifest->{workspace}{dependencies}{'toko-tooling'}
+    : $manifest->{'dev-dependencies'}{'toko-tooling'};
+my $requirement;
+if (!ref($selection)) {$requirement=$selection;}
+elsif (ref($selection) eq 'HASH') {
+    !grep {$_ ne 'version' && $_ ne 'default-features'} keys %$selection
+        or die "toko-tooling must select crates.io directly, without aliases, paths, features or alternate registries\n";
+    $requirement=$selection->{version};
+}
+defined($requirement) && $requirement =~ /\A=((?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))\z/
+    or die "Declare toko-tooling = \"=X.Y.Z\" in root workspace.dependencies (or standalone dev-dependencies).\n";
+my $version=$1;
+my ($major,$minor)=split /\./,$version;
+($major>0 || $minor>=36) or die "Cargo-visible per-package tooling selection requires toko-tooling 0.36.0 or later\n";
+for my $registry (values %{$manifest->{patch} // {}}) {
+    for my $name (keys %$registry) {
+        my $entry=$registry->{$name};
+        $name ne 'toko-tooling' && !(ref($entry) eq 'HASH' && ($entry->{package}//'') eq 'toko-tooling')
+            or die "toko-tooling source overrides are not allowed\n";
     }
-    defined($record) or die "toko-tooling $version is not available in crates.io\n";
-    defined($destination) && !-l $destination && (!-e $destination || -f $destination)
-        or die "expected regular tooling lock destination\n";
-    my ($out, $temporary) = tempfile('.tooling-lock.XXXXXX', DIR => dirname($destination), UNLINK => 1);
-    print {$out} $json->pretty->encode($record) or die "write lock: $!\n";
-    close $out or die "close lock: $!\n";
-    chmod 0644, $temporary or die "lock mode: $!\n";
-    rename $temporary, $destination or die "publish lock: $!\n";
-} else { die "usage: tooling-lock.pl check|resolve VERSION INPUT [LOCK]\n"; }
-close $fh or die "close $path: $!\n";
-print $json->pretty(0)->encode($record), "\n";
+}
+my $metadata=command_json('cargo','metadata','--format-version','1','--no-deps','--locked','--offline','--manifest-path',"$root/Cargo.toml");
+$metadata->{workspace_root} eq $root or die "Run tooling admission at its Cargo workspace root\n";
+my %members=map {$_=>1} @{$metadata->{workspace_members}};
+my @packages=grep {$members{$_->{id}}} @{$metadata->{packages}};
+@packages or die "Tooling selection requires real Cargo packages; do not create selection-only helper crates\n";
+my $registry='registry+https://github.com/rust-lang/crates.io-index';
+for my $package (@packages) {
+    my $path=$package->{manifest_path};
+    my $member=toml($path);
+    if ($workspace) {
+        my $dep=$member->{'dev-dependencies'}{'toko-tooling'};
+        ref($dep) eq 'HASH' && keys(%$dep)==1 && JSON::PP::is_bool($dep->{workspace}) && $dep->{workspace}
+            or die "$path: every workspace package must declare [dev-dependencies] toko-tooling.workspace = true\n";
+    } else {
+        @packages==1 && $path eq "$root/Cargo.toml"
+            or die "A workspace must select toko-tooling in root workspace.dependencies\n";
+    }
+    my @deps=grep {$_->{name} eq 'toko-tooling'} @{$package->{dependencies}};
+    @deps==1 && ($deps[0]{kind}//'') eq 'dev' && !defined($deps[0]{target})
+        && !defined($deps[0]{rename}) && !defined($deps[0]{path})
+        && ($deps[0]{source}//'') eq $registry && $deps[0]{req} eq "=$version" && !$deps[0]{optional}
+        or die "$path: require exactly one unconditional crates.io toko-tooling dev-dependency at =$version\n";
+}
+my $lock=toml("$root/Cargo.lock");
+my @locked=grep {$_->{name} eq 'toko-tooling'} @{$lock->{package}//[]};
+@locked==1 && $locked[0]{version} eq $version && ($locked[0]{source}//'') eq $registry
+    && ($locked[0]{checksum}//'') =~ /\A[0-9a-f]{64}\z/
+    or die "Cargo.lock must select exactly one crates.io toko-tooling $version with its checksum; run cargo update -p toko-tooling\n";
+print $json->encode({version=>$version,checksum=>$locked[0]{checksum}}),"\n";

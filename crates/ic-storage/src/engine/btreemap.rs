@@ -4,7 +4,7 @@
 //! This module implements a key/value store based on a B-Tree
 //! in stable memory.
 //!
-//! # V2 layout
+//! # Memory layout
 //!
 //! ```text
 //! ---------------------------------------- <- Address 0
@@ -28,29 +28,6 @@
 //! ----------------------------------------
 //! ```
 //!
-//! # V1 layout
-//!
-//! ```text
-//! ---------------------------------------- <- Address 0
-//! Magic "BTR"                 ↕ 3 bytes
-//! ----------------------------------------
-//! Layout version              ↕ 1 byte
-//! ----------------------------------------
-//! Max key size                ↕ 4 bytes
-//! ----------------------------------------
-//! Max value size              ↕ 4 bytes
-//! ----------------------------------------
-//! Root node address           ↕ 8 bytes
-//! ----------------------------------------
-//! Length (number of elements) ↕ 8 bytes
-//! ---------------------------------------- <- Address 28 (PACKED_HEADER_SIZE)
-//! Reserved space              ↕ 24 bytes
-//! ---------------------------------------- <- Address 52 (ALLOCATOR_OFFSET)
-//! Allocator
-//! ----------------------------------------
-//! ... free memory for nodes
-//! ----------------------------------------
-//! ```
 mod allocator;
 mod iter;
 mod node;
@@ -68,13 +45,13 @@ use std::marker::PhantomData;
 use std::ops::RangeBounds;
 
 const MAGIC: &[u8; 3] = b"BTR";
-const LAYOUT_VERSION_2: u8 = 2;
+const LAYOUT_VERSION: u8 = 2;
 // The sum of all the header fields, i.e. size of a packed header.
 const PACKED_HEADER_SIZE: usize = 28;
 // The offset where the allocator begins.
 const ALLOCATOR_OFFSET: usize = 52;
 
-// The default page size to use in BTreeMap V2 in bytes.
+// The default page size to use in BTreeMap in bytes.
 const DEFAULT_PAGE_SIZE: u32 = 1024;
 
 // The current header marker for an explicit page size.
@@ -184,7 +161,7 @@ where
         }
 
         match buf[3] {
-            LAYOUT_VERSION_2 => {
+            LAYOUT_VERSION => {
                 // Load the page size.
                 let page_size = {
                     // Admit the current explicit page-size representation.
@@ -371,12 +348,7 @@ where
         self.length
     }
 
-    // TODO: In next major release (v1.0), remove this deprecated method and rename
-    // `clear_new` to `clear` for consistency with standard Rust collections.
-
-    // TODO: In next major release (v1.0), rename this method to `clear` to follow
-    // standard Rust collection naming conventions.
-    pub fn clear_new(&mut self) {
+    pub fn clear(&mut self) {
         self.root_addr = NULL;
         self.length = 0;
         self.allocator.clear();
@@ -795,8 +767,6 @@ where
         self.range_internal(key_range).into()
     }
 
-    // TODO: In next major release (v1.0), remove this deprecated method to clean up the API.
-
     pub fn keys(&self) -> KeysIter<'_, K, V, M> {
         self.iter_internal().into()
     }
@@ -829,7 +799,7 @@ where
         into
     }
     fn allocate_node(&mut self, node_type: NodeType) -> Node<K> {
-        Node::new_v2(self.allocator.allocate(), node_type, self.page_size)
+        Node::new(self.allocator.allocate(), node_type, self.page_size)
     }
     #[inline]
     fn deallocate_node(&mut self, node: Node<K>) {
@@ -861,7 +831,7 @@ where
         // Serialize the header
         let mut buf = [0; PACKED_HEADER_SIZE];
         buf[0..3].copy_from_slice(MAGIC.as_slice());
-        buf[3] = LAYOUT_VERSION_2;
+        buf[3] = LAYOUT_VERSION;
         buf[4..8].copy_from_slice(&header.page_size.get().to_le_bytes());
         buf[8..12].copy_from_slice(&PAGE_SIZE_VALUE_MARKER.to_le_bytes());
         buf[12..20].copy_from_slice(&header.root_addr.get().to_le_bytes());

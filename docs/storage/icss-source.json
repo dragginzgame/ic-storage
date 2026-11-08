@@ -65,7 +65,10 @@
     "No copied MemoryManager or default codecs; Storage application codecs remain unchanged",
     "Canonical Storage Memory and Bound; no duplicate backing bridge or bound checks",
     "BaseVec implementation consolidated in engine/vec.rs; persisted SVC1 unchanged",
-    "Direct node geometry and lazy objects; persisted BTR2/BTN2 unchanged"
+    "Direct node geometry and lazy objects; persisted BTR2/BTN2 unchanged",
+    "Combined BTN2 header and overflow-link read with validation and overflow traversal shared across key types",
+    "Read all internal-node child arrays with the existing direct address-vector reader; remove the small-count individual-read threshold",
+    "Role-based node/layout module and direct new/load/save methods; unversioned Header and header-size names, canonical clear, with persisted discriminators unchanged"
   ],
   "source_git_revision": "72b02ab65b6c6fbf53fbabf752732d2726539377",
   "crate_archive_sha256": "8ee3372ddc0cf2a747fc26ce2d075a240ed6bfab151e63bc70109e8967f7ce6f"

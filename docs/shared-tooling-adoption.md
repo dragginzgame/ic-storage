@@ -7,32 +7,33 @@ revision, selected roots, payload hashes and executable modes. The former
 live-policy exception is retired: dirty sibling rules never override the reviewed
 local baseline. Future policy changes require reviewed snapshot adoption.
 
-## Current root-owned 0.34 selection
+## Current Cargo-owned 0.36 selection
 
-Root `Cargo.toml` declares `[workspace.metadata.toko-tooling]` with exact
-`version = "0.34.0"`. `toko-tooling.lock` owns the crates.io archive checksum;
+Each maintained workspace root declares `toko-tooling = "=0.36.0"` in its
+`[workspace.dependencies]`. All ten real packages inherit the dependency in
+unconditional `[dev-dependencies]` and include the cargo-machete exemption.
+The normal Cargo lockfiles own the registry version and archive SHA-256;
 `.shared-tooling.snapshot` records the authenticated installed payload.
-The new installer was bootstrapped from `/home/adam/projects/toko-tooling`,
-using authenticated crates.io archives for both new bytes and previous registry
-ownership. Recorded entrypoints and consumer edits are preserved.
+There is no separate tooling lock, metadata selection or selection-only package.
+No Rust imports are needed: this dependency supplies source tooling.
 
-Use `make shared-tooling-update` after changing the root declaration intentionally.
-Use `make shared-tooling-install` to reinstall the existing lock. Offline
-`make shared-tooling-check` admits the declaration, lock and installed bytes;
-application Cargo updates neither select nor update tooling. Commit all three
-selection/receipt files together. CI uses the installed cache action.
+The producer's released installer bootstraps this migration, fetching payload
+bytes from crates.io. Its sibling checkout is not a payload or live-policy
+source. Existing entrypoints and local edits are preserved. After changing both
+exact pins, resolve their lockfiles with Cargo and use `make shared-tooling-update`;
+`make shared-tooling-install` reinstalls the selected version. Cargo builds do
+not install tooling. Root `shared-tooling-check` admits the installed snapshot and root members;
+`check-pins` also admits the independent qualification workspace through the
+same Cargo-selection helper and requires both selections to agree.
 
-The dependency-only member and its catalog, release-group, policy, fixture and
-archive-selection changes are removed. Real tools and tests stay in their
-existing packages. Cargo.lock contains no tooling package; its unrelated incoming
-dependency selections and the independent runtime lock remain unchanged. The
-three product groups retain their release and archive requirements. Consumer
-publication, qualification, preparation and batch-resume targets check tooling
-before effects. No release or publication is part of this maintenance.
+The 0.34 metadata table and `toko-tooling.lock` are removed. The previous
+selection-only package was already retired; real repository tools, all three
+product packages and all seven qualification packages remain. Historical
+adoption evidence and caches are retained. No sibling changes or deployment are
+authorized by this migration. Public release requirements remain unchanged.
 
-Evidence: `target/evidence/toko-tooling-034/`; prior attempted migration evidence
-remains under `target/evidence/toko-tooling-033/`. Qualification and any gaps are
-recorded in the current handoff.
+Evidence: `target/evidence/toko-tooling-036/`; qualification and remaining gaps
+are recorded in the current handoff.
 
 ## Previous 0.31.12 source selection
 

@@ -53,10 +53,12 @@ The [contribution rules](contributions.md) own implementation, PR, checkout and
 delivery authority. Use their [authorization table](contributions.md#agent-authorization)
 and [delegated delivery](contributions.md#delegated-delivery) contract rather than
 adding local approval gates. Direct edits are the default when a PR is optional;
-an unqualified deploy has the defined fleet scope.
+an unqualified deploy applies only to the current repository. Do not ask whether
+to include siblings; cross-repository delivery requires an explicit request.
 
 - Task-relevant sibling inspection is read-only and needs no separate permission.
-  Source contributions require destination/change scope; fleet delivery permits
+  Source contributions require destination/change scope; explicitly requested
+  cross-repository delivery permits
   release preparation in included normal checkouts after coordinating active work.
   Shared ownership or issue permission alone does not authorize sibling edits.
 - Carry established authorization forward. Complete necessary preparation before

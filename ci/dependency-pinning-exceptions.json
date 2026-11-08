@@ -1,1 +1,18 @@
-[]
+[
+  {
+    "file": "Cargo.toml",
+    "rule": "cargo-exact",
+    "subject": "toko-tooling",
+    "value": "=0.36.0",
+    "reason": "Toko Tooling 0.36 requires exact Cargo selection matching the authenticated executable snapshot; compatible ranges cannot admit that installation contract.",
+    "evidence": "docs/shared-tooling-adoption.md#current-cargo-owned-036-selection"
+  },
+  {
+    "file": "testing/runtime-qualification/Cargo.toml",
+    "rule": "cargo-exact",
+    "subject": "toko-tooling",
+    "value": "=0.36.0",
+    "reason": "Toko Tooling 0.36 requires exact Cargo selection matching the authenticated executable snapshot; compatible ranges cannot admit that installation contract.",
+    "evidence": "docs/shared-tooling-adoption.md#current-cargo-owned-036-selection"
+  }
+]

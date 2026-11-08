@@ -1,14 +1,13 @@
 // Adapted from ic-stable-structures 0.7.2, DFINITY Foundation.
 // SPDX-License-Identifier: Apache-2.0
 // See the package LICENSE-APACHE and docs/storage/icss-source.json.
-//! Node V2
+//! Node layout
 //!
-//! A v2 node is an iteration on a v1 node. Compared to a v1 node, it has a
-//! smaller memory footprint and support for unbounded types.
+//! Persisted node encoding with support for unbounded keys and values.
 //!
 //! # Memory Layout
 //!
-//! To support unbounded types, a v2 node is variable in size and can span multiple
+//! To support unbounded types, a node is variable in size and can span multiple
 //! pages of memory if needed [^note]. There are two types of pages:
 //!
 //! 1. Initial Page (the first page of the node)
@@ -75,9 +74,9 @@
 //! Wasm pages.
 
 use super::{
-    Address, Borrow, Bytes, Cow, INTERNAL_NODE_TYPE, LAYOUT_VERSION_2, LEAF_NODE_TYPE, LazyObject,
+    Address, Borrow, Bytes, Cow, INTERNAL_NODE_TYPE, LAYOUT_VERSION, LEAF_NODE_TYPE, LazyObject,
     MAGIC, Memory, Node, NodeHeader, NodeReader, NodeType, PageSize, Storable, U32_SIZE,
-    read_address_vec, read_struct, read_to_vec, read_u32, read_u64,
+    read_address_vec, read_struct, read_to_vec, read_u32,
 };
 use crate::engine::btreemap::Allocator;
 use crate::engine::{btreemap::node::io::NodeWriter, types::NULL};
@@ -98,7 +97,7 @@ pub(super) const PAGE_OVERFLOW_DATA_OFFSET: Bytes = Bytes::new(11);
 const MINIMUM_PAGE_SIZE: u32 = 128;
 
 impl<K: Storable + Ord + Clone> Node<K> {
-    pub fn new_v2(address: Address, node_type: NodeType, page_size: PageSize) -> Self {
+    pub fn new(address: Address, node_type: NodeType, page_size: PageSize) -> Self {
         assert!(page_size.get() >= MINIMUM_PAGE_SIZE);
 
         Self {
@@ -110,14 +109,9 @@ impl<K: Storable + Ord + Clone> Node<K> {
             overflows: Vec::new(),
         }
     }
-    pub(super) fn load_v2<M: Memory>(
-        address: Address,
-        page_size: PageSize,
-        header: NodeHeader,
-        memory: &M,
-    ) -> Self {
+    pub fn load<M: Memory>(address: Address, page_size: PageSize, memory: &M) -> Self {
         // Load the node, including any overflows, into a buffer.
-        let overflows = read_overflows(address, memory);
+        let (header, overflows) = read_header_and_overflows(address, memory);
 
         let reader = NodeReader {
             address,
@@ -141,24 +135,10 @@ impl<K: Storable + Ord + Clone> Node<K> {
         // Load children if this is an internal node.
         offset += ENTRIES_OFFSET;
         let children = if node_type == NodeType::Internal {
-            // Empirical constant from benchmarks: individual reads are faster for ≤4 children.
-            // From 5 up, batch reads consistently perform better.
-            const CHILDREN_BATCH_READ_THRESHOLD: usize = 4;
             let count = num_entries + 1;
-            if count <= CHILDREN_BATCH_READ_THRESHOLD {
-                // For very small counts, use individual reads to avoid allocation overhead
-                let mut children = Vec::with_capacity(count);
-                for _ in 0..count {
-                    children.push(Address::from(read_u64(&reader, offset)));
-                    offset += Address::size();
-                }
-                children
-            } else {
-                // For larger counts, use the optimized batch read
-                let children = read_address_vec(&reader, offset, count);
-                offset += Bytes::from(count) * Address::size();
-                children
-            }
+            let children = read_address_vec(&reader, offset, count);
+            offset += Bytes::from(count) * Address::size();
+            children
         } else {
             vec![]
         };
@@ -231,7 +211,7 @@ impl<K: Storable + Ord + Clone> Node<K> {
     }
 
     // Saves the node to memory.
-    pub(super) fn save_v2<M: Memory>(&mut self, allocator: &mut Allocator<M>) {
+    pub fn save<M: Memory>(&mut self, allocator: &mut Allocator<M>) {
         let page_size = self.page_size.get();
         assert!(page_size >= MINIMUM_PAGE_SIZE);
 
@@ -254,7 +234,7 @@ impl<K: Storable + Ord + Clone> Node<K> {
         let mut offset = Address::from(0);
         let header = NodeHeader {
             magic: *MAGIC,
-            version: LAYOUT_VERSION_2,
+            version: LAYOUT_VERSION,
             node_type: match self.node_type {
                 NodeType::Leaf => LEAF_NODE_TYPE,
                 NodeType::Internal => INTERNAL_NODE_TYPE,
@@ -318,15 +298,33 @@ impl<K: Storable + Ord + Clone> Node<K> {
     }
 }
 
-fn read_overflows<M: Memory>(address: Address, memory: &M) -> Vec<Address> {
+// Keep prefix admission and overflow traversal shared across key types. The
+// packed prefix is exactly the existing seven-byte header plus its eight-byte link.
+#[inline(never)]
+fn read_header_and_overflows<M: Memory>(
+    address: Address,
+    memory: &M,
+) -> (NodeHeader, Vec<Address>) {
+    #[repr(C, packed)]
+    struct Prefix {
+        header: NodeHeader,
+        overflow: Address,
+    }
     #[repr(C, packed)]
     struct OverflowPageHeader {
         magic: [u8; 3],
         next: Address,
     }
 
+    let prefix: Prefix = read_struct(address, memory);
+    assert_eq!(&prefix.header.magic, MAGIC, "Bad magic.");
+    match prefix.header.version {
+        LAYOUT_VERSION => {}
+        unknown_version => unreachable!("Unsupported version {unknown_version}."),
+    }
+
     let mut overflows = vec![];
-    let mut overflow = Address::from(read_u64(memory, address + OVERFLOW_ADDRESS_OFFSET));
+    let mut overflow = prefix.overflow;
     while overflow != NULL {
         overflows.push(overflow);
 
@@ -335,5 +333,8 @@ fn read_overflows<M: Memory>(address: Address, memory: &M) -> Vec<Address> {
         overflow = header.next;
     }
 
-    overflows
+    (prefix.header, overflows)
 }
+
+#[cfg(test)]
+mod tests;
