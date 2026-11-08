@@ -1,28 +1,42 @@
 # Current handoff — 2026-11-08
 
-## Pending delivery: Storage 0.70.0 and adapters
+## Delivered: IC Wire 0.18 and Storage 0.70.0
 
-Retain one byte-identical 15-byte node prefix write, with encoding shared across
-key types. Relative to delivered 0.69.1, 168/720 depth cells improve, 552 are equal
-and none regress; all 4,320 logical results match. Broad harness Wasm shrinks
-7,461 bytes; the small all-collection consumer grows 105 bytes. Public APIs,
-images and dependency selections were unchanged in that isolated experiment. Native tests (92 passed, one
-manual ignored), strict Clippy, seven ICSS interchange tests, all eight installed
-size probes and original/O3/Os/Oz IO/upgrade/rollback qualification pass.
-See [the comparison and reproduction](../audits/recurring/storage-prefix-write-2026-11-08.md).
-IC Wire 0.18.0 is selected in both maintained workspaces, changing public Wire
-type identities but not stored bytes. Both catalogs already explicitly select
-Serde derive; no retired bulk-lint calls exist here. Preserve the incoming root
-Metrics 0.29.7 lock selection. Select minor releases Storage 0.70.0, Metrics
-Storage 0.72.0 and Logging Storage 0.68.0 in supplier-first order. Full release
-gates remain required. Fresh installed original/O3/Os/Oz IO, upgrade and rollback
-qualification with Wire 0.18.0 passes (`target/qualification/runtime/attempt.KjxWiP`).
-All eight installed small-consumer comparisons also pass with Wire 0.18.0
-(`target/evidence/storage-consumer-size/attempt.vvN7pa`): every Storage Wasm
-size is unchanged from the prefix-write candidate; all-collection remains
-147,875 bytes versus ICSS 119,378. Admission, production graph, pin, formatting
-and documentation checks pass. Neither Platform nor PocketIC selection changed.
-The separate overflow-initialization experiment has not started.
+Batch `batch-gI8lVjJG` completed from reviewed source
+`e30bbaf91e8369cdd8ffee01d3078effda0d5160` in supplier-first order. All three
+groups passed all 12 required validation stages and final archive qualification.
+Downloaded crates.io archives match registry checksums, qualified receipts and
+clean embedded source identities; none is yanked. Remote main and all three
+annotated release tags match the delivered commits.
+
+| Package | Version | Release commit | Archive SHA-256 |
+| --- | --- | --- | --- |
+| ic-storage | 0.70.0 | `40584510391050c4e7aa7c5156793d3411e6223d` | `d229694cd4ea59afce7d203116c1ef38913707c1bc0b26ff0fea33ef103766a8` |
+| ic-metrics-storage | 0.72.0 | `5afe4592945aecb3668902f9c8acd1c5e4f77ee7` | `946eda45cc2090b275e970b0d1da2c1365c7ae9da9e86dda9c667873bda49bd4` |
+| ic-logging-storage | 0.68.0 | `43f224695d77946692553244981d8f998b73badf` | `e1f38f74688b47453f6b59b2d079add23b1401663d52ed03d8de0472edfed3d9` |
+
+IC Wire 0.18.0 is selected in both maintained workspaces. Hosts exchanging Wire
+limits/errors must align Wire, Storage and its adapters to the new Rust type
+identities. Stored directory/checkpoint bytes and budgets are unchanged; no reset
+or data migration is needed. Serde derive was already explicit and no removed
+bulk-lint API was used. The incoming root Metrics 0.29.7 lock update is preserved
+and qualified. Platform and PocketIC selections are unchanged.
+
+The retained combined B-tree prefix write improves 168/720 depth cells, with
+552 equal and no regressions; all 4,320 logical samples match. Broad benchmark
+Wasm shrinks 7,461 bytes and the small all-collection consumer grows 105 bytes in
+the isolated experiment. See [the comparison](../audits/recurring/storage-prefix-write-2026-11-08.md).
+Wire adoption adds no size change in any of the eight matched small-consumer
+fixtures: all-collection remains 147,875 bytes versus ICSS 119,378.
+
+Fresh original/O3/Os/Oz installed IO, upgrade and rollback qualification passes
+at `target/qualification/runtime/attempt.KjxWiP`; eight installed size comparisons
+pass at `target/evidence/storage-consumer-size/attempt.vvN7pa`. Release logs are
+`target/evidence/deploy-wire-018.log`, with independent registry/ref observations
+under `target/evidence/deploy-wire-018-verification/`. Batch recovery state,
+receipts and archives are retained. `make release-batch-reconcile` fast-forwarded
+the clean normal checkout; no sibling was changed or deployed. The separate
+overflow-initialization experiment has not started.
 
 ## Delivered: Storage 0.69.1 and adapters
 
