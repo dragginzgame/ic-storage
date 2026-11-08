@@ -1,107 +1,58 @@
 # Current handoff — 2026-11-08
 
-## Delivery preparation: 0.69.1 / 0.71.1 / 0.67.1
+## Delivered: Storage 0.69.1 and adapters
 
-The maintainer authorized this repository's deployment to origin/main and
-crates.io. Select the supplier-first `storage,metrics-storage,logging-storage`
-patch batch. Include the reviewed B-tree optimizations and naming cleanup,
-Toko Tooling 0.36 and IC Host 0.76 / IC Build 0.80. Root lockfile selection also
-includes the previously pending Runtime 0.20.2 and Wire 0.17.14 compatible patches;
-full product validation applies. No sibling changes or destructive migration.
-Final delivery identities and publication receipts must be verified after the
-shared frozen-batch runner completes. Earlier pending sections below describe
-pre-release development evidence, not a claim of completed publication.
+Batch `batch-WAJbiFwP` completed from reviewed source
+`ae1435c2cc0e9db6288e0c65697f29d1ed5b6d38`, releasing and publishing
+`storage,metrics-storage,logging-storage` in supplier-first order. All three
+groups passed all 12 required validation stages and final archive qualification.
+The remote main branch and annotated tags were independently checked. Downloaded
+crates.io archives match both registry checksums and final receipts; embedded
+clean VCS identities match release commits and none of these versions is yanked.
 
-## Pending: engine naming cleanup
+| Package | Version | Release commit | Archive SHA-256 |
+| --- | --- | --- | --- |
+| ic-storage | 0.69.1 | `502d18ca5749701041fc8828cef6955d32ae6e0d` | `66ae72c144ab3d906f08884e2173dd54754b10f8c35c5e31986b7d52fe85da4d` |
+| ic-metrics-storage | 0.71.1 | `4d227287ac323f6c8a3782aff9c0d6ed937dfbcc` | `1d71f6667b51eb0accd3eb520fb6491edf0263be6d00f32facfff2e8876d43ff` |
+| ic-logging-storage | 0.67.1 | `5610f9018227bee1a9bc4592f6ae462b48992d33` | `72d61a152dcffe9e847b5cebe1ef576faffa2d38bd2b8591db21412ff779ab73` |
 
-Remove inherited version-labelled engine modules and methods: `node/v2` becomes
-`node/layout`, load/save forwarding methods are removed, and `new_v2`,
-`HeaderV1`, `HEADER_V1_SIZE` and `clear_new` become `new`, `Header`, `HEADER_SIZE`
-and `clear`. Remove obsolete ICSS 1.0 TODOs and the unused old-layout diagram.
-Storage's pre-1.0 API is not named after ICSS's format history. Keep persisted
-format discriminators unchanged; no destructive migration was requested.
-Upstream file names/checksums remain in provenance, and historical ICSS findings
-retain the names of the implementation actually measured.
+Normal `main` was reconciled through `make release-batch-reconcile`; no deferred
+working changes remained. The batch checkout, durable recovery state, validation
+logs and archives are retained. No sibling repository was changed or deployed.
 
-Native tests (91), strict Clippy, ICSS image interchange (7), formatting and
-documentation checks pass. All eight small-consumer installed checks pass;
-all-collection Wasm grows by 9 bytes (maximum individual selection +16 bytes).
-No new timing claim; this is naming and module cleanup. Not deployed.
-Evidence: `target/evidence/storage-engine-naming/`.
+Delivered changes:
 
-## Pending: Cargo-owned Toko Tooling 0.36.0
+- Combined B-tree prefix reads and shared validation, plus one direct child-array
+  reader without the inherited small-node threshold. Both depth studies improved
+  552/720 cells with no regressions. The broad harness savings total 30,841 bytes
+  before naming cleanup; the final small all-collection consumer is 147,770 bytes,
+  141 bytes below the initial 147,911-byte baseline. See
+  [the measured scope and ICSS comparisons](../audits/recurring/storage-shared-prefix-2026-11-08.md).
+- Role-based engine naming (`node/layout`, direct `new`/`load`/`save`, `Header`,
+  `HEADER_SIZE`, `clear`) without public API or persisted-discriminator changes.
+  Native/interchange tests and all eight installed size comparisons passed.
+- Cargo-owned Toko Tooling 0.36.0 across all ten real packages and both maintained
+  workspaces. Its authenticated snapshot retains all 83 entrypoints. The separate
+  tooling lock and metadata selection are removed. Common CI/release and custom
+  deployment entrypoints admit the root snapshot; `check-pins` additionally checks
+  independent-workspace member declarations and matching selection.
+- IC Host Artifacts/FS/Process 0.76.0 with IC Build 0.80.0 and its matching installed
+  metadata CLI. Native tooling has one Host family. Previously pending compatible
+  root-lock Runtime 0.20.2 and Wire 0.17.14 selections are included and qualified;
+  the independent runtime workspace retains its existing registry selections.
 
-Both maintained workspace roots select `toko-tooling = "=0.36.0"`. All ten real
-packages inherit it as an unconditional dev-dependency with a cargo-machete
-exemption. Cargo added only that package and the ten member edges, preserving
-all existing versions, checksums and unrelated pending lockfile work.
-The obsolete metadata table and separate tooling lock are deleted; the previous
-selection-only package was already absent. Real tools and qualification packages
-remain. No artificial imports, aliases, source overrides or sibling edits.
+No storage migration or destructive reset is required. Instruction figures are
+inner-loop benchmark results, not whole-call throughput. Storage's small-consumer
+Wasm remains larger than ICSS; no universal performance or size parity is claimed.
+Development installed original/O3/Os/Oz IO/upgrade/rollback qualification preceded
+the final naming-only change; naming was checked by native/interchange and installed
+size tests. Release gates passed without bypasses; no new hosted CI claim is made.
 
-The producer bootstrap installed crates.io payload SHA-256
-`de0dd05b6437061622a76942baa25d40d2181497e7ba66d9fd809132a3082936`:
-170 owned files, with existing entrypoints retained, and installed tools admitted.
-`shared-tooling-check` admits root membership and snapshot identity before common
-CI/release and custom deployment effects. Consumer `check-pins` also admits all
-seven independent-workspace members and requires the two Cargo selections to
-agree. Two documented pin exceptions satisfy the generic compatible-range checker
-without modifying snapshot-owned policy or checkers.
-
-Validation passes: installed snapshot/tools and all ten member declarations,
-83 preserved entrypoints, both lockfiles' unrelated-selection preservation,
-normal/build native and Wasm production graphs, dependency pins, documentation
-links and formatting. Consumer release dispatch/failure propagation and all
-three actual native/shared release file plans pass. A substituted mismatched
-independent-workspace selection refuses before pin checks. The initial fixture
-failure is retained; the independent admission belongs in `check-pins`, preserving
-the canonical shared dispatch fixture unchanged. Full product release and
-installed runtime qualification were not rerun for this tooling-only migration.
-
-Adoption evidence: `target/evidence/toko-tooling-036/`. Product compiler, package
-versions and production dependency graphs remain unchanged. No deployment or
-publication is included; product release qualification remains required.
-
-## Pending: IC Host 0.76 and compatible IC Build 0.80
-
-Adopt published `ic-host-artifacts`, `ic-host-fs` and `ic-host-process` 0.76.0
-with IC Build 0.80.0. The root catalog and lock select one Host family; the
-release-metadata CLI selection in `ci/release-tools.env` is 0.80.0 and its
-prepared executable is admitted. No compatibility adapters or aliases are needed.
-The earlier IC Build 0.79.1 public-type blocker is resolved by 0.80.0.
-
-The lock changes only these suppliers and IC Build's required HMAC 0.13 / SHA-2
-0.11 dependency closure. Existing SHA-2 0.10 remains where required. Other pending
-selections, Toko Tooling 0.36 and the independent runtime lock are preserved.
-These are native test/tool dependencies, excluded from product normal/build
-Wasm graphs. No product API or persisted-state change; package versions are unchanged.
-
-Validation passes: all 88 native repository-helper tests, strict helper Clippy,
-all three native/shared release-group file-plan comparisons, installed release
-tool admission, shared snapshot/member admission, dependency pins, native/Wasm
-production graphs and formatting. Full release qualification and installed runtime
-benchmarks were not rerun for this native-tool-only dependency change.
-
-Evidence: `target/evidence/ic-host-076-adoption/`; the failed earlier attempt
-remains under `target/evidence/ic-host-076/`. No deployment or publication.
-
-## Pending: shared B-tree prefix and child-array readers
-
-Retain combined 15-byte node-prefix IO with key-independent outlined validation
-and overflow traversal. No API, stored-image or allocation changes. Matched depth
-comparison: 552/720 cells improve, 168 unchanged, none regress; broad harness
-Wasm -16,278 bytes, all-collection small consumer +41 bytes. Native tests (91),
-ICSS image interchange (7), strict Clippy and installed original/O3/Os/Oz
-IO/upgrade/rollback pass. Two lease-index alternatives were measured and reverted.
-See [the evidence and reproduction commands](../audits/recurring/storage-shared-prefix-2026-11-08.md).
-Follow-through removes the inherited small-child threshold, using the existing
-single-allocation address reader for every internal node. Relative to the prefix
-step: 552/720 cells improve, none regress, up to 5.59%; broad Wasm -14,563 bytes,
-small all-collection consumer -191 bytes. The same native, Clippy, interchange,
-size and original/O3/Os/Oz lifecycle qualification passes for the combined code.
-Combined broad Wasm saving is 30,841 bytes; small all-collection saving is 150 bytes.
-Not committed or deployed; the unrelated incoming root lockfile remains unchanged.
-Full release qualification remains required before publication.
+Evidence: `target/evidence/deploy-0691.log`,
+`target/evidence/deploy-0691-verification/`, and
+`target/release-frozen/batch-WAJbiFwP/target/release-validation/`.
+Durable batch intent/Git state remains in `.git/release-state/frozen/batch-WAJbiFwP`.
+Earlier experiment, tooling-adoption and failed Host-adoption evidence is retained.
 
 ## Historical delivery: Toko Tooling 0.34.0
 
@@ -112,7 +63,7 @@ remains in `target/evidence/toko-tooling-034/` and
 `target/evidence/toko-tooling-034-delivery/`; prior failed migration evidence is
 also retained. Deferred unrelated dependency updates were excluded from delivery.
 
-## Delivered: Storage 0.69 and adapters
+## Previous delivery: Storage 0.69 and adapters
 
 Batch `batch-T85dkYEj` released and published all three groups from source
 `13826544bebcc2f5043aaee65291477570ea26a0`, in supplier-first order.
