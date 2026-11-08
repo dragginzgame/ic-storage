@@ -310,7 +310,7 @@ checksum = "edd7cdf5798dc7830346a971d33a9790073d769d676d8902af3f5928a3a434f7"
 
 [[package]]
 name = "ic-storage"
-version = "0.68.10"
+version = "0.68.11"
 dependencies = [
  "clap",
  "ic-build",

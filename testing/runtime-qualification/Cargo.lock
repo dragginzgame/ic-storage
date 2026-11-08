@@ -889,7 +889,7 @@ dependencies = [
 
 [[package]]
 name = "ic-storage"
-version = "0.68.10"
+version = "0.68.11"
 dependencies = [
  "ic-platform-runtime",
  "ic-wire",
