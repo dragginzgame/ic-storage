@@ -1,4 +1,4 @@
-# Current handoff — 2026-11-07
+# Current handoff — 2026-11-08
 
 ## Delivered: Storage 0.68.8
 
@@ -108,7 +108,7 @@ See [Storage](../../releases/storage/0.68.md),
 
 ## Current tooling and comparison evidence
 
-Delivered **Storage 0.68.8** keeps borrowed u8/bool encodings with unchanged decoders/APIs/images. The [codec study](../audits/recurring/storage-byte-codecs-2026-11-07.md) records 183/531/2 improved/equal/regressed affected-role handler cells, unchanged 712 depth controls and Wasm −1,520 bytes; worst median/individual-round regressions are 0.068%/0.133%. Development comparisons and full release/installed qualification pass. Evidence: `target/evidence/storage-byte-codecs/` and the delivery record above. Incoming root Wire 0.17.12 remains unadopted and preserved.
+Pending **Storage 0.68.9** keeps combined Vector header IO and shared framing admission, with no API/image change. The [opening study](../audits/recurring/storage-vector-open-2026-11-08.md) records 704/0/0 improved/equal/regressed reopen handler cells (−689 instructions each), unchanged 712 depth controls, benchmark Wasm −22,199 bytes and consumer fixture +96 bytes. Native admission/IO, ICSS interoperability, benchmark/lint and installed original Storage upgrade/rollback pass. Evidence: `target/evidence/storage-vector-open/`, baseline `attempt.LcZri5`, candidate `attempt.ClisQS`. Deployment authorized: Storage-only patch to origin/main and crates.io; qualification and publication pending. Root Wire 0.17.12 remains unrelated, unadopted and preserved; delivered 0.68.8 codec evidence remains in the [codec study](../audits/recurring/storage-byte-codecs-2026-11-07.md).
 Shared Tooling 0.31.0 remains selected; [adoption boundaries](../shared-tooling-adoption.md) retain its proof. The [node-load study](../audits/recurring/storage-node-loads-2026-11-07.md) rejects all three earlier trials; those source changes remain reverted. Evidence stays under `target/evidence/storage-{sibling-load,split-load,split-owned}/`; isolate population/heap-page effects before more node-lifetime changes.
 Released 0.68.8 selects Runtime 0.20.0 in both locks; released root Wire is 0.17.11 (unused opt-in bool adapter), benchmark remains 0.17.6. Composition selects Runtime directly; native production excludes Runtime/Types and Wasm selects IC0 only. No API/layout change.
 Dependency graph/lint, native composition, pins/boundaries/formatting and installed original/O3/Os/Oz IO/upgrade/rollback/Logging pass. Evidence: `target/evidence/runtime-020-adoption/`, installed `target/qualification/runtime/attempt.AeDrGP/`; unchanged PocketIC pairing and ICSS supplier.

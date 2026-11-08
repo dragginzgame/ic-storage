@@ -70,9 +70,6 @@ fn read_address_vec<M: Memory>(m: &M, addr: Address, count: usize) -> std::vec::
     }
     addresses
 }
-fn write_u32<M: Memory>(m: &M, addr: Address, val: u32) {
-    write(m, addr.get(), &val.to_le_bytes());
-}
 fn write_u64<M: Memory>(m: &M, addr: Address, val: u64) {
     write(m, addr.get(), &val.to_le_bytes());
 }

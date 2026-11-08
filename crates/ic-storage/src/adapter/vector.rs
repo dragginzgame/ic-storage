@@ -4,6 +4,7 @@ use super::{
     bridge::{self, Backing, Codec},
     error::{CollectionError as Error, Result, ensure},
 };
+use crate::engine::vec::InitError;
 use crate::{DefaultMemoryImpl, RuntimeMemory, engine};
 
 ///
@@ -37,15 +38,19 @@ impl<T: Storable, M: Memory> StableVec<T, M> {
     }
     /// Load the current SVC format without initialization.
     /// # Errors
-    /// Refuses empty/foreign framing; engine/codec failures trap.
+    /// Refuses empty/foreign framing.
+    /// # Panics
+    /// Traps if the persisted element bounds do not match the selected type.
     pub fn load(memory: RuntimeMemory<M>) -> Result<Self> {
         ensure(memory.size() != 0, Error::Format)?;
-        let mut marker = [0; 4];
-        memory.read(0, &mut marker);
-        ensure(&marker == b"SVC\x01", Error::Format)?;
-        Ok(Self {
-            inner: engine::vec::Vec::init(Backing(memory)),
-        })
+        let inner = match engine::vec::Vec::init(Backing(memory)) {
+            Ok(vector) => vector,
+            Err(InitError::BadMagic { .. } | InitError::IncompatibleVersion(_)) => {
+                return Err(Error::Format);
+            }
+            Err(error) => panic!("Failed to initialize a vector: {error:?}"),
+        };
+        Ok(Self { inner })
     }
     /// Read one indexed record; malformed stored bytes trap.
     /// # Errors

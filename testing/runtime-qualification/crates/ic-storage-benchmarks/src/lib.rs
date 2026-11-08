@@ -39,10 +39,13 @@ pub struct Initialization {
     pub upstream_cache_slots: usize,
     pub upstream_bucket_pages: std::num::NonZeroU16,
     pub cold_cache: bool,
+    /// Keep the allocation owner, but reopen the Vector for each request.
+    pub vector_open: bool,
 }
 
 pub const SETUP_ID: u64 = 1;
 pub const RUN_ID: u64 = 2;
+pub const INIT_COST_ID: u64 = 4;
 pub const LIMITS: ic_wire::Limits = ic_wire::Limits {
     bytes: 8 * 1024 * 1024,
     // Wire conservatively charges visited byte references as well as buffers.

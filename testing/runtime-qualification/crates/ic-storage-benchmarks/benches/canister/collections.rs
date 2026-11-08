@@ -107,8 +107,8 @@ impl<K: BenchKey + Storable> Benchmark for TypedSet<K> {
 }
 
 pub(super) struct TypedVector<V: BenchValue + Storable> {
-    case: Case,
-    vector: Vector<V>,
+    pub(super) case: Case,
+    pub(super) vector: Vector<V>,
 }
 impl<V: BenchValue + Storable> TypedVector<V> {
     pub(super) fn new(case: Case, bucket_pages: std::num::NonZeroU16) -> Self {

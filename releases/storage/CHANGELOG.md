@@ -3,6 +3,15 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/persistence/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.68.9] - Unreleased
+
+### ⚡ Performance
+
+- Combine Vector header reads/writes and reuse engine framing admission. Preserve
+  public APIs, stored bytes and failure behavior; reduce reopen instructions and
+  benchmark Wasm size. Add a matched reopen/initialization workload against ICSS
+  and buffer large population reports. [Details](0.68.md).
+
 ## [0.68.8] - 2026-11-07
 
 ### ⚡ Performance

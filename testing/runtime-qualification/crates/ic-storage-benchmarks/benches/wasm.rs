@@ -4,7 +4,7 @@ mod canister {
     use ic_platform_runtime::ic0;
     use ic_storage_benchmarks::*;
     use serde::{Serialize, de::DeserializeOwned};
-    use std::cell::RefCell;
+    use std::cell::{Cell, RefCell};
 
     #[cfg(any(
         all(feature = "owned", any(feature = "dfinity", feature = "dfinity-head")),
@@ -22,6 +22,7 @@ mod canister {
     #[cfg(any(feature = "dfinity", feature = "dfinity-head"))]
     use ic_storage_benchmarks::upstream::Storable;
     thread_local! { static MAP: RefCell<Option<Box<dyn Benchmark>>> = const { RefCell::new(None) }; }
+    thread_local! { static INITIALIZATION_COST: Cell<u64> = const { Cell::new(0) }; }
 
     // A failed Storage operation fails the benchmark; upstream reports failures
     // through traps. Successful-path admission stays inside the timed operation.
@@ -95,25 +96,30 @@ mod canister {
             self.0.write(offset, bytes);
         }
     }
+    #[cfg(any(feature = "owned", feature = "dfinity-governed"))]
+    fn new_runtime() -> ic_storage::MemoryRuntime<ic_storage::DefaultMemoryImpl> {
+        use ic_storage::*;
+        let mut runtime = MemoryRuntime::new(DefaultMemoryImpl::default()).unwrap();
+        let requests = SealedDeclarationSnapshot::new(vec![
+            MemoryRequest::new("benchmark", "benchmark.rows.v1").unwrap(),
+        ])
+        .unwrap();
+        let grants = AllocationGrants::new(vec![
+            MemoryAuthority::new("benchmark", "benchmark.").unwrap(),
+        ])
+        .unwrap();
+        runtime
+            .bootstrap(&requests, &grants, &GenericAllocationPolicy)
+            .unwrap();
+        runtime
+    }
     fn new_memory(bucket_pages: std::num::NonZeroU16) -> BenchMemory {
         #[cfg(any(feature = "owned", feature = "dfinity-governed"))]
         {
             let _ = bucket_pages;
-            use ic_storage::*;
-            let mut runtime = MemoryRuntime::new(DefaultMemoryImpl::default()).unwrap();
-            let requests = SealedDeclarationSnapshot::new(vec![
-                MemoryRequest::new("benchmark", "benchmark.rows.v1").unwrap(),
-            ])
-            .unwrap();
-            let grants = AllocationGrants::new(vec![
-                MemoryAuthority::new("benchmark", "benchmark.").unwrap(),
-            ])
-            .unwrap();
-            runtime
-                .bootstrap(&requests, &grants, &GenericAllocationPolicy)
-                .unwrap();
+            let runtime = new_runtime();
             let memory = runtime
-                .open_memory(&StableKey::parse("benchmark.rows.v1").unwrap())
+                .open_memory(&ic_storage::StableKey::parse("benchmark.rows.v1").unwrap())
                 .unwrap();
             #[cfg(feature = "owned")]
             {
@@ -169,15 +175,25 @@ mod canister {
     }
     mod collections;
     mod matrix;
+    mod vector_open;
     use collections::{Region, TypedCell, TypedSet, TypedVector};
     #[unsafe(export_name = "canister_init")]
     extern "C" fn init() {
+        let start = ic0::performance_counter(0);
+        initialize();
+        INITIALIZATION_COST.with(|cost| cost.set(ic0::performance_counter(0) - start));
+    }
+    fn initialize() {
         // Refusal probes must identify the violated bound, rather than treating
         // every unreachable trap as the expected incompatibility. The hook is
         // outside measured operations and only runs on failure.
         std::panic::set_hook(Box::new(|info| ic0::trap(info.to_string().as_bytes())));
         let settings: Initialization = argument(0);
         let case = settings.case;
+        if settings.vector_open {
+            MAP.with(|slot| *slot.borrow_mut() = Some(vector_open::new(settings)));
+            return;
+        }
         macro_rules! typed {
             ($key:ty, $value:ty) => {
                 Box::new(TypedMap::<$key, $value> {
@@ -348,6 +364,11 @@ mod canister {
             )),
         };
         MAP.with(|slot| *slot.borrow_mut() = Some(map));
+    }
+    #[unsafe(export_name = "canister_query initialization_cost")]
+    extern "C" fn initialization_cost() {
+        argument::<()>(INIT_COST_ID);
+        INITIALIZATION_COST.with(|cost| reply(INIT_COST_ID, &cost.get()));
     }
     #[unsafe(export_name = "canister_update setup")]
     extern "C" fn setup() {

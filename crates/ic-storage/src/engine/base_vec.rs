@@ -37,7 +37,7 @@
 use crate::engine::storable::{bounds, bytes_to_store_size_bounded};
 use crate::engine::{
     Address, GrowFailed, Memory, Storable, read_to_vec, read_u32, read_u64, safe_write, write,
-    write_u32, write_u64,
+    write_u64,
 };
 use std::borrow::{Borrow, Cow};
 use std::cmp::min;
@@ -56,6 +56,31 @@ struct HeaderV1 {
     len: u64,
     max_size: u32,
     is_fixed_size: bool,
+}
+
+impl HeaderV1 {
+    // Keep the active header in one IO range without touching reserved bytes.
+    fn write<M: Memory>(&self, memory: &M) -> Result<(), GrowFailed> {
+        let mut bytes = [0; 17];
+        bytes[..3].copy_from_slice(&self.magic);
+        bytes[3] = self.version;
+        bytes[4..12].copy_from_slice(&self.len.to_le_bytes());
+        bytes[12..16].copy_from_slice(&self.max_size.to_le_bytes());
+        bytes[16] = u8::from(self.is_fixed_size);
+        safe_write(memory, 0, &bytes)
+    }
+
+    fn read<M: Memory>(memory: &M) -> Self {
+        let mut bytes = [0; 17];
+        memory.read(0, &mut bytes);
+        Self {
+            magic: bytes[..3].try_into().unwrap(),
+            version: bytes[3],
+            len: u64::from_le_bytes(bytes[4..12].try_into().unwrap()),
+            max_size: u32::from_le_bytes(bytes[12..16].try_into().unwrap()),
+            is_fixed_size: bytes[16] != 0,
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -105,7 +130,7 @@ impl<T: Storable, M: Memory> BaseVec<T, M> {
             max_size: t_bounds.max_size,
             is_fixed_size: t_bounds.is_fixed_size,
         };
-        Self::write_header(&header, &memory)?;
+        header.write(&memory)?;
         Ok(Self {
             memory,
             _marker: PhantomData,
@@ -113,7 +138,7 @@ impl<T: Storable, M: Memory> BaseVec<T, M> {
     }
     pub fn init(memory: M, magic: [u8; 3]) -> Result<Self, InitError> {
         assert!(memory.size() != 0, "Cannot load empty vector memory");
-        let header = Self::read_header(&memory);
+        let header = HeaderV1::read(&memory);
         if header.magic != magic {
             return Err(InitError::BadMagic {
                 actual: header.magic,
@@ -269,35 +294,6 @@ impl<T: Storable, M: Memory> BaseVec<T, M> {
             (offset + 4, size as usize)
         }
     }
-    fn write_header(header: &HeaderV1, memory: &M) -> Result<(), GrowFailed> {
-        safe_write(memory, 0, &header.magic)?;
-        memory.write(3, &[header.version; 1]);
-        write_u64(memory, Address::from(4), header.len);
-        write_u32(memory, Address::from(12), header.max_size);
-        memory.write(16, &[u8::from(header.is_fixed_size); 1]);
-        Ok(())
-    }
-    fn read_header(memory: &M) -> HeaderV1 {
-        debug_assert!(memory.size() > 0);
-
-        let mut magic = [0u8; 3];
-        let mut version = [0u8; 1];
-        let mut is_fixed_size = [0u8; 1];
-        memory.read(0, &mut magic);
-        memory.read(3, &mut version);
-        let len = read_u64(memory, Address::from(LEN_OFFSET));
-        let max_size = read_u32(memory, Address::from(12));
-        memory.read(16, &mut is_fixed_size);
-
-        HeaderV1 {
-            magic,
-            version: version[0],
-            len,
-            max_size,
-            is_fixed_size: is_fixed_size[0] != 0,
-        }
-    }
-
     pub fn to_vec(&self) -> Vec<T> {
         self.iter().collect()
     }

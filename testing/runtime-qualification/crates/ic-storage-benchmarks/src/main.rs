@@ -77,9 +77,9 @@ struct Measurement {
 }
 type Samples = BTreeMap<(Case, u32, u32, Pattern, String, String), Vec<Measurement>>;
 fn phases(case: Case, growth_cycles: bool, workload: Option<Workload>) -> Vec<(String, Operation)> {
-    if matches!(workload, Some(Workload::VectorReads)) {
+    if matches!(workload, Some(Workload::VectorReads | Workload::VectorOpen)) {
         assert!(!growth_cycles && case.structure() == "Vector");
-        return [
+        let mut phases: Vec<_> = [
             ("Get", Operation::Get),
             ("Set", Operation::Set),
             ("GetAfterSet", Operation::Get),
@@ -91,6 +91,10 @@ fn phases(case: Case, growth_cycles: bool, workload: Option<Workload>) -> Vec<(S
         .into_iter()
         .map(|(name, op)| (name.into(), op))
         .collect();
+        if matches!(workload, Some(Workload::VectorOpen)) {
+            phases.insert(0, ("OpenControl".into(), Operation::Control));
+        }
+        return phases;
     }
     if growth_cycles {
         return [
@@ -171,9 +175,14 @@ fn validate_diagnostics(args: &Arguments) -> Result<(), &'static str> {
         if args.trace_stable_reads {
             return Err("read probes require --workload vector-reads or depth");
         }
-        if args.trace_execution_cost && !matches!(args.workload, None | Some(Workload::Ordered)) {
+        if args.trace_execution_cost
+            && !matches!(
+                args.workload,
+                None | Some(Workload::Ordered | Workload::VectorOpen)
+            )
+        {
             return Err(
-                "execution probes require custom cases or --workload vector-reads, depth or ordered",
+                "execution probes require custom cases or --workload vector-reads, vector-open, depth or ordered",
             );
         }
     }
@@ -192,7 +201,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .into(),
         );
     }
-    if matches!(args.workload, Some(Workload::AuthLookups | Workload::Depth)) {
+    if matches!(
+        args.workload,
+        Some(Workload::AuthLookups | Workload::Depth | Workload::VectorOpen)
+    ) {
         let auth = matches!(args.workload, Some(Workload::AuthLookups));
         let populations: &[u32] = if auth {
             &LOOKUP_POPULATIONS
@@ -266,7 +278,8 @@ fn combine_populations(
             }
         }
     }
-    let mut raw = fs::File::create(root.join("samples.jsonl"))?;
+    // JSON values stream many small writes; buffer large population reports.
+    let mut raw = std::io::BufWriter::new(fs::File::create(root.join("samples.jsonl"))?);
     for (report, mode, rows) in reports {
         use std::io::BufRead as _;
         let input = std::io::BufReader::new(fs::File::open(report.join("samples.jsonl"))?);
@@ -278,11 +291,15 @@ fn combine_populations(
             writeln!(raw, "{record}")?;
         }
     }
+    raw.flush()?;
     Ok(())
 }
 fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
     if let Some(workload) = args.workload {
-        if !matches!(workload, Workload::AuthLookups | Workload::Depth) {
+        if !matches!(
+            workload,
+            Workload::AuthLookups | Workload::Depth | Workload::VectorOpen
+        ) {
             args.rows = workload.rows();
         }
         args.cases = workload.cases().iter().map(|case| case.label()).collect();
@@ -350,6 +367,8 @@ fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
             "instrumented_stable_reads": args.trace_stable_reads,
             "instrumented_allocator_accesses": args.trace_allocator_accesses,
             "instrumented_execution_cost": args.trace_execution_cost,
+            "vector_open": matches!(args.workload, Some(Workload::VectorOpen)),
+            "vector_open_measurement": "allocation owner retained; lease/Vector opening, existing operation preparation/result conversion and Vector/lease drop inside the timer; initialization separately includes the complete init handler",
             "read_trace_batch_limit": (args.trace_stable_reads && matches!(args.workload, Some(Workload::Depth))).then_some(1),
             "execution_measurement": args.trace_execution_cost.then_some("exported benchmark handler including request decoding, input preparation, collection loop, response encoding/reply and cleanup; includes boundary probe overhead; excludes installation/population and host execution setup"),
             "execution_mode": if args.query {"query"} else {"update"}, "rows": args.rows, "structures": ["Map","Set","Vector","Cell","Region"], "samples": args.samples, "cases": cases.iter().map(|case| serde_json::json!({"case":case, "key_type":case.key_type(), "value_type":case.value_type(), "key_bound":case.key_bound(), "value_bound":case.value_bound(), "logical_value_bytes":payloads(*case), "structure":case.structure(), "operations":case.operations(), "phases":phases(*case,args.growth_cycles,args.workload), "payload_scope":match case {Case::Typed{value,..}=>value.payload_scope(),_=>"logical-value-bytes"}, "population_rows":case.rows(args.rows)})).collect::<Vec<_>>(), "batch_sizes": batches, "workload": args.workload,
@@ -452,11 +471,34 @@ fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
                                         upstream_cache_slots: args.upstream_cache_slots,
                                         upstream_bucket_pages: args.upstream_bucket_pages,
                                         cold_cache: args.cold_cache,
+                                        vector_open: matches!(
+                                            args.workload,
+                                            Some(Workload::VectorOpen)
+                                        ),
                                     },
                                     LIMITS,
                                 )?,
                                 None,
                             )?;
+                            if matches!(args.workload, Some(Workload::VectorOpen)) {
+                                let bytes = pic.query_call(
+                                    canister,
+                                    ExternalPrincipal::anonymous(),
+                                    "initialization_cost",
+                                    ic_wire::native::encode_request(INIT_COST_ID, &(), LIMITS)?,
+                                )?;
+                                let instructions: u64 =
+                                    ic_wire::native::decode_response(INIT_COST_ID, &bytes, LIMITS)?;
+                                let mut output = fs::OpenOptions::new()
+                                    .create(true)
+                                    .append(true)
+                                    .open(args.output.join("initialization.jsonl"))?;
+                                writeln!(
+                                    output,
+                                    "{}",
+                                    serde_json::json!({"backend":name,"case":case.label(),"payload":payload,"rows":args.rows,"batch":count,"pattern":pattern,"sample":sample,"instructions":instructions})
+                                )?;
+                            }
                             let ids = population(
                                 case.rows(args.rows),
                                 args.shuffled
@@ -836,6 +878,7 @@ fn probe_refusal(
         upstream_cache_slots: 0,
         upstream_bucket_pages: bucket,
         cold_cache: false,
+        vector_open: false,
     };
     let installed = pic.install_canister(
         canister,

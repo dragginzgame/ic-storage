@@ -5,6 +5,7 @@
 
 use crate::engine::Memory;
 use crate::engine::base_vec::BaseVec;
+pub use crate::engine::base_vec::InitError;
 use crate::engine::storable::Storable;
 use std::fmt;
 
@@ -21,10 +22,8 @@ impl<T: Storable, M: Memory> Vec<T, M> {
             .map(Self)
             .expect("Failed to create a new vector")
     }
-    pub fn init(memory: M) -> Self {
-        BaseVec::<T, M>::init(memory, MAGIC)
-            .map(Self)
-            .expect("Failed to initialize a vector")
+    pub fn init(memory: M) -> Result<Self, InitError> {
+        BaseVec::<T, M>::init(memory, MAGIC).map(Self)
     }
 
     pub fn is_empty(&self) -> bool {

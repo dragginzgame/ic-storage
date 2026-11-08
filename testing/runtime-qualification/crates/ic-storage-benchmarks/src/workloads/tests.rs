@@ -14,6 +14,7 @@ fn every_profile_result_fits_the_existing_wire_budget() {
         Workload::Types,
         Workload::Depth,
         Workload::VectorReads,
+        Workload::VectorOpen,
     ] {
         for &case in profile.cases() {
             for &payload in profile.payloads(case) {

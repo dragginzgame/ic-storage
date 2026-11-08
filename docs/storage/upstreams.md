@@ -53,6 +53,12 @@ Integration and safety adaptations:
   export, with only its `ic0` feature selected.
 - Cell admits the host's byte ceiling before buffer allocation. Vector checks
   a variable slot length against its declared bound before allocating payload.
+- Vector reads/writes its active 17-byte header as one range and shares engine
+  framing admission with its adapter. ICSS 0.7.2 uses five header reads/writes;
+  Storage previously added another marker read. Reserved bytes, length reads,
+  typed framing errors and bounds traps are unchanged. The
+  [opening study](../audits/recurring/storage-vector-open-2026-11-08.md) records
+  matched instructions, size and retained-handle controls.
 - Cell writes its existing eight-byte header as one range, followed by the payload,
   instead of ICSS 0.7.2's three separate header writes. Layout and cached-value
   semantics are unchanged. The [write-path study](../audits/recurring/storage-write-paths-2026-11-07.md)

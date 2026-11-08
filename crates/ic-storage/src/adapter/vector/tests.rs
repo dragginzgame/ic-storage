@@ -46,6 +46,97 @@ fn runtime<M: crate::MemoryBacking>(backing: M) -> crate::MemoryRuntime<M> {
 fn key() -> StableKey {
     StableKey::parse("test.vector.v1").unwrap()
 }
+
+#[test]
+fn header_open_reads_once_without_writing_or_caching_length() {
+    let backing = MeteredMemory::<crate::VectorMemory>::default();
+    let runtime = runtime(backing.clone());
+    let vector = StableVec::<u64, _>::create(runtime.open_memory(&key()).unwrap()).unwrap();
+    vector.push(&73).unwrap();
+    drop(vector);
+    let memory = runtime.open_memory(&key()).unwrap();
+    backing.reset();
+    let vector = StableVec::<u64, _>::load(memory).unwrap();
+    let io = backing.counts();
+    assert_eq!(
+        (io.reads, io.read_bytes, io.writes, io.grows),
+        (1, 17, 0, 0)
+    );
+    assert_eq!(vector.get(0).unwrap(), Some(73));
+    backing.reset();
+    assert_eq!(vector.len(), 1);
+    assert_eq!(
+        (backing.counts().reads, backing.counts().read_bytes),
+        (1, 8)
+    );
+}
+
+#[test]
+fn header_reset_preserves_reserved_bytes_and_payload() {
+    let backing = MeteredMemory::<crate::VectorMemory>::default();
+    let runtime = runtime(backing.clone());
+    let memory = runtime.open_memory(&key()).unwrap();
+    assert_eq!(memory.grow(1).unwrap(), 0);
+    memory.write(17, &[0xa5; 55]);
+    backing.reset();
+    let vector = StableVec::<u64, _>::reset(memory).unwrap();
+    let io = backing.counts();
+    assert_eq!(
+        (io.reads, io.writes, io.write_bytes, io.grows),
+        (0, 1, 17, 0)
+    );
+    drop(vector);
+    let memory = runtime.open_memory(&key()).unwrap();
+    let mut bytes = [0; 72];
+    memory.read(0, &mut bytes);
+    assert_eq!(&bytes[..4], b"SVC\x01");
+    assert_eq!(&bytes[4..12], &0_u64.to_le_bytes());
+    assert_eq!(&bytes[12..16], &8_u32.to_le_bytes());
+    assert_eq!(bytes[16], 1);
+    assert_eq!(&bytes[17..], &[0xa5; 55]);
+}
+
+#[test]
+fn header_admission_preserves_typed_errors_traps_bytes_and_lease_release() {
+    for (offset, byte, traps) in [
+        (0, b'X', false),
+        (3, 2, false),
+        (12, 9, true),
+        (16, 0, true),
+    ] {
+        let backing = MeteredMemory::<crate::VectorMemory>::default();
+        let runtime = runtime(backing.clone());
+        drop(StableVec::<u64, _>::create(runtime.open_memory(&key()).unwrap()).unwrap());
+        let memory = runtime.open_memory(&key()).unwrap();
+        memory.write(offset, &[byte]);
+        let before = backing.backing().borrow().clone();
+        backing.reset();
+        let result = catch_unwind(AssertUnwindSafe(|| StableVec::<u64, _>::load(memory)));
+        if traps {
+            assert!(result.is_err());
+        } else {
+            assert!(matches!(result, Ok(Err(Error::Format))));
+        }
+        assert_eq!((backing.counts().writes, backing.counts().grows), (0, 0));
+        assert_eq!(*backing.backing().borrow(), before);
+        assert!(runtime.open_memory(&key()).is_ok());
+    }
+    let backing = MeteredMemory::<crate::VectorMemory>::default();
+    let runtime = runtime(backing.clone());
+    let memory = runtime.open_memory(&key()).unwrap();
+    backing.reset();
+    assert!(matches!(
+        StableVec::<u64, _>::load(memory),
+        Err(Error::Format)
+    ));
+    assert_eq!(backing.counts(), crate::testing::MemoryIoCounts::default());
+    drop(StableVec::<u64, _>::create(runtime.open_memory(&key()).unwrap()).unwrap());
+    let memory = runtime.open_memory(&key()).unwrap();
+    // ICSS interprets any nonzero fixed-size flag as true.
+    memory.write(16, &[2]);
+    assert!(StableVec::<u64, _>::load(memory).unwrap().is_empty());
+}
+
 #[test]
 fn populated_lookups_read_one_length_one_slot_and_decode_once_after_reopen() {
     for payload in [256, 2048] {

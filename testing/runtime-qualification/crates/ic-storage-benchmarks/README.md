@@ -471,6 +471,29 @@ engines equal cache budgets; that release has no selectable node cache.
 
 ## Consumer workloads
 
+### Vector opening
+
+`BENCH_WORKLOAD=vector-open BENCH_SAMPLES=1 make benchmark-storage` measures a
+fresh vector view for each request while retaining its allocation owner. Storage
+acquires/releases a governed lease; ICSS clones its virtual-memory handle.
+The interval includes opening, operation preparation/result conversion and
+closing. `OpenControl` performs only the surrounding request machinery.
+Existing workloads retain their vector handles.
+
+Six vector types cover fixed scalars/arrays, the 255/256-byte length-prefix
+boundary, larger byte payloads and Wire records. Populations are 256/4,096,
+batches 1/32, uniform/hot-16 access and three mutation/read rounds. Each
+population subdirectory also records `initialization.jsonl`: the complete
+initialization body before population, including allocator setup, vector creation
+and destruction. It is not an isolated header-write measurement.
+
+The whole-handler `--trace-execution-cost` probe supports this workload; the
+bounded stable-read probe refuses it because opening and nested timers are
+outside that tracer's scope. Compare identical logical responses between
+instrumented and original modules. See the
+[opening study](../../../../docs/audits/recurring/storage-vector-open-2026-11-08.md)
+for matched Storage/ICSS results and measurement limits.
+
 ### Population depth and IO attribution
 
 `BENCH_WORKLOAD=depth make benchmark-storage` compares 256 and 4,096 populated

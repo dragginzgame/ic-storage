@@ -2,49 +2,50 @@ use super::*;
 
 #[test]
 fn vector_read_history_preserves_updates_and_restores_population_each_round() {
-    let profile = Workload::VectorReads;
-    for &case in profile.cases() {
-        let trace = phases(case, false, Some(profile));
-        assert!(trace.iter().all(|(_, op)| case.operations().contains(op)));
-        for &payload in profile.payloads(case) {
-            let mut model: BTreeMap<_, _> = (0..u64::from(profile.rows()))
-                .map(|id| (id, case.expected_value(id, payload, false)))
-                .collect();
-            let request = Request {
-                case,
-                operation: Operation::Get,
-                rows: profile.rows(),
-                payload,
-                count: 32,
-                seed: 1,
-                pattern: Pattern::Hot16,
-            };
-            for round in 0..profile.rounds() {
-                let mut updated = model.clone();
-                let mut replaced = round != 0;
-                for (_, operation) in &trace {
-                    let response = expected(
-                        &mut model,
-                        Request {
-                            operation: *operation,
-                            ..request
-                        },
-                    );
-                    if *operation == Operation::Get {
-                        for (id, value) in response {
-                            assert_eq!(value, Some(case.expected_value(id, payload, replaced)));
+    for profile in [Workload::VectorReads, Workload::VectorOpen] {
+        for &case in profile.cases() {
+            let trace = phases(case, false, Some(profile));
+            assert!(trace.iter().all(|(_, op)| case.operations().contains(op)));
+            for &payload in profile.payloads(case) {
+                let mut model: BTreeMap<_, _> = (0..u64::from(profile.rows()))
+                    .map(|id| (id, case.expected_value(id, payload, false)))
+                    .collect();
+                let request = Request {
+                    case,
+                    operation: Operation::Get,
+                    rows: profile.rows(),
+                    payload,
+                    count: 32,
+                    seed: 1,
+                    pattern: Pattern::Hot16,
+                };
+                for round in 0..profile.rounds() {
+                    let mut updated = model.clone();
+                    let mut replaced = round != 0;
+                    for (_, operation) in &trace {
+                        let response = expected(
+                            &mut model,
+                            Request {
+                                operation: *operation,
+                                ..request
+                            },
+                        );
+                        if *operation == Operation::Get {
+                            for (id, value) in response {
+                                assert_eq!(value, Some(case.expected_value(id, payload, replaced)));
+                            }
+                        }
+                        if *operation == Operation::Set {
+                            replaced = true;
+                            updated = model.clone();
                         }
                     }
-                    if *operation == Operation::Set {
-                        replaced = true;
-                        updated = model.clone();
-                    }
+                    assert_eq!(
+                        model, updated,
+                        "push/pop must preserve updated base records"
+                    );
+                    assert_eq!(model.len(), profile.rows() as usize);
                 }
-                assert_eq!(
-                    model, updated,
-                    "push/pop must preserve updated base records"
-                );
-                assert_eq!(model.len(), profile.rows() as usize);
             }
         }
     }
@@ -200,6 +201,7 @@ fn bucket_selection_is_nonzero_and_survives_initialization_encoding() {
             upstream_cache_slots: 0,
             upstream_bucket_pages: args.upstream_bucket_pages,
             cold_cache: false,
+            vector_open: false,
         };
         let bytes = ic_wire::native::encode_request(0, &initialization, LIMITS).unwrap();
         let decoded: Initialization = ic_wire::native::decode_request(0, &bytes, LIMITS).unwrap();
@@ -212,6 +214,7 @@ fn bucket_selection_is_nonzero_and_survives_initialization_encoding() {
         upstream_cache_slots: usize,
         upstream_bucket_pages: u16,
         cold_cache: bool,
+        vector_open: bool,
     }
     for pages in [0, 1] {
         let input = UncheckedInitialization {
@@ -220,6 +223,7 @@ fn bucket_selection_is_nonzero_and_survives_initialization_encoding() {
             upstream_cache_slots: 0,
             upstream_bucket_pages: pages,
             cold_cache: false,
+            vector_open: false,
         };
         let bytes = ic_wire::native::encode_request(0, &input, LIMITS).unwrap();
         assert_eq!(
@@ -854,7 +858,13 @@ fn execution_boundary_and_operation_probes_cannot_be_mixed() {
         "--output",
         "report",
     ];
-    for workload in ["vector-reads", "depth", "auth-lookups", "ordered"] {
+    for workload in [
+        "vector-reads",
+        "vector-open",
+        "depth",
+        "auth-lookups",
+        "ordered",
+    ] {
         for diagnostic in ["--trace-stable-reads", "--trace-execution-cost"] {
             let args = Arguments::try_parse_from(base.into_iter().chain([
                 "--workload",
@@ -865,7 +875,8 @@ fn execution_boundary_and_operation_probes_cannot_be_mixed() {
             assert_eq!(
                 validate_diagnostics(&args).is_ok(),
                 matches!(workload, "vector-reads" | "depth")
-                    || (workload == "ordered" && diagnostic == "--trace-execution-cost")
+                    || (matches!(workload, "ordered" | "vector-open")
+                        && diagnostic == "--trace-execution-cost")
             );
         }
     }

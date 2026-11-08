@@ -25,11 +25,20 @@ pub enum Workload {
     Types,
     Depth,
     VectorReads,
+    VectorOpen,
 }
 
 impl Workload {
     pub fn cases(self) -> &'static [Case] {
         match self {
+            Self::VectorOpen => &[
+                Case::VectorU64,
+                Case::VectorBytes32,
+                Case::VectorBounded255,
+                Case::VectorBounded256,
+                Case::VectorBytes,
+                Case::VectorRecord,
+            ],
             Self::VectorReads => &[
                 Case::VectorU64,
                 Case::VectorBytes32,
@@ -85,8 +94,8 @@ impl Workload {
     }
     pub fn payloads(self, case: Case) -> &'static [u32] {
         match (self, case) {
-            (Self::VectorReads, Case::VectorBytes) => &[31, 4096],
-            (Self::VectorReads, _) => case.payloads(),
+            (Self::VectorReads | Self::VectorOpen, Case::VectorBytes) => &[31, 4096],
+            (Self::VectorReads | Self::VectorOpen, _) => case.payloads(),
             (Self::Depth, Case::U64Bytes) => &[32],
             (Self::Depth, _) => case.payloads(),
             (Self::Types, _) => case.payloads(),
@@ -109,7 +118,7 @@ impl Workload {
         match self {
             Self::Control => 16,
             Self::AuthLookups => LOOKUP_POPULATIONS[LOOKUP_POPULATIONS.len() - 1],
-            Self::Records | Self::Depth => 4096,
+            Self::Records | Self::Depth | Self::VectorOpen => 4096,
             Self::Bulk => 8,
             Self::Boundaries => 64,
             Self::Types => 32,
@@ -118,7 +127,7 @@ impl Workload {
     }
     pub const fn counts(self) -> &'static [u32] {
         match self {
-            Self::Records | Self::Depth | Self::VectorReads => &[1, 32],
+            Self::Records | Self::Depth | Self::VectorReads | Self::VectorOpen => &[1, 32],
             Self::Types => &[1, 8],
             Self::AuthLookups => &[1],
             Self::Ordered => &[1, 5, 6, 11, 12, 31, 32, 64, 128],
@@ -128,7 +137,9 @@ impl Workload {
     }
     pub const fn patterns(self) -> &'static [Pattern] {
         match self {
-            Self::Depth | Self::VectorReads => &[Pattern::Uniform, Pattern::Hot16],
+            Self::Depth | Self::VectorReads | Self::VectorOpen => {
+                &[Pattern::Uniform, Pattern::Hot16]
+            }
             Self::Records => &[Pattern::Uniform, Pattern::Hot16, Pattern::Zipf],
             Self::AuthLookups => &[Pattern::First, Pattern::Middle, Pattern::Last],
             Self::Control | Self::Bulk | Self::Iterators | Self::Ordered | Self::Types => {
@@ -145,6 +156,7 @@ impl Workload {
             | Self::Iterators
             | Self::Ordered
             | Self::Depth
+            | Self::VectorOpen
             | Self::VectorReads => 3,
             Self::Bulk | Self::AuthLookups | Self::Types => 1,
         }

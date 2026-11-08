@@ -48,6 +48,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     upstream_cache_slots: 0,
                     upstream_bucket_pages: 8.try_into()?,
                     cold_cache: false,
+                    vector_open: false,
                 };
                 pic.install_canister(
                     canister,
