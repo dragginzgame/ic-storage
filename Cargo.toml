@@ -5,6 +5,9 @@ default-members = ["crates/ic-logging-storage", "crates/ic-metrics-storage", "cr
 # Independent unpublished runtime qualification workspace.
 exclude = ["testing/runtime-qualification"]
 
+[workspace.metadata.toko-tooling]
+version = "0.34.0"
+
 [workspace.package]
 edition = "2024"
 rust-version = "1.99.1"

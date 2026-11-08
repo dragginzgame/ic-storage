@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# Shared companions: docs/ci-change-selection.md scripts/ci/StableVersion.pm
+# Shared companions: scripts/ci/shared-package-version.pl docs/ci-change-selection.md scripts/ci/StableVersion.pm
 use strict;
 use warnings;
 use Getopt::Long qw(GetOptions);
@@ -25,14 +25,27 @@ sub path_valid {
 }
 sub version_pair {
     my ($revision) = @_;
-    for my $path ('VERSION', 'CHANGELOG.md') {
+    my $manifest=git_read('ls-tree','--name-only',$revision,'--','Cargo.toml');
+    my $version_path=length($manifest) ? 'Cargo.toml' : 'VERSION';
+    for my $path ($version_path, 'CHANGELOG.md') {
         my $entry = git_read('ls-tree', '-z', $revision, '--', $path);
         die "version pair must be regular non-executable files\n"
             unless $entry =~ /\A100644 blob [0-9a-f]+\t\Q$path\E\0\z/;
     }
-    my $version = git_read('show', "$revision:VERSION");
-    $version =~ s/\n\z//;
-    die "invalid VERSION\n" unless stable($version);
+    my $input=git_read('show',"$revision:$version_path");
+    my $version=$input;
+    my $normalized='';
+    if ($version_path eq 'Cargo.toml') {
+        require IPC::Open2;
+        my $pid=IPC::Open2::open2(my $out,my $in,$^X,"$FindBin::Bin/shared-package-version.pl",'-');
+        print {$in} $input; close $in or die "manifest reader input failed\n";
+        { local $/; $version=<$out>; } close $out; waitpid($pid,0);
+        $?==0 or die "invalid package manifest\n";
+        $version =~ s/\n\z//;
+        $normalized=$input;
+        $normalized =~ s/^(version[ \t]*=[ \t]*")\Q$version\E(")/${1}0.0.0$2/m;
+    } else { $version =~ s/\n\z//; }
+    die "invalid version\n" unless stable($version);
     my $notes = git_read('show', "$revision:CHANGELOG.md");
     my @headings = $notes =~ /^(##[ \t]+[^\n]*)/mg;
     my ($top, $suffix) = ($headings[0] // '') =~ /\A##[ \t]+\[([^]]+)\](?:[ \t]+-[ \t]+(Unreleased|[0-9]{4}-[0-9]{2}-[0-9]{2}))?[ \t]*\z/;
@@ -44,7 +57,7 @@ sub version_pair {
         die "invalid or misplaced historical version\n"
             unless stable($older) && version_cmp($older, $version) < 0;
     }
-    return $version;
+    return ($version,$version_path,$normalized);
 }
 sub classify {
     die "unsupported event or ref\n" unless defined $event && defined $ref
@@ -86,15 +99,16 @@ sub classify {
         my $metadata = shift @records;
         my $path = shift @records;
         die "unknown diff record\n" unless defined $path && path_valid($path)
-            && ($allowed{$path} || ($allow_version_bump && $path eq 'VERSION'))
+            && ($allowed{$path} || ($allow_version_bump && ($path eq 'VERSION' || $path eq 'Cargo.toml')))
             && $metadata =~ /\A:(000000|100644) (000000|100644) [0-9a-f]+ [0-9a-f]+ [AMD]\z/;
         $changed{$path} = 1;
     }
-    if ($changed{VERSION}) {
+    if ($changed{VERSION} || $changed{'Cargo.toml'}) {
         die "version bump requires reviewed changelog changes\n"
             unless $allowed{'CHANGELOG.md'} && $changed{'CHANGELOG.md'};
-        my $before = version_pair($start);
-        my $after = version_pair($head);
+        my ($before,$before_path,$before_manifest)=version_pair($start);
+        my ($after,$after_path,$after_manifest)=version_pair($head);
+        die "version source or other package metadata changed\n" unless $before_path eq $after_path && $before_manifest eq $after_manifest;
         die "VERSION must advance\n" unless version_cmp($after, $before) > 0;
     }
     return 'docs';

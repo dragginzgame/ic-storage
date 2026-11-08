@@ -3,6 +3,14 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/persistence/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.69.1] - Unreleased
+
+### 🔧 Tooling
+
+- Select Shared Tooling 0.34.0 through root metadata and `toko-tooling.lock`,
+  independently of Cargo dependencies. Use `make shared-tooling-update` after
+  changing the declared version; deployment refuses mismatched tooling receipts.
+
 ## [0.69.0] - 2026-11-08
 
 ### ⚠️ Breaking

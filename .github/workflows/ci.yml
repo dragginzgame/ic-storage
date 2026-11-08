@@ -64,7 +64,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
       - run: make shared-tooling-check
-      - uses: dragginzgame/shared-tooling/.github/actions/cache-tool-downloads@c5285791991c731d266fb5c85dc3ee876d29f6b9
+      - uses: ./.github/actions/cache-tool-downloads
       - name: Install exact validation tools
         shell: bash
         run: |
@@ -77,7 +77,7 @@ jobs:
             echo "ACTIONLINT_BIN=$actionlint_bin"
             echo "SHELLCHECK_BIN=$shellcheck_bin"
           } >> "$GITHUB_ENV"
-      - uses: dragginzgame/shared-tooling/.github/actions/cache-tool-downloads@c5285791991c731d266fb5c85dc3ee876d29f6b9
+      - uses: ./.github/actions/cache-tool-downloads
         with:
           mode: save
       - name: Scan complete repository history
@@ -132,7 +132,7 @@ jobs:
           targets: wasm32-unknown-unknown
       - run: make shared-tooling-check
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
-      - uses: dragginzgame/shared-tooling/.github/actions/cache-tool-downloads@c5285791991c731d266fb5c85dc3ee876d29f6b9
+      - uses: ./.github/actions/cache-tool-downloads
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
       - name: Prepare host tools and identify common Cargo tool cache
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
@@ -190,7 +190,7 @@ jobs:
           esac
           SHELLCHECK_BIN="$(bash scripts/ci/install-ci-tool.sh shellcheck --version 0.11.0 --sha256 "$checksum" --install-dir "$RUNNER_TEMP/ic-storage-tools")"
           echo "SHELLCHECK_BIN=$SHELLCHECK_BIN" >> "$GITHUB_ENV"
-      - uses: dragginzgame/shared-tooling/.github/actions/cache-tool-downloads@c5285791991c731d266fb5c85dc3ee876d29f6b9
+      - uses: ./.github/actions/cache-tool-downloads
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
         with:
           mode: save
@@ -323,7 +323,7 @@ jobs:
           targets: wasm32-unknown-unknown
       - run: make shared-tooling-check
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
-      - uses: dragginzgame/shared-tooling/.github/actions/cache-tool-downloads@c5285791991c731d266fb5c85dc3ee876d29f6b9
+      - uses: ./.github/actions/cache-tool-downloads
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
       - name: Prepare host tools and identify runtime tool cache
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
@@ -368,7 +368,7 @@ jobs:
             ${{ steps.runtime-tool-cache-key.outputs.root }}/rust-*
             .tools/ic-testkit-server
           key: runtime-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.runtime-tool-cache-key.outputs.key }}-${{ hashFiles('ci/runtime-tools.env', 'ci/ic-tools.tsv') }}
-      - uses: dragginzgame/shared-tooling/.github/actions/cache-tool-downloads@c5285791991c731d266fb5c85dc3ee876d29f6b9
+      - uses: ./.github/actions/cache-tool-downloads
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
         with:
           mode: save

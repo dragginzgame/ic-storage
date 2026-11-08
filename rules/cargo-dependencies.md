@@ -471,3 +471,24 @@ rustix.workspace = true
 The root lists the complete direct dependency catalog; each child declares which
 entries it uses. Cargo's supported inheritance and feature rules are documented
 in [the Cargo Book](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#inheriting-a-dependency-from-a-workspace).
+
+## Shared Tooling during dependency updates
+
+Toko Tooling is a repository-level source-bundle dependency, independent of Cargo's
+application graph. Root `[workspace.metadata.toko-tooling]` (or standalone root
+`[package.metadata.toko-tooling]`) declares an exact published version.
+`toko-tooling.lock` records its crates.io archive checksum. Do not declare it as a
+normal, dev or build dependency, or create a workspace package to hold it.
+
+After intentionally changing the root tooling version, run
+`make shared-tooling-update` to resolve and install it. `make shared-tooling-install`
+reinstalls the existing lock. Both authenticate actual crates.io source bytes and
+prepare/check tools. Offline `make shared-tooling-check` requires the declaration,
+lock and installed receipt to agree; common CI/release entrypoints run it
+before effects. Custom application deployment adapters must also admit tooling.
+No Cargo build script or ordinary check installs tooling.
+
+Application `cargo update` has no effect on tooling selection. Remove the former
+Cargo dependency and any selection-only package during migration, preserving real
+tools/tests and updating affected membership/group rosters. Follow
+[the migration procedure](../docs/consuming-snapshots.md#migration-from-cargo-dependencies).

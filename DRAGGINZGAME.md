@@ -108,6 +108,11 @@ when changing interfaces, persistence or installation/recovery behavior.
   report that limitation; do not silently broaden an ordinary task into the full
   suite. Name the changed behavior each selected check proves. Keep unchanged
   generic regression matrices with their producer.
+- Repository tooling uses root Cargo metadata and `toko-tooling.lock`, independent
+  of application dependencies. After changing its declared version, run
+  `make shared-tooling-update`; offline admission checks declaration, lock and
+  installed bytes together. See the
+  [tooling selection rule](rules/cargo-dependencies.md#shared-tooling-during-dependency-updates).
 - Give repeated validation one execution owner: selected group scope must reach
   the leaf commands, and aggregate gates must not repeat full lint/setup through
   nested targets. Reuse unchanged release-stage evidence only through the

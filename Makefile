@@ -271,6 +271,9 @@ endif
 release-patch release-minor release-major release-resume: export RELEASE_CACHE_PREPARE := 1
 
 .PHONY: release-candidate-setup
+# Consumer deployment paths outside Shared's standard release targets.
+clean-empty-source-dirs release-candidate-setup release-batch-resume release-prepare-version qualify-release publish publish-dry-run: shared-tooling-check
+
 release-candidate-setup:
 	+@case "$(RELEASE_SETUP_MODE)" in \
 	  prepare) $(MAKE) --no-print-directory install-tools fetch-dependencies ;; \

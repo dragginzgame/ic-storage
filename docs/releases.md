@@ -37,25 +37,34 @@ to direct delivery; this is executable behavior, not agent authorization to push
 validation before tagging. A repository
 without package metadata may use a dedicated version file; otherwise it uses
 its latest finalized changelog version. Shared Tooling owns its current local
-version in root `VERSION`, displayed by `make version`. Ordinary meaningful work
+version in root `Cargo.toml` package.version, displayed by `make version`. Ordinary meaningful work
 runs `make prepare-work` to create or reuse an explicit `- Unreleased` entry and
-align `VERSION`. `WORK_VERSION_KIND=minor` or `major` promotes the pending batch;
+align package.version. `WORK_VERSION_KIND=minor` or `major` promotes the pending batch;
 the default is patch. Add meaningful notes to that entry. CI's `check-version`
 rejects disagreement. Release preparation dates that same version and stages
 both files together; neither a version file nor a changelog heading proves
 that a tag was pushed. Pre-release versions require a separately selected release plan;
 these commands must reject ambiguous or unsupported version inputs.
 
-Shared's metadata adapter replaces `VERSION` last. Failed preparation retains
+Shared's metadata adapter replaces `Cargo.toml` last. Failed preparation retains
 the original files and rendered candidates under the reported Git-owned scratch
 directory, including after a partial replacement. Retry uses the existing release
 reconciliation; it does not delete earlier evidence or automatically restore files.
 Successful attempts remove only their own scratch directory.
 
+Shared's own `release-verify` runs `make release-basic`: version and regular-file
+admission, shell lint, pin declarations, documentation links, and an installation
+from the actual packaged source bundle. Its full portable/tool/recovery matrix
+remains in GitHub CI (`make ci`) or an explicitly requested full local check.
+This maintainer-selected gate applies to this source-distribution crate, which
+has no Rust runtime API; consumer projects retain their own complete gates.
+Publication checks the fresh package/version again before upload. A crates.io
+upload does not require replaying Shared's long-tail CI suite locally.
+
 Shared selects `RELEASE_VERSION_MODE=pending` and supplies `release-base-version`.
-That read-only hook returns the preceding ledger version when `VERSION` already
+That read-only hook returns the preceding ledger version when package.version already
 matches an explicit pending heading, otherwise the current finalized version.
-VERSION and the top changelog version must agree for every lookup. The runner computes the requested increment from that base and still
+Package.version and the top changelog version must agree for every lookup. The runner computes the requested increment from that base and still
 requires the candidate to agree with the prepared metadata. Preparation must be
 idempotent because the pending version can already be present before finalization
 or recovery. A mismatched release kind fails before validation or delivery.
@@ -171,9 +180,8 @@ top of the changelog until subsequent work needs a new numbered, undated pending
 entry under the [automatic next-version rules](../rules/changelogs.md).
 
 Agents maintain that proposed changelog version during ordinary development.
-Shared Tooling alone also maintains its standalone `VERSION` file automatically;
-this is not a sibling adoption requirement. The proposal does not bump package
-metadata or execute a release. Select the
+Shared Tooling maintains its root package.version alongside its pending changelog;
+consumer release groups keep their existing owners. This does not execute a release. Select the
 matching release kind when invoking the explicitly authorized command; its computed
 candidate must agree with the pending heading and the complete batch's
 compatibility impact before finalization.
@@ -510,7 +518,7 @@ Shell adapters can delegate to
 [`check-release-source.sh`](../scripts/ci/check-release-source.sh) from the
 checkout root. With no arguments it requires clean source. Repeat
 `--allow RELATIVE-PATH` for exact consumer-owned release metadata exceptions;
-these are literal paths, not globs. Shared Tooling allows `VERSION` and
+these are literal paths, not globs. Shared Tooling allows `Cargo.toml` and
 `CHANGELOG.md`. The helper separately observes index, worktree and untracked
 paths without writing the index, and rejects observation failures before
 reporting admission. Existing native-language owners may implement the same

@@ -7,6 +7,12 @@ under the shared contribution rules. Ordinary fixes leave edits unstaged. See th
 and [host prerequisites](docs/host-support.md). The native `repo-tool` example
 supplies consumer policy to the existing Shared runner; it is not canister code.
 
+Root tooling metadata, `toko-tooling.lock` and the installed snapshot must agree.
+`shared-tooling-check` runs before standard releases and consumer publication,
+qualification, preparation, batch resume and empty-directory cleanup. Update the
+declared tooling version with `make shared-tooling-update`; ordinary Cargo
+updates do not select tooling. Existing product qualification remains required.
+
 ## Release groups
 
 Shared 0.31 captures grouped releases automatically. Select one `RELEASE_GROUP`

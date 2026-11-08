@@ -7,7 +7,34 @@ revision, selected roots, payload hashes and executable modes. The former
 live-policy exception is retired: dirty sibling rules never override the reviewed
 local baseline. Future policy changes require reviewed snapshot adoption.
 
-## Current 0.31.12 source selection
+## Current root-owned 0.34 selection
+
+Root `Cargo.toml` declares `[workspace.metadata.toko-tooling]` with exact
+`version = "0.34.0"`. `toko-tooling.lock` owns the crates.io archive checksum;
+`.shared-tooling.snapshot` records the authenticated installed payload.
+The new installer was bootstrapped from `/home/adam/projects/toko-tooling`,
+using authenticated crates.io archives for both new bytes and previous registry
+ownership. Recorded entrypoints and consumer edits are preserved.
+
+Use `make shared-tooling-update` after changing the root declaration intentionally.
+Use `make shared-tooling-install` to reinstall the existing lock. Offline
+`make shared-tooling-check` admits the declaration, lock and installed bytes;
+application Cargo updates neither select nor update tooling. Commit all three
+selection/receipt files together. CI uses the installed cache action.
+
+The dependency-only member and its catalog, release-group, policy, fixture and
+archive-selection changes are removed. Real tools and tests stay in their
+existing packages. Cargo.lock contains no tooling package; its unrelated incoming
+dependency selections and the independent runtime lock remain unchanged. The
+three product groups retain their release and archive requirements. Consumer
+publication, qualification, preparation and batch-resume targets check tooling
+before effects. No release or publication is part of this maintenance.
+
+Evidence: `target/evidence/toko-tooling-034/`; prior attempted migration evidence
+remains under `target/evidence/toko-tooling-033/`. Qualification and any gaps are
+recorded in the current handoff.
+
+## Previous 0.31.12 source selection
 
 Storage selects pushed Shared Tooling 0.31.12 at
 `eb3c8e0d2274d2c7babb2c15b3355bb80a796f0f`. The canonical exporter refreshed

@@ -54,7 +54,18 @@ cp "$ROOT/Makefile" "$ROOT/rust-toolchain.toml" "$directory/"
 cp "$ROOT/ci/release-tools.env" "$ROOT/ci/runtime-tools.env" "$ROOT/ci/tool-versions.env" "$directory/ci/"
 cp "$ROOT/make/consumer.mk" "$ROOT/make/tools.mk" "$ROOT/make/release.mk" "$ROOT/make/rust-format.mk" "$ROOT/make/execution.mk" "$directory/make/"
 cp "$ROOT/ci/release-validation.json" "$ROOT/ci/cargo-release-groups.json" "$directory/ci/"
-mkdir -p "$directory/scripts/ci"
+mkdir -p "$directory/scripts/ci" "$directory/scripts/dev"
+cat > "$directory/scripts/dev/shared-tooling.sh" <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "$*" == "check --consumer $PWD --manifest .shared-tooling.snapshot" ]] || exit 1
+exit "${TOOLING_CHECK_STATUS:-0}"
+STUB
+cat > "$directory/scripts/dev/clean-empty-source-dirs.pl" <<'STUB'
+open my $out, '>>', 'cleanup-events' or die $!;
+print {$out} "cleanup substituted\n";
+close $out or die $!;
+STUB
 cp "$ROOT/scripts/ci/check-make-execution.sh" "$ROOT/scripts/ci/check-release-delivery.sh" "$directory/scripts/ci/"
 cp "$ROOT/scripts/ci/validation-cargo.sh" "$ROOT/scripts/ci/validate-storage-workspace.sh" "$ROOT/scripts/ci/validation-evidence.pl" "$ROOT/scripts/ci/run-validation-targets.sh" "$ROOT/scripts/ci/verify-file-checksum.sh" "$ROOT/scripts/ci/validation-input-checkpoint.pl" "$ROOT/scripts/ci/release-validation-plan.pl" "$ROOT/scripts/ci/ValidationPlan.pm" "$directory/scripts/ci/"
 }
@@ -79,6 +90,16 @@ for target in release-patch release-minor release-major release-resume qualify-r
         echo 'missing group selection was admitted' >&2; exit 1
     fi
     [[ ! -e "$FIXTURE/runner-events" ]] || exit 1
+done
+# A tooling mismatch must stop both Shared and consumer deployment paths before
+# a runner, native helper or setup command can have effects.
+for target in release-patch release-resume release-batch-resume release-candidate-setup release-prepare-version qualify-release publish publish-dry-run; do
+    if (cd "$FIXTURE"; TOOLING_CHECK_STATUS=41 make --no-print-directory "$target" \
+        TOOL='touch forbidden-effect' RELEASE_SETUP_MODE=prepare BATCH=fixture) > "$FIXTURE/tooling-$target.log" 2>&1; then
+        echo "tooling mismatch admitted $target" >&2; exit 1
+    fi
+    grep -F 'Error 41' "$FIXTURE/tooling-$target.log" > /dev/null
+    [[ ! -e "$FIXTURE/runner-events" && ! -e "$FIXTURE/forbidden-effect" && ! -e "$FIXTURE/cleanup-events" ]] || exit 1
 done
 # Shared's selected test-release-commands.sh owns exhaustive flag spellings,
 # combinations and replacement permutations. Here qualify the real consumer

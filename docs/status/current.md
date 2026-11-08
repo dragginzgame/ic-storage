@@ -1,5 +1,45 @@
 # Current handoff — 2026-11-08
 
+## Git maintenance: root-owned Toko Tooling 0.34.0
+
+Root Cargo metadata now selects exact `0.34.0`; `toko-tooling.lock` records
+crates.io archive SHA-256
+`5ca8ad09ad9359bc4945a4afdaafce301dd5a4b4955cd5c9f5058d7a54ffcf10`.
+The requested sibling bootstrap installed authenticated registry bytes and
+admitted tools. All 83 recorded entrypoints remain; the closure contains 169 files.
+Use `make shared-tooling-update` after changing the declared version, or
+`make shared-tooling-install` to reinstall the lock.
+
+The interrupted dependency-based migration is undone: no dependency-only member,
+Cargo dependency, machete exception or release/policy reference remains. The real
+native repository tool and tests stay with Storage. Root Cargo.lock exactly
+matches its pre-migration incoming bytes, preserving the deferred dependency
+updates described below; the independent lock and three public versions are unchanged.
+Pre-existing `ic-storage-tooling-*` fixture-directory names are not package
+references and remain. Historical caches and migration evidence are retained.
+
+Offline tooling/status, pin and native/Wasm production-graph checks, formatting,
+workflow lint, ShellCheck, Make dispatch/failure propagation and all three
+native/shared file-plan comparisons pass. A copied fixture with a mismatched
+real tooling lock refuses publication before its substituted effect. Consumer
+publication, preparation, qualification, batch-resume and release cleanup now
+admit tooling before effects. Full product release/installed qualification and
+hosted CI were not run for this maintenance.
+
+Delivery is Git-only to `origin/main` under the shared publication-impact policy.
+Each public package's source is identical to its published tag, package file
+inventories are reviewed, and the only root manifest change is workspace tooling
+metadata (not inherited package metadata or dependencies). The pre-existing
+Cargo.lock updates are excluded from this commit and remain pending locally.
+No package bump, tag or crates.io upload is needed; the 0.69.1 note stays pending.
+Delivery evidence: `target/evidence/toko-tooling-034-delivery/`.
+
+Evidence: `target/evidence/toko-tooling-034/`; the initial bulk restoration was
+rejected by automatic approval review. Backed-up, reviewed reverse patches
+removed only the previous migration changes. Failed fixture output remains;
+the corrected fixture substitutes newly introduced Shared cleanup and proves
+admission occurs before that cleanup. Prior 0.33 evidence is retained separately.
+
 ## Delivered: Storage 0.69 and adapters
 
 Batch `batch-T85dkYEj` released and published all three groups from source
