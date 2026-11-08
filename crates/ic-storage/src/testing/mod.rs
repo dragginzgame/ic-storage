@@ -4,9 +4,7 @@ use crate::{
     MemoryRuntime, SealedDeclarationSnapshot, StorageConfig,
 };
 
-#[cfg(not(target_arch = "wasm32"))]
 mod metered_memory;
-#[cfg(not(target_arch = "wasm32"))]
 pub use metered_memory::{MemoryIoCounts, MeteredMemory};
 
 /// Construct a host runtime with one namespace and a complete request roster.

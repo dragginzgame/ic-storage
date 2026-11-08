@@ -1,4 +1,4 @@
-//! Native backing-memory IO counters; workloads and failure injection stay local.
+//! Fixture backing-memory IO counters; workloads and failure injection stay local.
 
 use crate::{BackingIdentity, Memory, MemoryBacking, VectorMemory};
 use std::{cell::Cell, rc::Rc};
@@ -38,7 +38,7 @@ pub struct MemoryIoCounts {
 ///
 /// `MeteredMemory`
 ///
-/// Shared native memory and IO counters. Clones observe the same backing and
+/// Shared fixture memory and IO counters. Clones observe the same backing and
 /// counters; resetting any clone resets the whole shared observation window.
 /// Backing identity delegates to the underlying host memory without IO.
 /// It does not provide transactions, failure injection or IC instruction counts.
