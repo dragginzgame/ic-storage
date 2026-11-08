@@ -761,7 +761,7 @@ checksum = "42df20b32c64ae2e8ea3544bf26f5f8bc1cfeb9e7d9ebeb16c5ebd611e2a7f69"
 
 [[package]]
 name = "ic-logging-storage"
-version = "0.67.0"
+version = "0.67.1"
 dependencies = [
  "ic-logging",
  "ic-storage",
