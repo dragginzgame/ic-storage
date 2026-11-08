@@ -230,25 +230,13 @@ impl<K: Storable + Ord + Clone> Node<K> {
             allocator,
         );
 
-        // Write the header of the initial page.
-        let mut offset = Address::from(0);
-        let header = NodeHeader {
-            magic: *MAGIC,
-            version: LAYOUT_VERSION,
-            node_type: match self.node_type {
-                NodeType::Leaf => LEAF_NODE_TYPE,
-                NodeType::Internal => INTERNAL_NODE_TYPE,
-            },
-            num_entries: u16::try_from(self.entries.len()).expect("node entry count"),
-        };
-
-        writer.write_struct(&header, offset);
-        offset += NodeHeader::size();
-
-        // Add a null overflow address.
-        // This might get overwritten later in case the node does overflow.
-        writer.write_u64(offset, self.overflows.first().unwrap_or(&NULL).get());
-        offset += Bytes::from(8u64);
+        write_header(
+            &mut writer,
+            self.node_type,
+            self.entries.len(),
+            self.overflows.first().copied().unwrap_or(NULL),
+        );
+        let mut offset = Address::from(ENTRIES_OFFSET.get());
 
         // Write the children.
         let count = self.children.len();
@@ -296,6 +284,30 @@ impl<K: Storable + Ord + Clone> Node<K> {
 
         self.overflows = writer.finish();
     }
+}
+
+// Share prefix encoding across key types, retaining the existing stored bytes.
+#[inline(never)]
+fn write_header<M: Memory>(
+    writer: &mut NodeWriter<'_, M>,
+    node_type: NodeType,
+    entries: usize,
+    overflow: Address,
+) {
+    let mut bytes = [0; 15];
+    bytes[..3].copy_from_slice(MAGIC);
+    bytes[3] = LAYOUT_VERSION;
+    bytes[4] = match node_type {
+        NodeType::Leaf => LEAF_NODE_TYPE,
+        NodeType::Internal => INTERNAL_NODE_TYPE,
+    };
+    bytes[5..7].copy_from_slice(
+        &u16::try_from(entries)
+            .expect("node entry count")
+            .to_le_bytes(),
+    );
+    bytes[7..].copy_from_slice(&overflow.get().to_le_bytes());
+    writer.write(Address::from(0), &bytes);
 }
 
 // Keep prefix admission and overflow traversal shared across key types. The

@@ -3,6 +3,23 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/persistence/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.70.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Adopt IC Wire 0.18. Hosts exchanging Wire limits or errors must use the
+  matching Wire type identity and align Storage and its adapters. Encoded
+  directory and checkpoint bytes, budgets and admission are unchanged;
+  no backing reset or stored-data migration is needed.
+
+### ⚡ Performance
+
+- Combine B-tree node-header and first overflow-pointer writes. The matched depth
+  matrix improves 168/720 cells with no regressions (up to 2.13%); stored bytes
+  and public APIs are unchanged. Broad benchmark Wasm shrinks by 7,461 bytes;
+  the small all-collection consumer grows by 105 bytes. See the
+  [comparison](../../docs/audits/recurring/storage-prefix-write-2026-11-08.md).
+
 ## [0.69.1] - 2026-11-08
 
 ### 🧹 Cleanup

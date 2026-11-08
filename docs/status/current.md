@@ -1,5 +1,29 @@
 # Current handoff — 2026-11-08
 
+## Pending delivery: Storage 0.70.0 and adapters
+
+Retain one byte-identical 15-byte node prefix write, with encoding shared across
+key types. Relative to delivered 0.69.1, 168/720 depth cells improve, 552 are equal
+and none regress; all 4,320 logical results match. Broad harness Wasm shrinks
+7,461 bytes; the small all-collection consumer grows 105 bytes. Public APIs,
+images and dependency selections were unchanged in that isolated experiment. Native tests (92 passed, one
+manual ignored), strict Clippy, seven ICSS interchange tests, all eight installed
+size probes and original/O3/Os/Oz IO/upgrade/rollback qualification pass.
+See [the comparison and reproduction](../audits/recurring/storage-prefix-write-2026-11-08.md).
+IC Wire 0.18.0 is selected in both maintained workspaces, changing public Wire
+type identities but not stored bytes. Both catalogs already explicitly select
+Serde derive; no retired bulk-lint calls exist here. Preserve the incoming root
+Metrics 0.29.7 lock selection. Select minor releases Storage 0.70.0, Metrics
+Storage 0.72.0 and Logging Storage 0.68.0 in supplier-first order. Full release
+gates remain required. Fresh installed original/O3/Os/Oz IO, upgrade and rollback
+qualification with Wire 0.18.0 passes (`target/qualification/runtime/attempt.KjxWiP`).
+All eight installed small-consumer comparisons also pass with Wire 0.18.0
+(`target/evidence/storage-consumer-size/attempt.vvN7pa`): every Storage Wasm
+size is unchanged from the prefix-write candidate; all-collection remains
+147,875 bytes versus ICSS 119,378. Admission, production graph, pin, formatting
+and documentation checks pass. Neither Platform nor PocketIC selection changed.
+The separate overflow-initialization experiment has not started.
+
 ## Delivered: Storage 0.69.1 and adapters
 
 Batch `batch-WAJbiFwP` completed from reviewed source

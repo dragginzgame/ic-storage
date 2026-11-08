@@ -6,6 +6,7 @@ within the 5 MiB repository budget. These are limits, not storage targets.
 
 | Topic | Summary | Selected data |
 | --- | --- | --- |
+| B-tree prefix writes | [Combined write and matched ICSS comparison](../audits/recurring/storage-prefix-write-2026-11-08.md) | Depth and eight-selection size matrices inline |
 | Shared B-tree prefix | [Retained prefix/child readers and rejected lease-index trials](../audits/recurring/storage-shared-prefix-2026-11-08.md) | All-collection depth and eight-selection size matrices inline |
 | Architectural hard cut | [Selected cuts, rejected iterator and matched sizes](../audits/recurring/architectural-reduction-2026-11-08.md) | Inline eight-selection size matrix and qualification scope |
 | Storage/ICSS type matrix | [Current coverage/results](../audits/recurring/benchmark-full-catalogue-2026-11-05.md) | [565 selected rows](storage-comparison-selected.csv), [compact identities](storage-comparison-identities.json) |

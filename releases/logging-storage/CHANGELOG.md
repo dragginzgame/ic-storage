@@ -3,6 +3,15 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/logging-stable/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.68.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Adopt IC Wire 0.18. Hosts exchanging Wire limits or errors must use the
+  matching Wire type identity and align Storage and its adapters. Encoded
+  directory and checkpoint bytes, budgets and admission are unchanged;
+  no backing reset or stored-data migration is needed.
+
 ## [0.67.1] - 2026-11-08
 
 ### 🔧 Tooling

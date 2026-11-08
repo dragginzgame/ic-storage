@@ -111,7 +111,7 @@ fn overflow_tails_stay_terminated_without_redundant_finish_writes() {
         let old_pages = overflows.len();
         let first = overflows.first().copied().unwrap_or(NULL);
         let mut writer = NodeWriter::new(address, overflows, PageSize(128), &mut allocator);
-        writer.write_u64(Address::from(7), first.get());
+        writer.write(Address::from(7), &first.get().to_le_bytes());
         let payload = vec![0x5a; length];
         writer.write(Address::from(15), &payload);
         backing.reset();
