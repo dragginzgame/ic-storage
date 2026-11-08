@@ -278,7 +278,7 @@ printf '%s\n' \
     'make --no-print-directory check-production-graph check-pins check-storage-boundary check-candid-boundary check-license check-doc-links fmt-check' \
     'make --no-print-directory test-release-adapters test-tools test-tooling test-hooks test-package-admission' \
     'make --no-print-directory test-fixture-cell' \
-    "cargo +$FIXTURE_TOOLCHAIN test -p ic-storage --locked --offline -- --test-threads=1 --skip repo_tool::tests::" \
+    "cargo +$FIXTURE_TOOLCHAIN test -p ic-storage --locked --offline -- --test-threads=1 --skip repo_tool::" \
     "cargo +$FIXTURE_TOOLCHAIN test -p ic-metrics-storage --locked --offline -- --test-threads=1" \
     "cargo +$FIXTURE_TOOLCHAIN test -p ic-logging-storage --locked --offline -- --test-threads=1" \
     "cargo +$FIXTURE_TOOLCHAIN doc --workspace --locked --offline --no-deps" \
