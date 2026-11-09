@@ -7,7 +7,17 @@ revision, selected roots, payload hashes and executable modes. The former
 live-policy exception is retired: dirty sibling rules never override the reviewed
 local baseline. Future policy changes require reviewed snapshot adoption.
 
-## Current Cargo-owned 0.36 selection
+## Current Cargo-owned 0.36.1 selection
+
+Published Toko Tooling 0.36.1 is selected exactly in both workspace catalogs and
+lockfiles. The supported installer refreshes the authenticated snapshot; payload
+bytes come from crates.io. The patch corrects test-only block/statement CLOC
+attribution inside call-argument closures. All ten real packages retain inherited
+dev-dependencies and their existing cargo-machete exemptions. No dependency
+versions besides Toko Tooling changed during this adoption. Product release
+requirements remain unchanged. Evidence: `target/evidence/deploy-storage-071/`.
+
+## Previous Cargo-owned 0.36.0 selection
 
 Each maintained workspace root declares `toko-tooling = "=0.36.0"` in its
 `[workspace.dependencies]`. All ten real packages inherit the dependency in

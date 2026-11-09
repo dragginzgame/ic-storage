@@ -191,10 +191,19 @@ The existing Vector read-history diagnostic retains both batch sizes. This large
 synthetic reply is not a measurement of Auth's endpoint. Keep frozen ordinary
 modules as the reference, verify a plain WAT round trip, then compare boundary
 probe inner counts against ordinary counts before interpreting the outer scope.
-Boundary-only probes also admit `--workload ordered` to check larger scans and
+Boundary-only probes also admit `--workload bulk` (including `--collection cell`
+or another collection shard) and `--workload ordered` to check larger scans and
 string/fixed-byte key controls, or custom `--cases` selections with the same
 rows, rounds and patterns as their ordinary runs. Bounded read probes remain
 restricted as above.
+
+Read/allocator probes also admit `--workload bulk --collection vector`. This
+fixed shard has batch/iterator limit one; it captures all operations, including
+Control, scans and mutations, at 64 KiB and 1 MiB. Other Bulk shards remain
+rejected for bounded read tracing. Overflow, incomplete records and unexpected
+counter counts still fail closed. Traced instruction totals contain substantial
+probe overhead: compare addresses, lengths, phases and costly accesses against
+matched ordinary/full-handler runs, not as production performance results.
 
 For deeper attribution, apply `benches/trace_allocator_accesses.pl` to the
 **read-instrumented** WAT, then assemble it identically. Add driver
@@ -813,9 +822,10 @@ normal dependency graphs separate:
   with its normal MemoryManager and default bucket size. It does not depend on
   Storage, IC Wire or the older Platform reference facade.
 
-Both use Runtime's `ic0` boundary for identical ingress/reply code. One shared
-[`app.rs`](benches/size_consumer/app.rs) is compiled into each consumer; the two
-backend modules contain their respective integration. No native runner, model,
+Both use Runtime's `ic0` boundary for identical ingress/reply code. Each consumer
+owns an ordinary `src/app.rs` module ([Storage](../storage-size-consumer/src/app.rs),
+[ICSS](../icss-size-consumer/src/app.rs)); the comparison script refuses differing
+endpoint sources before building. The two backend modules contain their respective integration. No native runner, model,
 Candid codec, test catalogue, performance counter or backend selector enters the
 consumer Wasm. Ordinary Rust panic paths remain, as they do in applications.
 
@@ -861,7 +871,7 @@ consumer workload. Keep the broad catalogue for that separate coverage.
 
 ### Reproducing size attribution
 
-`target/` is disposable. The two consumer crates, shared endpoints, runner, locked
+`target/` is disposable. The two consumer crates, matched endpoints, runner, locked
 dependencies and `scripts/ci/compare-storage-size.sh` are maintained source.
 Rerun `make benchmark-storage-size` after cleaning; it creates a fresh validated
 evidence directory. Selected results and hashes are retained in

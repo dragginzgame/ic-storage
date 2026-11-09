@@ -1,164 +1,105 @@
-# Current handoff — 2026-11-08
+# Current handoff — 2026-11-09
 
-## Delivered: IC Wire 0.18 and Storage 0.70.0
+## Authorized deployment in progress
 
-Batch `batch-gI8lVjJG` completed from reviewed source
-`e30bbaf91e8369cdd8ffee01d3078effda0d5160` in supplier-first order. All three
-groups passed all 12 required validation stages and final archive qualification.
-Downloaded crates.io archives match registry checksums, qualified receipts and
-clean embedded source identities; none is yanked. Remote main and all three
-annotated release tags match the delivered commits.
+The maintainer requested latest tooling adoption followed by deployment from this
+repository. Toko Tooling 0.36.1 is installed from crates.io in both workspaces;
+only its package selection changed during adoption. The selected supplier-first
+batch is Storage 0.71.0, Metrics Storage 0.73.0 and Logging Storage 0.69.0, with
+GitHub branch/tags and crates.io publication. Release requirements are unchanged.
+Evidence: `target/evidence/deploy-storage-071/`. No sibling delivery is selected.
+Do not report publication complete until the runner and registry/ref checks pass.
 
-| Package | Version | Release commit | Archive SHA-256 |
-| --- | --- | --- | --- |
-| ic-storage | 0.70.0 | `40584510391050c4e7aa7c5156793d3411e6223d` | `d229694cd4ea59afce7d203116c1ef38913707c1bc0b26ff0fea33ef103766a8` |
-| ic-metrics-storage | 0.72.0 | `5afe4592945aecb3668902f9c8acd1c5e4f77ee7` | `946eda45cc2090b275e970b0d1da2c1365c7ae9da9e86dda9c667873bda49bd4` |
-| ic-logging-storage | 0.68.0 | `43f224695d77946692553244981d8f998b73badf` | `e1f38f74688b47453f6b59b2d079add23b1401663d52ed03d8de0472edfed3d9` |
+## Pending hard cut: Storage-owned bucket backing
 
-IC Wire 0.18.0 is selected in both maintained workspaces. Hosts exchanging Wire
-limits/errors must align Wire, Storage and its adapters to the new Rust type
-identities. Stored directory/checkpoint bytes and budgets are unchanged; no reset
-or data migration is needed. Serde derive was already explicit and no removed
-bulk-lint API was used. The incoming root Metrics 0.29.7 lock update is preserved
-and qualified. Platform and PocketIC selections are unchanged.
+The maintainer authorized copying ICSS allocation backing and adapting it to
+Storage. Replace snapshot-directory persistence with the owned ICSS 0.7.2-derived
+bucket implementation, retaining provenance, named opaque IDs, grants, custody,
+exclusive leases and logical bounds. No production ICSS dependency is introduced.
+Core Storage no longer has a normal IC Wire dependency. No commit, publication
+or sibling edit has occurred; package versions remain unchanged. Pending release
+notes are under Storage 0.71.0 because this is an incompatible allocation format.
 
-The retained combined B-tree prefix write improves 168/720 depth cells, with
-552 equal and no regressions; all 4,320 logical samples match. Broad benchmark
-Wasm shrinks 7,461 bytes and the small all-collection consumer grows 105 bytes in
-the isolated experiment. See [the comparison](../audits/recurring/storage-prefix-write-2026-11-08.md).
-Wire adoption adds no size change in any of the eight matched small-consumer
-fixtures: all-collection remains 147,875 bytes versus ICSS 119,378.
+Old whole-store images are rejected without writes. Hosts must explicitly retire
+or reset them, or supply fresh backing. Remove `StorageConfig::wire` overrides.
+Eight-page buckets replace snapshot extents; creation-time table capacities are
+fixed. Defaults reserve 960 KiB of controls and permit 8 GiB of bucket data.
+Growth writes owner/size/root controls without rereading the whole directory.
+Explicit verification still admits active rows; IC rollback and native
+fail-closed interruption retain distinct guarantees. See [the allocation
+contract](../../crates/ic-storage/ALLOCATION.md).
 
-Fresh original/O3/Os/Oz installed IO, upgrade and rollback qualification passes
-at `target/qualification/runtime/attempt.KjxWiP`; eight installed size comparisons
-pass at `target/evidence/storage-consumer-size/attempt.vvN7pa`. Release logs are
-`target/evidence/deploy-wire-018.log`, with independent registry/ref observations
-under `target/evidence/deploy-wire-018-verification/`. Batch recovery state,
-receipts and archives are retained. `make release-batch-reconcile` fast-forwarded
-the clean normal checkout; no sibling was changed or deployed. The separate
-overflow-initialization experiment has not started.
+Current qualification: 83 library tests, five runtime integration tests, 42 adapter tests, eight
+ICSS image/IO tests, strict Clippy, production graph checks, eight installed size
+selections and original/O3/Os/Oz installed IO/upgrade/rollback pass. Those upgrades
+reopen the new image; they do not migrate a retired image. Depth covers 720 cases
+and 4,320 samples, bulk 116 cases and 232 samples. All logical results match.
 
-## Delivered: Storage 0.69.1 and adapters
+Small Cell Wasm falls 105,377 → 90,537 bytes; all-collection falls 148,075 →
+133,445. Both remain larger than ICSS. Depth medians: 430 improve, 240 regress,
+50 equal. Bulk: 41 improve, 68 regress, seven equal. Cell growth improves, but
+shrink gains an approximately 80,000-instruction inner-loop charge; 64-KiB Vector
+reads/scans also regress. Do not describe this as universally faster or ready
+for deployment without reviewing these tradeoffs. Full-handler Cell probes show both growth cases improve and shrink is effectively
+unchanged (-91 instructions); its extra inner-loop charge moves across the timer
+boundary. Control/Get totals match and replacements differ by two instructions.
+Vector bulk whole-handler attribution now passes 26 cases / 52 samples per run,
+with exact plain-roundtrip and probe inner-count checks. Get/Pop are effectively
+unchanged and Push improves, but 64-KiB iterator handlers genuinely regress by
+1.4–2.8%. The 1-MiB read gap against ICSS predates this backing change. Read/allocator probes now confirm unchanged stable-read counts/lengths/costs
+for those iterator cases, with additional costly dlmalloc metadata accesses
+during and after the loop. Both 52-sample diagnostic runs match logical results
+and pages; driver tests and Clippy pass. The attribution itself changes no production code.
 
-Batch `batch-WAJbiFwP` completed from reviewed source
-`ae1435c2cc0e9db6288e0c65697f29d1ed5b6d38`, releasing and publishing
-`storage,metrics-storage,logging-storage` in supplier-first order. All three
-groups passed all 12 required validation stages and final archive qualification.
-The remote main branch and annotated tags were independently checked. Downloaded
-crates.io archives match both registry checksums and final receipts; embedded
-clean VCS identities match release commits and none of these versions is yanked.
+The subsequent owned-buffer transfer in consuming `Iter::last` is retained: large
+values improve by 32.6–41.7% inside the loop, with matching whole-handler gains;
+scalar/array controls add 5/12 instructions per result. Other measured operations
+are unchanged. Broad Wasm shrinks 2,647 bytes, small controls are byte-identical.
+See [the terminal-buffer report](../audits/recurring/storage-vector-last-2026-11-09.md).
+Fourteen native Vector tests, strict Clippy and installed size/call/upgrade checks
+pass. General iterator buffers remain unchanged; forward/reverse scan attribution
+is still separate work. Cold-open scaling, sibling endpoints and the full current type catalogue remain unqualified.
+A state-alignment trial failed to remove the shrink charge and was discarded.
 
-| Package | Version | Release commit | Archive SHA-256 |
-| --- | --- | --- | --- |
-| ic-storage | 0.69.1 | `502d18ca5749701041fc8828cef6955d32ae6e0d` | `66ae72c144ab3d906f08884e2173dd54754b10f8c35c5e31986b7d52fe85da4d` |
-| ic-metrics-storage | 0.71.1 | `4d227287ac323f6c8a3782aff9c0d6ed937dfbcc` | `1d71f6667b51eb0accd3eb520fb6491edf0263be6d00f32facfff2e8876d43ff` |
-| ic-logging-storage | 0.67.1 | `5610f9018227bee1a9bc4592f6ae462b48992d33` | `72d61a152dcffe9e847b5cebe1ef576faffa2d38bd2b8591db21412ff779ab73` |
+The [current report](../audits/recurring/storage-bucket-backing-2026-11-09.md)
+contains the comparison matrix, frozen evidence and reproduction path. Keep all
+failed trials and completed qualification attempts. No release command was run.
 
-Normal `main` was reconciled through `make release-batch-reconcile`; no deferred
-working changes remained. The batch checkout, durable recovery state, validation
-logs and archives are retained. No sibling repository was changed or deployed.
+## Other preserved pending changes
 
-Delivered changes:
+- Cell encoded-length cache and combined B-tree overflow initialization remain.
+  Their earlier isolated measurements are in the [Cell report](../audits/recurring/storage-cell-length-2026-11-09.md)
+  and [overflow report](../audits/recurring/storage-overflow-init-2026-11-09.md).
+  Those pre-cut results do not qualify the new backing or establish no regressions.
+  The 73-type Cell catalogue has not been rerun after this backing cut.
+- Both size consumers use ordinary crate-owned `src/app.rs` modules; their 49-line
+  endpoints remain identical and the size script enforces equality. No path
+  overrides, generated source or new helper crate remains. Current eight-pair
+  installed size qualification includes this change.
+- IC Build 0.81.0 and Host Artifacts/FS/Process 0.76.1 remain selected for native
+  tooling, with the matching installed metadata editor. Earlier 88 helper tests,
+  strict helper Clippy, Make dispatch and all three groups' offline bootstrap
+  checks passed. Evidence: `target/evidence/build-081-host-0761/`.
+  Incoming Logging 0.24.12, Runtime 0.20.3, itoa 1.0.19 and syn 3.0.10 lock choices
+  are preserved. The backing cut removes only the core Storage → Wire edge from
+  the independent lockfile; no dependency version was advanced by this cut.
+- Bulk benchmark collection shards and existing full-handler probes now compose.
+  Driver validation coverage, strict Clippy and formatting pass. This changes
+  diagnostic admission only, not production endpoints.
 
-- Combined B-tree prefix reads and shared validation, plus one direct child-array
-  reader without the inherited small-node threshold. Both depth studies improved
-  552/720 cells with no regressions. The broad harness savings total 30,841 bytes
-  before naming cleanup; the final small all-collection consumer is 147,770 bytes,
-  141 bytes below the initial 147,911-byte baseline. See
-  [the measured scope and ICSS comparisons](../audits/recurring/storage-shared-prefix-2026-11-08.md).
-- Role-based engine naming (`node/layout`, direct `new`/`load`/`save`, `Header`,
-  `HEADER_SIZE`, `clear`) without public API or persisted-discriminator changes.
-  Native/interchange tests and all eight installed size comparisons passed.
-- Cargo-owned Toko Tooling 0.36.0 across all ten real packages and both maintained
-  workspaces. Its authenticated snapshot retains all 83 entrypoints. The separate
-  tooling lock and metadata selection are removed. Common CI/release and custom
-  deployment entrypoints admit the root snapshot; `check-pins` additionally checks
-  independent-workspace member declarations and matching selection.
-- IC Host Artifacts/FS/Process 0.76.0 with IC Build 0.80.0 and its matching installed
-  metadata CLI. Native tooling has one Host family. Previously pending compatible
-  root-lock Runtime 0.20.2 and Wire 0.17.14 selections are included and qualified;
-  the independent runtime workspace retains its existing registry selections.
+## Delivered baseline
 
-No storage migration or destructive reset is required. Instruction figures are
-inner-loop benchmark results, not whole-call throughput. Storage's small-consumer
-Wasm remains larger than ICSS; no universal performance or size parity is claimed.
-Development installed original/O3/Os/Oz IO/upgrade/rollback qualification preceded
-the final naming-only change; naming was checked by native/interchange and installed
-size tests. Release gates passed without bypasses; no new hosted CI claim is made.
-
-Evidence: `target/evidence/deploy-0691.log`,
-`target/evidence/deploy-0691-verification/`, and
-`target/release-frozen/batch-WAJbiFwP/target/release-validation/`.
-Durable batch intent/Git state remains in `.git/release-state/frozen/batch-WAJbiFwP`.
-Earlier experiment, tooling-adoption and failed Host-adoption evidence is retained.
-
-## Historical delivery: Toko Tooling 0.34.0
-
-Commit `4c1ae8be4111ea2edf25453614108cb2b63a0c04` delivered the previous
-metadata/lock scheme to origin/main without publishing product crates. That
-selection scheme is superseded by the pending 0.36 adoption above. Evidence
-remains in `target/evidence/toko-tooling-034/` and
-`target/evidence/toko-tooling-034-delivery/`; prior failed migration evidence is
-also retained. Deferred unrelated dependency updates were excluded from delivery.
-
-## Previous delivery: Storage 0.69 and adapters
-
-Batch `batch-T85dkYEj` released and published all three groups from source
-`13826544bebcc2f5043aaee65291477570ea26a0`, in supplier-first order.
-Each group passed all 12 validation stages and final archive qualification.
-Registry status, downloaded archive checksum and embedded clean VCS identity
-were independently checked against each final receipt; none is yanked.
-
-| Package | Version | Release commit | Archive SHA-256 |
-| --- | --- | --- | --- |
-| ic-storage | 0.69.0 | `2f0346a875775a2a7b8b47ac0e47f1a43daaf944` | `90b93d6a307e67f7a83ea9de7046bd6a26e405957ada63679997d91024053241` |
-| ic-metrics-storage | 0.71.0 | `db43ce8c3a7380667404ed88d6f20871fe5a03b0` | `d853a3a5e3c01caf193f2ff33f59fba2fcb78f481d81b03afcd28eb0f2c571f8` |
-| ic-logging-storage | 0.67.0 | `6f1b7a23ef3712560311d4921d370ef3a51c9b06` | `02ae6240c89bc9596a34088cdc9a815df3130403b1b40ab355f4c8e8c4b5f840` |
-
-Tags are `storage-v0.69.0`, `metrics-storage-v0.71.0` and
-`logging-storage-v0.67.0`. Git delivery to `origin/main`, crates.io publication
-and guarded normal-checkout reconciliation completed. No publication needs
-replaying. Hosted CI remains separate from the local release qualification.
-
-Evidence: `target/evidence/storage-069-deploy/`; captured receipts and archives:
-`target/release-frozen/batch-T85dkYEj/target/release-validation/`; durable recovery:
-`.git/release-state/frozen/batch-T85dkYEj/`. Nothing was retired or cleaned.
-Failed pre-version batches `batch-JW_u9vag` (stale Make fixture expectation) and
-`batch-zQCCYGgu` (native-only IO fixture imported by Wasm tests) remain intact.
-Both defects were fixed in normal source and qualified before the final batch.
-Neither failed batch created a version commit, tag, push or publication.
-
-The [architectural reduction](../audits/recurring/architectural-reduction-2026-11-08.md)
-ships direct collection results, canonical memory/bounds contracts, one Vector
-engine and the consolidated benchmark catalogue. Current BTR2/BTN2, SVC1/SCL1,
-directory and checkpoint images are unchanged; no reset of current images is
-required. Consumers must migrate the breaking Rust API. Shared Tooling 0.31.12
-(`eb3c8e0`) is included. The rejected inline-node iterator is not included.
-
-The all-five application fixture is 147,911 bytes versus ICSS 119,378, saving
-2,151 bytes against the retained prior Storage fixture. The 565-case/51,768-call
-comparison and installed lifecycle checks passed before release; the owning
-study records scope and mixed instruction results. No universal speedup is claimed.
-
-Unrelated dependency updates are restored locally, verified identical to
-`preserve/storage-0690-deferred-dependencies` except the three released local
-package versions. The stash and durable branch remain. These pending Build/Host,
-Runtime and Wire selections were not delivered: release selected Build 0.79.0,
-Host 0.75.0, root Runtime 0.20.0 and Wire 0.17.11. The normal Cargo.lock remains
-intentionally dirty for the next adoption.
-
-## Delivered: Storage 0.68.11
-
-Published `40752edd62489cdafb57a8f54b7cbdcec9057cc0`, tag `storage-v0.68.11`, from `ba36b9572c8ca4f481c8403abc37977cfe0e6adb`; registry/download/receipt checksum `e1b2afe4d180c2f20dd05dd1f7505dc280ce6985e63d743da1afa141f1da842d` and clean archive VCS identity match.
-Batch `batch-6VCf977D` passed all 12 stages and final archive qualification; publication and guarded local reconciliation passed. Evidence: `target/evidence/storage-06811-deploy/`; captured receipts under `target/release-frozen/batch-6VCf977D/target/release-validation/`, durable recovery under `.git/release-state/frozen/batch-6VCf977D/`.
-Shared tree backing and redundant directory-index removal preserve API/images; consumer Map 134,314 bytes, all-five 150,062, with mixed instruction tradeoffs recorded in the owning release notes. Installed original/O3/Os/Oz lifecycle: `attempt.dZEIjv`. No adapter publication. Deferred Build 0.79.1, Host 0.75.1, Runtime 0.20.1 and Wire 0.17.14 selections are preserved at `preserve/storage-06811-deferred-dependencies`; release selects Build 0.79.0, Host 0.75.0, Runtime 0.20.0 and Wire 0.17.11. Restore deferred lock with only local Storage projected to 0.68.11.
-
-## Earlier adapter history
-
-Metrics Storage 0.70.0 (`388c366`) and Logging Storage 0.66.0 (`7ac245c`)
-were the previous adapter baseline. Their publication and readback passed;
-no publication needs replaying. Earlier delivery records remain in Git history,
-owning release notes and retained receipts/recovery state.
+Storage 0.70.0, Metrics Storage 0.72.0 and Logging Storage 0.68.0 were published
+from `batch-gI8lVjJG`. All required release gates, archive checks and registry/ref
+verification passed. IC Wire 0.18 is selected in both workspaces; stored bytes
+are unchanged. No publication needs replaying. Canonical release histories are
+[Storage](../../releases/storage/CHANGELOG.md),
+[Metrics Storage](../../releases/metrics-storage/CHANGELOG.md) and
+[Logging Storage](../../releases/logging-storage/CHANGELOG.md).
+Release evidence remains in `target/evidence/deploy-wire-018.log`,
+`target/evidence/deploy-wire-018-verification/` and the retained frozen batch.
+Earlier completed deliveries remain in Git history and their owning ledgers;
+this handoff does not retire any recovery state or artifacts.
 
 ## Evidence and preservation
 

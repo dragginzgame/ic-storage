@@ -380,16 +380,22 @@ sub scan_scope {
             $i=$end+1;
         }
         last if $i >= $hi;
-        my $j=$i;
+        my $j=$i; my @nested;
         while ($j<$hi && $t->[$j][0] ne '{' && $t->[$j][0] ne ';') {
-            if (exists $pairs->{$j}) {$j=$pairs->{$j}+1;} else {$j++;}
+            if (exists $pairs->{$j}) {
+                # Calls, arrays and grouped expressions can contain closures or
+                # blocks with their own cfg gates. Macro token trees stay opaque.
+                push @nested,[$j+1,$pairs->{$j}] unless $j>$i && $t->[$j-1][0] eq '!';
+                $j=$pairs->{$j}+1;
+            } else {$j++;}
         }
+        my $kind=$test ? 'tests' : $category;
+        push @$scopes,map {[$f,$_->[0],$_->[1],$dir,$kind,$follow]} @nested;
         last if $j >= $hi;
         my $end=$t->[$j][0] eq '{' ? $pairs->{$j} : $j;
         defined($end) or die "missing Rust delimiter\n";
         my $body_end=$end;
         $end++ if $t->[$j][0] eq '{' && $end+1<$hi && $t->[$end+1][0] eq ';';
-        my $kind=$test ? 'tests' : $category;
         push @{$v->{test_ranges}},[$t->[$start][1],$t->[$end][2]] if $test;
         my $head=join ' ',map {$_->[0]} @$t[$i..$j-1];
         if ($head =~ /(?:\A| )mod (?:r\#)?([A-Za-z_][A-Za-z_0-9]*)\z/) {

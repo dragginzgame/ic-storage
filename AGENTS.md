@@ -22,7 +22,7 @@ Before changing tooling, formatting, release adapters or retention, read
 vendored files or attribute dirty shared source to a registry installation.
 Every real package inherits `toko-tooling.workspace = true` in unconditional
 `[dev-dependencies]` and records its cargo-machete exemption. Both maintained
-workspace roots pin `=0.36.0`; no selection-only package or artificial Rust import
+workspace roots pin `=0.36.1`; no selection-only package or artificial Rust import
 is needed. After changing the exact pins, resolve each normal Cargo.lock with
 Cargo, then run `make shared-tooling-update`. Use `make shared-tooling-install`
 to reinstall the existing Cargo selection. Commit declarations, Cargo lockfiles
@@ -53,7 +53,7 @@ The former Memory package is retired.
 Follow the [workspace layout rules](rules/rust-workspaces.md).
 
 The current hard cut uses Storage-owned memory, codecs, named directory and
-collection engines. Previous manager/ledger and collection images are retired.
+collection engines. Previous manager/ledger, snapshot-directory and collection images are retired.
 No legacy decoder or automatic reset is allowed. Hosts own fresh/reset whole
 backing and current application framing admission. See [the current allocation
 contract](docs/current-ledger.md). IDs are opaque u64 values; host policy uses
@@ -187,7 +187,10 @@ collection integration are owned here. The maintainer selected copied ICSS 0.7.2
 engines under private `src/engine`; retain provenance and notices. The public
 `adapter` layer preserves governed leases with ICSS trap behavior. Ordinary
 collection operations and iterator items return successful values directly;
-constructors and map-region admission retain typed errors. No ICSS memory manager or retired image readers are admitted.
+constructors and map-region admission retain typed errors. The maintainer authorized the ICSS-derived bucket backing hard cut on 2026-11-09.
+The private backing adapts published 0.7.2 allocation/translation code to named
+u64 identities, eight-page buckets and Storage custody. Snapshot-directory images
+are rejected without reset. No retired image readers are admitted.
 Changes require appropriate native corruption, growth, custody and installed
 IO/upgrade qualification. Do not restore old manager
 or collection compatibility paths during the rewrite.

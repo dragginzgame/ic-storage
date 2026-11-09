@@ -271,8 +271,19 @@ fn cell_images_cross_read_and_update() {
     assert_eq!(stock.get(), &vec![7; 4096]);
     stock.set(vec![8; 65536]);
     drop(stock);
-    let cell = StableCell::<Vec<u8>>::load(memory(&runtime), 65536).unwrap();
+    let mut cell = StableCell::<Vec<u8>>::load(memory(&runtime), 65536).unwrap();
     assert_eq!(cell.get(), &vec![8; 65536]);
+    assert_eq!(cell.set(vec![9; 65536]), vec![8; 65536]);
+    drop(cell);
+    let mut stock = icss::Cell::<Vec<u8>, _>::init(Checked(memory(&runtime)), Vec::new());
+    assert_eq!(stock.get(), &vec![9; 65536]);
+    stock.set(Vec::new());
+    drop(stock);
+    let mut cell = StableCell::<Vec<u8>>::load(memory(&runtime), 0).unwrap();
+    assert!(cell.set(Vec::new()).is_empty());
+    drop(cell);
+    let stock = icss::Cell::<Vec<u8>, _>::init(Checked(memory(&runtime)), vec![255]);
+    assert!(stock.get().is_empty());
 }
 #[test]
 fn set_images_cross_read_and_update() {
@@ -314,4 +325,86 @@ fn governed_region_images_cross_read_and_update() {
     let mut frame = [0; 10];
     lease.read(0, &mut frame);
     assert_eq!(&frame, b"host frame");
+}
+
+#[test]
+fn cell_resize_io_separates_engine_from_allocation_costs() {
+    use ic_storage::testing::MeteredMemory;
+
+    for initial in [65_536, 1_048_576] {
+        let grown = (initial * 4).min(1_536 * 1024);
+        let mut governed_counts = Vec::new();
+        for reference_engine in [false, true] {
+            let backing = MeteredMemory::<ic_storage::VectorMemory>::default();
+            let runtime = fixture_runtime(
+                backing.clone(),
+                "baseline",
+                "baseline.",
+                &["baseline.data.v1"],
+                StorageConfig::default(),
+            )
+            .unwrap();
+            let memory = runtime
+                .open_memory(&StableKey::parse("baseline.data.v1").unwrap())
+                .unwrap();
+            let mut observed = Vec::new();
+            // Use the published engine over the exact same governed backing to
+            // distinguish Cell serialization from allocation publication work.
+            if reference_engine {
+                let mut cell = icss::Cell::new(Checked(memory), vec![1; initial]);
+                for length in [grown, 0, grown] {
+                    let previous = cell.get().clone();
+                    backing.reset();
+                    assert_eq!(cell.set(vec![2; length]), previous);
+                    observed.push(backing.counts());
+                    assert_eq!(cell.get(), &vec![2; length]);
+                }
+            } else {
+                let mut cell = StableCell::create(memory, vec![1; initial]).unwrap();
+                for length in [grown, 0, grown] {
+                    let previous = cell.get().clone();
+                    backing.reset();
+                    assert_eq!(cell.set(vec![2; length]), previous);
+                    observed.push(backing.counts());
+                    assert_eq!(cell.get(), &vec![2; length]);
+                }
+            }
+            assert!(observed.iter().all(|counts| !counts.overflowed));
+            assert_eq!(observed[0].reads, 0);
+            assert_eq!(observed[0].grows, u64::from(initial > 65_536));
+            for counts in &observed[1..] {
+                assert_eq!((counts.reads, counts.grows), (0, 0));
+            }
+            governed_counts.push(observed);
+        }
+        for (owned, reference) in governed_counts[0].iter().zip(&governed_counts[1]) {
+            // Storage combines ICSS's three framing writes into one. All
+            // allocation reads, byte totals and physical growth are identical.
+            let mut normalized = *reference;
+            normalized.writes -= 2;
+            assert_eq!(*owned, normalized);
+        }
+
+        let backing = MeteredMemory::<ic_storage::VectorMemory>::default();
+        let manager =
+            icss::memory_manager::MemoryManager::init_with_bucket_size(Checked(backing.clone()), 8);
+        let mut cell = icss::Cell::new(
+            manager.get(icss::memory_manager::MemoryId::new(0)),
+            vec![1; initial],
+        );
+        let mut reference_counts = Vec::new();
+        for length in [grown, 0, grown] {
+            let previous = cell.get().clone();
+            backing.reset();
+            assert_eq!(cell.set(vec![2; length]), previous);
+            let counts = backing.counts();
+            assert!(!counts.overflowed);
+            assert_eq!(counts.reads, 0);
+            reference_counts.push(counts);
+        }
+        println!(
+            "Cell {initial} -> {grown} -> 0 -> {grown}: governed={:?}; ICSS eight-page manager={reference_counts:?}",
+            governed_counts[0]
+        );
+    }
 }

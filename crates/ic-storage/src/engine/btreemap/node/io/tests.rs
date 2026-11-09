@@ -150,3 +150,29 @@ fn overflow_tails_stay_terminated_without_redundant_finish_writes() {
         assert_eq!(restored, payload);
     }
 }
+
+#[test]
+fn reused_overflow_page_clears_stale_link_before_becoming_the_tail() {
+    let backing = MeteredMemory::<VectorMemory>::default();
+    let mut allocator = Allocator::new(backing.clone(), Address::from(0), Bytes::from(128u32));
+    let address = allocator.allocate();
+    let freed = allocator.allocate();
+    backing.write(freed.get(), &[0xa5; 128]);
+    allocator.deallocate(freed);
+
+    let mut writer = NodeWriter::new(address, vec![], PageSize(128), &mut allocator);
+    backing.reset();
+    writer.allocate_new_page();
+    // Two allocator-control writes, one complete prefix and one predecessor link.
+    assert_eq!(backing.counts().writes, 4);
+    assert_eq!(writer.overflows, [freed]);
+    let mut bytes = [0; 128];
+    backing.read(freed.get(), &mut bytes);
+    assert_eq!(&bytes[..3], OVERFLOW_MAGIC);
+    assert_eq!(&bytes[3..11], &NULL.get().to_le_bytes());
+    assert_eq!(&bytes[11..], &[0xa5; 117]);
+    assert_eq!(
+        crate::engine::read_u64(&backing, address + OVERFLOW_ADDRESS_OFFSET),
+        freed.get(),
+    );
+}

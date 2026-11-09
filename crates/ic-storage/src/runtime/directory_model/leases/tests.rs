@@ -170,24 +170,29 @@ fn uninitialized_reads_admit_full_range_and_poison_partial_native_failures() {
     owner.bind(&[key(0), key(1)].into()).unwrap();
     let a = owner.lease(&key(0)).unwrap();
     let b = owner.lease(&key(1)).unwrap();
-    a.try_grow(1).unwrap();
+    a.try_grow(8).unwrap();
     b.try_grow(1).unwrap();
     a.try_grow(1).unwrap();
-    a.write(PAGE - 2, &[11, 12, 13, 14]);
+    a.write(8 * PAGE - 2, &[11, 12, 13, 14]);
     let mut bytes = [MaybeUninit::uninit(); 4];
     memory.reads.set(0);
-    assert_eq!(read(&a, PAGE - 2, &mut bytes), &[11, 12, 13, 14]);
+    assert_eq!(read(&a, 8 * PAGE - 2, &mut bytes), &[11, 12, 13, 14]);
     assert_eq!(memory.reads.get(), 2);
     memory.reads.set(0);
-    assert!(catch_unwind(AssertUnwindSafe(|| read(&a, 2 * PAGE - 2, &mut bytes).len())).is_err());
+    assert!(
+        catch_unwind(AssertUnwindSafe(
+            || read(&a, 2 * 8 * PAGE - 2, &mut bytes).len()
+        ))
+        .is_err()
+    );
     assert_eq!(
         memory.reads.get(),
         0,
         "reject the complete range before backing IO"
     );
-    assert_eq!(read(&a, 2 * PAGE, &mut []), [0_u8; 0]);
+    assert_eq!(read(&a, 9 * PAGE, &mut []), [0_u8; 0]);
     memory.fail_read_at.set(Some(2));
-    assert!(catch_unwind(AssertUnwindSafe(|| read(&a, PAGE - 2, &mut bytes).len())).is_err());
+    assert!(catch_unwind(AssertUnwindSafe(|| read(&a, 8 * PAGE - 2, &mut bytes).len())).is_err());
     assert_eq!(memory.reads.get(), 2);
     assert!(catch_unwind(AssertUnwindSafe(|| read(&b, 0, &mut bytes).len())).is_err());
     assert_eq!(
@@ -198,33 +203,29 @@ fn uninitialized_reads_admit_full_range_and_poison_partial_native_failures() {
 }
 
 #[test]
-fn extent_spans_coalesce_io_and_rebuild_on_reopen() {
+fn bucket_spans_split_io_and_rebuild_on_reopen() {
     let memory = Faults::default();
     let owner = Owner::init(memory.clone(), StorageConfig::default()).unwrap();
     owner.bind(&[key(0), key(1)].into()).unwrap();
     let a = owner.lease(&key(0)).unwrap();
     let b = owner.lease(&key(1)).unwrap();
-    a.try_grow(3).unwrap();
+    a.try_grow(8).unwrap();
     b.try_grow(1).unwrap();
     b.write(0, b"neighbour");
     a.try_grow(2).unwrap();
-    let payload = vec![17; usize::try_from(5 * PAGE - 20).unwrap()];
+    let payload = vec![17; usize::try_from(10 * PAGE - 20).unwrap()];
     a.write(10, &payload);
     drop(a);
     drop(b);
     drop(owner);
     let owner = Owner::init(memory.clone(), StorageConfig::default()).unwrap();
     let a = owner.lease(&key(0)).unwrap();
-    assert_eq!(a.size(), 5);
+    assert_eq!(a.size(), 10);
     memory.reads.set(0);
     let mut result = vec![0; payload.len()];
     a.read(10, &mut result);
     assert_eq!(result, payload);
-    assert_eq!(
-        memory.reads.get(),
-        2,
-        "one backing read per physical extent"
-    );
+    assert_eq!(memory.reads.get(), 2, "one backing read per bucket");
     let b = owner.lease(&key(1)).unwrap();
     let mut neighbour = [0; 9];
     b.read(0, &mut neighbour);
@@ -247,7 +248,7 @@ fn data_io_trusts_custody_and_growth_refusal_preserves_handles() {
     assert_eq!(memory.reads.get(), 1);
     memory.refuse_growth.set(true);
     let before = memory.memory.borrow().clone();
-    assert!(matches!(a.try_grow(1), Err(Error::Growth)));
+    assert!(matches!(a.try_grow(8), Err(Error::Growth)));
     assert_eq!(a.size(), 1);
     assert_eq!(*memory.memory.borrow(), before);
     memory.refuse_growth.set(false);

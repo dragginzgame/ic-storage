@@ -313,17 +313,17 @@ pub struct StorageDiagnostics {
     pub admitted_allocations: usize,
     /// Currently live exclusive allocation leases.
     pub live_leases: usize,
-    /// Total application data extents.
+    /// Total allocated application buckets.
     pub extents: usize,
     /// Logical data capacity across retained allocations, in 64 KiB pages.
     pub data_pages: u64,
-    /// Reserved active and inactive directory arenas, in 64 KiB pages.
+    /// Reserved allocation controls excluding the protected root page, in 64 KiB pages.
     pub metadata_pages: u64,
-    /// Encoded byte length of the active directory snapshot.
+    /// Used root, name/size rows and bucket-owner bytes.
     pub directory_bytes: u64,
     /// Actual physical backing extent, in 64 KiB pages.
     pub physical_pages: u64,
-    /// Physical pages outside data, metadata arenas and the protected root.
+    /// Reserved bucket slack outside logical data, controls and the root page.
     pub unassigned_pages: u64,
 }
 
@@ -372,7 +372,7 @@ impl<M: Memory> RuntimeMemory<M> {
             DirectoryError::Growth => RuntimeGrowError::BackingRefused {
                 additional_pages: pages,
             },
-            DirectoryError::Budget | DirectoryError::Wire(_) => RuntimeGrowError::CapacityExceeded,
+            DirectoryError::Budget => RuntimeGrowError::CapacityExceeded,
             DirectoryError::Poisoned => RuntimeGrowError::Poisoned,
             _ => RuntimeGrowError::InvalidDirectory,
         })

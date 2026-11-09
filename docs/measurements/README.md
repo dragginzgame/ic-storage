@@ -6,6 +6,10 @@ within the 5 MiB repository budget. These are limits, not storage targets.
 
 | Topic | Summary | Selected data |
 | --- | --- | --- |
+| Vector terminal buffer | [Ownership transfer and matched ICSS comparison](../audits/recurring/storage-vector-last-2026-11-09.md) | Bulk, whole-handler, scalar and size controls inline |
+| Bucket backing | [Hard cut, tradeoffs and ICSS comparison](../audits/recurring/storage-bucket-backing-2026-11-09.md) | Depth, bulk and eight-selection Wasm matrices inline |
+| Cell replacement | [Cached encoded length and ICSS comparison](../audits/recurring/storage-cell-length-2026-11-09.md) | 73-type, depth, bulk and small-consumer matrices inline |
+| Overflow initialization | [Combined write and matched ICSS comparison](../audits/recurring/storage-overflow-init-2026-11-09.md) | Bulk/depth and eight-selection size matrices inline |
 | B-tree prefix writes | [Combined write and matched ICSS comparison](../audits/recurring/storage-prefix-write-2026-11-08.md) | Depth and eight-selection size matrices inline |
 | Shared B-tree prefix | [Retained prefix/child readers and rejected lease-index trials](../audits/recurring/storage-shared-prefix-2026-11-08.md) | All-collection depth and eight-selection size matrices inline |
 | Architectural hard cut | [Selected cuts, rejected iterator and matched sizes](../audits/recurring/architectural-reduction-2026-11-08.md) | Inline eight-selection size matrix and qualification scope |

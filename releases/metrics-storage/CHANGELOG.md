@@ -3,6 +3,20 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/metrics-stable/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.73.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Adopt Storage 0.71's governed bucket backing and matching public type identity.
+  Hosts must explicitly retire/reset old snapshot-directory backing or provide
+  fresh backing; incompatible images are rejected without automatic migration.
+  Checkpoint payload formats and adapter semantics remain unchanged. Remove
+  any `StorageConfig::wire` overrides and review Storage's allocation limits.
+
+### 🔧 Tooling
+
+- Adopt the workspace's exact Toko Tooling 0.36.1 development selection.
+
 ## [0.72.0] - 2026-11-08
 
 ### ⚠️ Breaking

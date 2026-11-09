@@ -7,6 +7,12 @@ cd "$root"
 export RUSTUP_AUTO_INSTALL=0
 server="$("$cli" check --directory "$server_directory")"
 manifest=testing/runtime-qualification/Cargo.toml
+# Keep the independently owned application endpoints matched across backends.
+if ! cmp -s testing/runtime-qualification/crates/storage-size-consumer/src/app.rs \
+    testing/runtime-qualification/crates/icss-size-consumer/src/app.rs; then
+    echo 'Size consumer application endpoints differ; restore the matched workload before comparing.' >&2
+    exit 1
+fi
 mkdir -p target/evidence/storage-consumer-size
 output="$(mktemp -d "$root/target/evidence/storage-consumer-size/attempt.XXXXXX")"
 printf 'Consumer size evidence: %s\n' "$output"

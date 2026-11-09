@@ -1,8 +1,8 @@
 # Shared Tooling snapshot v1
-# version	0.36.0
+# version	0.36.1
 format	1
 source	https://crates.io/crates/toko-tooling
-revision	de0dd05b6437061622a76942baa25d40d2181497e7ba66d9fd809132a3082936
+revision	56ab4b48eb5264ad9a98426a685804fd6cbd441bb370ae9d0046aa43c4aee6a3
 # entrypoint	DRAGGINZGAME.md
 # entrypoint	rules/contributions.md
 # entrypoint	rules/changelogs.md
@@ -253,6 +253,6 @@ file	efdb27607dff8a634f78e1fd8268192120e09cbb3f154e58c4fd1acfccfece34	-	scripts/
 file	1fd11f64f7698c1b5b17049d2b1551daba3af33bbdaba92228d7fc1f743e9055	-	scripts/ci/release-validation-plan.pl
 file	d0ee87bebd55af6c3dfc2a062b5abdf951b07afc419e7cf52c085ce65bddba15	-	scripts/ci/check-candid-boundary.pl
 file	efe6acefb807e41e7f2bc3bfe3314deba5647d694ccfd48c3beac4e7956bfb49	-	scripts/dev/OwnedTree.pm
-file	d34e2b68efd3e44b887f9fbb2e9e2996a7979118f07931d0f1d0ab277687de40	-	scripts/dev/cloc-classify.pl
+file	ee494c039c52e4b84df3ec84090d0618a57cf00d89e2afb9458c1ecd3cc83531	-	scripts/dev/cloc-classify.pl
 file	ce27820fc6256fc417d3606dfcc8b850256c3f36a1a29132be587d49aceb82d4	-	scripts/ci/RustSource.pm
 file	ec46c51af7fc2b7ef2959343331e6aa9efb40904d55f5c5b5a43cb446736f9a8	-	scripts/ci/cargo-publication-selection.pl

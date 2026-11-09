@@ -294,14 +294,11 @@ impl<'a, M: Memory> NodeWriter<'a, M> {
     // Allocates a new page and appends it to the node's overflows.
     fn allocate_new_page(&mut self) {
         let new_page = self.allocator.allocate();
-        self.allocator
-            .memory()
-            .write(new_page.get(), &OVERFLOW_MAGIC[..]);
-        write_u64(
-            self.allocator.memory(),
-            new_page + PAGE_OVERFLOW_NEXT_OFFSET,
-            NULL.get(),
-        );
+        // Initialize the marker and null next-link together before publishing
+        // this page through its predecessor. Freed pages may retain old links.
+        let mut header = [0; 11];
+        header[..3].copy_from_slice(OVERFLOW_MAGIC);
+        self.allocator.memory().write(new_page.get(), &header);
 
         // Let the previous overflow page point to this one.
         write_u64(

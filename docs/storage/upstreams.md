@@ -10,6 +10,9 @@ There is no production dependency or public re-export of ICSS.
 The relevant map/node/allocator/iterator, Vector, Cell, address and helper
 code is copied under `crates/ic-storage/src/engine/`. Each copied file retains
 DFINITY attribution and an Apache-2.0 notice; the package includes LICENSE-APACHE.
+The bucket growth and translation mechanisms from `memory_manager.rs` are adapted
+under `runtime/directory_model/persistence.rs`; that file retains the same notice.
+Named identities, custody and integrity admission are Storage adaptations.
 Storage-authored code remains MIT. This is adapted source, not an unchanged
 vendored executable snapshot.
 
@@ -24,9 +27,9 @@ vendored executable snapshot.
 
 The old independent tree, block allocator, record envelopes, node cache, Vector
 windows and mutation epochs are deleted. No alternative production engine stays
-selected or maintained. Directory allocation remains Storage's implementation:
-ICSS's MemoryManager, ID assignment and unrestricted backing constructors are
-not copied. Physical access still passes through checked Storage handles.
+selected or maintained. The allocation backing now adapts ICSS bucket ownership and translation under
+Storage custody. Its fixed 255-ID API and unrestricted constructors are not
+exposed; names map to opaque u64 identities through admitted handles.
 
 ## Independent benchmark reference
 
@@ -157,8 +160,8 @@ Codec and engine failures trap. Framing admission and explicit reservations can
 still return typed errors. Ordinary operation and iterator results are direct.
 There are no collection checksums. Images predating the copied ICSS baseline
 require an explicit host rebuild/reset or fresh allocations; the architectural
-simplification preserves current images. The directory format and its
-integrity checks are unchanged. See [the collection contract](../../crates/ic-storage/README.md).
+simplification preserves current images. The separate allocation backing now uses the authorized fresh-image bucket hard
+cut; snapshot-directory images cannot be reopened. See [the collection contract](../../crates/ic-storage/README.md).
 
 ## Qualification and research controls
 
@@ -173,8 +176,7 @@ they do not establish current performance. The copied baseline deliberately
 removes earlier local optimizations so later changes can be compared cleanly.
 No universal improvement or ICSS default-codec compatibility is claimed.
 
-IC Platform supplies Wasm stable-memory system access; IC Wire supplies bounded
-directory encoding and optional application codecs. Testkit owns server lifecycle;
+IC Platform supplies Wasm stable-memory system access; IC Wire supplies optional application codecs. Testkit owns server lifecycle;
 Shared Tooling owns its reviewed engineering snapshot, unchanged by this port.
 Hosts retain lifecycle, comparators, schema and recovery decisions. Sibling code
 and retained images have not been migrated by this change.

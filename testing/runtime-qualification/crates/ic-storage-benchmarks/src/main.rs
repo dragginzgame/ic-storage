@@ -13,7 +13,7 @@ struct Arguments {
     /// Fixed consumer workload; owns cases, sizes, population, batching and access patterns.
     #[arg(long, value_enum, conflicts_with_all = ["rows", "cases", "payloads", "growth_cycles", "patterns", "shuffled", "upstream_cache_slots", "cold_cache", "rounds"])]
     workload: Option<Workload>,
-    /// Type-suite shard; the Make runner executes all five automatically.
+    /// Type-suite or bulk-workload shard; ordinary Make runs retain all collections.
     #[arg(long, value_enum)]
     collection: Option<Collection>,
     #[arg(skip)]
@@ -182,17 +182,20 @@ fn decode_trace_rows(bytes: &[u8], capacity: usize) -> Result<Vec<[u64; 4]>, &'s
 
 fn validate_diagnostics(args: &Arguments) -> Result<(), &'static str> {
     if !matches!(args.workload, Some(Workload::VectorReads | Workload::Depth)) {
-        if args.trace_stable_reads {
-            return Err("read probes require --workload vector-reads or depth");
+        if args.trace_stable_reads
+            && !(matches!(args.workload, Some(Workload::Bulk))
+                && matches!(args.collection, Some(Collection::Vector)))
+        {
+            return Err("read probes require vector-reads, depth or bulk --collection vector");
         }
         if args.trace_execution_cost
             && !matches!(
                 args.workload,
-                None | Some(Workload::Ordered | Workload::VectorOpen)
+                None | Some(Workload::Ordered | Workload::VectorOpen | Workload::Bulk)
             )
         {
             return Err(
-                "execution probes require custom cases or --workload vector-reads, vector-open, depth or ordered",
+                "execution probes require custom cases or --workload vector-reads, vector-open, depth, ordered or bulk",
             );
         }
     }
@@ -202,8 +205,9 @@ fn validate_diagnostics(args: &Arguments) -> Result<(), &'static str> {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Arguments::parse();
     validate_diagnostics(&args)?;
-    if args.collection.is_some() && !matches!(args.workload, Some(Workload::Types)) {
-        return Err("--collection requires --workload types".into());
+    if args.collection.is_some() && !matches!(args.workload, Some(Workload::Types | Workload::Bulk))
+    {
+        return Err("--collection requires --workload types or bulk".into());
     }
     if matches!(
         args.workload,
@@ -597,9 +601,12 @@ fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
                                     // A populated tree can exceed the bounded trace after
                                     // multiple lookups. Keep all ordinary operation samples,
                                     // but capture depth diagnostics only for single reads.
-                                    let capture_read = operation == Operation::Get
+                                    let capture_read = (operation == Operation::Get
                                         && (!matches!(args.workload, Some(Workload::Depth))
-                                            || count == 1);
+                                            || count == 1))
+                                        || (matches!(args.workload, Some(Workload::Bulk))
+                                            && case.collection == Collection::Vector
+                                            && count == 1);
                                     let read_trace = if args.trace_stable_reads && capture_read {
                                         let bytes = pic
                                             .query_call(

@@ -368,7 +368,8 @@ where
             return None;
         }
         self.vec.read_entry_to(end - 1, &mut self.buf);
-        Some(T::from_bytes(Cow::Borrowed(&self.buf)))
+        // This iterator is consumed; let owned-byte decoders retain its buffer.
+        Some(T::from_bytes(Cow::Owned(self.buf)))
     }
 
     fn nth(&mut self, n: usize) -> Option<T> {

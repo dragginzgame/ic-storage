@@ -89,3 +89,53 @@ fn cell_stored_decode_failure_traps_without_writing_or_leaking_the_lease() {
     assert_eq!(*backing.borrow(), before);
     assert!(runtime.open_memory(&key).is_ok());
 }
+
+#[test]
+fn same_length_cell_updates_preserve_framing_after_resize_and_reopen() {
+    let backing = crate::testing::MeteredMemory::<VectorMemory>::default();
+    let runtime = runtime(backing.clone());
+    let key = crate::StableKey::parse("test.cell.v1").unwrap();
+    let mut cell = StableCell::create(runtime.open_memory(&key).unwrap(), vec![1; 32]).unwrap();
+    for length in [32, 65_528, 65_529, 0, 7] {
+        let previous = cell.get().clone();
+        assert_eq!(cell.set(vec![2; length]), previous);
+        drop(cell);
+        cell = StableCell::<Vec<u8>, _>::load(runtime.open_memory(&key).unwrap(), 65_529).unwrap();
+        assert_eq!(cell.get(), &vec![2; length]);
+        backing.reset();
+        assert_eq!(cell.set(vec![3; length]), vec![2; length]);
+        let counts = backing.counts();
+        assert!(!counts.overflowed);
+        assert_eq!(counts.writes, u64::from(length != 0));
+        assert_eq!(counts.write_bytes, length as u64);
+        assert_eq!(counts.grows, 0);
+        drop(cell);
+        let memory = runtime.open_memory(&key).unwrap();
+        assert_eq!(
+            crate::stable_cell_payload_length(&memory, 65_529).unwrap(),
+            length
+        );
+        cell = StableCell::<Vec<u8>, _>::load(memory, 65_529).unwrap();
+        assert_eq!(cell.get(), &vec![3; length]);
+    }
+}
+
+#[test]
+fn refused_cell_growth_does_not_replace_the_cached_value() {
+    let backing = ControlledMemory {
+        backing: VectorMemory::default(),
+        refuse_growth: Rc::new(Cell::new(false)),
+        growth_calls: Rc::new(Cell::new(0)),
+    };
+    let runtime = runtime(backing.clone());
+    let key = crate::StableKey::parse("test.cell.v1").unwrap();
+    let mut cell = StableCell::create(runtime.open_memory(&key).unwrap(), vec![1; 32]).unwrap();
+    backing.refuse_growth.set(true);
+    assert_eq!(cell.set(vec![2; 32]), vec![1; 32]);
+    let before = backing.backing.borrow().clone();
+    let growth_calls = backing.growth_calls.get();
+    assert!(catch_unwind(AssertUnwindSafe(|| cell.set(vec![3; 2 * 1024 * 1024]))).is_err());
+    assert!(backing.growth_calls.get() > growth_calls);
+    assert_eq!(cell.get(), &vec![2; 32]);
+    assert_eq!(*backing.backing.borrow(), before);
+}

@@ -51,8 +51,6 @@ fn diagnostics_are_read_only_and_account_for_retained_data_metadata_and_unassign
     drop(a);
     drop(b);
     drop(host);
-    // Model an abandoned tail left by a native host, outside any active custody.
-    backing.grow(2);
     let mut host = MemoryRuntime::new(backing.clone()).unwrap();
     host.bootstrap(&source(&["app.a.v1"]), &grants(), &GenericAllocationPolicy)
         .unwrap();
@@ -63,7 +61,7 @@ fn diagnostics_are_read_only_and_account_for_retained_data_metadata_and_unassign
     assert_eq!(reopened.live_leases, 0);
     assert_eq!(reopened.data_pages, report.data_pages);
     assert_eq!(reopened.metadata_pages, report.metadata_pages);
-    assert_eq!(reopened.unassigned_pages, report.unassigned_pages + 2);
+    assert_eq!(reopened.unassigned_pages, report.unassigned_pages);
     // Corruption is a checked-boundary failure, not a successful cached report.
     backing.borrow_mut()[0] ^= 1;
     assert!(host.diagnostics().is_err());
@@ -195,4 +193,14 @@ fn fallible_growth_reports_overflow_and_poisoning_without_panicking() {
     );
     assert_eq!(rows.grow(0), Err(RuntimeGrowError::Poisoned));
     assert_eq!(rows.grow(1), Err(RuntimeGrowError::Poisoned));
+}
+
+#[test]
+fn unexplained_native_backing_growth_is_rejected_without_reset() {
+    let backing = VectorMemory::default();
+    drop(MemoryRuntime::new(backing.clone()).unwrap());
+    backing.grow(2);
+    let before = backing.borrow().clone();
+    assert!(MemoryRuntime::new(backing.clone()).is_err());
+    assert_eq!(*backing.borrow(), before);
 }

@@ -37,7 +37,7 @@ merely because a host reopened the backing.
 key. Collections consume the lease. A lease may outlive its runtime; custody
 lasts until the final owner/handle is dropped. Data IO validates logical bounds
 and trusts custody. Complete metadata checks occur at construction, bootstrap,
-lease opening and growth. A backing panic or failed checked-boundary validation
+and lease opening. Growth trusts admitted exclusive custody. A backing panic or failed checked-boundary validation
 poisons the shared owner.
 
 ## Limits and persistence
@@ -52,33 +52,48 @@ not automatically reusable. Corrupt/poisoned owners return an error rather than
 an apparently healthy cached report. Hosts own namespace/authority presentation
 and external diagnostic protocols; no retired manager recovery image is decoded.
 
-`StorageConfig` selects allocation count, extent count, physical page and Wire
-resource limits. Defaults are 4,096 allocations, 16,384 extents, 1,048,576 physical
-pages, 4 MiB directory bytes, 16 MiB decode allocation, 262,144 nodes and depth 16.
-The u64 identity width is not a promise of unbounded allocation count. Reopening
-revalidates the directory under the supplied limits.
+`StorageConfig` selects allocation count, bucket count (`extents`) and physical
+page ceilings. Defaults remain 4,096 allocations, 16,384 buckets and 1,048,576
+physical pages. Each bucket contains eight 64-KiB Wasm pages. The bucket ceiling
+therefore limits default data reservation to 8 GiB; the page ceiling also counts
+controls. Counts are capacities, not a promise of live business payload size.
+The obsolete `wire` snapshot budget is removed.
 
-The first page contains the protected `ICROOTR1` root. Each directory commit
-writes a bounded `ICDIRR01` Wire snapshot into an inactive reserved arena,
-then the root, and only then publishes its in-memory state. The active arena is
-never overwritten during preparation/publication. New arenas grow geometrically
-only when no inactive arena can hold the snapshot; all arenas remain excluded
-from application extents. Growth refusal
-preserves the committed state. Recovery never guesses a fallback root or resets
-foreign/corrupt backing. Native partial writes can prevent reopening; Wasm traps
-use the host's rollback contract. Checksums are for accidental corruption.
+The image reserves fixed-width control tables from the creation-time count
+ceilings: a 64-byte root, 160 bytes per possible named allocation, and 16 bytes
+per possible bucket, rounded up to full pages. Default control reservation is
+15 pages (960 KiB), including the root page. Only active rows are read/written;
+unused capacity is not initialized by explicit writes. Reopening can impose
+smaller live-usage limits but cannot enlarge the saved table capacities. Select
+larger ceilings when creating a backing if needed; no numeric IDs are exposed.
 
-Physical extents may be discontiguous; reads and writes translate logical pages
-through the allocation's extent list. Failed native commits can leave an
-abandoned tail, which subsequent allocations skip so stale metadata is never
-exposed as zeroed application pages. Inactive snapshot arenas are reused even after reopen; old inactive bytes are
-never treated as a fallback generation. Adjacent growth of the same allocation
-coalesces extents. Application extents and abandoned tails are not reclaimed,
-and full snapshots are still encoded/written per directory mutation. Physical
-page budgets include all reserved arenas and abandoned tails.
+The `ICBUCK01` root records table capacities, live counts and generation.
+Allocation rows contain names and logical page sizes. Physical bucket-owner rows
+reconstruct each allocation's ordered bucket vector on open. The root and rows
+have accidental-corruption checksums. The physical bucket addresses are derived
+from the tables' end and bucket index, as in ICSS's manager. Growth writes only
+new ownership rows, the affected size field and the root; it never serializes
+a directory snapshot or rereads all metadata. Binding writes only new name rows.
 
-This manager is a storage-format and public-API hard cut. Use fresh/reset whole
-backing, rebuild hosts against `StorageConfig`, `AllocationGrants` and
-`allocation_id`, and update application admission for the owned collection
-formats. No legacy manager/ledger decoder remains. Publication and downstream
-adoption are separate actions.
+Native publication marks the root interrupted before changing controls and writes
+a complete clean root last. Wasm omits the interruption write and relies on IC
+execution rollback. The in-memory state is published only after successful
+writes. Physical growth refusal happens before any metadata write and remains
+retryable. A native backing panic poisons all leases; a torn publication or
+unexplained physical tail is rejected on reopen. There is no native rollback or
+fallback to an older snapshot. A fully persisted final root can reopen after a
+native panic. On IC, execution rollback restores both memory and controls.
+
+Logical growth within a bucket updates size without growing physical memory.
+Bounds checks exclude unused bucket slack, including through the translation
+cache. Reads/writes split at bucket boundaries, coalescing adjacent requested physical
+buckets into one IO call without scanning unrelated buckets. Buckets are never reclaimed or
+assigned to another allocation. Diagnostics count slack as unassigned capacity;
+it is reserved to its owner and becomes usable through later logical growth.
+
+This is a fresh-backing and public-configuration hard cut. Existing snapshot
+images are rejected without rewriting them. Hosts must explicitly reset/retire
+whole backing or use fresh backing, and remove `StorageConfig::wire` overrides.
+Collection images and successful collection APIs are otherwise unchanged, but
+old whole-store images are not attachable. Publication and sibling adoption are
+separate actions and have not been performed.

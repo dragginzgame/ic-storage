@@ -50,6 +50,10 @@
     {
       "source": "lib.rs",
       "sha256": "d6cbef435c86306f895f4c3a1ee1b810d005b2d156fb6d5ebfd7416dbc1f059d"
+    },
+    {
+      "source": "memory_manager.rs",
+      "sha256": "736e9498c31b70adee2d7f8e0505012fa6d0a20425a6f56639465a39bdfdfffa"
     }
   ],
   "adaptations": [
@@ -62,14 +66,17 @@
     "Map iterator raw-byte ownership adapter",
     "Remove unused APIs and tests; checked conversions, mechanical lint fixes and scoped expectations",
     "Private accessors for governed reservations and native-only unwind guards; no Wasm journal",
-    "No copied MemoryManager or default codecs; Storage application codecs remain unchanged",
+    "No copied default codecs; Storage application codecs remain unchanged",
     "Canonical Storage Memory and Bound; no duplicate backing bridge or bound checks",
     "BaseVec implementation consolidated in engine/vec.rs; persisted SVC1 unchanged",
     "Direct node geometry and lazy objects; persisted BTR2/BTN2 unchanged",
     "Combined BTN2 header and overflow-link read with validation and overflow traversal shared across key types",
     "Read all internal-node child arrays with the existing direct address-vector reader; remove the small-count individual-read threshold",
     "Role-based node/layout module and direct new/load/save methods; unversioned Header and header-size names, canonical clear, with persisted discriminators unchanged",
-    "Combine node header and first overflow pointer into one byte-identical 15-byte write; share prefix encoding across key types and remove unused writer helpers"
+    "Combine node header and first overflow pointer into one byte-identical 15-byte write; share prefix encoding across key types and remove unused writer helpers",
+    "Initialize overflow marker and null next-pointer with one byte-identical 11-byte write before publishing the predecessor link",
+    "Cache the admitted Cell encoded length in heap state; same-length replacements write only payload and empty-to-empty replacements perform no IO, preserving SCL1 bytes",
+    "Adapt memory_manager.rs bucket growth and segment translation under runtime/directory_model/persistence.rs: opaque u64 named allocations, eight-page buckets, creation-sized control tables, independently checksummed names/sizes, contiguous requested-bucket IO coalescing, checked refusal before writes, exclusive leases and fail-closed native interruption; replace snapshot directory by explicit fresh-backing hard cut"
   ],
   "source_git_revision": "72b02ab65b6c6fbf53fbabf752732d2726539377",
   "crate_archive_sha256": "8ee3372ddc0cf2a747fc26ce2d075a240ed6bfab151e63bc70109e8967f7ce6f"

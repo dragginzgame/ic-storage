@@ -892,7 +892,6 @@ name = "ic-storage"
 version = "0.70.0"
 dependencies = [
  "ic-platform-runtime",
- "ic-wire",
  "serde",
  "thiserror 2.0.18",
 ]
@@ -2300,9 +2299,9 @@ dependencies = [
 
 [[package]]
 name = "toko-tooling"
-version = "0.36.0"
+version = "0.36.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de0dd05b6437061622a76942baa25d40d2181497e7ba66d9fd809132a3082936"
+checksum = "56ab4b48eb5264ad9a98426a685804fd6cbd441bb370ae9d0046aa43c4aee6a3"
 
 [[package]]
 name = "tower"

@@ -37,10 +37,28 @@ fn key_decode_enforces_grammar_and_preserves_current_encoding() {
     let json = serde_json::to_string(&key).unwrap();
     assert_eq!(json, "\"app.users.v1\"");
     assert_eq!(serde_json::from_str::<StableKey>(&json).unwrap(), key);
-    let bytes = ic_wire::native::encode(&key, crate::StorageConfig::default().wire).unwrap();
+    let bytes = ic_wire::native::encode(
+        &key,
+        ic_wire::Limits {
+            bytes: 1024,
+            allocation: 4096,
+            nodes: 64,
+            depth: 8,
+        },
+    )
+    .unwrap();
     assert_eq!(bytes, b"\x0capp.users.v1");
     assert_eq!(
-        ic_wire::native::decode::<StableKey>(&bytes, crate::StorageConfig::default().wire).unwrap(),
+        ic_wire::native::decode::<StableKey>(
+            &bytes,
+            ic_wire::Limits {
+                bytes: 1024,
+                allocation: 4096,
+                nodes: 64,
+                depth: 8
+            }
+        )
+        .unwrap(),
         key
     );
 
@@ -54,11 +72,27 @@ fn key_decode_enforces_grammar_and_preserves_current_encoding() {
     ] {
         let json = serde_json::to_string(invalid).unwrap();
         assert!(serde_json::from_str::<StableKey>(&json).is_err());
-        let bytes =
-            ic_wire::native::encode(&invalid, crate::StorageConfig::default().wire).unwrap();
+        let bytes = ic_wire::native::encode(
+            &invalid,
+            ic_wire::Limits {
+                bytes: 1024,
+                allocation: 4096,
+                nodes: 64,
+                depth: 8,
+            },
+        )
+        .unwrap();
         assert!(
-            ic_wire::native::decode::<StableKey>(&bytes, crate::StorageConfig::default().wire)
-                .is_err()
+            ic_wire::native::decode::<StableKey>(
+                &bytes,
+                ic_wire::Limits {
+                    bytes: 1024,
+                    allocation: 4096,
+                    nodes: 64,
+                    depth: 8
+                }
+            )
+            .is_err()
         );
     }
 }

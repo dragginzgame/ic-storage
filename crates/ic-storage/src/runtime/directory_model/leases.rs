@@ -33,27 +33,27 @@ impl<M: MemoryBacking> Owner<M> {
 
 impl<M: Memory> Owner<M> {
     pub fn allocation_id(&self, key: &StableKey) -> Option<AllocationId> {
-        self.0.store.borrow().directory.by_key.get(key).copied()
+        self.0.store.borrow().by_key.get(key).copied()
     }
     pub fn bindings(&self) -> Vec<(StableKey, AllocationId, u64)> {
         let store = self.0.store.borrow();
         store
-            .directory
-            .image
             .entries
             .iter()
-            .map(|entry| {
+            .enumerate()
+            .map(|(index, entry)| {
                 (
                     entry.key.clone(),
-                    entry.id,
-                    entry.extents.iter().map(|extent| extent.pages).sum(),
+                    AllocationId(index as u64 + 1),
+                    entry.pages,
                 )
             })
             .collect()
     }
     pub fn generation(&self) -> u64 {
-        self.0.store.borrow().directory.image.generation
+        self.0.store.borrow().generation()
     }
+
     pub fn verify(&self) -> Result<(), Error> {
         self.0.store.borrow().verify()
     }
@@ -65,19 +65,16 @@ impl<M: Memory> Owner<M> {
     pub fn bind(&self, keys: &BTreeSet<StableKey>) -> Result<(), Error> {
         let mut store = self.0.store.borrow_mut();
         store.healthy()?;
-        if keys
-            .iter()
-            .all(|key| store.directory.by_key.contains_key(key))
-        {
+        if keys.iter().all(|key| store.by_key.contains_key(key)) {
             return Ok(());
         }
-        store.mutate(keys, &[])
+        store.bind(keys)
     }
 
     pub fn lease(&self, key: &StableKey) -> Result<Lease<M>, Error> {
         let store = self.0.store.borrow();
         store.healthy()?;
-        let id = *store.directory.by_key.get(key).ok_or(Error::Missing)?;
+        let id = *store.by_key.get(key).ok_or(Error::Missing)?;
         if self.0.live.borrow().contains(&id) {
             return Err(Error::AlreadyOpen);
         }
@@ -86,7 +83,7 @@ impl<M: Memory> Owner<M> {
         Ok(Lease {
             state: Rc::clone(&self.0),
             id,
-            index: store.directory.entry_index(id)?,
+            index: usize::try_from(id.0 - 1).map_err(|_| Error::Missing)?,
         })
     }
 }
@@ -122,15 +119,9 @@ impl<M: Memory> Lease<M> {
     }
     pub fn try_grow(&self, pages: u64) -> Result<u64, Error> {
         let mut store = self.state.store.borrow_mut();
-        let previous = store.pages(self.index)?;
-        previous
-            .checked_add(pages)
-            .ok_or(Error::ArithmeticOverflow)?;
-        if pages != 0 {
-            store.mutate(&BTreeSet::new(), &[(self.id, pages)])?;
-        }
-        Ok(previous)
+        store.grow(self.index, pages)
     }
+
     #[inline]
     pub fn size(&self) -> u64 {
         self.state

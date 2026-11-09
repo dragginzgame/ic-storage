@@ -373,12 +373,24 @@ fn last_reads_and_decodes_only_the_selected_slot() {
         }
         backing.reset();
         DECODES.with(|x| x.set((0, 0)));
+        BORROWED_DECODES.set(0);
         assert_eq!(
             vector.iter().last().unwrap().0,
             (population - 1).to_le_bytes()
         );
         DECODES.with(|x| assert_eq!(x.get(), (1, 8)));
+        assert_eq!(BORROWED_DECODES.get(), 0);
         assert_eq!(backing.counts().read_bytes, 8 + 8 + 2 + 8);
         assert_eq!((backing.counts().writes, backing.counts().grows), (0, 0));
+
+        // Reuse a buffer filled by next(), then transfer it on consumption.
+        let mut iter = vector.iter();
+        assert_eq!(iter.next().unwrap().0, 0_u64.to_le_bytes());
+        BORROWED_DECODES.set(0);
+        assert_eq!(
+            iter.last().map(|record| record.0),
+            (population > 1).then(|| (population - 1).to_le_bytes().to_vec()),
+        );
+        assert_eq!(BORROWED_DECODES.get(), 0);
     }
 }

@@ -887,6 +887,7 @@ fn execution_boundary_and_operation_probes_cannot_be_mixed() {
         "depth",
         "auth-lookups",
         "ordered",
+        "bulk",
     ] {
         for diagnostic in ["--trace-stable-reads", "--trace-execution-cost"] {
             let args = Arguments::try_parse_from(base.into_iter().chain([
@@ -898,7 +899,7 @@ fn execution_boundary_and_operation_probes_cannot_be_mixed() {
             assert_eq!(
                 validate_diagnostics(&args).is_ok(),
                 matches!(workload, "vector-reads" | "depth")
-                    || (matches!(workload, "ordered" | "vector-open")
+                    || (matches!(workload, "ordered" | "vector-open" | "bulk")
                         && diagnostic == "--trace-execution-cost")
             );
         }
@@ -967,4 +968,27 @@ fn session_lookup_scope_preserves_full_catalogue_mutations() {
             .into_iter()
             .all(|operation| case.measures_decode(operation))
     );
+}
+
+#[test]
+fn bulk_read_probes_require_the_bounded_vector_shard() {
+    for collection in ["vector", "map", "cell", "set", "region"] {
+        let args = Arguments::try_parse_from([
+            "bench",
+            "--owned-wasm",
+            "a",
+            "--dfinity-wasm",
+            "b",
+            "--output",
+            "report",
+            "--workload",
+            "bulk",
+            "--collection",
+            collection,
+            "--trace-stable-reads",
+            "--trace-allocator-accesses",
+        ])
+        .unwrap();
+        assert_eq!(validate_diagnostics(&args).is_ok(), collection == "vector");
+    }
 }

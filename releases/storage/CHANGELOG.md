@@ -3,6 +3,34 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/persistence/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.71.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Replace snapshot-directory allocation with Storage-owned ICSS-derived bucket
+  backing. Hosts must explicitly retire/reset old whole-store backing or supply
+  fresh backing; incompatible images are rejected without automatic migration.
+- Remove `StorageConfig::wire`. Eight-page buckets and fixed creation-time tables
+  replace snapshot extents; defaults reserve 960 KiB of controls and permit
+  8 GiB of bucket data. Named IDs, grants, custody and exclusive leases remain.
+  Review the [allocation contract](../../crates/ic-storage/ALLOCATION.md).
+
+### ⚡ Performance
+
+- Remove whole-directory snapshot rewriting and reduce matched small-consumer
+  Wasm by about 14.6–14.8 KB. Results are workload-dependent; 64-KiB iterator
+  allocation costs remain a documented tradeoff.
+- Reduce redundant Cell framing work, combine B-tree overflow initialization,
+  and transfer consumed Vector terminal buffers to decoders. Large-value Vector
+  `last()` improves 32.6–41.7% in matched inner-loop measurements, with small
+  scalar/array overheads. See [detailed results and limits](0.71.md).
+
+### 🔧 Tooling
+
+- Adopt Toko Tooling 0.36.1, IC Build 0.81.0 and IC Host 0.76.1 development tools.
+- Extend bounded allocation/read diagnostics and use ordinary modules in both
+  maintained Wasm size consumers, keeping benchmark code outside production.
+
 ## [0.70.0] - 2026-11-08
 
 ### ⚠️ Breaking
