@@ -33,7 +33,7 @@ impl<M: MemoryBacking> Owner<M> {
 
 impl<M: Memory> Owner<M> {
     pub fn allocation_id(&self, key: &StableKey) -> Option<AllocationId> {
-        self.0.store.borrow().by_key.get(key).copied()
+        self.0.store.borrow().allocation_id(key)
     }
     pub fn bindings(&self) -> Vec<(StableKey, AllocationId, u64)> {
         let store = self.0.store.borrow();
@@ -65,7 +65,7 @@ impl<M: Memory> Owner<M> {
     pub fn bind(&self, keys: &BTreeSet<StableKey>) -> Result<(), Error> {
         let mut store = self.0.store.borrow_mut();
         store.healthy()?;
-        if keys.iter().all(|key| store.by_key.contains_key(key)) {
+        if keys.iter().all(|key| store.allocation_id(key).is_some()) {
             return Ok(());
         }
         store.bind(keys)
@@ -74,7 +74,7 @@ impl<M: Memory> Owner<M> {
     pub fn lease(&self, key: &StableKey) -> Result<Lease<M>, Error> {
         let store = self.0.store.borrow();
         store.healthy()?;
-        let id = *store.by_key.get(key).ok_or(Error::Missing)?;
+        let id = store.allocation_id(key).ok_or(Error::Missing)?;
         if self.0.live.borrow().contains(&id) {
             return Err(Error::AlreadyOpen);
         }

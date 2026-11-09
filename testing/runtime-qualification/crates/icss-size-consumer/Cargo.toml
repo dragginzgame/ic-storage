@@ -6,7 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 publish = false
 
-[package.metadata.shared-tooling.loc]
+[package.metadata.toko-tooling.loc]
 category = "benchmarks"
 
 [package.metadata.cargo-machete]

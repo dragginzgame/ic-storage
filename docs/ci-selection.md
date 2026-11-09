@@ -2,7 +2,7 @@
 
 The [workflow](../.github/workflows/ci.yml) uses Shared’s reviewed
 [classifier contract](ci-change-selection.md). Its executable follows the reviewed
-[snapshot](../.shared-tooling.snapshot), currently Shared 0.29.4 (`628ccc7`).
+[snapshot](../.toko-tooling.snapshot), currently Shared 0.29.4 (`628ccc7`).
 The optional `--allow-version-bump` mode is disabled: Storage uses Cargo release
 groups, not Shared Tooling's root VERSION convention. Cargo metadata changes
 continue to require full CI.

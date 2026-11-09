@@ -5,10 +5,7 @@ mod ownership;
 mod storage;
 
 use clap::Parser;
-use ic_platform::{
-    pocket_ic::{ClientError, ErrorCode, PocketIc, PocketIcBuilder},
-    principal::ExternalPrincipal,
-};
+use ic_testkit::pocket_ic::{CanisterId, ClientError, ErrorCode, PocketIc, PocketIcBuilder};
 use std::env;
 
 ///
@@ -44,41 +41,49 @@ fn assert_trap(error: ClientError) {
     );
 }
 
-fn connect_to_server() -> PocketIc {
+async fn connect_to_server() -> PocketIc {
     // The caller owns server startup/teardown. Never implicitly spawn or
     // download a binary as part of qualification.
     let url = env::var("IC_TESTKIT_POCKET_IC_URL").expect("caller-selected PocketIC server URL");
-    PocketIcBuilder::new()
+    PocketIcBuilder::new(std::time::Duration::from_secs(300))
         .with_server_url(url.parse().unwrap())
         .with_application_subnet()
         .build()
+        .await
         .expect("connect to prepared PocketIC server")
 }
 
-fn install_fixture(pic: &PocketIc, wasm: &[u8], init: Vec<u8>) -> ExternalPrincipal {
-    let canister = pic.create_canister().expect("create fixture canister");
+async fn install_fixture(pic: &PocketIc, wasm: &[u8], init: Vec<u8>) -> CanisterId {
+    let canister = pic
+        .create_canister()
+        .await
+        .expect("create fixture canister");
     pic.add_cycles(canister, 100_000_000_000_000)
+        .await
         .expect("fund fixture canister");
     pic.install_canister(canister, wasm.to_vec(), init, None)
+        .await
         .expect("install fixture canister");
     canister
 }
 
-fn main() {
+#[tokio::main(flavor = "current_thread")]
+async fn main() {
     let arguments = Arguments::parse();
-    let pic = connect_to_server();
+    let pic = connect_to_server().await;
     if arguments.storage_only {
-        storage::qualify(&pic);
+        storage::qualify(&pic).await;
     } else if arguments.logging_only {
-        logging::qualify(&pic);
+        logging::qualify(&pic).await;
     } else {
-        memory::qualify(&pic, arguments.measure_valid_io);
+        memory::qualify(&pic, arguments.measure_valid_io).await;
         if !arguments.measure_valid_io {
-            storage::qualify(&pic);
-            ownership::qualify(&pic);
-            logging::qualify(&pic);
+            storage::qualify(&pic).await;
+            ownership::qualify(&pic).await;
+            logging::qualify(&pic).await;
         }
     }
+    pic.drop().await.expect("delete qualification instance");
 }
 
 #[cfg(test)]

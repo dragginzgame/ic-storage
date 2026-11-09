@@ -109,7 +109,7 @@ and repair command; they still authenticate payloads before execution.
 The reviewed `make/consumer.mk` selects the common modules for setup, checks,
 formatting, hooks and releases; `make/tools.mk` owns installation, offline checks
 and LOC targets. Memory supplies both-workspace formatter commands and its pinned
-compiler. Use `make shared-tooling-check` for snapshot integrity and
+compiler. Use `make toko-tooling-check` for snapshot integrity and
 `make format-tools-check` for prepared formatter admission.
 Existing jq/yq/ripgrep-only checkouts must run `make install-host-tools` once to
 add pinned cloc 2.10, then `make host-tools-check` before offline qualification.
@@ -130,10 +130,10 @@ already tracked by Git. Adopt new locks through an explicitly authorized commit
 or PR before the real-checkout declaration/release gate can pass; qualification
 alone does not authorize staging them.
 
-Installed runtime qualification uses the published `ic-testkit` 0.79.0 server CLI
+Installed runtime qualification uses the published `ic-testkit` 0.95.0 server CLI
 selected in `ci/runtime-tools.env`, installed through Shared Tooling's exact Cargo
 binary installer. It has a separate locked registry tool graph, outside both
-Memory lockfiles. Prepare it and Testkit's authenticated server selection explicitly:
+workspace lockfiles. Prepare it and Testkit's authenticated server selection explicitly:
 
 ```sh
 make install-runtime-server
@@ -152,14 +152,54 @@ Wasm, input hashes and all optimizer/server/runtime logs remain under
 `target/qualification/runtime/`, including failures. Normal library builds and
 their Wasm budgets remain unoptimized. The runner consumes
 `IC_TESTKIT_POCKET_IC_URL`; it never downloads or
-spawns a server. IC Platform 0.18.0's native PocketIC boundary supplies the owned
-0.18.0 client implementation, preserving the 16.1 protocol; Testkit selects server
-16.1.0. This pairing requires installed
+spawns a server. Testkit 0.95 supplies the maintained async native client and
+selects server 16.1.0. Drivers own a current-thread Tokio runtime, explicit
+five-minute HTTP request budgets and awaited instance deletion. This pairing requires installed
 IO/upgrade qualification on Linux and both macOS hosts, supplied by the separate
 runtime CI jobs. Historical 16.0.0 client/server results remain scoped to their
 original inputs. Failed CLI setup, server attempts and runtime logs remain
 available; no old bundle is converted or deleted. Library and release gates do
 not acquire this server dependency.
+
+### Platform 0.28 / Runtime 0.21 adoption
+
+The 2026-11-09 adoption selects Runtime 0.21 for the production `ic0` path and
+Platform 0.28 / Types 0.19 for the independent runtime-composition fixture.
+Platform's removed PocketIC facade is replaced by Testkit 0.95's maintained
+async client. Testkit still selects Platform 0.27 / Types 0.18 transitively;
+those native infrastructure identities are deliberately independent of the
+composition fixture, not a second production executor or product dependency.
+
+The root lock changes only Runtime (0.20.3 → 0.21.0). The independent graph
+removes `ic-platform-pocket-ic`, adds Testkit and resolves the required supplier
+versions. Tokio 1.54.1 supplies the caller-owned current-thread runtime. Tests
+remain sequential, use explicit 300-second request budgets and await instance
+deletion. The active graph gate now verifies Testkit ownership of the native
+qualifier. No synchronous wrapper, alias facade or old client path remains.
+
+Focused Linux evidence: `target/evidence/platform-028/`. Native/Wasm graph
+admission and strict selected Clippy pass, including isolated default and full
+Runtime composition. Forty-two native library/driver tests pass; the two
+explicit installed tests remain opt-in, with their scenarios exercised by the
+installed suite. The original, `-O3`, `-Os` and `-Oz` fixtures pass IO, corruption,
+backing custody, collection/logging upgrades and rollback checks in
+`target/qualification/runtime/attempt.sG98t5`. No new macOS proof is claimed.
+
+All eight matched size-consumer pairs pass 118 calls and two upgrades per
+backend (`target/evidence/storage-consumer-size/attempt.2K9aQP`). No code-section
+payload grows or shrinks. All-collection Storage stays 136,284 total / 117,787
+code bytes; ICSS remains 119,326 / 77,127. Map, Set, Region and Map+Region total
+modules each shrink one byte; other total sizes are unchanged. This is not an
+instruction-speed claim.
+
+The migrated native comparison driver passes a focused Map smoke run. Replaying
+the frozen admission Wasm through the new async driver reproduces all 216
+previous observations exactly, including instructions, sizes and sentinel
+checks. Those frozen-Wasm runs qualify client migration, not new Runtime code;
+the rebuilt installed/size fixtures qualify Runtime 0.21. Tooling integrity,
+pins, Candid boundary, formatting, local links and the dependency-admission
+failure fixtures pass. Existing optimization source is preserved. Release and
+publication gates remain separate; no deployment is included.
 
 For a focused Storage adapter change, build only its fixture and run the ignored
 installed adapter test through the same prepared Testkit server. This covers cell
@@ -171,7 +211,7 @@ cargo +1.99.1 build --manifest-path testing/runtime-qualification/Cargo.toml \
   --target-dir target -p ic-storage-test-fixtures --locked --offline --profile wasm-size \
   --target wasm32-unknown-unknown --example wasm-storage-qualification
 testkit_cli="$(RUSTUP_TOOLCHAIN=1.99.1 bash scripts/dev/install-rust-tools.sh \
-  --consumer "$PWD" --package ic-testkit --version 0.79.0 \
+  --consumer "$PWD" --package ic-testkit --version 0.95.0 \
   --bin ic-testkit-server --profile release --features cli --check)"
 IC_STORAGE_QUALIFICATION_WASM="$PWD/target/wasm32-unknown-unknown/wasm-size/examples/wasm_storage_qualification.wasm" \
   "$testkit_cli" run --directory "$PWD/.tools/ic-testkit-server" --ttl 900 -- \
@@ -202,7 +242,7 @@ qualification graph explicitly with
 uses only the selected workspace and its target configuration; reports do not
 combine the two graphs. `CLOC_ROOT` still selects a containing checkout, rather
 than an independent manifest. The selector is the reviewed fix for
-[Shared Tooling #41](https://github.com/dragginzgame/shared-tooling/issues/41).
+[Shared Tooling #41](https://github.com/dragginzgame/toko-tooling/issues/41).
 Fleet reports run centrally in Shared Tooling: use `make cloc` there for sibling
 Rust workspaces and `make cloc-tooling` there for sibling CI/tooling. Memory no
 longer vendors either fleet reporter. Its shared Make include reports that owner
@@ -212,8 +252,8 @@ remain available.
 
 The LOC selector and generic manifest/output fixture qualify at Shared Tooling.
 Actual reports retain their selected workspace configuration. These fixes track
-[Shared Tooling #47](https://github.com/dragginzgame/shared-tooling/issues/47) and
-[#48](https://github.com/dragginzgame/shared-tooling/issues/48) without patching
+[Shared Tooling #47](https://github.com/dragginzgame/toko-tooling/issues/47) and
+[#48](https://github.com/dragginzgame/toko-tooling/issues/48) without patching
 reviewed exports. CI continues to retain scratch under `$RUNNER_TEMP`.
 Fleet and cross-workspace fixture qualification remains in Shared Tooling.
 Memory no longer selects or dispatches those three upstream regression programs;
@@ -252,11 +292,11 @@ remain unchanged. Existing physical slots, shared generations and failed build
 evidence remain retained. Older local slots do not satisfy the new offline check.
 Shared 0.6.1 stops setup on lock, admission and activation failures, preserving
 the original status and existing selections. Always run the offline check after
-setup. See [Shared #120](https://github.com/dragginzgame/shared-tooling/issues/120).
+setup. See [Shared #120](https://github.com/dragginzgame/toko-tooling/issues/120).
 See [Rust setup](local-setup.md#rust-development-tools).
 
 Verified host/IC bundles use the same per-user store; command paths stay
-`.tools/host/bin` and `.tools/ic/bin`. Use the same `SHARED_TOOLING_STORE` setting
+`.tools/host/bin` and `.tools/ic/bin`. Use the same `TOKO_TOOLING_STORE` setting
 for setup, offline checks and failure collection. Never relocate binaries manually
 or select a sibling checkout's PATH. See
 [shared storage configuration](local-setup.md#shared-executable-storage).
@@ -313,7 +353,7 @@ historical runtime gates above.
 
 ## Native checks
 
-Focused tooling checks are `make shared-tooling-check tools-check test-tools check-pins test-tooling test-hooks fmt-check`,
+Focused tooling checks are `make toko-tooling-check tools-check test-tools check-pins test-tooling test-hooks fmt-check`,
 `make test-release-adapters` and `make lint-tooling`. Compilation must wait for any existing build to finish.
 
 CI runs `make validate-toolchain` on each declared host. Its feature-enabled
@@ -322,7 +362,7 @@ library, Wasm and archive consumers remain separately qualified. The full gate c
 doctests, strict Clippy, warning-denied documentation, Wasm compilation and raw
 size budgets, and package verification. Local development uses focused checks;
 full validation requires explicit authority under the
-[shared cadence](../DRAGGINZGAME.md#validation-and-evidence). Release, publication
+[shared cadence](../TOKO-TOOLING.md#validation-and-evidence). Release, publication
 and installed runtime qualification retain their separate authority.
 
 Release-flow tests separately cover Rust adapter recovery/input binding, actual
@@ -380,7 +420,7 @@ fixture and emits its archive path to `GITHUB_OUTPUT` when set. Verify a downloa
 archive with `bash scripts/ci/verify-failure-evidence.sh FIXTURE ARCHIVE`; digest
 refusal happens before extraction. Existing fixture destinations are refused.
 The archiver and tool selector share the single recorded
-[tooling snapshot](../.shared-tooling.snapshot); `make shared-tooling-check`
+[tooling snapshot](../.toko-tooling.snapshot); `make toko-tooling-check`
 checks all recorded exports. The collector's optional third argument is `full` (default)
 or `compact`. CI selects `compact`: complete active host/IC sets that pass fresh
 offline checks retain snapshot pins, check logs and IC receipts; failed, unknown

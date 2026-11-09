@@ -112,6 +112,13 @@ fn whitespace_rejection_preserves_input_and_precedence() {
     for (key, reason) in [
         ("app.us\u{a0}ers.v1", "must be ASCII"),
         ("App.us\u{b}ers.v1", "must be lowercase"),
+        ("app./- \u{a0}A.v1", "must be ASCII"),
+        ("app.A\u{a0} /-.v1", "must be ASCII"),
+        ("app./- A.v1", "must be lowercase"),
+        ("app.A /-.v1", "must be lowercase"),
+        ("app./- .v1", "must not contain whitespace"),
+        ("app. /-.v1", "must not contain whitespace"),
+        ("app./-.v1", "must not contain slashes or hyphens"),
     ] {
         assert_eq!(StableKey::parse(key).unwrap_err().reason, reason);
     }

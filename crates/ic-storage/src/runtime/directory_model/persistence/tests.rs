@@ -54,8 +54,12 @@ fn store() -> (Observed, Store<Observed>) {
 fn names_above_256_reopen_and_keep_ids_across_omission_and_append() {
     let (memory, mut store) = store();
     store.bind(&(0..1024).map(key).collect()).unwrap();
-    let original = store.by_key.clone();
-    let id = store.by_key[&key(900)];
+    let original: Vec<_> = store
+        .entries
+        .iter()
+        .map(|entry| (entry.key.clone(), store.allocation_id(&entry.key).unwrap()))
+        .collect();
+    let id = store.allocation_id(&key(900)).unwrap();
     store.grow(usize::try_from(id.0 - 1).unwrap(), 9).unwrap();
     store.write_data(id, 8 * PAGE - 2, b"cross bucket").unwrap();
     store.bind(&[key(2000)].into()).unwrap();
@@ -64,9 +68,9 @@ fn names_above_256_reopen_and_keep_ids_across_omission_and_append() {
     drop(store);
     let store = Store::open(memory.clone(), StorageConfig::default()).unwrap();
     for (key, id) in original {
-        assert_eq!(store.by_key[&key], id);
+        assert_eq!(store.allocation_id(&key).unwrap(), id);
     }
-    assert_eq!(store.by_key[&key(2000)], AllocationId(1025));
+    assert_eq!(store.allocation_id(&key(2000)).unwrap(), AllocationId(1025));
     let mut data = [0; 12];
     store.read_data(id, 8 * PAGE - 2, &mut data).unwrap();
     assert_eq!(&data, b"cross bucket");
@@ -196,6 +200,12 @@ fn every_control_byte_corruption_and_foreign_image_refuse_without_writes() {
         );
         assert_eq!(*memory.bytes.borrow(), before);
         assert_eq!(memory.writes.get(), writes);
+        assert!(store.verify().is_err(), "verify offset {offset}");
+        assert!(matches!(store.healthy(), Err(Error::Poisoned)));
+        assert_eq!(*memory.bytes.borrow(), before);
+        assert_eq!(memory.writes.get(), writes);
+        // Restore the original admitted owner solely to test the next byte.
+        store.poisoned.set(false);
     }
     let foreign = VectorMemory::default();
     foreign.grow(1);
@@ -281,4 +291,128 @@ fn contiguous_requested_buckets_share_one_io_without_exposing_slack() {
         Err(Error::Bounds)
     ));
     assert_eq!(memory.counts().writes, 1);
+}
+
+#[test]
+fn verification_rejects_valid_but_changed_rows_and_unexplained_growth() {
+    for change in 0..4 {
+        let (memory, mut store) = store();
+        for index in [0, 1, 0, 1] {
+            store.grow(index, 8).unwrap();
+        }
+        store.verify().unwrap();
+        match change {
+            0 => {
+                let mut entry = store.entries[0].clone();
+                entry.key = key(99);
+                memory.write(ROOT_BYTES as u64, &entry.encode());
+            }
+            1 => {
+                // Same bucket count, different logical size, valid checksum.
+                memory.write(ROOT_BYTES as u64, &Entry::size_bytes(15));
+            }
+            2 => {
+                // Swap owners, preserving each owner's count and checksums.
+                // A cold reader can admit this image, the live owner must not.
+                let offset = store.root.owners().unwrap();
+                let mut pair = [0; 2 * OWNER_SIZE];
+                memory.read(offset, &mut pair);
+                pair.rotate_left(OWNER_SIZE);
+                memory.write(offset, &pair);
+            }
+            _ => {
+                memory.grow(1);
+            }
+        }
+        if change != 3 {
+            assert!(Store::open(memory.clone(), StorageConfig::default()).is_ok());
+        }
+        let before = memory.bytes.borrow().clone();
+        let writes = memory.writes.get();
+        assert!(store.verify().is_err());
+        assert!(matches!(
+            store.read_data(AllocationId(1), 0, &mut [0]),
+            Err(Error::Poisoned)
+        ));
+        assert_eq!(*memory.bytes.borrow(), before);
+        assert_eq!(memory.writes.get(), writes);
+    }
+}
+
+#[test]
+fn admission_reads_only_active_rows_in_bounded_chunks() {
+    use crate::testing::MeteredMemory;
+    for names in [0, 1, 15, 16, 17, 255, 1024] {
+        let memory = MeteredMemory::<VectorMemory>::default();
+        let mut store = Store::create(memory.clone(), StorageConfig::default()).unwrap();
+        store.bind(&(0..names).map(key).collect()).unwrap();
+        if names != 0 {
+            store.grow(0, 17).unwrap();
+        }
+        let buckets = if names == 0 { 0 } else { 3 };
+        let expected = 1 + (names as u64).div_ceil(16) + u64::from(buckets != 0);
+        memory.reset();
+        store.verify().unwrap();
+        let verified = memory.counts();
+        assert_eq!(verified.reads, expected);
+        assert_eq!(
+            verified.read_bytes,
+            ROOT_BYTES as u64 + names as u64 * ENTRY_BYTES + buckets * OWNER_BYTES
+        );
+        assert_eq!(verified.writes, 0);
+        assert!(!verified.overflowed);
+        let reopened = Store::open(memory.clone(), StorageConfig::default()).unwrap();
+        assert_eq!(reopened.entries, store.entries);
+        assert_eq!(memory.counts().reads, expected * 2);
+    }
+}
+
+#[test]
+fn owner_chunk_tail_is_checked_and_preserves_interleaved_buckets() {
+    let memory = crate::testing::MeteredMemory::<VectorMemory>::default();
+    let mut store = Store::create(memory.clone(), StorageConfig::default()).unwrap();
+    store.bind(&[key(0), key(1)].into()).unwrap();
+    for bucket in 0..161 {
+        store.grow(bucket % 2, 8).unwrap();
+    }
+    memory.reset();
+    store.verify().unwrap();
+    assert_eq!(memory.counts().reads, 4); // root, allocation chunk, two owner chunks
+    assert_eq!(memory.counts().read_bytes, 64 + 2 * 160 + 161 * 16);
+    let reopened = Store::open(memory.clone(), StorageConfig::default()).unwrap();
+    assert_eq!(reopened.entries, store.entries);
+    let mut owner = [0; OWNER_SIZE];
+    put(&mut owner, 0, 2); // last bucket actually belongs to allocation 1
+    let checksum = digest(&owner[..8]);
+    put(&mut owner, 8, checksum);
+    memory.write(store.root.owners().unwrap() + 160 * OWNER_BYTES, &owner);
+    assert!(store.verify().is_err());
+    assert!(Store::open(memory, StorageConfig::default()).is_err());
+}
+
+#[test]
+fn name_index_preserves_ids_across_reverse_appends_and_rejects_duplicate_images() {
+    let memory = Observed::default();
+    let mut store = Store::create(memory.clone(), StorageConfig::default()).unwrap();
+    for index in (0..64).rev() {
+        store.bind(&[key(index)].into()).unwrap();
+    }
+    for index in 0..64 {
+        assert_eq!(
+            store.allocation_id(&key(index)),
+            Some(AllocationId(64 - index as u64))
+        );
+    }
+    assert_eq!(store.allocation_id(&key(99)), None);
+    let reopened = Store::open(memory.clone(), StorageConfig::default()).unwrap();
+    for index in 0..64 {
+        assert_eq!(
+            reopened.allocation_id(&key(index)),
+            store.allocation_id(&key(index))
+        );
+    }
+    memory.write(ROOT_BYTES as u64 + ENTRY_BYTES, &store.entries[0].encode());
+    let before = memory.bytes.borrow().clone();
+    assert!(Store::open(memory.clone(), StorageConfig::default()).is_err());
+    assert_eq!(*memory.bytes.borrow(), before);
 }

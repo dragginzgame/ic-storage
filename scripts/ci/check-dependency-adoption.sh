@@ -31,11 +31,11 @@ perl "$shared/check-cargo-graph.pl" --consumer "$PWD" \
     --target "$host" --edges normal --explain \
     --require ic-wire=1 --forbid-feature ic-metrics/native-wire \
     --forbid ic-platform --forbid ic-platform-runtime --forbid ic-platform-types --forbid ic-platform-runtime-guard
-# The native qualifier exchanges Platform/Wire types and opaque Wasm bytes;
+# The native qualifier exchanges Testkit/Wire types and opaque Wasm bytes;
 # it deliberately has no normal dependency on the local Memory/Storage crates.
 perl "$shared/check-cargo-graph.pl" --consumer "$PWD/testing/runtime-qualification" \
     --package ic-storage-runtime-qualification --target "$host" --edges normal --explain \
-    --require ic-platform=1 --require ic-wire=1
+    --require ic-testkit=1 --require ic-wire=1
 # Observe default Storage independently: selecting a runtime-enabled root alongside
 # it would unify features and conceal the production boundary.
 for target in "$host" wasm32-unknown-unknown; do

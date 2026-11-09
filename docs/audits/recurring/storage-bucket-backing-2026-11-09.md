@@ -303,3 +303,101 @@ The 73-type Cell catalogue was measured before this backing cut, not rerun as
 current backing qualification. Full sibling endpoints and cold-open scaling are
 also unqualified. Product release gates, consumer reset decisions and publication
 remain separate work. Keep the explicit regressions visible during review.
+
+## Follow-up: shared size and Map/region attribution
+
+This follow-up includes the pending admission optimizations and compact name
+index described in [the admission report](storage-admission-2026-11-09.md).
+It does not change collection algorithms or the data-IO path. The index wins
+cold-reopen instructions at a 2.7–2.8 KB application-size cost, so it does not
+solve the separate shared-code-size gap. Current-format upgrade qualification
+still passes for all eight size-consumer pairs.
+
+The existing native `collection-io` example supplies three controls: Storage,
+ICSS 0.7.2 on Storage's governed backing, and ICSS on its own eight-page bucket
+manager. All 480 observations pass their value/model checks. Across all 160
+Map/region cases, Storage makes fewer stable reads than the governed ICSS
+control, with identical total read bytes and key/value decode counts. This
+covers fixed 8-byte values and variable 32/4,096-byte payloads, 256/4,096 rows,
+single/batched operations, uniform/hot patterns, replacement and fourfold growth.
+
+| 4,096 rows, 4-KiB value, single uniform operation | Storage reads | ICSS governed reads | Read bytes, both |
+| --- | ---: | ---: | ---: |
+| Map Get | 129 | 153 | 5,571 |
+| Map Replace | 149 | 173 | 21,955 |
+| Map Grow to 16 KiB | 161 | 185 | 22,147 |
+| Region Get | 131 | 155 | 5,647 |
+| Region Replace | 151 | 175 | 22,031 |
+| Region Grow to 16 KiB | 163 | 187 | 22,223 |
+
+The [complete native counter matrix](storage-bulk-attribution-2026-11-09.csv)
+retains all observations. Native range sets describe stable byte ranges, not
+actual IC page faults or charges. Counts are not instruction measurements.
+The governed reference retains its Rc wrapper and primitive codecs; it is a
+useful common-backing control, not a perfectly isolated algorithm benchmark.
+Reverting the current engine's combined reads would restore extra IO, not fix
+the observed instruction gap. No change to production Map/region is justified
+by these counts alone.
+
+Reproduce the native attribution with:
+
+```sh
+cargo run --locked --offline \
+  --manifest-path testing/runtime-qualification/Cargo.toml \
+  -p ic-storage-benchmarks --example collection-io --features owned,dfinity \
+  --target-dir target/runtime-qualification -- NEW-OUTPUT.jsonl
+```
+
+Use a new evidence path under the repository's `target/evidence/`; the example
+refuses to overwrite an existing file. Raw results for this run are under
+`target/evidence/storage-next/`.
+
+### Installed bulk controls after the admission work
+
+Both complete bulk runs pass 116 cases, with two samples per backend per case
+(464 backend observations each). Current Storage medians are identical across
+the independent ordinary-reference and governed-reference runs. ICSS is pinned
+to published 0.7.2; no cache or bucket setting changed. Results are inner
+collection-loop instruction deltas, not complete handler costs or throughput.
+
+| Collection, excluding controls | Cases | Storage / ordinary ICSS, median | Range | Storage / governed ICSS, median | Range |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Map | 52 | 1.0130 | 1.0086–1.0338 | 1.00004 | 0.9949–1.0045 |
+| Vector | 24 | 1.0917 | 0.1658–1.5232 | 1.00002 | 0.1452–1.0008 |
+| Cell | 10 | 1.00005 | 0.5863–1.4956 | 0.99992 | 0.9987–1.00002 |
+| Region | 22 | 1.0362 | 1.0221–1.0512 | 1.0214 | 0.9963–1.0259 |
+
+A ratio below one favors Storage. Medians across different operations are
+unweighted summaries, not an application speedup. The complete
+[bulk control matrix](storage-bulk-controls-2026-11-09.csv) retains previous
+Storage/ICSS (`attempt.hAmH7F`), current ordinary-reference and current governed
+medians. The previous result predates later admission work and the terminal
+Vector ownership change, so differences are not all attributable to the index.
+Map and region ordinary-reference ratios remain effectively at their previous
+levels. No new production Map/region optimization is retained in this pass.
+
+Map's 1.30% median gap nearly disappears with common governed backing. Together
+with the lower native IO counts, this points toward backing-call overhead and
+associated allocation/layout effects rather than a need to revert the engine.
+It does not isolate an exact instruction charge or prove any check removable.
+
+**Region control limitation:** `benches/canister/collections.rs::Region` creates
+Storage's bounded `BTreeMapRegion`, but the ICSS arms call `BTreeMap::load` on
+`BenchMemory` directly. They do not wrap the memory in `RestrictedMemory`.
+Likewise, the native region control measures operation-local root reload but
+not the same bounded namespace. The small Wasm-size consumers are a separate
+fixture and do use bounded ICSS regions. Thus the remaining 2.14% governed-region
+median includes an unmatched semantic boundary, plus wrapper/codec/layout
+choices; it is not evidence that the same checked engine operation is 2.14%
+slower. A follow-up should qualify an equivalent bounded ICSS region before
+changing production bounds checks. Do not cache the region root across calls:
+interleaved views depend on operation-local reloads.
+
+Reproduction uses the existing bulk runner with `BENCH_WORKLOAD=bulk` and two
+samples, then the same driver and Storage Wasm with the reference example built
+using `--features dfinity-governed`. Both modules use the `comparison` profile
+and `-C link-arg=-zstack-size=8388608`. Current ordinary run:
+`target/evidence/storage-comparison/attempt.WEni1B`; governed module/run and native
+attribution: `target/evidence/storage-next/`. The existing scripts retain compiler,
+source, input and artifact identities. No full release validation or publication
+is implied by these focused experiments.

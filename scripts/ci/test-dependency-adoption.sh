@@ -43,8 +43,8 @@ case "$1" in
                 [[ "${ADOPTION_FAILURE:-}" != default-native ]] || printf 'ic-platform-runtime v0.18.1\n'
             fi
         elif [[ "$PWD" == */testing/runtime-qualification ]]; then
-            printf 'ic-storage-runtime-qualification v0.0.0\nic-platform v0.16.0\nic-wire v0.13.3\n'
-            [[ "${ADOPTION_FAILURE:-}" != independent-policy ]] || printf 'ic-platform v0.15.3\n'
+            printf 'ic-storage-runtime-qualification v0.0.0\nic-testkit v0.95.0\nic-wire v0.18.0\n'
+            [[ "${ADOPTION_FAILURE:-}" != independent-policy ]] || printf 'ic-testkit v0.94.0\n'
         else
             printf 'ic-storage v0.60.7\nic-metrics-storage v0.61.5\nic-logging-storage v0.60.5\nic-wire v0.13.3\n'
             if [[ "$*" == *wasm32-unknown-unknown* ]]; then

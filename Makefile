@@ -33,7 +33,7 @@ VALIDATION_TOOLCHAIN ?= $(shell sed -n 's/^channel = "\([^"]*\)"$$/\1/p' rust-to
 include ci/release-tools.env
 include ci/runtime-tools.env
 TOOL := bash scripts/dev/run-repo-tool.sh $(VALIDATION_TOOLCHAIN)
-override SHARED_TOOLING_ROOT := $(CURDIR)
+override TOKO_TOOLING_ROOT := $(CURDIR)
 # Consumer roster; Shared owns each visible pass, including standalone Rustfmt.
 FORMAT_RUST_ARGS = --extra-workspace testing/runtime-qualification \
     --rustfmt-source testing/package-consumer.rs --rustfmt-edition 2024
@@ -58,7 +58,7 @@ TESTKIT_SERVER_DIRECTORY := $(CURDIR)/.tools/ic-testkit-server
 
 help:
 	@echo 'Setup: install-tools (host, IC, Cargo tools), fetch-dependencies, install-hooks; prepare the Rust toolchain first.'
-	@echo 'Focused checks: shared-tooling-check, tools-check, test-tools, test-failure-evidence, check-pins, check-production-graph, check-storage-boundary, check-candid-boundary, test-tooling, test-fixture-cell, test-release-adapters, test-hooks, fmt-check, lint-tooling.'
+	@echo 'Focused checks: toko-tooling-check, tools-check, test-tools, test-failure-evidence, check-pins, check-production-graph, check-storage-boundary, check-candid-boundary, test-tooling, test-fixture-cell, test-release-adapters, test-hooks, fmt-check, lint-tooling.'
 	@echo 'Formatting: fmt. Full release checks: validate, validate-toolchain.'
 	@echo 'Installed runtime: install-runtime-server (explicit Testkit setup), runtime-server-check (offline), test-runtime (prepared server and locked caches).'
 	@echo 'Focused installed Logging proof: test-runtime-logging (original Wasm only; no optimizer or other runtime suites).'
@@ -230,7 +230,7 @@ validate-release-plan:
 	+RELEASE_SOURCE="$(RELEASE_SOURCE)" RELEASE_GROUP="$(RELEASE_GROUP)" VALIDATION_LOG_DIR="$(VALIDATION_LOG_DIR)" bash scripts/ci/run-validation-targets.sh --plan "$(VALIDATION_PLAN)"
 
 validate-admission:
-	$(MAKE) --no-print-directory shared-tooling-check tools-check format-tools-check validation-compilers-check
+	$(MAKE) --no-print-directory toko-tooling-check tools-check format-tools-check validation-compilers-check
 
 validate-lint:
 	+bash scripts/ci/validation-cargo.sh lint $(VALIDATION_TOOLCHAIN) "$(VALIDATION_PLAN)"
@@ -279,7 +279,7 @@ release-patch release-minor release-major release-resume: export RELEASE_CACHE_P
 
 .PHONY: release-candidate-setup
 # Consumer deployment paths outside Shared's standard release targets.
-clean-empty-source-dirs release-candidate-setup release-batch-resume release-prepare-version qualify-release publish publish-dry-run: shared-tooling-check
+clean-empty-source-dirs release-candidate-setup release-batch-resume release-prepare-version qualify-release publish publish-dry-run: toko-tooling-check
 
 release-candidate-setup:
 	+@case "$(RELEASE_SETUP_MODE)" in \

@@ -17,8 +17,10 @@ make benchmark-storage BENCH_ROWS=64 BENCH_SAMPLES=1 # quick complete smoke matr
 
 Rows accept 1–1,000,000, samples 1–20. Cell always has one value, regardless of the
 selected population. Builds are locked/offline on Rust 1.99.1; the command never
-installs tools or changes locks. Testkit 0.79.0 manages the prepared PocketIC
-16.1.0 server through Platform 0.19's owned native client. The published reference uses ICSS 0.7.2 directly, without an older Platform
+installs tools or changes locks. Testkit 0.95.0 supplies the maintained async
+client and manages the prepared PocketIC 16.1.0 server. Native drivers own a
+current-thread Tokio runtime, explicit five-minute request budgets and awaited
+instance deletion. The published reference uses ICSS 0.7.2 directly, without an older Platform
 facade. This is a dependency of the unpublished benchmark support library only;
 Cargo dev-dependencies cannot supply traits used by that library. Production
 Storage keeps one modified engine copy per collection under `src/engine` and

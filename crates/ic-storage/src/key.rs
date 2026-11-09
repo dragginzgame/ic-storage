@@ -99,19 +99,28 @@ pub fn validate(stable_key: &str) -> Result<(), StableKeyError> {
     if stable_key.len() > MAX_KEY_BYTES {
         return invalid(stable_key, "must be at most 128 bytes");
     }
-    if !stable_key.is_ascii() {
+    // Classify once, retaining the established diagnostic precedence even
+    // when a key contains several different invalid characters.
+    let mut invalid_ascii = false;
+    let mut uppercase = false;
+    let mut whitespace = false;
+    let mut separator = false;
+    for byte in stable_key.bytes() {
+        invalid_ascii |= !byte.is_ascii();
+        uppercase |= byte.is_ascii_uppercase();
+        whitespace |= matches!(byte, b'\t'..=b'\r' | b' ');
+        separator |= matches!(byte, b'/' | b'-');
+    }
+    if invalid_ascii {
         return invalid(stable_key, "must be ASCII");
     }
-    if stable_key.bytes().any(|byte| byte.is_ascii_uppercase()) {
+    if uppercase {
         return invalid(stable_key, "must be lowercase");
     }
-    if stable_key
-        .bytes()
-        .any(|byte| matches!(byte, b'\t'..=b'\r' | b' '))
-    {
+    if whitespace {
         return invalid(stable_key, "must not contain whitespace");
     }
-    if stable_key.bytes().any(|byte| matches!(byte, b'/' | b'-')) {
+    if separator {
         return invalid(stable_key, "must not contain slashes or hyphens");
     }
     if stable_key.starts_with('.') || stable_key.ends_with('.') {

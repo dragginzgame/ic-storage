@@ -16,7 +16,7 @@ echo "Retained stage qualification: $fixture"
 parent_inputs=(Cargo.toml Cargo.lock ci/cargo-release-groups.json crates/*/Cargo.toml)
 perl scripts/ci/validation-input-checkpoint.pl "$root" '' "$fixture/parent-inputs.json" scripts/ci/verify-file-checksum.sh "${parent_inputs[@]}"
 git clone --quiet --shared "$root" "$fixture/source with spaces"
-for file in Cargo.toml Cargo.lock Makefile rust-toolchain.toml .shared-tooling.snapshot; do cp "$file" "$fixture/source with spaces/"; done
+for file in Cargo.toml Cargo.lock Makefile rust-toolchain.toml .toko-tooling.snapshot; do cp "$file" "$fixture/source with spaces/"; done
 for directory in ci crates releases scripts make .githooks testing; do cp -Rp "$directory" "$fixture/source with spaces/"; done
 base_source="$(git rev-parse HEAD)"
 git diff --cached --quiet

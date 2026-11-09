@@ -1,5 +1,5 @@
 //! Native validation and size accounting; never linked into either consumer Wasm.
-use ic_platform::pocket_ic::{PocketIc, PocketIcBuilder};
+use ic_testkit::pocket_ic::{PocketIc, PocketIcBuilder};
 use serde_json::json;
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -98,16 +98,20 @@ fn decode(bytes: &[u8]) -> Vec<u64> {
         .map(|b| u64::from_le_bytes(*b))
         .collect()
 }
-fn qualify(pic: &PocketIc, wasm: &[u8], selection: &str) -> usize {
-    let canister = pic.create_canister().unwrap();
-    pic.add_cycles(canister, 100_000_000_000_000).unwrap();
+async fn qualify(pic: &PocketIc, wasm: &[u8], selection: &str) -> usize {
+    let canister = pic.create_canister().await.unwrap();
+    pic.add_cycles(canister, 100_000_000_000_000).await.unwrap();
     pic.install_canister(canister, wasm.to_vec(), vec![], None)
+        .await
         .unwrap();
     let mut model = Model::default();
     let mut calls = 0;
-    let mut put = |key: u64, value: u64, model: &mut Model| {
+    let mut put = async |key: u64, value: u64, model: &mut Model| {
         let arg = [key.to_le_bytes(), value.to_le_bytes()].concat();
-        let response = pic.update_call(canister, canister, "put", arg).unwrap();
+        let response = pic
+            .update_call(canister, canister, "put", arg)
+            .await
+            .unwrap();
         assert_eq!(
             decode(&response),
             filter(selection, model.put(key, value)),
@@ -116,15 +120,16 @@ fn qualify(pic: &PocketIc, wasm: &[u8], selection: &str) -> usize {
         calls += 1;
     };
     for key in (0..96).rev() {
-        put(key, key * 11 + 3, &mut model);
+        put(key, key * 11 + 3, &mut model).await;
     }
     for key in [0, 47, 95] {
-        put(key, key * 17 + 5, &mut model);
+        put(key, key * 17 + 5, &mut model).await;
     }
     for phase in 0..3 {
         for key in [0_u64, 47, 95, 999] {
             let response = pic
                 .query_call(canister, canister, "get", key.to_le_bytes().to_vec())
+                .await
                 .unwrap();
             assert_eq!(
                 decode(&response),
@@ -133,7 +138,10 @@ fn qualify(pic: &PocketIc, wasm: &[u8], selection: &str) -> usize {
             );
             calls += 1;
         }
-        let response = pic.query_call(canister, canister, "scan", vec![]).unwrap();
+        let response = pic
+            .query_call(canister, canister, "scan", vec![])
+            .await
+            .unwrap();
         assert_eq!(
             decode(&response),
             filter(selection, model.scan()),
@@ -144,6 +152,7 @@ fn qualify(pic: &PocketIc, wasm: &[u8], selection: &str) -> usize {
             for key in [0_u64, 47, 95, 999] {
                 let response = pic
                     .update_call(canister, canister, "remove", key.to_le_bytes().to_vec())
+                    .await
                     .unwrap();
                 assert_eq!(
                     decode(&response),
@@ -155,6 +164,7 @@ fn qualify(pic: &PocketIc, wasm: &[u8], selection: &str) -> usize {
         }
         if phase < 2 {
             pic.upgrade_canister(canister, wasm.to_vec(), vec![], None)
+                .await
                 .unwrap();
         }
     }
@@ -217,14 +227,16 @@ fn sizes(bytes: &[u8]) -> (usize, usize, usize, BTreeSet<String>) {
     assert_eq!(pos, bytes.len());
     (code, data, custom, exports)
 }
-fn main() {
+#[tokio::main(flavor = "current_thread")]
+async fn main() {
     let output = env::args().nth(1).expect("artifact directory");
     let output = Path::new(&output);
     let url = env::var("IC_TESTKIT_POCKET_IC_URL").expect("prepared Testkit server URL");
-    let pic = PocketIcBuilder::new()
+    let pic = PocketIcBuilder::new(std::time::Duration::from_secs(300))
         .with_server_url(url.parse().unwrap())
         .with_application_subnet()
         .build()
+        .await
         .unwrap();
     let expected: BTreeSet<_> = [
         "canister_init",
@@ -242,7 +254,7 @@ fn main() {
             let wasm = fs::read(output.join(format!("{selection}-{backend}.wasm"))).unwrap();
             let (code, data, custom, exports) = sizes(&wasm);
             assert_eq!(exports, expected, "export parity");
-            let calls = qualify(&pic, &wasm, selection);
+            let calls = qualify(&pic, &wasm, selection).await;
             records.push(json!({"selection": selection, "backend": backend, "module_bytes": wasm.len(), "code_section_payload_bytes": code, "data_section_payload_bytes": data, "custom_section_bytes": custom, "validated_calls": calls, "upgrades": 2}));
             println!(
                 "Validated {selection}/{backend}: {} bytes, {calls} calls, 2 upgrades",
@@ -272,4 +284,5 @@ fn main() {
         )
         .unwrap();
     }
+    pic.drop().await.unwrap();
 }

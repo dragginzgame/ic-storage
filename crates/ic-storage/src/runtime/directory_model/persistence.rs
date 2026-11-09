@@ -6,10 +6,7 @@
 //! interrupted images are rejected, never initialized or guessed back into use.
 use super::{AllocationId, Error, StableKey, StorageConfig};
 use crate::{Memory, WASM_PAGE_SIZE_BYTES as PAGE, hash};
-use std::{
-    cell::Cell,
-    collections::{BTreeMap, BTreeSet},
-};
+use std::{cell::Cell, collections::BTreeSet};
 
 const MAGIC: &[u8; 8] = b"ICBUCK01";
 const ROOT_BYTES: usize = 64;
@@ -19,6 +16,36 @@ const OWNER_SIZE: usize = 16;
 const OWNER_BYTES: u64 = OWNER_SIZE as u64;
 const BUCKET_PAGES: u64 = 8;
 const BUCKET_BYTES: u64 = BUCKET_PAGES * PAGE;
+
+// A bounded control buffer shared by admission and verification. Its capacity
+// is a whole number of both row widths; partial tails read only active rows.
+const CONTROL_CHUNK_BYTES: usize = 2560;
+type RowVisitor<'a> = dyn FnMut(u64, &[u8]) -> Result<(), Error> + 'a;
+fn read_rows<M: Memory>(
+    memory: &M,
+    mut offset: u64,
+    count: u64,
+    width: usize,
+    visit: &mut RowVisitor<'_>,
+) -> Result<(), Error> {
+    if count == 0 {
+        return Ok(());
+    }
+    let mut buffer = [0; CONTROL_CHUNK_BYTES];
+    let mut index = 0;
+    while index < count {
+        let rows = usize::try_from((count - index).min((buffer.len() / width) as u64))
+            .expect("bounded control chunk");
+        let bytes = rows * width;
+        memory.read(offset, &mut buffer[..bytes]);
+        for row in buffer[..bytes].chunks_exact(width) {
+            visit(index, row)?;
+            index += 1;
+        }
+        offset += bytes as u64;
+    }
+    Ok(())
+}
 
 fn digest(bytes: &[u8]) -> u64 {
     hash::fnv64(hash::FNV_OFFSET, bytes)
@@ -142,12 +169,18 @@ impl Entry {
     }
 }
 
+// Keep indexed name loads and bounds checks out of each sorting-loop branch.
+#[inline(never)]
+fn compare_keys(entries: &[Entry], a: usize, b: usize) -> std::cmp::Ordering {
+    entries[a].key.cmp(&entries[b].key)
+}
+
 pub struct Store<M: Memory> {
     memory: M,
     root: Root,
     budget: StorageConfig,
     pub(super) entries: Vec<Entry>,
-    pub(super) by_key: BTreeMap<StableKey, AllocationId>,
+    key_order: Vec<usize>,
     poisoned: Cell<bool>,
     // ICSS's last-bucket translation cache; additionally bounds it by logical
     // capacity so spare bytes in the final bucket never become accessible.
@@ -186,7 +219,7 @@ impl<M: Memory> Store<M> {
             root,
             budget,
             entries: Vec::new(),
-            by_key: BTreeMap::new(),
+            key_order: Vec::new(),
             poisoned: Cell::new(false),
             last_span: Cell::new(None),
         })
@@ -205,34 +238,51 @@ impl<M: Memory> Store<M> {
         {
             return Err(Error::Invalid("allocation capacity or backing extent"));
         }
-        let mut entries = Vec::new();
-        let mut by_key = BTreeMap::new();
-        for index in 0..root.count {
-            let mut bytes = [0; ENTRY_SIZE];
-            memory.read(ROOT_BYTES as u64 + index * ENTRY_BYTES, &mut bytes);
-            let entry = Entry::decode(&bytes)?;
-            if entry.pages > budget.pages
-                || by_key
-                    .insert(entry.key.clone(), AllocationId(index + 1))
-                    .is_some()
-            {
-                return Err(Error::Invalid("duplicate name or logical size"));
-            }
-            entries.push(entry);
+        // The validated root already gives the exact live row count. Avoid
+        // repeatedly moving admitted entries while reconstructing the directory.
+        let mut entries =
+            Vec::with_capacity(usize::try_from(root.count).map_err(|_| Error::Budget)?);
+        read_rows(
+            &memory,
+            ROOT_BYTES as u64,
+            root.count,
+            ENTRY_SIZE,
+            &mut |_, bytes| {
+                let entry = Entry::decode(bytes.try_into().unwrap())?;
+                if entry.pages > budget.pages {
+                    return Err(Error::Invalid("logical size"));
+                }
+                entries.push(entry);
+                Ok(())
+            },
+        )?;
+        // Entries retain append-order IDs; this index owns no duplicate names.
+        let mut key_order: Vec<_> = (0..entries.len()).collect();
+        key_order.sort_unstable_by(|&a, &b| compare_keys(&entries, a, b));
+        if key_order
+            .windows(2)
+            .any(|pair| entries[pair[0]].key == entries[pair[1]].key)
+        {
+            return Err(Error::Invalid("duplicate name"));
         }
         // ICSS rebuilds each memory's ordered bucket vector from physical owner
         // rows. Read only the committed rows, not the reserved table capacity.
-        for bucket in 0..root.used {
-            let mut bytes = [0; OWNER_SIZE];
-            memory.read(root.owners()? + bucket * OWNER_BYTES, &mut bytes);
-            let owner = word(&bytes, 0);
-            if owner == 0 || owner > root.count || word(&bytes, 8) != digest(&bytes[..8]) {
-                return Err(Error::Invalid("bucket owner"));
-            }
-            entries[usize::try_from(owner - 1).map_err(|_| Error::Budget)?]
-                .buckets
-                .push(bucket);
-        }
+        read_rows(
+            &memory,
+            root.owners()?,
+            root.used,
+            OWNER_SIZE,
+            &mut |bucket, bytes| {
+                let owner = word(bytes, 0);
+                if owner == 0 || owner > root.count || word(bytes, 8) != digest(&bytes[..8]) {
+                    return Err(Error::Invalid("bucket owner"));
+                }
+                entries[usize::try_from(owner - 1).map_err(|_| Error::Budget)?]
+                    .buckets
+                    .push(bucket);
+                Ok(())
+            },
+        )?;
         if entries
             .iter()
             .any(|entry| entry.pages.div_ceil(BUCKET_PAGES) != entry.buckets.len() as u64)
@@ -244,10 +294,16 @@ impl<M: Memory> Store<M> {
             root,
             budget,
             entries,
-            by_key,
+            key_order,
             poisoned: Cell::new(false),
             last_span: Cell::new(None),
         })
+    }
+    pub(super) fn allocation_id(&self, key: &StableKey) -> Option<AllocationId> {
+        self.key_order
+            .binary_search_by(|&index| self.entries[index].key.cmp(key))
+            .ok()
+            .map(|position| AllocationId(self.key_order[position] as u64 + 1))
     }
     pub(super) const fn healthy(&self) -> Result<(), Error> {
         if self.poisoned.get() {
@@ -268,10 +324,55 @@ impl<M: Memory> Store<M> {
         self.poisoned.set(true);
         // Full admission remains explicit at lease/reopen/diagnostic boundaries.
         // Growth trusts exclusive custody, exactly as ordinary data IO does.
-        let observed = Store::open(&self.memory, self.budget)?;
-        if observed.root != self.root || observed.entries != self.entries {
-            return Err(Error::Invalid("backing changed outside its owner"));
+        let changed = || Error::Invalid("backing changed outside its owner");
+        if self.memory.size() != self.root.end()? {
+            return Err(changed());
         }
+        let mut root = [0; ROOT_BYTES];
+        self.memory.read(0, &mut root);
+        if root != self.root.encode(false) {
+            return Err(changed());
+        }
+        // Admitted rows have one canonical encoding. Comparing it also checks
+        // checksums, padding and names, without allocating another name index.
+        read_rows(
+            &self.memory,
+            ROOT_BYTES as u64,
+            self.root.count,
+            ENTRY_SIZE,
+            &mut |index, bytes| {
+                if bytes
+                    != self.entries[usize::try_from(index).expect("admitted allocation index")]
+                        .encode()
+                {
+                    return Err(changed());
+                }
+                Ok(())
+            },
+        )?;
+        read_rows(
+            &self.memory,
+            self.root.owners()?,
+            self.root.used,
+            OWNER_SIZE,
+            &mut |bucket, bytes| {
+                let owner = word(bytes, 0);
+                if owner == 0 || owner > self.root.count || word(bytes, 8) != digest(&bytes[..8]) {
+                    return Err(changed());
+                }
+                // Growth appends physical bucket IDs in increasing order. Checking
+                // every committed row against that admitted vector proves ownership
+                // without constructing a second vector or reverse ownership index.
+                if self.entries[usize::try_from(owner - 1).map_err(|_| Error::Budget)?]
+                    .buckets
+                    .binary_search(&bucket)
+                    .is_err()
+                {
+                    return Err(changed());
+                }
+                Ok(())
+            },
+        )?;
         self.poisoned.set(false);
         Ok(())
     }
@@ -279,7 +380,7 @@ impl<M: Memory> Store<M> {
         self.healthy()?;
         let added: Vec<_> = keys
             .iter()
-            .filter(|key| !self.by_key.contains_key(*key))
+            .filter(|key| self.allocation_id(key).is_none())
             .cloned()
             .collect();
         if added.is_empty() {
@@ -314,8 +415,10 @@ impl<M: Memory> Store<M> {
         }
         self.memory.write(0, &next.encode(false));
         for key in added {
-            let id = AllocationId(self.entries.len() as u64 + 1);
-            self.by_key.insert(key.clone(), id);
+            let position = self
+                .key_order
+                .partition_point(|&index| self.entries[index].key < key);
+            self.key_order.insert(position, self.entries.len());
             self.entries.push(Entry {
                 key,
                 pages: 0,

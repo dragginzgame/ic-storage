@@ -6,8 +6,9 @@ within the 5 MiB repository budget. These are limits, not storage targets.
 
 | Topic | Summary | Selected data |
 | --- | --- | --- |
+| Allocation admission | [Integrity checks, compact index and tradeoffs](../audits/recurring/storage-admission-2026-11-09.md) | [Matched admission/reopen/append matrix](../audits/recurring/storage-admission-2026-11-09.csv) |
 | Vector terminal buffer | [Ownership transfer and matched ICSS comparison](../audits/recurring/storage-vector-last-2026-11-09.md) | Bulk, whole-handler, scalar and size controls inline |
-| Bucket backing | [Hard cut, tradeoffs and ICSS comparison](../audits/recurring/storage-bucket-backing-2026-11-09.md) | Depth, bulk and eight-selection Wasm matrices inline |
+| Bucket backing | [Hard cut, tradeoffs and ICSS comparison](../audits/recurring/storage-bucket-backing-2026-11-09.md) | Depth, bulk and eight-selection Wasm matrices inline; [native IO attribution](../audits/recurring/storage-bulk-attribution-2026-11-09.csv) and [bulk controls](../audits/recurring/storage-bulk-controls-2026-11-09.csv) |
 | Cell replacement | [Cached encoded length and ICSS comparison](../audits/recurring/storage-cell-length-2026-11-09.md) | 73-type, depth, bulk and small-consumer matrices inline |
 | Overflow initialization | [Combined write and matched ICSS comparison](../audits/recurring/storage-overflow-init-2026-11-09.md) | Bulk/depth and eight-selection size matrices inline |
 | B-tree prefix writes | [Combined write and matched ICSS comparison](../audits/recurring/storage-prefix-write-2026-11-08.md) | Depth and eight-selection size matrices inline |

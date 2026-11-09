@@ -18,7 +18,7 @@ if [[ ${6:-} == --logging-only ]]; then
     runner_args=(--logging-only)
     extra_inputs=()
 fi
-shasum -a 256 Cargo.toml Cargo.lock .shared-tooling.snapshot ci/runtime-tools.env "$ic_pins" \
+shasum -a 256 Cargo.toml Cargo.lock .toko-tooling.snapshot ci/runtime-tools.env "$ic_pins" \
     testing/runtime-qualification/Cargo.toml testing/runtime-qualification/Cargo.lock \
     target/runtime-qualification/debug/ic-storage-runtime-qualification "$cli" "$server" ${extra_inputs[@]+"${extra_inputs[@]}"} > "$evidence/inputs.sha256"
 for artifact in "${artifacts[@]}"; do

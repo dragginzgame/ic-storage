@@ -2,12 +2,114 @@
 
 Read this before changing the shared snapshot, tool setup, release adapters,
 formatting or evidence retention. [AGENTS.md](../AGENTS.md) owns the local overlay;
-[.shared-tooling.snapshot](../.shared-tooling.snapshot) owns the exact shared
+[.toko-tooling.snapshot](../.toko-tooling.snapshot) owns the exact shared
 revision, selected roots, payload hashes and executable modes. The former
 live-policy exception is retired: dirty sibling rules never override the reviewed
 local baseline. Future policy changes require reviewed snapshot adoption.
 
-## Current Cargo-owned 0.36.1 selection
+## Current Cargo-owned 0.37.5 selection
+
+Both workspace catalogs and lockfiles select published Toko Tooling 0.37.5
+(checksum `9fc1a752f4f8203d999c4cd593afb9ea18717b28d407492fc98aab5722526be3`).
+Only Toko Tooling changes in either lockfile. The supported authenticated update
+preserves all 87 entrypoints and 171 files, including the offline guides and
+active Candid checker explicitly retained during 0.37.4 adoption.
+
+The changed payload is `rules/cargo-dependencies.md` and
+`scripts/ci/check-cargo-dependency-boundaries.sh`. Their narrow exception admits
+Candid only as an unconditional dev dependency of unpublished
+`ic-wire-benchmarks`; production/build, target-specific, public and other-owner
+edges remain rejected. Storage is not that owner, so its production and local
+Candid restrictions are unchanged. The baseline's reviewed policy revision,
+compiler, tool selections and release gates remain unchanged. This adoption
+does not activate unrelated dependency updates or a fleet audit.
+
+Snapshot integrity, selected-tool admission, both-workspace pin and Cargo
+boundary checks, the local Candid/CBOR checker, formatting and documentation
+links pass. All 173 package/qualification Rust source files match their
+pre-adoption hashes. Standard/custom deployment check gates are unchanged.
+Evidence is retained under `target/evidence/toko-0375/`. Existing Platform/Runtime,
+async qualification and allocation-optimization work is preserved. No product
+version change, commit, push or deployment is included.
+
+## Previous Cargo-owned 0.37.4 selection
+
+Both workspace catalogs and Cargo lockfiles select published Toko Tooling 0.37.4
+(checksum `e83d18a633f4b4fbd5f21ae4fd431ee11bf2d825ab40b5413a4cee35a51295b7`).
+Cargo resolution changed only Toko Tooling; locked cache preparation covers both
+workspaces. The authenticated registry installer preserves the existing 83 roots
+and adds four explicit roots: `rules/engineering-details.md`,
+`rules/rpc-budgets.md`, `docs/candid-boundary.md` and
+`scripts/ci/check-candid-boundary.pl`. The preview would otherwise retire these
+formerly implicit companions, including a checker called by Storage's Makefile
+and offline policy references. No snapshot-owned file is edited by hand.
+
+The standalone baseline now links detailed policy at immutable revision
+`626da7cd9626cc2e152594862a2d82ea82ef51da`. Its dependency-selection rule applies
+latest stable releases within authorized update scope, permits justified
+independent versions, and requires scoped approval for older direct selections.
+It does not authorize unrelated dependency updates. Storage retains its
+consumer-owned architecture, governance, format, compiler, size budget and
+release gates. Existing exact tooling-pin exceptions remain required by the
+installation contract. No new exception or unresolved policy conflict was
+identified in this scoped adoption; this is not a fleet dependency audit.
+
+The payload changes only the baseline and four policy/adoption documents;
+executable bytes and modes remain unchanged. Snapshot integrity, selected-tool
+admission, both-workspace pins, the active Candid/CBOR checker, formatting and
+local documentation links pass. Actual rustc remains 1.99.1. Standard and custom
+release/publication callers retain their pre-effect `toko-tooling-check` gates;
+unchanged executable caller qualification is not rerun as a release.
+Focused evidence is retained in
+`target/evidence/toko-0374/`. Pending optimization work, tool selections, product
+versions and release requirements are preserved. No commit, push or deployment
+is included.
+
+## Previous Cargo-owned 0.37.2 selection
+
+Both workspace catalogs and lockfiles select published Toko Tooling 0.37.2
+(checksum `7660f9041b01073ba4038044983f18f3ac5a73aeebb3a9d054c70810357e20e3`).
+The supported `make toko-tooling-update` refreshed the authenticated receipt and
+admitted selected tools. All 83 entrypoints and 171 installed file hashes/modes
+are unchanged from 0.37.1. This release fixes dependency-report classification;
+those reporting files are outside Storage's selected export closure. No new
+entrypoints or live sibling source are adopted.
+
+Only Toko Tooling changes in either lockfile. Existing product work, Rust 1.99.1,
+release requirements and tool selections are preserved. The 0.37.1 caller and
+runtime-tool qualification below remains applicable to the unchanged payload.
+Snapshot integrity, both-workspace pin admission, tool checks, formatting and
+local documentation links pass. Evidence for this patch is under
+`target/evidence/toko-0372/`; no commit, push or deployment is included.
+
+## Previous Cargo-owned 0.37.1 selection
+
+Published Toko Tooling 0.37.1 is selected exactly in both workspace catalogs and
+lockfiles. Cargo metadata locates the authenticated released installer; the
+reviewed preview and snapshot-only installation preserve all 83 entrypoints.
+The canonical installer retires unchanged owned old names. The receipt is now
+`.toko-tooling.snapshot`, the baseline is `TOKO-TOOLING.md`, commands use
+`toko-tooling-*`, variables use `TOKO_TOOLING_*`, and package LOC policy uses
+`package.metadata.toko-tooling.loc`. There are no local compatibility aliases.
+All ten real packages retain inherited dev-dependencies and cargo-machete exemptions.
+
+Future updates use `make toko-tooling-update`; separate Cargo selection changes
+require `make toko-tooling-install`. `make toko-tooling-check` admits declarations,
+lock selection and installed bytes. The independent workspace remains covered
+by `make check-pins`. This adoption changes only Toko Tooling's lock selections;
+Rust 1.99.1, product versions and release requirements are unchanged. Existing
+optimization work and historical evidence/caches are preserved. No hook activation,
+commit or deployment is part of this adoption. Snapshot/pin admission, selected
+tool setup/checks, both-workspace formatting and LOC classification, CI selection,
+workflow/shell lint, substituted release Make dispatch and failure-evidence
+archive round trips and release-stage reuse pass. The unchanged Testkit 0.79.0
+CLI is prepared in the new tool store, and PocketIC 16.1.0 passes offline server
+admission; no new installed application qualification is claimed. LOC reports zero
+unclassified Rust lines in both workspaces. Historical sections below retain
+their original executable names as evidence, not supported aliases. Focused
+evidence is retained under `target/evidence/toko-0371/`.
+
+## Previous Cargo-owned 0.36.1 selection
 
 Published Toko Tooling 0.36.1 is selected exactly in both workspace catalogs and
 lockfiles. The supported installer refreshes the authenticated snapshot; payload
@@ -570,7 +672,7 @@ commit and retains the existing capabilities. The companion-copy and Make-adapte
 consumer release fixture calls them for formatter closure and parallel lint-order
 qualification, keeping its target roster and effect stubs local. Explicit Cargo-tool
 setup waits up to 60 seconds for an admitted exact-slot owner;
-`SHARED_TOOLING_SETUP_WAIT_SECONDS=0..300` selects another canonical integer
+`TOKO_TOOLING_SETUP_WAIT_SECONDS=0..300` selects another canonical integer
 budget. Offline checks/preflight and Host/IC setup remain immediate. No foreign
 lock is removed and no owner is killed. After waiting, compiler/source/lock and
 completed receipts are admitted again before reuse or activation.
@@ -688,7 +790,7 @@ consumer proofs:
 
 | Retained proof | Local caller |
 | --- | --- |
-| Snapshot hashes, modes and selected roots | `make shared-tooling-check` |
+| Snapshot hashes, modes and selected roots | `make toko-tooling-check` |
 | Actual catalogs, installed tools and native reuse | `make tools-check`, formatter admission and native CI |
 | Two-workspace pin policy and exceptions | `make check-pins` |
 | Default production Wasm normal/build dependency exclusions | `make check-production-graph` |

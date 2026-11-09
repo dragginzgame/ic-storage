@@ -55,10 +55,10 @@ cp "$ROOT/ci/release-tools.env" "$ROOT/ci/runtime-tools.env" "$ROOT/ci/tool-vers
 cp "$ROOT/make/consumer.mk" "$ROOT/make/tools.mk" "$ROOT/make/release.mk" "$ROOT/make/rust-format.mk" "$ROOT/make/execution.mk" "$directory/make/"
 cp "$ROOT/ci/release-validation.json" "$ROOT/ci/cargo-release-groups.json" "$directory/ci/"
 mkdir -p "$directory/scripts/ci" "$directory/scripts/dev"
-cat > "$directory/scripts/dev/shared-tooling.sh" <<'STUB'
+cat > "$directory/scripts/dev/toko-tooling.sh" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
-[[ "$*" == "check --consumer $PWD --manifest .shared-tooling.snapshot" ]] || exit 1
+[[ "$*" == "check --consumer $PWD --manifest .toko-tooling.snapshot" ]] || exit 1
 exit "${TOOLING_CHECK_STATUS:-0}"
 STUB
 cat > "$directory/scripts/dev/clean-empty-source-dirs.pl" <<'STUB'
@@ -152,10 +152,10 @@ done
 # Substitute effects where the recursive production recipes actually dispatch.
 # Replacing recipes only in the parent would leave the child using missing scripts.
 mkdir -p "$FIXTURE/scripts/dev"
-cat > "$FIXTURE/scripts/ci/verify-shared-tooling-snapshot.sh" <<'STUB'
+cat > "$FIXTURE/scripts/ci/verify-toko-tooling-snapshot.sh" <<'STUB'
 #!/usr/bin/env bash
 root="$(pwd -P)"
-[[ "$#" == 4 && "$*" == "--consumer $root --manifest .shared-tooling.snapshot" ]] || exit 1
+[[ "$#" == 4 && "$*" == "--consumer $root --manifest .toko-tooling.snapshot" ]] || exit 1
 STUB
 cat > "$FIXTURE/scripts/ci/check-format-tools.sh" <<'STUB'
 #!/usr/bin/env bash
@@ -290,7 +290,7 @@ cat > "$FIXTURE/scripts/ci/package-workspace.sh" <<'STUB'
 printf 'package %s\n' "$*" >> "$MAKE_PROBE_EVENTS"
 STUB
 printf '%s\n' \
-    'make --no-print-directory shared-tooling-check tools-check format-tools-check validation-compilers-check' \
+    'make --no-print-directory toko-tooling-check tools-check format-tools-check validation-compilers-check' \
     "cargo +$FIXTURE_TOOLCHAIN clippy --workspace --locked --offline --all-targets -- -D warnings" \
     > "$FIXTURE/lint-failure-expected"
 cp "$FIXTURE/lint-failure-expected" "$FIXTURE/lint-success-expected"
@@ -379,8 +379,8 @@ exit 23
 STUB
 rm "$FIXTURE/runner-events"
 for target in release-patch release-minor release-major release-resume; do
-    (cd "$FIXTURE"; SHARED_TOOLING_ROOT="$external_root" make --no-print-directory "$target" VERSION=0.1.1 RELEASE_REMOTE=fixture RELEASE_BRANCH=reviewed)
-    (cd "$FIXTURE"; make --no-print-directory "$target" SHARED_TOOLING_ROOT="$external_root" VERSION=0.1.1 RELEASE_REMOTE=fixture RELEASE_BRANCH=reviewed)
+    (cd "$FIXTURE"; TOKO_TOOLING_ROOT="$external_root" make --no-print-directory "$target" VERSION=0.1.1 RELEASE_REMOTE=fixture RELEASE_BRANCH=reviewed)
+    (cd "$FIXTURE"; make --no-print-directory "$target" TOKO_TOOLING_ROOT="$external_root" VERSION=0.1.1 RELEASE_REMOTE=fixture RELEASE_BRANCH=reviewed)
 done
 printf '%s\n' 'patch fixture reviewed' 'patch fixture reviewed' \
     'minor fixture reviewed' 'minor fixture reviewed' \
@@ -398,7 +398,7 @@ MAKE
 recursive_make="$(command -v make) --no-print-directory -f Makefile -f overrides.mk"
 rm "$FIXTURE/runner-events"
 (cd "$FIXTURE"; make -j2 --no-print-directory -f Makefile -f overrides.mk nested \
-    "MAKE=$recursive_make" "SHARED_TOOLING_ROOT=$external_root" RELEASE_CACHE_PREPARE=0)
+    "MAKE=$recursive_make" "TOKO_TOOLING_ROOT=$external_root" RELEASE_CACHE_PREPARE=0)
 [[ "$(cat "$FIXTURE/runner-events")" == 'patch recursive main' ]] || exit 1
 [[ ! -e "$FIXTURE/external-runner-events" && ! -e "$FIXTURE/external-probe-events" ]] || exit 1
 )

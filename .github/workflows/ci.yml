@@ -53,7 +53,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Check documentation and snapshot integrity
-        run: make shared-tooling-check check-doc-links
+        run: make toko-tooling-check check-doc-links
 
   tooling-lint:
     runs-on: ubuntu-24.04
@@ -63,7 +63,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - run: make shared-tooling-check
+      - run: make toko-tooling-check
       - uses: ./.github/actions/cache-tool-downloads
       - name: Install exact validation tools
         shell: bash
@@ -130,7 +130,7 @@ jobs:
           toolchain: ${{ steps.pin.outputs.channel }}
           components: clippy, rustfmt
           targets: wasm32-unknown-unknown
-      - run: make shared-tooling-check
+      - run: make toko-tooling-check
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
       - uses: ./.github/actions/cache-tool-downloads
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
@@ -321,7 +321,7 @@ jobs:
         with:
           toolchain: ${{ steps.pin.outputs.channel }}
           targets: wasm32-unknown-unknown
-      - run: make shared-tooling-check
+      - run: make toko-tooling-check
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
       - uses: ./.github/actions/cache-tool-downloads
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}

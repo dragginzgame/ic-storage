@@ -1,6 +1,6 @@
 //! Installed Memory scenarios and actual valid-IO measurements.
-use ic_platform::{pocket_ic::PocketIc, principal::ExternalPrincipal};
 pub(super) use ic_storage_test_fixtures::io as protocol;
+use ic_testkit::pocket_ic::{CanisterId, PocketIc};
 use ic_wire::native;
 use protocol::Snapshot;
 use std::{env, fs, time::Duration};
@@ -8,7 +8,7 @@ use std::{env, fs, time::Duration};
 pub(super) fn frame(id: u64, value: &impl serde::Serialize) -> Vec<u8> {
     native::encode_request(id, value, protocol::REQUEST).unwrap()
 }
-pub(super) fn read(pic: &PocketIc, canister: ExternalPrincipal) -> Snapshot {
+pub(super) async fn read(pic: &PocketIc, canister: CanisterId) -> Snapshot {
     let bytes = pic
         .query_call(
             canister,
@@ -16,15 +16,16 @@ pub(super) fn read(pic: &PocketIc, canister: ExternalPrincipal) -> Snapshot {
             "snapshot",
             frame(protocol::SNAPSHOT_ID, &()),
         )
+        .await
         .unwrap();
     native::decode_response(protocol::SNAPSHOT_ID, &bytes, protocol::RESPONSE).unwrap()
 }
 
-pub(super) fn qualify(pic: &PocketIc, measure_valid_io: bool) {
+pub(super) async fn qualify(pic: &PocketIc, measure_valid_io: bool) {
     let wasm = fs::read(env::var("IC_MEMORY_QUALIFICATION_WASM").expect("fixture path")).unwrap();
-    let canister = super::install_fixture(pic, &wasm, frame(protocol::INIT_ID, &()));
-    let snapshot = || read(pic, canister);
-    let initial = snapshot();
+    let canister = super::install_fixture(pic, &wasm, frame(protocol::INIT_ID, &())).await;
+    let snapshot = async || read(pic, canister).await;
+    let initial = snapshot().await;
     assert!(initial.generation >= 1);
     assert_eq!(initial.markers, [0x42, 0x6D]);
     assert_eq!(initial.rows_pages, 1);
@@ -49,10 +50,11 @@ pub(super) fn qualify(pic: &PocketIc, measure_valid_io: bool) {
         ] {
             super::assert_trap(
                 pic.update_call(canister, canister, "io", bytes)
+                    .await
                     .unwrap_err(),
             );
             assert_eq!(
-                snapshot(),
+                snapshot().await,
                 initial,
                 "refused Wire frame must preserve state"
             );
@@ -71,9 +73,13 @@ pub(super) fn qualify(pic: &PocketIc, measure_valid_io: bool) {
                         offset,
                     },
                 );
-                super::assert_trap(pic.update_call(canister, canister, "io", args).unwrap_err());
+                super::assert_trap(
+                    pic.update_call(canister, canister, "io", args)
+                        .await
+                        .unwrap_err(),
+                );
                 assert_eq!(
-                    snapshot(),
+                    snapshot().await,
                     initial,
                     "invalid IO must roll back the preceding valid write"
                 );
@@ -83,6 +89,7 @@ pub(super) fn qualify(pic: &PocketIc, measure_valid_io: bool) {
 
         for mode in [1_u8, 2] {
             pic.advance_time(Duration::from_secs(300))
+                .await
                 .expect("advance PocketIC time");
             super::assert_trap(
                 pic.upgrade_canister(
@@ -91,15 +98,17 @@ pub(super) fn qualify(pic: &PocketIc, measure_valid_io: bool) {
                     frame(protocol::UPGRADE_ID, &mode),
                     None,
                 )
+                .await
                 .unwrap_err(),
             );
             assert_eq!(
-                snapshot(),
+                snapshot().await,
                 initial,
                 "failed upgrade must preserve original state"
             );
         }
         pic.advance_time(Duration::from_secs(300))
+            .await
             .expect("advance PocketIC time");
         pic.upgrade_canister(
             canister,
@@ -107,8 +116,9 @@ pub(super) fn qualify(pic: &PocketIc, measure_valid_io: bool) {
             frame(protocol::UPGRADE_ID, &0_u8),
             None,
         )
+        .await
         .unwrap();
-        let upgraded = snapshot();
+        let upgraded = snapshot().await;
         assert_eq!(
             upgraded,
             Snapshot {
@@ -131,10 +141,20 @@ pub(super) fn qualify(pic: &PocketIc, measure_valid_io: bool) {
                     offset,
                 },
             );
-            let cycles_before = pic.cycle_balance(canister).expect("read canister cycles");
-            let reply = pic.update_call(canister, canister, "io", args).unwrap();
+            let cycles_before = pic
+                .cycle_balance(canister)
+                .await
+                .expect("read canister cycles");
+            let reply = pic
+                .update_call(canister, canister, "io", args)
+                .await
+                .unwrap();
             let cycles = cycles_before
-                .checked_sub(pic.cycle_balance(canister).expect("read canister cycles"))
+                .checked_sub(
+                    pic.cycle_balance(canister)
+                        .await
+                        .expect("read canister cycles"),
+                )
                 .expect("measured update must not increase the cycle balance");
             let reply: protocol::IoReply =
                 native::decode_response(protocol::IO_ID, &reply, protocol::RESPONSE).unwrap();
@@ -143,7 +163,7 @@ pub(super) fn qualify(pic: &PocketIc, measure_valid_io: bool) {
             println!("valid_io_cycles,{operation},{offset},{count},1000,{cycles}");
         }
     }
-    let final_snapshot = snapshot();
+    let final_snapshot = snapshot().await;
     assert_eq!(final_snapshot.markers, [0x99, 0x6D]);
     assert_eq!(final_snapshot.physical_pages, initial.physical_pages);
     assert_eq!(final_snapshot.rows_pages, initial.rows_pages);

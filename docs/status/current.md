@@ -1,5 +1,59 @@
 # Current handoff — 2026-11-09
 
+## Pending: Platform / Runtime adoption
+
+Storage's Wasm backing selects Runtime 0.21 with `ic0` only; the independent
+composition fixture selects Platform 0.28 / Types 0.19. Native production still
+has no Platform/Runtime dependency. Platform removed its PocketIC facade, so
+native qualification and benchmark callers now use Testkit 0.95's async client,
+Tokio 1.54.1, explicit five-minute request budgets and awaited instance deletion.
+The server remains PocketIC 16.1.0. Testkit's Platform 0.27 / Types 0.18 suppliers
+remain native infrastructure; they are not the composition fixture's identities.
+Root lock changes only Runtime; the independent lock removes the retired client
+and resolves the required Testkit/Platform graph. Evidence is under
+`target/evidence/platform-028/`; [qualification](../host-support.md#platform-028--runtime-021-adoption)
+covers graph isolation, strict Clippy, 42 native tests, installed IO/upgrade/
+rollback in four optimizer modes and eight size-consumer pairs. All-collection
+Wasm remains 136,284 bytes; the frozen admission replay matches all 216 prior
+observations. No product version, public Storage API or
+persisted format changes; no commit, push or deployment is included.
+
+## Pending: allocation admission optimization
+
+Local changes remove temporary directory reconstruction during verification and
+batch active metadata reads. No public API or persistent-format change. The
+[admission report](../audits/recurring/storage-admission-2026-11-09.md) records
+before/intermediate/final/ICSS results, small-case regressions, native integrity
+checks and matched installed consumer qualification. Opening all 1,024 leases
+with 32 buckets improves 54.2%. A follow-up reserves decoded rows and combines
+name character scans: cold reopening improves another 0.33–1.99% in 17 cases,
+with one case adding one instruction. It saves 113 bytes from the preceding
+all-collection Wasm, leaving cumulative growth of 96 bytes versus the release.
+A further compact index keeps names only in entries and sorts entry indices.
+Matched cold reopen improves up to 48.3%; 1,024 names/32 buckets falls from
+19.30M to 9.99M instructions. One-lease calls regress up to 0.81%; insertion
+shifts indices, with measured reopen-plus-registration improving at larger
+populations. The all-collection application grows 2,743 bytes to 136,284
+(ICSS 119,326); this is a bounded speed–size tradeoff, not a size reduction.
+All eight consumer pairs pass operations/two upgrades, 22 directory tests and
+five runtime tests pass, and strict Clippy/formatting pass. No persisted-format
+or public API change. The report records the expanded append matrix and limits.
+Storage 0.71.1 notes are pending; no version bump, commit or publication occurred.
+
+## Pending: Toko Tooling 0.37.5 adoption
+
+Both workspace catalogs and lockfiles select published 0.37.5; this refresh
+changes only Toko Tooling. The authenticated installer preserves 87 roots and
+171 files, including active Candid checking and offline policy references.
+The dependency policy/checker adds a narrow exception for unpublished Wire
+benchmarks; Storage's Candid restrictions remain unchanged. Integrity, tool
+admission, pins, Cargo/Candid boundaries, formatting and local links pass.
+Rust 1.99.1,
+Platform/Runtime adoption, product versions, release gates and pending
+optimizations are preserved. See
+[adoption evidence](../shared-tooling-adoption.md#current-cargo-owned-0375-selection)
+and `target/evidence/toko-0375/`. No commit, push or deployment was performed.
+
 ## Delivered: Storage 0.71 and Toko Tooling 0.36.1
 
 The authorized supplier-first batch `batch-JGNkyhL2` completed from source
@@ -72,7 +126,18 @@ equality check.
 
 - Investigate general Vector iterator buffer ownership with multi-item/multi-type
   controls; do not infer a blanket buffer-removal policy from consuming `last()`.
-- Measure allocation admission/reopen scaling with real active rows and buckets.
+- Admission/reopen scaling is now measured, including the compact name index;
+  retaining a full check per lease still leaves quadratic all-lease admission.
+  Any further cut must preserve its trust boundary.
+- The native Map/region control confirms fewer reads with equal bytes/decodes
+  than ICSS on the same backing. Target backing-call overhead and allocation
+  effects rather than reverting the combined-read engine improvements. Both full
+  bulk runs pass 116 cases. Map's 1.30% median gap becomes 0.004% with common
+  backing. Region retains 2.14%, but its ICSS runtime control lacks equivalent
+  namespace bounds; qualify a bounded reference before treating that residual
+  as an engine regression.
+- Shared Wasm remains larger than ICSS. The compact index trades 2.7–2.8 KB for
+  substantial cold-open savings; no separate size reduction is qualified.
 - Rerun the complete type catalogue against the new backing; earlier 73-type Cell
   results predate it. Sibling endpoint costs remain outside these measurements.
 - Consumer adoption requires explicit backing retirement/fresh-state decisions;

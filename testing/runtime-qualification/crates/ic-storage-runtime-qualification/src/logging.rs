@@ -1,7 +1,7 @@
 //! Focused installed Logging checkpoints using the fixture's shared Wire contract.
 use ic_storage_test_fixtures::logging as protocol;
 
-use ic_platform::{pocket_ic::PocketIc, principal::ExternalPrincipal};
+use ic_testkit::pocket_ic::{CanisterId, PocketIc};
 use ic_wire::native;
 use protocol::{Append, Outcome, Reply, Snapshot, Update, Upgrade};
 use serde::Serialize;
@@ -10,10 +10,10 @@ use std::{env, fs, time::Duration};
 fn frame(id: u64, value: &impl Serialize) -> Vec<u8> {
     native::encode_request(id, value, protocol::REQUEST).unwrap()
 }
-fn read(pic: &PocketIc, canister: ExternalPrincipal) -> Snapshot {
-    query(pic, canister, None).snapshot
+async fn read(pic: &PocketIc, canister: CanisterId) -> Snapshot {
+    query(pic, canister, None).await.snapshot
 }
-fn query(pic: &PocketIc, canister: ExternalPrincipal, input: Option<Append>) -> Reply {
+async fn query(pic: &PocketIc, canister: CanisterId, input: Option<Append>) -> Reply {
     let bytes = pic
         .query_call(
             canister,
@@ -21,10 +21,11 @@ fn query(pic: &PocketIc, canister: ExternalPrincipal, input: Option<Append>) -> 
             "logging_query",
             frame(protocol::QUERY_ID, &input),
         )
+        .await
         .unwrap();
     native::decode_response(protocol::QUERY_ID, &bytes, protocol::RESPONSE).unwrap()
 }
-fn update(pic: &PocketIc, canister: ExternalPrincipal, input: &Update) -> Reply {
+async fn update(pic: &PocketIc, canister: CanisterId, input: &Update) -> Reply {
     let bytes = pic
         .update_call(
             canister,
@@ -32,6 +33,7 @@ fn update(pic: &PocketIc, canister: ExternalPrincipal, input: &Update) -> Reply 
             "logging_update",
             frame(protocol::UPDATE_ID, input),
         )
+        .await
         .unwrap();
     native::decode_response(protocol::UPDATE_ID, &bytes, protocol::RESPONSE).unwrap()
 }
@@ -43,11 +45,11 @@ fn append(time: u64, trap: bool) -> Update {
     })
 }
 
-pub(super) fn qualify(pic: &PocketIc) {
+pub(super) async fn qualify(pic: &PocketIc) {
     let wasm =
         fs::read(env::var("IC_LOGGING_QUALIFICATION_WASM").expect("logging fixture path")).unwrap();
-    let canister = super::install_fixture(pic, &wasm, frame(protocol::INIT_ID, &()));
-    let initial = read(pic, canister);
+    let canister = super::install_fixture(pic, &wasm, frame(protocol::INIT_ID, &())).await;
+    let initial = read(pic, canister).await;
     assert!(initial.rows.is_empty());
     assert_eq!(initial.next_sequence, Some(0));
     assert_eq!(initial.last_created_at_secs, None);
@@ -60,16 +62,17 @@ pub(super) fn qualify(pic: &PocketIc) {
             message: "é🦀".repeat(20),
             trap_after_save: false,
         }),
-    );
+    )
+    .await;
     assert_eq!(ephemeral.outcome, Outcome::Appended(0));
     assert!(ephemeral.snapshot.rows[0].truncated);
     assert_eq!(
-        read(pic, canister),
+        read(pic, canister).await,
         initial,
         "query checkpoint must not persist"
     );
 
-    let first = update(pic, canister, &append(20, false));
+    let first = update(pic, canister, &append(20, false)).await;
     assert_eq!(first.outcome, Outcome::Appended(0));
     let retained = first.snapshot;
     super::assert_trap(
@@ -79,15 +82,17 @@ pub(super) fn qualify(pic: &PocketIc) {
             "logging_update",
             frame(protocol::UPDATE_ID, &append(21, true)),
         )
+        .await
         .unwrap_err(),
     );
     assert_eq!(
-        read(pic, canister),
+        read(pic, canister).await,
         retained,
         "trapped update must roll back heap and checkpoint"
     );
 
     pic.advance_time(Duration::from_secs(300))
+        .await
         .expect("advance PocketIC time");
     super::assert_trap(
         pic.upgrade_canister(
@@ -96,14 +101,16 @@ pub(super) fn qualify(pic: &PocketIc) {
             frame(protocol::UPGRADE_ID, &Upgrade::TrapAfterCheckpoint),
             None,
         )
+        .await
         .unwrap_err(),
     );
     assert_eq!(
-        read(pic, canister),
+        read(pic, canister).await,
         retained,
         "trapped upgrade must roll back its checkpoint"
     );
     pic.advance_time(Duration::from_secs(300))
+        .await
         .expect("advance PocketIC time");
     pic.upgrade_canister(
         canister,
@@ -111,15 +118,16 @@ pub(super) fn qualify(pic: &PocketIc) {
         frame(protocol::UPGRADE_ID, &Upgrade::Restore),
         None,
     )
+    .await
     .unwrap();
-    assert_eq!(read(pic, canister), retained);
+    assert_eq!(read(pic, canister).await, retained);
     assert_eq!(
-        update(pic, canister, &append(19, false)).outcome,
+        update(pic, canister, &append(19, false)).await.outcome,
         Outcome::TimestampRefused
     );
-    assert_eq!(read(pic, canister), retained);
+    assert_eq!(read(pic, canister).await, retained);
     assert_eq!(
-        update(pic, canister, &append(20, false)).outcome,
+        update(pic, canister, &append(20, false)).await.outcome,
         Outcome::Appended(1)
     );
     let pruned = update(
@@ -130,12 +138,14 @@ pub(super) fn qualify(pic: &PocketIc) {
             max_age_secs: 0,
             max_remove: 4,
         },
-    );
+    )
+    .await;
     assert_eq!(pruned.outcome, Outcome::Pruned(2));
     assert!(pruned.snapshot.rows.is_empty());
     assert_eq!(pruned.snapshot.next_sequence, Some(2));
     assert_eq!(pruned.snapshot.last_created_at_secs, Some(20));
     pic.advance_time(Duration::from_secs(300))
+        .await
         .expect("advance PocketIC time");
     pic.upgrade_canister(
         canister,
@@ -143,22 +153,24 @@ pub(super) fn qualify(pic: &PocketIc) {
         frame(protocol::UPGRADE_ID, &Upgrade::Restore),
         None,
     )
+    .await
     .unwrap();
-    assert_eq!(read(pic, canister), pruned.snapshot);
+    assert_eq!(read(pic, canister).await, pruned.snapshot);
     assert_eq!(
-        update(pic, canister, &append(19, false)).outcome,
+        update(pic, canister, &append(19, false)).await.outcome,
         Outcome::TimestampRefused
     );
-    let resumed = update(pic, canister, &append(20, false));
+    let resumed = update(pic, canister, &append(20, false)).await;
     assert_eq!(resumed.outcome, Outcome::Appended(2));
     assert_eq!(resumed.snapshot.next_sequence, Some(3));
     let wrong_identity = frame(protocol::UPDATE_ID, &None::<Append>);
     super::assert_trap(
         pic.query_call(canister, canister, "logging_query", wrong_identity)
+            .await
             .unwrap_err(),
     );
-    assert_eq!(read(pic, canister), resumed.snapshot);
-    let budget = update(pic, canister, &Update::TextBudgetProbe);
+    assert_eq!(read(pic, canister).await, resumed.snapshot);
+    let budget = update(pic, canister, &Update::TextBudgetProbe).await;
     assert_eq!(budget.outcome, Outcome::BudgetChecked);
     assert_eq!(
         budget
@@ -170,8 +182,9 @@ pub(super) fn qualify(pic: &PocketIc) {
         [2, 3]
     );
     assert_eq!(budget.snapshot.next_sequence, Some(4));
-    assert_eq!(read(pic, canister), resumed.snapshot);
+    assert_eq!(read(pic, canister).await, resumed.snapshot);
     pic.advance_time(Duration::from_secs(300))
+        .await
         .expect("advance PocketIC time");
     pic.upgrade_canister(
         canister,
@@ -179,12 +192,15 @@ pub(super) fn qualify(pic: &PocketIc) {
         frame(protocol::UPGRADE_ID, &Upgrade::Restore),
         None,
     )
+    .await
     .unwrap();
     assert_eq!(
-        update(pic, canister, &Update::ReadTextBudget).snapshot,
+        update(pic, canister, &Update::ReadTextBudget)
+            .await
+            .snapshot,
         budget.snapshot
     );
-    assert_eq!(read(pic, canister), resumed.snapshot);
+    assert_eq!(read(pic, canister).await, resumed.snapshot);
     println!(
         "installed logging text budget: multi-row eviction, append refusal, forged retained ceiling and upgrade reopen pass"
     );

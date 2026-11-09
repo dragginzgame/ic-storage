@@ -9,11 +9,12 @@ autobenches = false
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 clap.workspace = true
-ic-platform = { workspace = true, features = ["pocket-ic"] }
 ic-storage = { workspace = true, features = ["test-support"], optional = true }
+ic-testkit.workspace = true
 serde_json.workspace = true
+tokio.workspace = true
 
-[package.metadata.shared-tooling.loc]
+[package.metadata.toko-tooling.loc]
 category = "benchmarks"
 
 [package.metadata.cargo-machete]
@@ -59,3 +60,12 @@ required-features = ["owned", "dfinity"]
 [[example]]
 name = "size-consumers"
 path = "benches/size_consumer/runner.rs"
+
+[[example]]
+name = "admission-wasm"
+path = "benches/admission_wasm/wasm.rs"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "admission"
+path = "benches/admission.rs"

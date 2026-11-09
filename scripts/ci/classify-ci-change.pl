@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# Shared companions: scripts/ci/shared-package-version.pl docs/ci-change-selection.md scripts/ci/StableVersion.pm
+# Shared companions: scripts/ci/shared-package-version.pl scripts/ci/StableVersion.pm
 use strict;
 use warnings;
 use Getopt::Long qw(GetOptions);

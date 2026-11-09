@@ -31,12 +31,12 @@ cmp "$repository_root/target/qualification/"$'line\nbreak:payload' "$unpacked/ta
 [[ -x "$unpacked/.tools/host-set.test/bin/tool" && -f "$unpacked/.tools/ic-set.test/receipt" ]] || exit 1
 cmp "$repository_root/.tools/host-set.test/bin/tool" "$unpacked/.tools/host-set.test/bin/tool"
 cmp "$repository_root/.tools/ic-set.test/receipt" "$unpacked/.tools/ic-set.test/receipt"
-export SHARED_TOOLING_STORE="$fixture/shared-store"
+export TOKO_TOOLING_STORE="$fixture/shared-store"
 shared_bundle="$(source "$ROOT/scripts/dev/tool-store.sh"; tool_store_init host evidence; printf '%s/set.evidence\n' "$store_slot")"
-shared_path="${shared_bundle#"$SHARED_TOOLING_STORE/"}"
+shared_path="${shared_bundle#"$TOKO_TOOLING_STORE/"}"
 cmp "$shared_bundle/bin/tool" "$unpacked/$shared_path/bin/tool"
 rust_bundle="$(source "$ROOT/scripts/dev/tool-store.sh"; tool_store_init rust evidence; printf '%s/set.evidence\n' "$store_slot")"
-rust_path="${rust_bundle#"$SHARED_TOOLING_STORE/"}"
+rust_path="${rust_bundle#"$TOKO_TOOLING_STORE/"}"
 tar -tzf "$2" > "$unpacked/archive-members"
 for path in build/install.log inputs.json native-environment.txt \
     build-identity.observed.json native-environment.observed.txt; do
@@ -49,13 +49,13 @@ for reference in rust-set.shared rust-set.sharedDuplicate; do
     [[ -L "$unpacked/.tools/rust/$reference" && "$(readlink "$unpacked/.tools/rust/$reference")" == "$rust_bundle" ]] || exit 1
 done
 [[ -L "$unpacked/.tools/rust/rust-set.unknown" && \
-   "$(readlink "$unpacked/.tools/rust/rust-set.unknown")" == "$SHARED_TOOLING_STORE/unrelated" ]] || exit 1
+   "$(readlink "$unpacked/.tools/rust/rust-set.unknown")" == "$TOKO_TOOLING_STORE/unrelated" ]] || exit 1
 [[ "$(awk '{ sub(/^\.\//, "") } $0 == ".tools/rust/" { count++ } END { print count+0 }' "$unpacked/archive-members")" == 1 ]] || exit 1
 for reference in host-set.shared host-set.sharedDuplicate; do
     [[ -L "$unpacked/.tools/$reference" && "$(readlink "$unpacked/.tools/$reference")" == "$shared_bundle" ]] || exit 1
 done
 [[ -L "$unpacked/.tools/ic-set.unknown" && \
-   "$(readlink "$unpacked/.tools/ic-set.unknown")" == "$SHARED_TOOLING_STORE/unrelated" && \
+   "$(readlink "$unpacked/.tools/ic-set.unknown")" == "$TOKO_TOOLING_STORE/unrelated" && \
    ! -e "$unpacked/unrelated/private" ]] || exit 1
 cmp "$repository_root/target/release-validation/attempt.log" "$unpacked/target/release-validation/attempt.log"
 cmp "$repository_root/.tools/rust/build/cargo-attempt.test/install.log" "$unpacked/.tools/rust/build/cargo-attempt.test/install.log"

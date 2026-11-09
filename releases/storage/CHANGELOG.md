@@ -3,6 +3,48 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/persistence/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.71.1] - Unreleased
+
+### ⚡ Performance
+
+- Reduce allocation-admission overhead by verifying admitted metadata without
+  rebuilding the directory and batching active control reads. Preserve corruption
+  checks and the current storage format. Preallocate decoded rows and classify
+  name characters once to reduce cold-reopening work. Large admission cases improve substantially;
+  some small cases regress. [Measurements and limits](../../docs/audits/recurring/storage-admission-2026-11-09.md).
+
+- Keep each directory name solely in its entry and index entry positions. Cold reopening
+  improves up to 48.3% versus the preceding optimization, with 2.7–2.8 KB
+  application Wasm growth and small lease-opening regressions; allocation IDs
+  and persisted bytes are unchanged.
+
+### 🧪 Testing
+
+- Add a reproducible installed admission/reopen matrix against ICSS, with names
+  and populated buckets varied independently, plus metadata-tail and live-owner
+  corruption coverage.
+
+### 📦 Dependencies
+
+- Adopt IC Platform Runtime 0.21 for Storage's `ic0`-only Wasm backing and
+  Platform 0.28 for the independent composition fixture. Preserve the native
+  production graph without Platform/Runtime and the Wasm graph without executor,
+  guard, Types or Candid.
+- Replace Platform's removed PocketIC facade in qualification drivers with
+  Testkit 0.95's async client. Use caller-owned Tokio execution, explicit request
+  budgets and awaited instance cleanup. The selected server remains 16.1.0;
+  Testkit's older transitive Platform identity stays confined to native testing.
+
+### 🛠️ Tooling
+
+- Adopt Toko Tooling 0.37.5 across both workspaces. Contributor commands now use
+  `toko-tooling-*`, with the renamed snapshot, baseline and LOC metadata; old
+  command aliases are not retained. Preserve active offline guides/checkers as
+  explicit roots and adopt the scoped latest-stable dependency policy. The new
+  Wire benchmark oracle exception does not broaden Storage’s Candid permissions.
+  Product APIs and release requirements are
+  unchanged. [Adoption guide](../../docs/shared-tooling-adoption.md#current-cargo-owned-0375-selection).
+
 ## [0.71.0] - 2026-11-09
 
 ### ⚠️ Breaking

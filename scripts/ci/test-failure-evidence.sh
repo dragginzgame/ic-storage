@@ -56,7 +56,7 @@ jq -e '
 mkdir -p "$fixture/temp/ic-storage-fixtures" "$fixture/repository"
 temp_root="$fixture/temp"
 repository_root="$fixture/repository"
-export SHARED_TOOLING_STORE="$fixture/shared-store"
+export TOKO_TOOLING_STORE="$fixture/shared-store"
 
 # Exercise the public installer directly. Shared owns its regression matrix;
 # Memory owns preservation of this actual refusal and its failed candidate.
@@ -77,8 +77,8 @@ tar -czf "$installer_fixture/ripgrep.tar.gz" -C "$installer_fixture" "$rg_member
 probe_digest="$(bash "$ROOT/scripts/ci/verify-file-checksum.sh" --print sha256 "$installer_fixture/probe")"
 archive_digest="$(bash "$ROOT/scripts/ci/verify-file-checksum.sh" --print sha256 "$installer_fixture/ripgrep.tar.gz")"
 awk -v probe="$probe_digest" -v archive="$archive_digest" '
-    /^export SHARED_TOOLING_(JQ|YQ|CLOC)_SHA256/ { sub(/=.*/, "=" probe) }
-    /^export SHARED_TOOLING_RIPGREP_SHA256/ { sub(/=.*/, "=" archive) }
+    /^export TOKO_TOOLING_(JQ|YQ|CLOC)_SHA256/ { sub(/=.*/, "=" probe) }
+    /^export TOKO_TOOLING_RIPGREP_SHA256/ { sub(/=.*/, "=" archive) }
     { print }
 ' "$ROOT/ci/tool-versions.env" > "$installer_fixture/pins.env"
 cat > "$installer_fixture/bin/uname" <<'UNAME'
@@ -103,7 +103,7 @@ esac
 CURL
 chmod 755 "$installer_fixture/bin/"*
 if INSTALLER_FIXTURE="$installer_fixture" PATH="$installer_fixture/bin:$PATH" \
-    SHARED_TOOLING_STORE="$installer_fixture/store" \
+    TOKO_TOOLING_STORE="$installer_fixture/store" \
     bash "$ROOT/scripts/dev/install-host-tools.sh" --consumer "$installer_fixture/consumer" \
         --versions "$installer_fixture/pins.env" > "$temp_root/tools-setup.log" 2>&1; then
     echo 'expected the controlled host-tool failure' >&2; exit 1
@@ -157,12 +157,12 @@ ln -s host-set.test "$repository_root/.tools/host"
 # local references retain it once; unrelated store entries and unknown links
 # must never widen this checkout's archive selection.
 shared_bundle="$(source "$ROOT/scripts/dev/tool-store.sh"; tool_store_init host evidence; printf '%s/set.evidence\n' "$store_slot")"
-(umask 077; mkdir -p "$shared_bundle/bin" "$SHARED_TOOLING_STORE/unrelated")
+(umask 077; mkdir -p "$shared_bundle/bin" "$TOKO_TOOLING_STORE/unrelated")
 printf 'selected shared payload\n' > "$shared_bundle/bin/tool"
-printf 'unrelated store payload\n' > "$SHARED_TOOLING_STORE/unrelated/private"
+printf 'unrelated store payload\n' > "$TOKO_TOOLING_STORE/unrelated/private"
 ln -s "$shared_bundle" "$repository_root/.tools/host-set.shared"
 ln -s "$shared_bundle" "$repository_root/.tools/host-set.sharedDuplicate"
-ln -s "$SHARED_TOOLING_STORE/unrelated" "$repository_root/.tools/ic-set.unknown"
+ln -s "$TOKO_TOOLING_STORE/unrelated" "$repository_root/.tools/ic-set.unknown"
 rust_bundle="$(source "$ROOT/scripts/dev/tool-store.sh"; tool_store_init rust evidence; printf '%s/set.evidence\n' "$store_slot")"
 (umask 077; mkdir -p "$rust_bundle/build")
 printf 'shared Cargo build failure\n' > "$rust_bundle/build/install.log"
@@ -175,7 +175,7 @@ printf '{"build":{"native":"%s"}}\n' "$expected_native" > "$rust_bundle/inputs.j
 printf '{"native":"%s"}\n' "$observed_native" > "$rust_bundle/build-identity.observed.json"
 ln -s "$rust_bundle" "$repository_root/.tools/rust/rust-set.shared"
 ln -s "$rust_bundle" "$repository_root/.tools/rust/rust-set.sharedDuplicate"
-ln -s "$SHARED_TOOLING_STORE/unrelated" "$repository_root/.tools/rust/rust-set.unknown"
+ln -s "$TOKO_TOOLING_STORE/unrelated" "$repository_root/.tools/rust/rust-set.unknown"
 
 # Relative entry points must ignore inherited CDPATH when locating helpers.
 archive="$(cd "$ROOT" && GITHUB_OUTPUT="$fixture/full-output" CDPATH="$ROOT" bash scripts/ci/collect-failure-evidence.sh "$temp_root" "$repository_root")"
@@ -225,7 +225,7 @@ rust_archive="$(GITHUB_OUTPUT="$fixture/rust-only-output" bash "$ROOT/scripts/ci
 [[ "$(cat "$fixture/rust-only-output")" == collection-complete=true ]] || exit 1
 mkdir "$fixture/rust-only-unpacked"
 tar -xzf "$rust_archive" -C "$fixture/rust-only-unpacked"
-rust_path="${rust_bundle#"$SHARED_TOOLING_STORE/"}"
+rust_path="${rust_bundle#"$TOKO_TOOLING_STORE/"}"
 for path in build/install.log inputs.json native-environment.txt \
     build-identity.observed.json native-environment.observed.txt; do
     cmp "$rust_bundle/$path" "$fixture/rust-only-unpacked/$rust_path/$path"
@@ -274,7 +274,7 @@ for selection_mode in full compact; do
             ln -s private "$rejected/store"
             rejected_path="$rejected/store"
         fi
-        rejected_archive="$(SHARED_TOOLING_STORE="$rejected_path" GITHUB_OUTPUT="$rejected/outputs" \
+        rejected_archive="$(TOKO_TOOLING_STORE="$rejected_path" GITHUB_OUTPUT="$rejected/outputs" \
             bash "$ROOT/scripts/ci/collect-failure-evidence.sh" "$rejected/temp" \
             "$rejected/repository" "$selection_mode" 2> "$rejected/error")"
         [[ -f "$rejected_archive" && -s "$rejected/error" && \

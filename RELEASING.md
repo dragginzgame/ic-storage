@@ -8,10 +8,10 @@ and [host prerequisites](docs/host-support.md). The native `repo-tool` example
 supplies consumer policy to the existing Shared runner; it is not canister code.
 
 Workspace tooling pins, every member's inherited dev-dependency, normal Cargo
-lockfiles and the installed snapshot must agree. `shared-tooling-check` runs
+lockfiles and the installed snapshot must agree. `toko-tooling-check` runs
 before standard releases and consumer publication, qualification, preparation,
 batch resume and empty-directory cleanup. Change the exact root pins, resolve
-both Cargo lockfiles, then run `make shared-tooling-update`; Cargo never installs
+both Cargo lockfiles, then run `make toko-tooling-update`; Cargo never installs
 tooling implicitly. Existing product qualification remains required.
 
 ## Release groups
@@ -226,5 +226,5 @@ release/validation authorization:
 staging refusal, earlier artifacts and failed logs. None invokes a live release,
 registry upload or installed runtime matrix. Native macOS acceptance stays with
 its declared CI job. The inherited Make guard's command-line `MAKEFLAGS=` replacement
-limitation remains tracked in [Shared #30](https://github.com/dragginzgame/shared-tooling/issues/30);
+limitation remains tracked in [Shared #30](https://github.com/dragginzgame/toko-tooling/issues/30);
 retain failure-enforcing Make settings and do not bypass guards or branch protections.

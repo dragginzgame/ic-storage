@@ -31,9 +31,11 @@ the installed fixtures without retained mutation. Rebuild fixtures and runner
 together: the earlier raw packet protocol has been retired. These schemas add
 no public library endpoint and change no durable ledger or collection format.
 
-IC Platform's optional native `pocket-ic` interface supplies the client,
-locked to PocketIC 16.1.0; Testkit owns its reviewed 16.1.0 server selection
-separately. Platform adds no lifecycle wrapper or alternate client. Prepare the
+Testkit 0.95 supplies the maintained async PocketIC client and its reviewed
+16.1.0 server selection. Drivers own a current-thread Tokio runtime, explicit
+five-minute request budgets and awaited instance deletion. The composition
+fixture independently selects Platform 0.28 / Runtime 0.21; Testkit's native
+Platform 0.27 dependency does not enter product Wasm. Prepare the
 server explicitly with `make install-runtime-server`,
 check it offline with `make runtime-server-check`, and prepare the selected IC
 tools with `make install-ic-tools` before running `make test-runtime`.

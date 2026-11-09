@@ -6,7 +6,7 @@ rust-version.workspace = true
 publish = false
 license.workspace = true
 
-[package.metadata.shared-tooling.loc]
+[package.metadata.toko-tooling.loc]
 category = "tests"
 
 [package.metadata.cargo-machete]
@@ -14,10 +14,11 @@ ignored = ["toko-tooling"]
 
 [dependencies]
 clap.workspace = true
-ic-platform = { workspace = true, features = ["pocket-ic"] }
 ic-storage-test-fixtures.workspace = true
+ic-testkit.workspace = true
 ic-wire.workspace = true
 serde.workspace = true
+tokio.workspace = true
 
 [dev-dependencies]
 toko-tooling.workspace = true

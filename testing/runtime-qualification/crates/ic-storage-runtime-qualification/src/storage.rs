@@ -1,33 +1,31 @@
 //! Installed Storage adapters under the same caller-owned server as Memory.
-use ic_platform::{
-    pocket_ic::{ClientError, PocketIc},
-    principal::ExternalPrincipal,
-};
 use ic_storage_test_fixtures::storage as protocol;
+use ic_testkit::pocket_ic::{CanisterId, ClientError, PocketIc};
 use ic_wire::native;
 fn frame(id: u64, value: &impl serde::Serialize) -> Vec<u8> {
     native::encode_request(id, value, protocol::REQUEST).unwrap()
 }
 use std::{env, fs, time::Duration};
 
-fn update(
+async fn update(
     pic: &PocketIc,
-    canister: ExternalPrincipal,
+    canister: CanisterId,
     method: &str,
     id: u64,
     mode: u8,
 ) -> Result<(), ClientError> {
     pic.update_call(canister, canister, method, frame(id, &mode))
+        .await
         .map(|bytes| {
             native::decode_response::<()>(id, &bytes, protocol::RESPONSE).unwrap();
         })
 }
 
-pub(super) fn qualify(pic: &PocketIc) {
+pub(super) async fn qualify(pic: &PocketIc) {
     let wasm =
         fs::read(env::var("IC_STORAGE_QUALIFICATION_WASM").expect("Storage fixture path")).unwrap();
-    let canister = super::install_fixture(pic, &wasm, frame(protocol::INIT_ID, &()));
-    let snapshot = || {
+    let canister = super::install_fixture(pic, &wasm, frame(protocol::INIT_ID, &())).await;
+    let snapshot = async || {
         let bytes = pic
             .query_call(
                 canister,
@@ -35,6 +33,7 @@ pub(super) fn qualify(pic: &PocketIc) {
                 "snapshot",
                 frame(protocol::SNAPSHOT_ID, &()),
             )
+            .await
             .unwrap();
         native::decode_response::<protocol::Snapshot>(
             protocol::SNAPSHOT_ID,
@@ -44,7 +43,7 @@ pub(super) fn qualify(pic: &PocketIc) {
         .unwrap()
     };
     let expected = |generation, values| protocol::Snapshot { generation, values };
-    let initial = snapshot();
+    let initial = snapshot().await;
     assert!(
         initial.generation > 1,
         "initial collection growth commits extents"
@@ -60,10 +59,11 @@ pub(super) fn qualify(pic: &PocketIc) {
     ] {
         super::assert_trap(
             pic.query_call(canister, canister, "snapshot", bytes)
+                .await
                 .unwrap_err(),
         );
         assert_eq!(
-            snapshot(),
+            snapshot().await,
             initial,
             "refused Wire snapshot request must preserve state"
         );
@@ -77,9 +77,10 @@ pub(super) fn qualify(pic: &PocketIc) {
             protocol::CELL_FAILURE_ID,
             mode,
         )
+        .await
         .unwrap();
         assert_eq!(
-            snapshot(),
+            snapshot().await,
             initial,
             "rejected cell load preserves live collections"
         );
@@ -92,10 +93,11 @@ pub(super) fn qualify(pic: &PocketIc) {
             protocol::CELL_FAILURE_ID,
             4_u8,
         )
+        .await
         .unwrap_err(),
     );
     assert_eq!(
-        snapshot(),
+        snapshot().await,
         initial,
         "cell decoder trap preserves live collections"
     );
@@ -107,17 +109,25 @@ pub(super) fn qualify(pic: &PocketIc) {
         protocol::CELL_FAILURE_ID,
         3_u8,
     )
+    .await
     .unwrap();
-    super::assert_trap(update(pic, canister, "mutate", protocol::MUTATE_ID, 1_u8).unwrap_err());
+    super::assert_trap(
+        update(pic, canister, "mutate", protocol::MUTATE_ID, 1_u8)
+            .await
+            .unwrap_err(),
+    );
     assert_eq!(
-        snapshot(),
+        snapshot().await,
         initial,
         "trapped update rolls back all collection writes"
     );
-    update(pic, canister, "mutate", protocol::MUTATE_ID, 0_u8).unwrap();
-    let committed = snapshot();
+    update(pic, canister, "mutate", protocol::MUTATE_ID, 0_u8)
+        .await
+        .unwrap();
+    let committed = snapshot().await;
     assert_eq!(committed, expected(initial.generation, [100, 101, 102]));
     pic.advance_time(Duration::from_secs(300))
+        .await
         .expect("advance PocketIC time");
     super::assert_trap(
         pic.upgrade_canister(
@@ -126,19 +136,22 @@ pub(super) fn qualify(pic: &PocketIc) {
             frame(protocol::UPGRADE_ID, &1_u8),
             None,
         )
+        .await
         .unwrap_err(),
     );
     assert_eq!(
-        snapshot(),
+        snapshot().await,
         committed,
         "failed upgrade preserves collections and generation"
     );
     pic.advance_time(Duration::from_secs(300))
+        .await
         .expect("advance PocketIC time");
     pic.upgrade_canister(canister, wasm, frame(protocol::UPGRADE_ID, &0_u8), None)
+        .await
         .unwrap();
     assert_eq!(
-        snapshot(),
+        snapshot().await,
         committed,
         "reopening unchanged names does not commit a generation"
     );

@@ -1,17 +1,17 @@
 # Repository Instructions
 
 For scope, delegated delivery, validation, compiler support and reporting, use
-[the reviewed local baseline](DRAGGINZGAME.md) and its linked rules. Each maintained workspace root selects exact crates.io `toko-tooling` in its
+[the reviewed local baseline](TOKO-TOOLING.md) and its linked rules. Each maintained workspace root selects exact crates.io `toko-tooling` in its
 dependency catalog; normal Cargo.lock records its
-authenticated archive identity and [.shared-tooling.snapshot](.shared-tooling.snapshot)
+authenticated archive identity and [.toko-tooling.snapshot](.toko-tooling.snapshot)
 records the authenticated package checksum and installed payload. Rust 1.99.1
 remains the minimum and pinned development/release compiler. Product-specific
 safeguards and scoped permissions below remain binding.
 
 ## Active shared rules and local overlay
 
-Apply the reviewed local [Shared Tooling baseline](DRAGGINZGAME.md) and its
-linked rules. [.shared-tooling.snapshot](.shared-tooling.snapshot) owns the exact
+Apply the reviewed local [Toko Tooling baseline](TOKO-TOOLING.md) and its
+linked rules. [.toko-tooling.snapshot](.toko-tooling.snapshot) owns the exact
 policy and executable revision. The maintainer-approved cleanup retires live
 inheritance from the sibling checkout; uncommitted upstream rules do not apply
 until reviewed adoption. Other repositories remain read-only unless explicitly
@@ -22,12 +22,12 @@ Before changing tooling, formatting, release adapters or retention, read
 vendored files or attribute dirty shared source to a registry installation.
 Every real package inherits `toko-tooling.workspace = true` in unconditional
 `[dev-dependencies]` and records its cargo-machete exemption. Both maintained
-workspace roots pin `=0.36.1`; no selection-only package or artificial Rust import
+workspace roots pin `=0.37.5`; no selection-only package or artificial Rust import
 is needed. After changing the exact pins, resolve each normal Cargo.lock with
-Cargo, then run `make shared-tooling-update`. Use `make shared-tooling-install`
+Cargo, then run `make toko-tooling-update`. Use `make toko-tooling-install`
 to reinstall the existing Cargo selection. Commit declarations, Cargo lockfiles
 and snapshot receipt together. Custom deployment targets must run
-`shared-tooling-check` before effects. The three public package gates remain unchanged.
+`toko-tooling-check` before effects. The three public package gates remain unchanged.
 
 The virtual repository-root workspace owns shared package metadata and the
 dependency catalog. The library packages are `crates/ic-storage/`, `crates/ic-metrics-storage/` and
@@ -83,7 +83,7 @@ for the upstream contribution and the `ic-storage` package integration boundary.
   Cargo/rustc identities, retain each distinct feature/target/host proof, and run
   otherwise identical compiler graphs once. Never delete historical tool caches.
 - Before editing or compiling, check for active Cargo, rustc and rustdoc builds.
-- Select checks for the affected contract: `make shared-tooling-check`,
+- Select checks for the affected contract: `make toko-tooling-check`,
   `make check-pins`, `make check-production-graph`,
   `make fmt-check`, or an appropriately selected Rust test such as
   `cargo test -p ic-storage --locked --offline --example repo-tool` for the native
@@ -96,7 +96,7 @@ for the upstream contribution and the `ic-storage` package integration boundary.
 - Full repository suite: `make validate`; releases use the qualified
   [group validation mapping](docs/storage-release-validation.md) and require every
   applicable stage, under the shared
-  [validation cadence](DRAGGINZGAME.md#validation-and-evidence).
+  [validation cadence](TOKO-TOOLING.md#validation-and-evidence).
   Development packaging qualifies working-tree edits; release
   admission and the separate `make package` target still require clean source.
   Release, publication and installed runtime qualification retain their separate
@@ -151,7 +151,7 @@ to prove adoption.
 ## Contributions, compatibility and changelogs
 
 Follow the reviewed shared [contribution rules](rules/contributions.md),
-[hard-cut baseline](DRAGGINZGAME.md#pre-10-contracts) and
+[hard-cut baseline](TOKO-TOOLING.md#pre-10-contracts) and
 [changelog rules](rules/changelogs.md). Storage configures direct release delivery
 under Shared's delegated-delivery contract. An ordinary PR does not select PR
 release delivery; checkout locations follow Shared's durable-work contract.
@@ -180,7 +180,7 @@ requirements. This does not authorize other nested workspaces. Follow
 Registry requirements remain compatible ranges. Storage uses IC Platform Runtime's
 owned stable-memory API for Wasm backing IO. Native production has no
 Platform/Runtime, runtime-guard or Types dependency. Wasm selects only `ic0` from
-published Runtime 0.20 for safe stable64 IO; it must not activate runtime,
+published Runtime 0.21 for safe stable64 IO; it must not activate runtime,
 executor, CDK, guard, Types or Candid. No `ic-stable-structures` dependency is
 allowed in the production graph. Memory, codec traits, allocation metadata and
 collection integration are owned here. The maintainer selected copied ICSS 0.7.2
@@ -195,13 +195,14 @@ Changes require appropriate native corruption, growth, custody and installed
 IO/upgrade qualification. Do not restore old manager
 or collection compatibility paths during the rewrite.
 
-The independent qualification workspace consumes PocketIC through IC Platform's
-optional native client boundary; its lockfile selects owned client
-`ic-platform-pocket-ic` 0.19.0 with the 16.1 protocol. Testkit 0.79.0 owns the reviewed
-16.1.0 server selection. Changing that pair requires repeating installed
-qualification; historical 16.0.0 client/server evidence cannot qualify the new
-pairing. Keep both lockfiles, sources, features and toolchains unchanged during
-pinning-only adoption.
+The independent qualification workspace consumes Testkit 0.95's maintained
+async native client, with caller-owned Tokio execution, explicit request budgets
+and awaited instance deletion. Testkit 0.95.0 owns the reviewed PocketIC 16.1.0
+server selection. Changing that pair requires repeating installed qualification.
+The composition fixture selects Platform 0.28 and Runtime 0.21 independently;
+Testkit's older transitive Platform/Types identities remain native infrastructure
+and must not enter Storage's production graph. Keep both lockfiles, sources,
+features and toolchains unchanged during pinning-only adoption.
 
 ## Rust Item Documentation Style
 

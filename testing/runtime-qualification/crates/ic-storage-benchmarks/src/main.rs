@@ -1,10 +1,10 @@
 //! Installed, matched map comparison. Testkit owns the explicitly prepared server.
 use clap::Parser;
-use ic_platform::{pocket_ic::PocketIcBuilder, principal::ExternalPrincipal};
 use ic_storage_benchmarks::workloads::{
     DEPTH_POPULATIONS, LOOKUP_POPULATIONS, Workload, transfer_rows,
 };
 use ic_storage_benchmarks::*;
+use ic_testkit::pocket_ic::{CanisterId, PocketIcBuilder};
 use std::{collections::BTreeMap, fs, io::Write, path::PathBuf};
 
 #[derive(Clone, Parser)]
@@ -202,7 +202,8 @@ fn validate_diagnostics(args: &Arguments) -> Result<(), &'static str> {
     Ok(())
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Arguments::parse();
     validate_diagnostics(&args)?;
     if args.collection.is_some() && !matches!(args.workload, Some(Workload::Types | Workload::Bulk))
@@ -233,7 +234,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 selected.query = query;
                 selected.output = args.output.join(format!("rows-{rows}-{mode}"));
                 reports.push((selected.output.clone(), mode, rows));
-                run(selected)?;
+                run(selected).await?;
             }
         }
         combine_populations(&args.output, &reports, args.trace_execution_cost)?;
@@ -250,11 +251,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         fs::create_dir_all(&root)?;
         let mut selected = args;
         selected.output = root.join(collection.name().to_ascii_lowercase());
-        run(selected)?;
+        run(selected).await?;
         combine_collections(&root)?;
         Ok(())
     } else {
-        run(args)
+        run(args).await
     }
 }
 // A Cell has one value in every context. Preserve the enclosing population
@@ -302,7 +303,7 @@ fn combine_populations(
     raw.flush()?;
     Ok(())
 }
-fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
+async fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
     if let Some(workload) = args.workload {
         if !matches!(
             workload,
@@ -389,10 +390,11 @@ fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
             "state": "fresh canister per case/sample/backend; operations run in declared order"
         }))?,
     )?;
-    let pic = PocketIcBuilder::new()
+    let pic = PocketIcBuilder::new(std::time::Duration::from_secs(300))
         .with_server_url(url.parse()?)
         .with_application_subnet()
-        .build()?;
+        .build()
+        .await?;
     let mut raw = fs::File::create(args.output.join("samples.jsonl"))?;
     let mut stages = fs::File::create(args.output.join("lookup-stages.csv"))?;
     writeln!(
@@ -419,7 +421,8 @@ fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
                         case,
                         args.upstream_bucket_pages,
                         phase,
-                    )?;
+                    )
+                    .await?;
                     writeln!(
                         refusals,
                         "{}",
@@ -465,8 +468,8 @@ fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
                                 continue;
                             }
                             let name = ["ic-storage", "ic-stable-structures"][backend];
-                            let canister = pic.create_canister()?;
-                            pic.add_cycles(canister, 100_000_000_000_000)?;
+                            let canister = pic.create_canister().await?;
+                            pic.add_cycles(canister, 100_000_000_000_000).await?;
                             pic.install_canister(
                                 canister,
                                 wasm[backend].clone(),
@@ -485,14 +488,17 @@ fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
                                     LIMITS,
                                 )?,
                                 None,
-                            )?;
+                            )
+                            .await?;
                             if matches!(args.workload, Some(Workload::VectorOpen)) {
-                                let bytes = pic.query_call(
-                                    canister,
-                                    ExternalPrincipal::anonymous(),
-                                    "initialization_cost",
-                                    ic_wire::native::encode_request(INIT_COST_ID, &(), LIMITS)?,
-                                )?;
+                                let bytes = pic
+                                    .query_call(
+                                        canister,
+                                        CanisterId::anonymous(),
+                                        "initialization_cost",
+                                        ic_wire::native::encode_request(INIT_COST_ID, &(), LIMITS)?,
+                                    )
+                                    .await?;
                                 let instructions: u64 =
                                     ic_wire::native::decode_response(INIT_COST_ID, &bytes, LIMITS)?;
                                 let mut output = fs::OpenOptions::new()
@@ -525,10 +531,11 @@ fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
                                 let reply = pic
                                     .update_call(
                                         canister,
-                                        ExternalPrincipal::anonymous(),
+                                        CanisterId::anonymous(),
                                         "setup",
                                         ic_wire::native::encode_request(SETUP_ID, &setup, LIMITS)?,
                                     )
+                                    .await
                                     .map_err(|e| format!("{name} setup: {e:?}"))?;
                                 let length: u64 =
                                     ic_wire::native::decode_response(SETUP_ID, &reply, LIMITS)?;
@@ -563,17 +570,19 @@ fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
                                     let reply = if args.query {
                                         pic.query_call(
                                             canister,
-                                            ExternalPrincipal::anonymous(),
+                                            CanisterId::anonymous(),
                                             "benchmark_read",
                                             bytes,
                                         )
+                                        .await
                                     } else {
                                         pic.update_call(
                                             canister,
-                                            ExternalPrincipal::anonymous(),
+                                            CanisterId::anonymous(),
                                             "benchmark",
                                             bytes,
                                         )
+                                        .await
                                     }
                                     .map_err(|e| format!("{name} {operation:?}: {e:?}"))?;
                                     let actual: Response =
@@ -582,10 +591,11 @@ fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
                                         let bytes = pic
                                             .query_call(
                                                 canister,
-                                                ExternalPrincipal::anonymous(),
+                                                CanisterId::anonymous(),
                                                 "benchmark_execution_cost",
                                                 Vec::new(),
                                             )
+                                            .await
                                             .map_err(|e| {
                                                 format!("{name} execution counter: {e:?}")
                                             })?;
@@ -611,10 +621,11 @@ fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
                                         let bytes = pic
                                             .query_call(
                                                 canister,
-                                                ExternalPrincipal::anonymous(),
+                                                CanisterId::anonymous(),
                                                 "stable_read_trace",
                                                 Vec::new(),
                                             )
+                                            .await
                                             .map_err(|e| format!("{name} read trace: {e:?}"))?;
                                         Some(decode_read_trace(&bytes)?)
                                     } else {
@@ -625,10 +636,11 @@ fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
                                             let bytes = pic
                                                 .query_call(
                                                     canister,
-                                                    ExternalPrincipal::anonymous(),
+                                                    CanisterId::anonymous(),
                                                     "allocator_access_trace",
                                                     Vec::new(),
                                                 )
+                                                .await
                                                 .map_err(|e| {
                                                     format!("{name} allocator access trace: {e:?}")
                                                 })?;
@@ -715,23 +727,25 @@ fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
                                 let reply = pic
                                     .query_call(
                                         canister,
-                                        ExternalPrincipal::anonymous(),
+                                        CanisterId::anonymous(),
                                         "verify",
                                         ic_wire::native::encode_request(3, &request, LIMITS)?,
                                     )
+                                    .await
                                     .map_err(|e| format!("{name} final verification: {e:?}"))?;
                                 let rows: Vec<(u64, Vec<u8>)> =
                                     ic_wire::native::decode_response(3, &reply, LIMITS)?;
                                 assert_eq!(rows, chunk, "{name}: final map differs");
                             }
-                            pic.stop_canister(canister, None).unwrap();
-                            pic.delete_canister(canister, None).unwrap();
+                            pic.stop_canister(canister, None).await.unwrap();
+                            pic.delete_canister(canister, None).await.unwrap();
                         }
                     }
                 }
             }
         }
     }
+    pic.drop().await?;
     write_summary(
         fs::File::create(args.output.join("summary.csv"))?,
         &timings,
@@ -866,15 +880,15 @@ fn csv_field(text: &str) -> String {
 fn case_sources(case: Case) -> (&'static str, &'static str) {
     (case.key.source(), case.value.source())
 }
-fn probe_refusal(
-    pic: &ic_platform::pocket_ic::PocketIc,
+async fn probe_refusal(
+    pic: &ic_testkit::pocket_ic::PocketIc,
     wasm: &[u8],
     case: Case,
     bucket: std::num::NonZeroU16,
     phase: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    let canister = pic.create_canister()?;
-    pic.add_cycles(canister, 100_000_000_000_000)?;
+    let canister = pic.create_canister().await?;
+    pic.add_cycles(canister, 100_000_000_000_000).await?;
     let settings = Initialization {
         case,
         upstream_cache_slots: 0,
@@ -882,12 +896,14 @@ fn probe_refusal(
         cold_cache: false,
         vector_open: false,
     };
-    let installed = pic.install_canister(
-        canister,
-        wasm.to_vec(),
-        ic_wire::native::encode_request(0, &settings, LIMITS)?,
-        None,
-    );
+    let installed = pic
+        .install_canister(
+            canister,
+            wasm.to_vec(),
+            ic_wire::native::encode_request(0, &settings, LIMITS)?,
+            None,
+        )
+        .await;
     let error = if phase == "init" {
         format!(
             "{:?}",
@@ -899,7 +915,7 @@ fn probe_refusal(
             "{:?}",
             pic.update_call(
                 canister,
-                ExternalPrincipal::anonymous(),
+                CanisterId::anonymous(),
                 "setup",
                 ic_wire::native::encode_request(
                     SETUP_ID,
@@ -912,6 +928,7 @@ fn probe_refusal(
                     LIMITS
                 )?
             )
+            .await
             .expect_err("native ICSS fixed Option unexpectedly accepted None")
         )
     };
@@ -926,8 +943,8 @@ fn probe_refusal(
             "unexpected setup refusal: {error}"
         );
     }
-    pic.stop_canister(canister, None)?;
-    pic.delete_canister(canister, None)?;
+    pic.stop_canister(canister, None).await?;
+    pic.delete_canister(canister, None).await?;
     Ok(error)
 }
 fn combine_collections(root: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {

@@ -14,7 +14,7 @@ jq -e '
   (.jobs["change-scope"].steps[1].env.CHANGE_REF | contains("github.base_ref")) and
   (.jobs["change-scope"].steps[1].env.CHANGE_BASE | contains("github.event.pull_request.base.sha")) and
   (.jobs.docs.needs == "change-scope") and
-  (.jobs.docs.steps[-1].run == "make shared-tooling-check check-doc-links") and
+  (.jobs.docs.steps[-1].run == "make toko-tooling-check check-doc-links") and
   (.jobs["tooling-lint"].needs == null) and
   (.jobs["tooling-lint"].steps | any(.run == "make lint-tooling")) and
   (.on.pull_request | has("paths") or has("paths-ignore") | not) and
