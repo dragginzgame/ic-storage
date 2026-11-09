@@ -5,6 +5,19 @@ unset MAKEFLAGS MFLAGS MAKEOVERRIDES GNUMAKEFLAGS MAKEFILES VALIDATION_PLAN
 mkdir -p target/fixtures
 fixture="$(mktemp -d "$PWD/target/fixtures/validation-cargo.XXXXXX")"
 echo "Retained Cargo scope fixture: $fixture"
+report_failure() {
+    local status=$?
+    if [[ "$status" != 0 ]]; then
+        echo "Cargo scope fixture failed (status $status)" >&2
+        for log in "$fixture"/*.log; do
+            [[ -f "$log" ]] || continue
+            echo "--- $log" >&2
+            cat "$log" >&2
+        done
+    fi
+    exit "$status"
+}
+trap report_failure EXIT
 mkdir "$fixture/bin"
 cat > "$fixture/bin/cargo" <<'STUB'
 #!/usr/bin/env bash
