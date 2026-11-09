@@ -1,28 +1,28 @@
 # Installed runtime qualification
 
 This independent virtual workspace contains the unpublished host package
-`crates/ic-storage-runtime-qualification/` and owns its separate `Cargo.lock`.
-It also contains the explicitly selected [Storage/DFINITY map comparison](crates/ic-storage-benchmarks/README.md).
+`ic-storage-runtime-qualification/` and owns its separate `Cargo.lock`.
+It also contains the explicitly selected [Storage/DFINITY map comparison](ic-storage-benchmarks/README.md).
 The default member remains the qualification runner; normal runtime qualification
 does not build or run the comparison.
 The package keeps PocketIC dependencies out of
 the library's normal graph. It installs the supplied
-[`wasm-io-qualification`](crates/ic-storage-test-fixtures/tests/fixtures/wasm_io_qualification.rs) fixture in a
+[`wasm-io-qualification`](ic-storage-test-fixtures/tests/fixtures/wasm_io_qualification.rs) fixture in a
 caller-owned server selected by IC Testkit. The Storage-owned
-[`wasm-storage-qualification`](crates/ic-storage-test-fixtures/tests/fixtures/wasm_storage_qualification.rs)
+[`wasm-storage-qualification`](ic-storage-test-fixtures/tests/fixtures/wasm_storage_qualification.rs)
 fixture additionally checks Cell, Map, Set, Vector and map regions across 1,031
 named allocations through successful upgrades and rollback of trapped
 updates/upgrades. Vector coverage includes fixed u64 slots and variable
 4,096-byte-bound records, replacing 256-byte payloads with 2,048-byte payloads
 and back. It never starts or downloads a server.
 The Logging-owned
-[`wasm-logging-qualification`](crates/ic-storage-test-fixtures/tests/fixtures/logging_qualification/main.rs)
+[`wasm-logging-qualification`](ic-storage-test-fixtures/tests/fixtures/logging_qualification/main.rs)
 fixture checks query non-persistence, update/upgrade rollback, canonical reopen
 and watermarks after pruning every row. Its bounded native Wire protocol is shared
 with the host runner; it installs no library endpoint or lifecycle hook.
 Allocation and collection fixtures also share fixture-only bounded Wire contracts with the
-runner in [`io.rs`](crates/ic-storage-test-fixtures/src/io.rs)
-and [`storage.rs`](crates/ic-storage-test-fixtures/src/storage.rs).
+runner in [`io.rs`](ic-storage-test-fixtures/src/io.rs)
+and [`storage.rs`](ic-storage-test-fixtures/src/storage.rs).
 Requests and responses bind method identities, including unit requests and
 installation/upgrade arguments. Their limits are 128 encoded bytes, 4,096
 allocation units, 128 nodes and depth eight. Canisters reject oversized input
@@ -54,8 +54,8 @@ the server and both dependency caches. It builds and installs only the original
 Logging Wasm; it requires no optimizer and skips the allocation/collection runtime suites.
 The full `make test-runtime` includes Logging in each optimization variant.
 
-Use the [current handoff](../../docs/status/current.md) for the owned-engine
-qualification and limitations. The [earlier record](../../docs/runtime-io-qualification.md)
+Use the [current handoff](../docs/status/current.md) for the owned-engine
+qualification and limitations. The [earlier record](../docs/runtime-io-qualification.md)
 retains historical source/format-specific evidence. The `IC_MEMORY_QUALIFICATION_WASM`, `IC_STORAGE_QUALIFICATION_WASM`, `IC_LOGGING_QUALIFICATION_WASM`
 paths and `IC_TESTKIT_POCKET_IC_URL` are required when invoking the runner
 directly. `--measure-valid-io` skips the rejection
@@ -74,7 +74,7 @@ the inner instruction counter. Corruption qualification exercises both lease
 opening and growth checkpoints and subsequent poisoned-handle refusal.
 
 The shared Wire fixtures have a fresh source-bound measurement baseline in the
-[installed qualification record](../../docs/runtime-io-qualification.md#shared-wire-fixtures-installed-qualification--2026-10-30).
+[installed qualification record](../docs/runtime-io-qualification.md#shared-wire-fixtures-installed-qualification--2026-10-30).
 The inner instruction counter still covers only the 1,000 IO delegates; total
 update cycles include Wire decoding/reply work and lease opening. Earlier raw
 packet measurements remain historical evidence for their original builds.

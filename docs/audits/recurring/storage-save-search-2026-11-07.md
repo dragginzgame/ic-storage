@@ -113,7 +113,7 @@ keys/values, splits, replacement, overflow shrink/regrowth and freed-page reuse.
 All final source/input hashes match the retained root-search attempt.
 
 Reproduce depth with `BENCH_WORKLOAD=depth BENCH_SAMPLES=1 make benchmark-storage`
-and the [boundary-probe guide](../../../testing/runtime-qualification/crates/ic-storage-benchmarks/README.md#iterator-coverage).
+and the [boundary-probe guide](../../../qualification/ic-storage-benchmarks/README.md#iterator-coverage).
 Bulk used the same frozen driver/modules with `--workload bulk --samples 1`.
 Raw evidence: `target/evidence/storage-overflow-transfer/` and
 `target/evidence/storage-root-search/`; frozen sources/modules remain under

@@ -79,7 +79,7 @@ ICSS bucket-1/128 handler counts stay 24,418,970/24,418,923 across growth. The l
 reply dominates: this does not justify changing geometry or the Vector algorithm.
 `vector-execution-boundary` CSV rows retain both scopes. Raw probes are under
 `target/evidence/storage-icss-parity/`; reproduce via
-[the benchmark guide](../../../testing/runtime-qualification/crates/ic-storage-benchmarks/README.md#iterator-coverage).
+[the benchmark guide](../../../qualification/ic-storage-benchmarks/README.md#iterator-coverage).
 
 ## Step 8: remove small fixed Vector read allocations
 

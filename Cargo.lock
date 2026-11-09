@@ -343,9 +343,9 @@ dependencies = [
 
 [[package]]
 name = "ic-logging"
-version = "0.24.13"
+version = "0.24.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61aacdf1ec6dded89d6360b3901b54d28af74dae1b7c9675d86ee755067390ca"
+checksum = "0ba492a70c8290f0012b2324433e300eacc5b65f0c442158d1f3dc5991af0d83"
 
 [[package]]
 name = "ic-logging-storage"
@@ -361,9 +361,9 @@ dependencies = [
 
 [[package]]
 name = "ic-metrics"
-version = "0.29.8"
+version = "0.29.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99684e3afc04c523f9276de65ea6fac6006615394827d458b0c540242c79bebf"
+checksum = "772f3578bbf345d171fc64d05679535df30969058d993a9a408bd0c785aaf711"
 
 [[package]]
 name = "ic-metrics-storage"
@@ -404,9 +404,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire"
-version = "0.18.0"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16760e525bca7fa5c4042176551bd551a6235e39cec08564d1ecfffd20e2b130"
+checksum = "6f3272065b740a91cb245d819a75432953e26b6d4da56913d8cfe913b0fdb1f7"
 dependencies = [
  "bytemuck",
  "postcard",
@@ -645,9 +645,9 @@ dependencies = [
 
 [[package]]
 name = "toko-tooling"
-version = "0.37.5"
+version = "0.38.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9fc1a752f4f8203d999c4cd593afb9ea18717b28d407492fc98aab5722526be3"
+checksum = "45c12cc2aa598d14e137dd7db50f12e943470b4ce351dfcaffeccde6821c1876"
 
 [[package]]
 name = "toml"

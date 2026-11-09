@@ -85,7 +85,7 @@ The rejected trial separately passed the same test counts and installed checks;
 correctness alone did not justify its performance tradeoff.
 
 Reproduce with `BENCH_WORKLOAD=depth BENCH_SAMPLES=1 make benchmark-storage` and
-the [boundary instrumentation guide](../../../testing/runtime-qualification/crates/ic-storage-benchmarks/README.md#iterator-coverage).
+the [boundary instrumentation guide](../../../qualification/ic-storage-benchmarks/README.md#iterator-coverage).
 Raw evidence is under `target/evidence/storage-empty-reads/` (rejected) and
 `target/evidence/storage-empty-values/` (retained). Frozen sources, inputs and
 module identities are under `target/evidence/storage-comparison/attempt.*`.

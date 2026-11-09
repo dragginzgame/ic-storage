@@ -14,7 +14,7 @@ The caller fixtures check that a duplicate guard or compilation failure refuses.
 Run the composed native create/reopen check explicitly:
 
 ```sh
-cargo test --locked --offline --manifest-path testing/runtime-qualification/Cargo.toml \
+cargo test --locked --offline --manifest-path qualification/Cargo.toml \
   -p ic-storage-platform-qualification
 ```
 

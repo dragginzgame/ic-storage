@@ -6,10 +6,10 @@ root="$1" cli="$2" server_directory="$3"
 cd "$root"
 export RUSTUP_AUTO_INSTALL=0
 server="$("$cli" check --directory "$server_directory")"
-manifest=testing/runtime-qualification/Cargo.toml
+manifest=qualification/Cargo.toml
 # Keep the independently owned application endpoints matched across backends.
-if ! cmp -s testing/runtime-qualification/crates/storage-size-consumer/src/app.rs \
-    testing/runtime-qualification/crates/icss-size-consumer/src/app.rs; then
+if ! cmp -s qualification/storage-size-consumer/src/app.rs \
+    qualification/icss-size-consumer/src/app.rs; then
     echo 'Size consumer application endpoints differ; restore the matched workload before comparing.' >&2
     exit 1
 fi
@@ -19,12 +19,12 @@ printf 'Consumer size evidence: %s\n' "$output"
 rustc -Vv > "$output/compiler.txt"
 cargo -V > "$output/cargo.txt"
 printf 'profile=wasm-size\nRUSTFLAGS=%s\nCARGO_ENCODED_RUSTFLAGS=%s\n' "${RUSTFLAGS:-}" "${CARGO_ENCODED_RUSTFLAGS:-}" > "$output/build-settings.txt"
-cp "$manifest" testing/runtime-qualification/Cargo.lock "$output/"
+cp "$manifest" qualification/Cargo.lock "$output/"
 git rev-parse HEAD > "$output/source-commit"
 git diff --binary > "$output/pending.patch"
-rg --files crates/ic-storage testing/runtime-qualification/crates/{storage-size-consumer,icss-size-consumer,ic-storage-benchmarks} \
+rg --files crates/ic-storage qualification/{storage-size-consumer,icss-size-consumer,ic-storage-benchmarks} \
     scripts/ci/compare-storage-size.sh | LC_ALL=C sort > "$output/source-files"
-printf '%s\n' Cargo.toml rust-toolchain.toml "$manifest" testing/runtime-qualification/Cargo.lock >> "$output/source-files"
+printf '%s\n' Cargo.toml rust-toolchain.toml "$manifest" qualification/Cargo.lock >> "$output/source-files"
 while IFS= read -r path; do shasum -a 256 "$path"; done < "$output/source-files" > "$output/source.sha256"
 tar -czf "$output/source.tar.gz" -T "$output/source-files"
 for selection in base map set vector cell region map-region all; do

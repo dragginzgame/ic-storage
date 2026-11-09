@@ -47,19 +47,19 @@ new_fixture() {
     git checkout-index --all
     # Synthetic manifests have their own dependency graph. Remove inherited
     # consumer locks so the formatter check still detects accidental creation.
-    git rm --quiet --ignore-unmatch -- Cargo.lock testing/runtime-qualification/Cargo.lock scripts/ci/format-workspaces.sh
+    git rm --quiet --ignore-unmatch -- Cargo.lock qualification/Cargo.lock scripts/ci/format-workspaces.sh
     mkdir -p ci make .githooks scripts/ci scripts/dev
     bash "$root/scripts/ci/prepare-script-fixture.sh" "$root" "$PWD" \
         Makefile make/consumer.mk ci/release-tools.env ci/runtime-tools.env \
         ci/tool-versions.env rust-toolchain.toml testing/package-consumer.rs \
         .githooks/pre-commit
-    for workspace in . testing/runtime-qualification; do
+    for workspace in . qualification; do
         mkdir -p "$workspace/crates/hook-fixture/src"
         cat > "$workspace/Cargo.toml" <<'CARGO'
 [workspace]
 resolver = "3"
 members = ["crates/hook-fixture", "crates/alpha", "crates/zeta"]
-exclude = ["testing/runtime-qualification"]
+exclude = ["qualification"]
 
 [workspace.package]
 version = "0.0.0"
@@ -105,8 +105,8 @@ expect_failure() {
 
 expect_formatter_passes() {
     for label in 'Checking standalone Rustfmt' 'Manifest sorting [.]' 'Rust formatting [.]' \
-        'Manifest sorting [testing/runtime-qualification]' \
-        'Rust formatting [testing/runtime-qualification]' 'Standalone Rust formatting'; do
+        'Manifest sorting [qualification]' \
+        'Rust formatting [qualification]' 'Standalone Rust formatting'; do
         grep -qF "$label... ok (" output
     done
     grep -qF 'Standalone Rust sources selected; running without shortcut' output
@@ -122,31 +122,31 @@ expect_failure make --no-print-directory fmt-check
 CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0 bash .githooks/pre-commit > output
 expect_formatter_passes
 [[ "$(git show :crates/hook-fixture/src/lib.rs)" == 'pub fn fixture() {}' ]] || exit 1
-[[ "$(git show :testing/runtime-qualification/crates/hook-fixture/src/lib.rs)" == 'pub fn fixture() {}' ]] || exit 1
+[[ "$(git show :qualification/hook-fixture/src/lib.rs)" == 'pub fn fixture() {}' ]] || exit 1
 cmp unrelated-before README.md
 [[ "$(git show :README.md)" == "$(git show HEAD:README.md)" ]] || exit 1
 [[ "$(cat unrelated.rs)" == 'untracked edit' && -z "$(git ls-files -- unrelated.rs)" ]] || exit 1
 make --no-print-directory fmt-check > output
 expect_formatter_passes
-for workspace in . testing/runtime-qualification; do
+for workspace in . qualification; do
     grep -qF '# Keep this comment and the selected path/feature policy.' "$workspace/Cargo.toml"
 done
-[[ ! -e Cargo.lock && ! -e testing/runtime-qualification/Cargo.lock && ! -e target && ! -e testing/runtime-qualification/target ]] || exit 1
+[[ ! -e Cargo.lock && ! -e qualification/Cargo.lock && ! -e target && ! -e qualification/target ]] || exit 1
 tree="$(git write-tree)"
 bash .githooks/pre-commit > output
 [[ "$(git write-tree)" == "$tree" ]] || exit 1
 
 # Check mode must also inspect an extra workspace after an earlier success.
-printf 'pub fn fixture( ){}\n' > testing/runtime-qualification/crates/hook-fixture/src/lib.rs
-git add -- testing/runtime-qualification/crates/hook-fixture/src/lib.rs
-cp testing/runtime-qualification/crates/hook-fixture/src/lib.rs extra-before
+printf 'pub fn fixture( ){}\n' > qualification/hook-fixture/src/lib.rs
+git add -- qualification/hook-fixture/src/lib.rs
+cp qualification/hook-fixture/src/lib.rs extra-before
 tree="$(git write-tree)"
 expect_failure make --no-print-directory fmt-check
 [[ "$(git write-tree)" == "$tree" ]] || exit 1
-cmp extra-before testing/runtime-qualification/crates/hook-fixture/src/lib.rs
+cmp extra-before qualification/hook-fixture/src/lib.rs
 bash .githooks/pre-commit > output
 expect_formatter_passes
-[[ "$(git show :testing/runtime-qualification/crates/hook-fixture/src/lib.rs)" == 'pub fn fixture() {}' ]] || exit 1
+[[ "$(git show :qualification/hook-fixture/src/lib.rs)" == 'pub fn fixture() {}' ]] || exit 1
 
 # This source is outside both Cargo workspaces. A workspace-only formatter would
 # silently omit it; async syntax also requires an explicit modern Rust edition.
@@ -163,7 +163,7 @@ cmp unrelated-before README.md
 [[ "$(git show :README.md)" == "$(git show HEAD:README.md)" ]] || exit 1
 [[ "$(cat unrelated.rs)" == 'untracked edit' && -z "$(git ls-files -- unrelated.rs)" ]] || exit 1
 make --no-print-directory fmt-check > output
-[[ ! -e Cargo.lock && ! -e testing/runtime-qualification/Cargo.lock && ! -e target && ! -e testing/runtime-qualification/target ]] || exit 1
+[[ ! -e Cargo.lock && ! -e qualification/Cargo.lock && ! -e target && ! -e qualification/target ]] || exit 1
 
 # A successful prior run cannot hide changed standalone configuration.
 printf 'hard_tabs = true\n' > rustfmt.toml
@@ -177,7 +177,7 @@ expect_formatter_passes
 make --no-print-directory fmt-check > output
 expect_formatter_passes
 cmp unrelated-before README.md
-[[ ! -e Cargo.lock && ! -e testing/runtime-qualification/Cargo.lock && ! -e target && ! -e testing/runtime-qualification/target ]] || exit 1
+[[ ! -e Cargo.lock && ! -e qualification/Cargo.lock && ! -e target && ! -e qualification/target ]] || exit 1
 
 for path in crates/hook-fixture/src/lib.rs testing/package-consumer.rs Cargo.toml crates/hook-fixture/Cargo.toml Makefile ci/tool-versions.env; do
     new_fixture "partial-${path//\//-}"
@@ -193,7 +193,7 @@ for path in crates/hook-fixture/src/lib.rs testing/package-consumer.rs Cargo.tom
     cp "$path" before
     tree="$(git write-tree)"
     expect_failure bash .githooks/pre-commit
-    [[ "$(git write-tree)" == "$tree" && "$(cat testing/runtime-qualification/crates/hook-fixture/src/lib.rs)" == 'pub fn fixture( ){}' ]] || exit 1
+    [[ "$(git write-tree)" == "$tree" && "$(cat qualification/hook-fixture/src/lib.rs)" == 'pub fn fixture( ){}' ]] || exit 1
     cmp before "$path"
 done
 
@@ -296,13 +296,13 @@ for admission in prepared missing wrong-version; do
     if [[ "$admission" == prepared ]]; then
         CARGO_HOME="$PWD/.tools/cargo-home" PATH=/usr/bin:/bin bash .githooks/pre-commit > output 2>&1
         [[ "$(git show :crates/hook-fixture/src/lib.rs)" == 'pub fn fixture() {}' ]] || exit 1
-        [[ "$(git show :testing/runtime-qualification/crates/hook-fixture/src/lib.rs)" == 'pub fn fixture() {}' ]] || exit 1
+        [[ "$(git show :qualification/hook-fixture/src/lib.rs)" == 'pub fn fixture() {}' ]] || exit 1
     else
         expect_failure env CARGO_HOME="$PWD/.tools/cargo-home" PATH=/usr/bin:/bin bash .githooks/pre-commit
         [[ "$(git write-tree)" == "$tree" ]] || exit 1
         cmp before crates/hook-fixture/src/lib.rs
     fi
-    [[ ! -e Cargo.lock && ! -e testing/runtime-qualification/Cargo.lock && ! -e target && ! -e testing/runtime-qualification/target ]] || exit 1
+    [[ ! -e Cargo.lock && ! -e qualification/Cargo.lock && ! -e target && ! -e qualification/target ]] || exit 1
 done
 
 new_fixture installation
@@ -330,8 +330,8 @@ bash scripts/dev/install-git-hooks.sh --consumer "$PWD" >> output
 [[ "$(git config --local --get core.hooksPath)" == .githooks ]] || exit 1
 CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0 bash .githooks/pre-commit >> output
 [[ "$(git show :crates/hook-fixture/src/lib.rs)" == 'pub fn fixture() {}' ]] || exit 1
-[[ "$(git show :testing/runtime-qualification/crates/hook-fixture/src/lib.rs)" == 'pub fn fixture() {}' ]] || exit 1
-[[ ! -e Cargo.lock && ! -e testing/runtime-qualification/Cargo.lock && ! -e target && ! -e testing/runtime-qualification/target ]] || exit 1
+[[ "$(git show :qualification/hook-fixture/src/lib.rs)" == 'pub fn fixture() {}' ]] || exit 1
+[[ ! -e Cargo.lock && ! -e qualification/Cargo.lock && ! -e target && ! -e qualification/target ]] || exit 1
 
 echo 'Consumer hook selection, partial staging, failure isolation, setup and both-workspace formatting passed'
 fixture_complete=true

@@ -128,7 +128,7 @@ fn preparation_retains_primary_and_rollback_errors_and_restores_other_owned_file
             ),
             ("Cargo.lock", std::io::ErrorKind::PermissionDenied),
             (
-                "testing/runtime-qualification/Cargo.lock",
+                "qualification/Cargo.lock",
                 std::io::ErrorKind::PermissionDenied
             ),
         ])

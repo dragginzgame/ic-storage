@@ -3,6 +3,14 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/metrics-stable/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.74.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Adopt IC Wire 0.19 and its public codec-error type identity. Consumers matching
+  Wire errors must select the same minor. Stored checkpoint formats and
+  admission limits are unchanged; no backing reset or data migration is needed.
+
 ## [0.73.0] - 2026-11-09
 
 ### ⚠️ Breaking

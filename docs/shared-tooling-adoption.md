@@ -7,7 +7,82 @@ revision, selected roots, payload hashes and executable modes. The former
 live-policy exception is retired: dirty sibling rules never override the reviewed
 local baseline. Future policy changes require reviewed snapshot adoption.
 
-## Current Cargo-owned 0.37.5 selection
+## Current Cargo-owned 0.38.2 selection
+
+Both workspaces select published Toko Tooling 0.38.2, authenticated by checksum
+`45c12cc2aa598d14e137dd7db50f12e943470b4ce351dfcaffeccde6821c1876`.
+The supported installer preserves the selected 87 roots and installs 173 files. The
+product/qualification layout adopted with 0.38.0 remains in place. The updated
+contribution rule permits scoped intent-to-add for task-owned files required by
+validation; this admits the relocated lockfile without staging its contents.
+
+The new shared qualification release transaction is opt-in. This adoption keeps
+the existing qualified native consumer's two-lock preparation and recovery
+contract; it does not change release file ownership or enable a second renderer.
+Switching to the shared transaction needs separate caller/receipt/recovery
+qualification before deleting that implementation.
+
+IC Wire 0.19 is adopted alongside this refresh in both workspaces. Its native
+codec implementation is unchanged from 0.18; the new optional Platform schema
+and packed-finite adapters are not selected here. Public adapter errors expose
+the new Wire identity and therefore require minor adapter releases. Core Storage
+uses Wire only for development/qualification. No stored-data reset, schema
+migration or product source change is included. Existing unrelated locked
+suppliers, pending CI fixes and relocation work are preserved. Evidence lives
+under `target/evidence/wire-019-toko-0382/`.
+
+Snapshot verification, both-workspace pins, dependency boundaries, formatting
+and documentation links pass. All 42 adapter unit tests, five adapter doctests,
+44 native qualification tests and four release-group/recovery tests pass.
+Installed qualification passes original/O3/Os/Oz IO, checkpoint, upgrade and
+rollback cases. Release Make dispatch passes with substituted effects; no live
+release was invoked. Both locks change only Wire and Toko from the pre-adoption
+selections. `qualification/Cargo.lock` retains an intent-to-add index entry;
+no file contents are staged, and no commit or push is included.
+
+## Previous Cargo-owned 0.38.0 selection
+
+Both catalogs and lockfiles select published Toko Tooling 0.38.0 (checksum
+`0e2de9853b58a63373084b551d4ce8c444480aa33d45c35ca21e8de7ab8f9933`).
+The authenticated installer preserves the selected snapshot entrypoints. The
+updated baseline and workspace rule separate product and qualification packages.
+
+The three product packages remain under `crates/`. The seven unpublished
+packages formerly at `testing/runtime-qualification/crates/<package>/` now live
+at `qualification/<package>/`. Their virtual root, catalog, lockfile and policy
+moved from `testing/runtime-qualification/` to `qualification/`. There is no
+intermediate `crates/` directory or compatibility path. Private versions remain
+0.0.0, and none belongs to a product release group. The existing release adapter
+continues to project product dependency references and the qualification lock
+atomically; qualification package versions remain independent.
+
+Make, CI, formatting, graph checks, release metadata and its fixtures, benchmarks,
+runtime source inventories and maintained guides use the new paths. Historical
+reports and completed release evidence retain their original source identities;
+old ignored build outputs remain in place. Package-local tests and the native
+repository helper remain with their product owner. No product-to-qualification
+Cargo dependency is introduced.
+
+The pending CI fixes and pre-existing Metrics/Logging lock selections are
+preserved. This adoption does not publish packages or change product APIs,
+stored formats, Rust 1.99.1 or runtime/tool selections. Focused evidence is under
+`target/evidence/toko-0380/`.
+
+Snapshot integrity, formatting, shell/workflow lint, dependency boundaries and
+local links pass. Cargo metadata confirms three product members and seven
+unpublished qualification members, with no reverse dependency. Compiler admission
+uses Cargo membership rather than directory-depth assumptions, with a grouped
+member regression fixture. All 88 native release-helper tests pass (the changed
+sorted-path expectation was rerun after repair), as do 44 native qualification
+tests; two installed-only tests remain ignored in the native suite and are
+covered by installed qualification. The selected fixture/size-consumer Wasm
+builds and separate Storage/ICSS benchmark feature builds pass. Installed IO,
+upgrade, rollback and logging qualification passes in original/O3/Os/Oz modes.
+At that adoption the pin check was pending tracking of the relocated lockfile.
+The 0.38.2 adoption above resolves it through authorized intent-to-add. No commit,
+push, product version change or publication is included.
+
+## Previous Cargo-owned 0.37.5 selection
 
 Both workspace catalogs and lockfiles select published Toko Tooling 0.37.5
 (checksum `9fc1a752f4f8203d999c4cd593afb9ea18717b28d407492fc98aab5722526be3`).
@@ -543,8 +618,8 @@ The independent runtime workspace and installed Testkit/server selections are un
 
 The library [dependency catalog](../Cargo.toml) owns direct package requirements
 and feature selections; its [lockfile](../Cargo.lock) owns resolved identities.
-The independent qualification [catalog](../testing/runtime-qualification/Cargo.toml)
-and [lockfile](../testing/runtime-qualification/Cargo.lock) retain their separate
+The independent qualification [catalog](../qualification/Cargo.toml)
+and [lockfile](../qualification/Cargo.lock) retain their separate
 host graph. The [Build editor pin](../ci/release-tools.env) and
 [Testkit CLI pin](../ci/runtime-tools.env) select executables independently.
 Read those owners for versions rather than copying their inventories here.
@@ -841,7 +916,7 @@ lifecycle. The separately selected CLI is outside both maintained lockfiles;
 `install-runtime-server` prepares it explicitly, `runtime-server-check` is offline
 and `test-runtime` uses prepared tools and both caches. Installed qualification
 retains its separate authority. No local server installer or supervisor competes
-with Testkit. See the [qualification runner](../testing/runtime-qualification/README.md).
+with Testkit. See the [qualification runner](../qualification/README.md).
 
 ## Release and evidence boundaries
 

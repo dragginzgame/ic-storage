@@ -20,8 +20,8 @@ See [ownership](docs/ownership.md) and [safety](SAFETY.md).
 
 The root Cargo workspace owns all three packages, one dependency catalog and one
 lockfile, with Rust 1.99.1 as the minimum. Run Make and Cargo commands here.
-The independent [installed runtime runner](testing/runtime-qualification/README.md)
-and [map comparison benchmark](testing/runtime-qualification/crates/ic-storage-benchmarks/README.md)
+The independent [installed runtime runner](qualification/README.md)
+and [map comparison benchmark](qualification/ic-storage-benchmarks/README.md)
 retain a separate lockfile. Archive consumer qualification uses isolated,
 generated workspaces so a workspace path dependency cannot mask missing package
 contents or a second Storage identity.

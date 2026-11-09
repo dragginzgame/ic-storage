@@ -49,7 +49,7 @@ current native macOS acceptance remains separate from local Linux evidence.
 - The tracked root and independent runtime-qualification `Cargo.lock` files,
   with cached dependencies before offline validation. In a fresh checkout run
   `make fetch-dependencies` for the root selection. Prepare the independent graph
-  separately with `cargo fetch --locked --manifest-path testing/runtime-qualification/Cargo.toml`
+  separately with `cargo fetch --locked --manifest-path qualification/Cargo.toml`
   when installed qualification is needed. Preserve both selections; never
   regenerate them to make a check pass.
 - The common jq/yq/ripgrep/cloc set under `.tools/host/bin` for host checks and
@@ -81,7 +81,7 @@ make fmt-check
 
 CI uses this same setup, including local cargo-sort 2.1.4.
 `make fmt` sorts manifests and
-formats Rust in both the root workspace and `testing/runtime-qualification`.
+formats Rust in both the root workspace and `qualification`.
 `make fmt-check` checks the same inputs without changing them. Neither command
 builds, installs tools, fetches dependencies or changes selected lockfiles.
 Both first use the shared prerequisite checker to require the exact cargo-sort
@@ -139,7 +139,7 @@ workspace lockfiles. Prepare it and Testkit's authenticated server selection exp
 make install-runtime-server
 make runtime-server-check
 make install-ic-tools
-cargo +1.99.1 fetch --locked --manifest-path testing/runtime-qualification/Cargo.toml
+cargo +1.99.1 fetch --locked --manifest-path qualification/Cargo.toml
 make test-runtime
 ```
 
@@ -207,7 +207,7 @@ load rejection, byte/page preservation, leases and update/upgrade rollback witho
 replaying Memory's IO suite or the release optimizer matrix:
 
 ```sh
-cargo +1.99.1 build --manifest-path testing/runtime-qualification/Cargo.toml \
+cargo +1.99.1 build --manifest-path qualification/Cargo.toml \
   --target-dir target -p ic-storage-test-fixtures --locked --offline --profile wasm-size \
   --target wasm32-unknown-unknown --example wasm-storage-qualification
 testkit_cli="$(RUSTUP_TOOLCHAIN=1.99.1 bash scripts/dev/install-rust-tools.sh \
@@ -216,7 +216,7 @@ testkit_cli="$(RUSTUP_TOOLCHAIN=1.99.1 bash scripts/dev/install-rust-tools.sh \
 IC_STORAGE_QUALIFICATION_WASM="$PWD/target/wasm32-unknown-unknown/wasm-size/examples/wasm_storage_qualification.wasm" \
   "$testkit_cli" run --directory "$PWD/.tools/ic-testkit-server" --ttl 900 -- \
   cargo +1.99.1 test --locked --offline \
-    --manifest-path testing/runtime-qualification/Cargo.toml \
+    --manifest-path qualification/Cargo.toml \
     --target-dir target/runtime-qualification storage::tests::installed_storage_adapters \
     -- --ignored --nocapture
 ```
@@ -238,7 +238,7 @@ one consistent physical identity; generic `Memory` alone is insufficient.
 `make cloc` reports the root library workspace by default using locked, offline
 Cargo metadata; it neither builds nor installs tools. Select the independent
 qualification graph explicitly with
-`make cloc CLOC_MANIFEST=testing/runtime-qualification/Cargo.toml`. Each report
+`make cloc CLOC_MANIFEST=qualification/Cargo.toml`. Each report
 uses only the selected workspace and its target configuration; reports do not
 combine the two graphs. `CLOC_ROOT` still selects a containing checkout, rather
 than an independent manifest. The selector is the reviewed fix for
@@ -463,7 +463,7 @@ A checkout path dependency selects the corresponding package, for example
 `ic-storage = { path = "../ic-storage/crates/ic-storage" }`. Storage's internal
 Memory edge is path-plus-version and shares the root Memory identity.
 
-The approved independent root remains `testing/runtime-qualification/`, with
+The approved independent root remains `qualification/`, with
 its own lockfile and sole package at
 `crates/ic-storage-runtime-qualification/`. Its locked fetch/run commands and
 caller-owned PocketIC server requirements retain that root. Layout adoption

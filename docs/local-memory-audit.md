@@ -121,7 +121,7 @@ just to reduce the count: saving one small collection's first 64 KiB page is
 quite different from saving an ICSS 8 MiB bucket. Blob's fourteen declarations,
 for example, do not imply 112 MiB of reserved buckets.
 
-The existing [bucket experiment](../testing/runtime-qualification/crates/ic-storage-benchmarks/README.md)
+The existing [bucket experiment](../qualification/ic-storage-benchmarks/README.md)
 supports 1/8/128-page controls for **DFINITY ICSS**, not a Storage default switch.
 Eight pages matched 128-page instructions across the selected integer trace,
 but byte workloads had different tradeoffs. Storage's own 4 KiB payload block
@@ -256,10 +256,10 @@ keys, coordinator adds three, and Wasm-store adds six; shared keys count once.
 ## Three benchmark recipes, no new production knobs
 
 The consumer inventory selects three fixed experiments in
-[`workloads.rs`](../testing/runtime-qualification/crates/ic-storage-benchmarks/src/workloads.rs).
+[`workloads.rs`](../qualification/ic-storage-benchmarks/src/workloads.rs).
 These are repeatable test points, not measured typical consumer sizes or promises
 that a database fits a given byte/page allowance. See the
-[benchmark commands and boundaries](../testing/runtime-qualification/crates/ic-storage-benchmarks/README.md#consumer-workloads).
+[benchmark commands and boundaries](../qualification/ic-storage-benchmarks/README.md#consumer-workloads).
 
 | Recipe | Selected population and values | Operations / repeats | Consumers represented |
 | --- | --- | --- | --- |
@@ -359,7 +359,7 @@ Individual rows vary more: the records trace's largest increases are 7.61% at on
 page and 7.05% at eight. Bulk 64 KiB vector reads improve by 51.38% at one page
 and 34.27% at eight; the per-row extrema were historical observations, not retained current qualification. Neither smaller bucket is
 universally faster. Timing excludes request/reply codecs and setup, as described
-in the [benchmark boundaries](../testing/runtime-qualification/crates/ic-storage-benchmarks/README.md#comparison-boundaries).
+in the [benchmark boundaries](../qualification/ic-storage-benchmarks/README.md#comparison-boundaries).
 
 The research command now defaults to **eight pages (512 KiB)**. ICSS 0.7.2's
 32,768-bucket limit gives a 16 GiB data ceiling at eight pages, versus 2 GiB at
@@ -386,7 +386,7 @@ explicit arguments or saved configuration of any completed run.
 
 ### Many allocations sharing one backing
 
-The [native executable](../testing/runtime-qualification/crates/ic-storage-benchmarks/benches/multi_allocations.rs)
+The [native executable](../qualification/ic-storage-benchmarks/benches/multi_allocations.rs)
 uses 32 and 64 maps, interleaved growth from 32 to 96 records per map, 256-byte
 values and 64 KiB values in every eighth map, then four delete/reinsert rounds.
 It uses actual governed Storage leases or actual ICSS virtual memories on one
@@ -418,7 +418,7 @@ This explains a concrete IO advantage, alongside Storage's larger capacity.
 Native IO counts do not establish an equivalent IC instruction ratio.
 
 Run the native experiment using the command in the
-[benchmark README](../testing/runtime-qualification/crates/ic-storage-benchmarks/README.md#shared-backing-capacity-and-io).
+[benchmark README](../qualification/ic-storage-benchmarks/README.md#shared-backing-capacity-and-io).
 Diagnostics are observed between phases and excluded from the next phase's IO.
 The report separates physical pages, logical virtual pages, Storage metadata,
 extents, per-allocation pages and expected value payload.

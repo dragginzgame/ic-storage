@@ -7,8 +7,8 @@ shared=scripts/ci
 mkdir -p "$PWD/target/dependency-adoption"
 evidence="$(mktemp -d "$PWD/target/dependency-adoption/attempt.XXXXXX")"
 printf 'Dependency adoption evidence: %s\n' "$evidence"
-inputs=(Cargo.toml Cargo.lock crates/*/Cargo.toml testing/runtime-qualification/Cargo.toml \
-    testing/runtime-qualification/Cargo.lock testing/runtime-qualification/crates/*/Cargo.toml)
+inputs=(Cargo.toml Cargo.lock crates/*/Cargo.toml qualification/Cargo.toml \
+    qualification/Cargo.lock qualification/*/Cargo.toml)
 checkpoint() {
     perl "$shared/validation-input-checkpoint.pl" "$PWD" "$1" "$2" "$shared/verify-file-checksum.sh" "${inputs[@]}"
 }
@@ -18,7 +18,7 @@ host="$(rustc -vV | sed -n 's/^host: //p')"
 # Observe every independent lock before policy or compilation. Never unlock,
 # update a version, refresh artifacts or authenticate plausible failed stdout.
 cargo metadata --locked --offline --format-version 1 --manifest-path Cargo.toml > "$evidence/library.json"
-cargo metadata --locked --offline --format-version 1 --manifest-path testing/runtime-qualification/Cargo.toml > "$evidence/runtime.json"
+cargo metadata --locked --offline --format-version 1 --manifest-path qualification/Cargo.toml > "$evidence/runtime.json"
 perl "$shared/check-cargo-graph.pl" --consumer "$PWD" \
     --package ic-storage --package ic-metrics-storage --package ic-logging-storage \
     --target wasm32-unknown-unknown --edges normal --explain \
@@ -33,7 +33,7 @@ perl "$shared/check-cargo-graph.pl" --consumer "$PWD" \
     --forbid ic-platform --forbid ic-platform-runtime --forbid ic-platform-types --forbid ic-platform-runtime-guard
 # The native qualifier exchanges Testkit/Wire types and opaque Wasm bytes;
 # it deliberately has no normal dependency on the local Memory/Storage crates.
-perl "$shared/check-cargo-graph.pl" --consumer "$PWD/testing/runtime-qualification" \
+perl "$shared/check-cargo-graph.pl" --consumer "$PWD/qualification" \
     --package ic-storage-runtime-qualification --target "$host" --edges normal --explain \
     --require ic-testkit=1 --require ic-wire=1
 # Observe default Storage independently: selecting a runtime-enabled root alongside
@@ -43,7 +43,7 @@ for target in "$host" wasm32-unknown-unknown; do
     if [[ "$target" == wasm32-unknown-unknown ]]; then
         runtime_policy=(--require ic-platform-runtime=1)
     fi
-    perl "$shared/check-cargo-graph.pl" --consumer "$PWD/testing/runtime-qualification" \
+    perl "$shared/check-cargo-graph.pl" --consumer "$PWD/qualification" \
         --package ic-storage-default-qualification --target "$target" --edges normal --explain \
         --require ic-storage=1 "${runtime_policy[@]}" --forbid ic-platform \
         --forbid-feature ic-storage/test-support \
@@ -53,7 +53,7 @@ done
 # A separate consumer selects the published canonical runtime as an application would.
 # Keep this out of production-library graphs and the opaque-Wasm native driver.
 for target in "$host" wasm32-unknown-unknown; do
-    perl "$shared/check-cargo-graph.pl" --consumer "$PWD/testing/runtime-qualification" \
+    perl "$shared/check-cargo-graph.pl" --consumer "$PWD/qualification" \
         --package ic-storage-platform-qualification --target "$target" --edges normal --explain \
         --require ic-storage=1 --require ic-platform=1 --require ic-platform-runtime=1 \
         --require ic-platform-runtime-guard=1 --require ic-platform-types=1 \
@@ -62,12 +62,12 @@ done
 checkpoint "$evidence/before.json" "$evidence/graphs.json"
 cargo clippy --locked --offline --manifest-path Cargo.toml --target wasm32-unknown-unknown \
     --package ic-storage --package ic-metrics-storage --package ic-logging-storage --lib -- -D warnings
-cargo clippy --locked --offline --manifest-path testing/runtime-qualification/Cargo.toml \
+cargo clippy --locked --offline --manifest-path qualification/Cargo.toml \
     --package ic-storage-runtime-qualification --target "$host" --all-targets -- -D warnings
 for target in "$host" wasm32-unknown-unknown; do
-    cargo clippy --locked --offline --manifest-path testing/runtime-qualification/Cargo.toml \
+    cargo clippy --locked --offline --manifest-path qualification/Cargo.toml \
         --package ic-storage-default-qualification --target "$target" --all-targets -- -D warnings
-    cargo clippy --locked --offline --manifest-path testing/runtime-qualification/Cargo.toml \
+    cargo clippy --locked --offline --manifest-path qualification/Cargo.toml \
         --package ic-storage-platform-qualification --target "$target" --all-targets -- -D warnings
 done
 checkpoint "$evidence/before.json" "$evidence/final.json"

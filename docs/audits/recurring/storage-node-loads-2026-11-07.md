@@ -104,7 +104,7 @@ response checks, size tables and complete loop/handler comparisons. No evidence
 or cache cleanup was performed; explicit target cleanup would remove these artifacts.
 
 Reproduce ordinary runs with `BENCH_WORKLOAD=depth BENCH_SAMPLES=1 make benchmark-storage`.
-Use the [boundary-probe procedure](../../../testing/runtime-qualification/crates/ic-storage-benchmarks/README.md#iterator-coverage)
+Use the [boundary-probe procedure](../../../qualification/ic-storage-benchmarks/README.md#iterator-coverage)
 on those frozen modules, `--execution-only` injection and driver
 `--trace-execution-cost --workload depth --samples 1 --upstream-bucket-pages 8`.
 

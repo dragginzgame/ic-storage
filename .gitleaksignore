@@ -1,0 +1,14 @@
+# Reviewed false positives: public stable-memory names, not authentication secrets.
+# Exact historical findings only; keep all other files, commits and rules scanned.
+551a4aa43759065e8f9946ff68b23b7e45bf4c16:docs/measurements/consumer-memory-inventory.json:generic-api-key:854
+551a4aa43759065e8f9946ff68b23b7e45bf4c16:docs/measurements/consumer-memory-inventory.json:generic-api-key:909
+551a4aa43759065e8f9946ff68b23b7e45bf4c16:docs/measurements/consumer-memory-inventory.json:generic-api-key:920
+551a4aa43759065e8f9946ff68b23b7e45bf4c16:docs/measurements/consumer-memory-inventory.json:generic-api-key:942
+cf82ee8b990f9b9be91db80d70cbe470a9c1d234:crates/ic-memory/examples/wasm_diagnostics_size_probe.rs:generic-api-key:5
+cf82ee8b990f9b9be91db80d70cbe470a9c1d234:crates/ic-memory/examples/wasm_io_qualification.rs:generic-api-key:23
+cf82ee8b990f9b9be91db80d70cbe470a9c1d234:crates/ic-memory/examples/wasm_io_qualification.rs:generic-api-key:27
+4d7881ab4698f7e2f26573da67f63b7a8446809f:examples/wasm_io_qualification.rs:generic-api-key:24
+4d7881ab4698f7e2f26573da67f63b7a8446809f:examples/wasm_io_qualification.rs:generic-api-key:30
+fe850a7b531b811092636ee542296ddc2b66204a:examples/composed_host.rs:generic-api-key:24
+cec750faad6f0587ae871dc073322e180e924e59:examples/wasm_diagnostics_size_probe.rs:generic-api-key:7
+e180adb5e7c336746d6f399e96d707f7ed5ccb38:examples/wasm_size_probe.rs:generic-api-key:7

@@ -533,8 +533,8 @@ format changes. No compatibility readers or aliases were added.
   `into_bytes` output. The pending-commit UI case denies `unused_must_use` after
   consuming the enclosing result and observes the pending type's diagnostic.
 
-The installed [Wasm fixture](../testing/runtime-qualification/crates/ic-storage-test-fixtures/tests/fixtures/wasm_io_qualification.rs) and
-[host runner](../testing/runtime-qualification/crates/ic-memory-runtime-qualification/src/main.rs) use the current root
+The installed [Wasm fixture](../qualification/ic-storage-test-fixtures/tests/fixtures/wasm_io_qualification.rs) and
+[host runner](../qualification/ic-memory-runtime-qualification/src/main.rs) use the current root
 dependency graph. PocketIC 16.0.0 passed these executed checks:
 
 - All three IO methods trap for end-plus-one-byte, empty span beyond end,
@@ -650,18 +650,18 @@ checkouts track the host runner's selected lockfile; preserve that selection.
 A deliberate selection change needs a new qualification record and does not
 relabel the historical measurements above.
 For the selected lock, prepare cached dependencies with `cargo fetch --locked
---offline --manifest-path testing/runtime-qualification/Cargo.toml`; a cache
+--offline --manifest-path qualification/Cargo.toml`; a cache
 miss requires separate authorized preparation. The library's own cache/lock
 prerequisites remain those in [host support](host-support.md).
 
 From the repository root, run these focused builds sequentially:
 
 ```sh
-cargo build --manifest-path testing/runtime-qualification/Cargo.toml \
+cargo build --manifest-path qualification/Cargo.toml \
   --target-dir target -p ic-storage-test-fixtures --locked --offline --profile wasm-size \
   --target wasm32-unknown-unknown --example wasm-io-qualification
 cargo build --locked --offline \
-  --manifest-path testing/runtime-qualification/Cargo.toml \
+  --manifest-path qualification/Cargo.toml \
   --target-dir target/runtime-qualification
 cargo test --locked --offline --release --test allocation_measurements \
   -- --ignored --nocapture --test-threads=1
@@ -709,13 +709,13 @@ cargo +1.88.0 check --locked --offline --lib --test allocation_measurements \
   --test diagnostic_metadata --test compile_fail --test memory_runtime \
   --example wasm-io-qualification
 cargo clippy --locked --offline \
-  --manifest-path testing/runtime-qualification/Cargo.toml \
+  --manifest-path qualification/Cargo.toml \
   --target-dir target/runtime-qualification -- -D warnings
 cargo +1.88.0 check --locked --offline \
-  --manifest-path testing/runtime-qualification/Cargo.toml \
+  --manifest-path qualification/Cargo.toml \
   --target-dir target/runtime-qualification
 cargo fmt --all -- --check
-cargo fmt --manifest-path testing/runtime-qualification/Cargo.toml -- --check
+cargo fmt --manifest-path qualification/Cargo.toml -- --check
 make verify-shared-tooling
 git diff --check
 ```

@@ -3,6 +3,24 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/persistence/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.71.2] - Unreleased
+
+### 📦 Dependencies
+
+- Adopt IC Wire 0.19 for development and qualification; core Storage has no
+  production Wire dependency. Stored collection formats are unchanged.
+
+### 🛠️ Tooling
+
+- Adopt Toko Tooling 0.38.2 and move the seven private benchmark/qualification
+  packages into the independent `qualification/` workspace. Update build, CI,
+  formatting and release callers without changing package identities or APIs.
+
+- Fix native CI qualification on Bash 3.2 and prevent a nested retention test
+  from replacing the hosted evidence archive output with a deleted fixture.
+- Exclude only reviewed historical secret-scan fingerprints for public stable
+  allocation names; retain full-history scanning and all other findings.
+
 ## [0.71.1] - 2026-11-09
 
 ### ⚡ Performance
@@ -669,4 +687,4 @@ retains its original package and release identities.
 
 - Add `make benchmark-storage` for matched installed map operations against
   DFINITY, with validated results and retained instruction samples. The comparison
-  stays outside production dependencies and release gates. [Methodology](../../testing/runtime-qualification/crates/ic-storage-benchmarks/README.md).
+  stays outside production dependencies and release gates. [Methodology](../../qualification/ic-storage-benchmarks/README.md).

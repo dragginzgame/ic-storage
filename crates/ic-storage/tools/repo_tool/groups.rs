@@ -130,11 +130,11 @@ impl ReleaseGroup {
             // Only explicitly declared catalog/lock inputs share group projection;
             // unrelated metadata, including other Cargo manifests, stays opaque.
             let role = if matches!(self.name.as_str(), "storage" | "logging-storage")
-                && path == "testing/runtime-qualification/Cargo.toml"
+                && path == "qualification/Cargo.toml"
             {
                 SurfaceRole::Catalog
             } else if matches!(self.name.as_str(), "storage" | "logging-storage")
-                && path == "testing/runtime-qualification/Cargo.lock"
+                && path == "qualification/Cargo.lock"
             {
                 SurfaceRole::Lock
             } else if Path::new(path).parent() == Path::new(&self.changelog).parent()

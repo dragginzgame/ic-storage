@@ -8,7 +8,7 @@ It is not a release gate or a claim about complete application calls.
 ```sh
 # Explicit preparation only when needed:
 make install-runtime-server
-cargo fetch --locked --manifest-path testing/runtime-qualification/Cargo.toml
+cargo fetch --locked --manifest-path qualification/Cargo.toml
 
 make benchmark-storage                             # 256 rows, three seeds
 make benchmark-storage BENCH_ROWS=4096 BENCH_SAMPLES=3
@@ -49,7 +49,7 @@ columns identify the chosen reference through configuration/revision metadata.
 
 The direct-read path uses published Runtime >=0.19.4's
 `stable64_read_uninit` export. Both selected locks provide it; no local Platform
-patch or alternate lock is needed. The [backing study](../../../../docs/audits/recurring/storage-icss-backing-parity-2026-11-06.md)
+patch or alternate lock is needed. The [backing study](../../docs/audits/recurring/storage-icss-backing-parity-2026-11-06.md)
 distinguishes the original local-package trials from registry qualification.
 
 ### Complete type-by-collection matrix
@@ -120,7 +120,7 @@ Compatibility is part of the output:
 retains verified runtime failures. Raw samples and complete retained-state checks
 remain mandatory for every supported case. CSV tuple labels are quoted correctly.
 Configuration and source/module hashes retain exact measured inputs.
-The [current coverage summary](../../../../docs/audits/recurring/benchmark-full-catalogue-2026-11-05.md)
+The [current coverage summary](../../docs/audits/recurring/benchmark-full-catalogue-2026-11-05.md)
 retains selected results and compatibility counts. Curated workloads and the full matrix use the same structured cases and type catalogue. Full per-run tables and artifacts belong in transient target
 evidence, rather than tracked per-run reports.
 
@@ -156,7 +156,7 @@ trace_output=target/evidence/vector-read-trace
 mkdir -p "$trace_output"
 for backend in owned dfinity; do
     .tools/ic/bin/wasm-opt "$source_attempt/$backend.wasm" -S -o "$trace_output/$backend.wat"
-    perl testing/runtime-qualification/crates/ic-storage-benchmarks/benches/trace_stable_reads.pl \
+    perl qualification/ic-storage-benchmarks/benches/trace_stable_reads.pl \
         "$trace_output/$backend.wat" "$trace_output/$backend-traced.wat"
     .tools/ic/bin/wasm-opt "$trace_output/$backend-traced.wat" --all-features \
         -o "$trace_output/$backend-traced.wasm"
@@ -337,7 +337,7 @@ all memory charges are already paid. Stable-read dispatch can defer a native
 mapping charge until the second read. In the checksummed baseline's 1,024-row
 last-record case, Get costs 25,613 instructions while WarmGet costs 105,613.
 Do not treat their difference as an ordinary cache benefit or instruction-only
-decoder cost. See the [confirmed source-page diagnosis](../../../../docs/audits/recurring/vector-stable-read-charges-2026-11-05.md).
+decoder cost. See the [confirmed source-page diagnosis](../../docs/audits/recurring/vector-stable-read-charges-2026-11-05.md).
 
 `lookup-stages.csv` records total instructions, nested outer-decoder instructions,
 decoder calls and decoder input bytes. Decoder cost is included in the total;
@@ -350,7 +350,7 @@ requested byte volume, one decode per successful get and one length read with no
 including reopened vectors. Native IO counters are not IC page charges. Neither
 test supplies malloc counts or a page-fault oracle. Canic configuration projection,
 caller-to-index lookup and Auth's inner `Session::decode()` remain outside scope.
-See the [qualified results](../../../../docs/audits/recurring/icss-engine-baseline-2026-11-05.md).
+See the [qualified results](../../docs/audits/recurring/icss-engine-baseline-2026-11-05.md).
 
 The original results above use the historical checksummed Vector. The historical
 ICVEC002 experiment is also superseded. The current copied ICSS SVC1 baseline
@@ -465,7 +465,7 @@ The whole-handler `--trace-execution-cost` probe supports this workload; the
 bounded stable-read probe refuses it because opening and nested timers are
 outside that tracer's scope. Compare identical logical responses between
 instrumented and original modules. See the
-[opening study](../../../../docs/audits/recurring/storage-vector-open-2026-11-08.md)
+[opening study](../../docs/audits/recurring/storage-vector-open-2026-11-08.md)
 for matched Storage/ICSS results and measurement limits.
 
 ### Population depth and IO attribution
@@ -499,7 +499,7 @@ and encoding/decoding work for Map/region Get, Replace and variable-value growth
 It checks every returned value and all final records against a separate model.
 
 ```sh
-cargo run --locked --offline --manifest-path testing/runtime-qualification/Cargo.toml \
+cargo run --locked --offline --manifest-path qualification/Cargo.toml \
   -p ic-storage-benchmarks --example collection-io --features owned,dfinity \
   --target-dir target/runtime-qualification -- target/evidence/collection-io.jsonl
 ```
@@ -513,7 +513,7 @@ for timings; instrumentation remains outside production and those timed modules.
 The governed ICSS stack is an isolated research control, not a second production
 collection integration or public allocation bypass.
 
-The [local memory inventory](../../../../docs/local-memory-audit.md#complete-declaration-inventory-and-repeatable-workloads)
+The [local memory inventory](../../docs/local-memory-audit.md#complete-declaration-inventory-and-repeatable-workloads)
 selects three consumer recipes plus a size-boundary experiment. Use a name instead of repeating a collection of
 flags; these are benchmark selections, not new Storage runtime parameters.
 
@@ -751,7 +751,7 @@ payload rather than reusing the original fixed-size estimate. The original
 same-size phases remain directly comparable with retained runs.
 
 ```sh
-cargo run --locked --offline --manifest-path testing/runtime-qualification/Cargo.toml \
+cargo run --locked --offline --manifest-path qualification/Cargo.toml \
     -p ic-storage-benchmarks --example multi-allocations --features owned,dfinity \
     --target-dir target/runtime-qualification -- target/multi-allocations.json
 ```
@@ -765,7 +765,7 @@ It preserves the production custody boundary for Storage, with ICSS confined to
 the independent research graph. Native helper dependencies are explicitly optional.
 
 The completed matched study is recorded in
-[the memory audit](../../../../docs/local-memory-audit.md#completed-bucket-and-shared-backing-study).
+[the memory audit](../../docs/local-memory-audit.md#completed-bucket-and-shared-backing-study).
 Eight pages is the tuned research default, not a change to ICSS or Storage.
 The fixed 32,768-bucket ICSS limit gives 2 GiB at one page, 16 GiB at eight and
 256 GiB at 128. Always name 128 explicitly when claiming a stock-default
@@ -785,7 +785,7 @@ Build each selected backend (`owned`, `dfinity`, or the diagnostic
 
 ```sh
 RUSTFLAGS='-C link-arg=-zstack-size=8388608' cargo build --locked --offline \
-  --manifest-path testing/runtime-qualification/Cargo.toml \
+  --manifest-path qualification/Cargo.toml \
   -p ic-storage-benchmarks --example storage-comparison-wasm \
   --target wasm32-unknown-unknown --profile comparison \
   --features owned,footprint --target-dir target/storage-comparison-build/owned
@@ -799,7 +799,7 @@ saved module paths, `--workload depth --samples 1 --upstream-bucket-pages 8`.
 The ordinary `make benchmark-storage` continues to build the full catalogue.
 
 Report raw module bytes, code-section bytes and gzip transport separately.
-The [size investigation](../../../../docs/audits/recurring/storage-wasm-gap-2026-11-08.md)
+The [size investigation](../../docs/audits/recurring/storage-wasm-gap-2026-11-08.md)
 records all three backing/engine combinations and the remaining gap to ICSS.
 
 ## Matched consumer Wasm size
@@ -877,7 +877,7 @@ consumer workload. Keep the broad catalogue for that separate coverage.
 dependencies and `scripts/ci/compare-storage-size.sh` are maintained source.
 Rerun `make benchmark-storage-size` after cleaning; it creates a fresh validated
 evidence directory. Selected results and hashes are retained in
-[`docs/measurements`](../../../../docs/measurements/storage-consumer-wasm-size-identities.json).
+[`docs/measurements`](../../docs/measurements/storage-consumer-wasm-size-identities.json).
 Exact old artifacts additionally require the same source revision/pending patch,
 lockfile, compiler and recorded build flags; current source recreates the current
 experiment, not automatically a historical hash.
@@ -888,7 +888,7 @@ a diagnostic build, not the reported stripped module size:
 ```sh
 mkdir -p target/evidence/consumer-size-attribution
 CARGO_PROFILE_WASM_SIZE_STRIP=none cargo build --locked --offline \
-  --manifest-path testing/runtime-qualification/Cargo.toml \
+  --manifest-path qualification/Cargo.toml \
   -p storage-size-consumer --lib --target wasm32-unknown-unknown \
   --profile wasm-size --no-default-features --features cell \
   --target-dir target/storage-size-symbols

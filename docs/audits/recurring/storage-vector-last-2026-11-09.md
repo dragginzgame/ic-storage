@@ -82,7 +82,7 @@ qualification: `target/evidence/storage-consumer-size/attempt.K69fx4`, compared
 with `attempt.73dNho`. Before bulk and whole-handler references are
 `target/evidence/storage-bucket-cut/execution/vector-current-{roundtrip,traced}/vector/`.
 
-Use the [benchmark procedure](../../../testing/runtime-qualification/crates/ic-storage-benchmarks/README.md)
+Use the [benchmark procedure](../../../qualification/ic-storage-benchmarks/README.md)
 with its unchanged comparison compiler/profile and 8-MiB stack. Run the driver
 with `--workload bulk --collection vector --samples 1`. For small controls use
 `--rows 256 --samples 1 --patterns uniform --cases Vector-U64-U64,Vector-U64-Array32`.

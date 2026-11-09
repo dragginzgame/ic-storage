@@ -1,5 +1,30 @@
 # Current handoff — 2026-11-09
 
+## Pending: IC Wire 0.19 and Toko Tooling 0.38.2
+
+Both product and qualification catalogs/locks select Wire 0.19.0 and exact
+Toko Tooling 0.38.2. Only those two selections change from this adoption's input;
+pre-existing Metrics/Logging updates and CI fixes are preserved. The seven
+private packages live directly under `qualification/`, remain version 0.0.0,
+and belong to no product release group. Product crate paths remain unchanged.
+The authenticated snapshot contains 173 files. Pin checks now pass after scoped
+intent-to-add for `qualification/Cargo.lock`; no contents are staged.
+
+Wire's native codec code is unchanged; optional Platform schemas and packed
+finite adapters are not selected. Public adapter codec errors use the new Wire
+identity, so pending notes select Metrics Storage 0.74.0 and Logging Storage
+0.70.0 for their eventual release. Product versions remain unchanged. No stored
+checkpoint or collection format changes, reset or migration is needed.
+
+Snapshot/pin/boundary/format/link checks, 42 adapter tests and five doctests,
+44 native qualification tests, release-group recovery and substituted Make
+callers pass. Installed IO, checkpoint, upgrade and rollback checks pass in
+original/O3/Os/Oz modes. Evidence is retained at
+`target/evidence/wire-019-toko-0382/` and
+`target/qualification/runtime/attempt.922MAc/`. No commit, push or publication
+is included. Earlier pending sections below record their original work and
+qualification; the tooling selection and layout above supersede those values.
+
 ## Pending: Platform / Runtime adoption
 
 Storage's Wasm backing selects Runtime 0.21 with `ic0` only; the independent

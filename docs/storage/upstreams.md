@@ -33,7 +33,7 @@ exposed; names map to opaque u64 identities through admitted handles.
 
 ## Independent benchmark reference
 
-The unpublished `testing/runtime-qualification` workspace selects published
+The unpublished `qualification` workspace selects published
 `ic-stable-structures` 0.7.2 directly. It does not keep another source copy in
 this repository or route the reference through the old Platform facade. The
 benchmark support library uses ICSS traits and codecs, so this is a normal Cargo

@@ -119,7 +119,7 @@ contribution location; temporary validation copies must never hold the only copy
 See the [shared checkout contract](rules/contributions.md#durable-work-and-checkout-location).
 
 Prepare missing caches explicitly with `make fetch-dependencies` and, when needed,
-`cargo fetch --locked --manifest-path testing/runtime-qualification/Cargo.toml`.
+`cargo fetch --locked --manifest-path qualification/Cargo.toml`.
 Release commands separately authorize locked cache and selected-tool preparation
 before compiling the helper. Explicit caller offline settings remain in force;
 ordinary validation/helper calls never fetch automatically or repair lockfiles.

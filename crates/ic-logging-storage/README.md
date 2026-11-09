@@ -125,8 +125,8 @@ consumer qualification. Native `VectorMemory` tests prove codec/storage behaviou
 not IC effects or instruction/cycle costs. Diagnostic history never authorizes
 retrying uncertain paid effects or proves that a remote effect completed.
 
-The [installed qualification fixture](../../testing/runtime-qualification/crates/ic-storage-test-fixtures/tests/fixtures/logging_qualification/main.rs)
-and its [host runner](../../testing/runtime-qualification/README.md) exercise
+The [installed qualification fixture](../../qualification/ic-storage-test-fixtures/tests/fixtures/logging_qualification/main.rs)
+and its [host runner](../../qualification/README.md) exercise
 query non-persistence, update/upgrade rollback, successful reopen, watermarks after pruning all rows, combined-text eviction
 and refusal, and forged retained-text admission. Run `make test-runtime-logging` with prepared dependencies
 and server. This checks the supplied host's original Wasm, not application

@@ -112,6 +112,6 @@ BENCH_WORKLOAD=depth BENCH_SAMPLES=1 make benchmark-storage
 
 For affected roles, substitute the existing case labels
 `Map-U64-U8,Map-U64-Bool,Map-U8-U64,Map-Bool-U64,Region-U64-U8,Region-U64-Bool,Region-U8-U64,Region-Bool-U64,Set-U8-Unit,Set-Bool-Unit,Vector-U64-U8,Vector-U64-Bool,Cell-U64-U8,Cell-U64-Bool`.
-Use the [boundary-probe instructions](../../../testing/runtime-qualification/crates/ic-storage-benchmarks/README.md#iterator-coverage)
+Use the [boundary-probe instructions](../../../qualification/ic-storage-benchmarks/README.md#iterator-coverage)
 with identical custom arguments and `--trace-execution-cost`; preserve ordinary
 modules and verify response/inner-counter equivalence before interpreting results.

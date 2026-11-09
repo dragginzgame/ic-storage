@@ -12,8 +12,8 @@ cp ci/release-tools.env ci/runtime-tools.env "$fixture/source/ci/"
 cp scripts/ci/check-dependency-adoption.sh "$fixture/source/scripts/ci/"
 cp scripts/ci/check-make-execution.sh "$fixture/source/scripts/ci/"
 bash scripts/ci/prepare-script-fixture.sh "$root" "$fixture/source" scripts/ci/check-cargo-graph.pl scripts/ci/validation-input-checkpoint.pl scripts/ci/verify-file-checksum.sh
-for path in Cargo.toml Cargo.lock crates/*/Cargo.toml testing/runtime-qualification/Cargo.toml \
-    testing/runtime-qualification/Cargo.lock testing/runtime-qualification/crates/*/Cargo.toml; do
+for path in Cargo.toml Cargo.lock crates/*/Cargo.toml qualification/Cargo.toml \
+    qualification/Cargo.lock qualification/*/Cargo.toml; do
     if [[ "$path" == */* ]]; then mkdir -p "$fixture/source/${path%/*}"; fi
     cp "$path" "$fixture/source/$path"
 done
@@ -27,8 +27,8 @@ printf '%s\n' "$*" >> "$ADOPTION_CALLS"
 case "$1" in
     metadata)
         printf '{}\n'
-        if [[ "${ADOPTION_FAILURE:-}" == root-metadata && "$*" != *testing/runtime-qualification* ]]; then exit 23; fi
-        if [[ "${ADOPTION_FAILURE:-}" == independent-metadata && "$*" == *testing/runtime-qualification* ]]; then exit 24; fi
+        if [[ "${ADOPTION_FAILURE:-}" == root-metadata && "$*" != *qualification* ]]; then exit 23; fi
+        if [[ "${ADOPTION_FAILURE:-}" == independent-metadata && "$*" == *qualification* ]]; then exit 24; fi
         ;;
     tree)
         if [[ "$*" == *ic-storage-platform-qualification* ]]; then
@@ -42,7 +42,7 @@ case "$1" in
             else
                 [[ "${ADOPTION_FAILURE:-}" != default-native ]] || printf 'ic-platform-runtime v0.18.1\n'
             fi
-        elif [[ "$PWD" == */testing/runtime-qualification ]]; then
+        elif [[ "$PWD" == */qualification ]]; then
             printf 'ic-storage-runtime-qualification v0.0.0\nic-testkit v0.95.0\nic-wire v0.18.0\n'
             [[ "${ADOPTION_FAILURE:-}" != independent-policy ]] || printf 'ic-testkit v0.94.0\n'
         else
@@ -60,10 +60,10 @@ case "$1" in
         ;;
     clippy)
         printf 'plausible passing lint output\n'
-        if [[ "${ADOPTION_FAILURE:-}" == root-lint && "$*" != *testing/runtime-qualification* ]]; then exit 26; fi
+        if [[ "${ADOPTION_FAILURE:-}" == root-lint && "$*" != *qualification* ]]; then exit 26; fi
         if [[ "${ADOPTION_FAILURE:-}" == composition-lint && "$*" == *ic-storage-platform-qualification* ]]; then exit 28; fi
         if [[ "${ADOPTION_FAILURE:-}" == default-lint && "$*" == *ic-storage-default-qualification* ]]; then exit 29; fi
-        if [[ "${ADOPTION_FAILURE:-}" == independent-lint && "$*" == *testing/runtime-qualification* ]]; then exit 27; fi
+        if [[ "${ADOPTION_FAILURE:-}" == independent-lint && "$*" == *qualification* ]]; then exit 27; fi
         ;;
     *) exit 99 ;;
 esac
@@ -88,6 +88,6 @@ for failure in root-metadata independent-metadata runtime-policy native-runtime 
     esac
     cmp existing-artifact "$fixture/artifact.before"
     cmp Cargo.lock "$root/Cargo.lock"
-    cmp testing/runtime-qualification/Cargo.lock "$root/testing/runtime-qualification/Cargo.lock"
+    cmp qualification/Cargo.lock "$root/qualification/Cargo.lock"
 done
 echo 'Actual parallel Make dispatch admits every graph before lint and preserves inputs/artifacts on failure.'

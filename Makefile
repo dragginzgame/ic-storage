@@ -35,7 +35,7 @@ include ci/runtime-tools.env
 TOOL := bash scripts/dev/run-repo-tool.sh $(VALIDATION_TOOLCHAIN)
 override TOKO_TOOLING_ROOT := $(CURDIR)
 # Consumer roster; Shared owns each visible pass, including standalone Rustfmt.
-FORMAT_RUST_ARGS = --extra-workspace testing/runtime-qualification \
+FORMAT_RUST_ARGS = --extra-workspace qualification \
     --rustfmt-source testing/package-consumer.rs --rustfmt-edition 2024
 # Memory uses IC executables for installed runtime qualification.
 IC_TOOLS := wasm-opt
@@ -88,14 +88,14 @@ runtime-server-check:
 # Focused installed IO/upgrade qualification, separate from the library gates.
 # Build before launch so compilation does not consume the server lifetime.
 test-runtime: runtime-server-check ic-tools-check
-	+cargo +$(VALIDATION_TOOLCHAIN) build --manifest-path testing/runtime-qualification/Cargo.toml --target-dir target -p ic-storage-test-fixtures --locked --offline --profile wasm-size --target wasm32-unknown-unknown --example wasm-io-qualification --example wasm-storage-qualification --example wasm-logging-qualification
-	+cargo +$(VALIDATION_TOOLCHAIN) build --locked --offline --manifest-path testing/runtime-qualification/Cargo.toml --target-dir target/runtime-qualification
+	+cargo +$(VALIDATION_TOOLCHAIN) build --manifest-path qualification/Cargo.toml --target-dir target -p ic-storage-test-fixtures --locked --offline --profile wasm-size --target wasm32-unknown-unknown --example wasm-io-qualification --example wasm-storage-qualification --example wasm-logging-qualification
+	+cargo +$(VALIDATION_TOOLCHAIN) build --locked --offline --manifest-path qualification/Cargo.toml --target-dir target/runtime-qualification
 	+@cli="$$($(TESTKIT_CLI) --check)" && \
 	  bash scripts/ci/qualify-runtime.sh "$(CURDIR)" "$$cli" "$(TESTKIT_SERVER_DIRECTORY)" "$(CURDIR)/.tools/ic/bin/wasm-opt" "$(IC_TOOL_PINS)"
 
 test-runtime-logging: runtime-server-check
-	+cargo +$(VALIDATION_TOOLCHAIN) build --manifest-path testing/runtime-qualification/Cargo.toml --target-dir target -p ic-storage-test-fixtures --locked --offline --profile wasm-size --target wasm32-unknown-unknown --example wasm-logging-qualification
-	+cargo +$(VALIDATION_TOOLCHAIN) build --locked --offline --manifest-path testing/runtime-qualification/Cargo.toml --target-dir target/runtime-qualification
+	+cargo +$(VALIDATION_TOOLCHAIN) build --manifest-path qualification/Cargo.toml --target-dir target -p ic-storage-test-fixtures --locked --offline --profile wasm-size --target wasm32-unknown-unknown --example wasm-logging-qualification
+	+cargo +$(VALIDATION_TOOLCHAIN) build --locked --offline --manifest-path qualification/Cargo.toml --target-dir target/runtime-qualification
 	+@cli="$$($(TESTKIT_CLI) --check)" && \
 	  bash scripts/ci/qualify-runtime.sh "$(CURDIR)" "$$cli" "$(TESTKIT_SERVER_DIRECTORY)" - "$(IC_TOOL_PINS)" --logging-only
 
@@ -139,7 +139,7 @@ fetch-dependencies:
 check-pins: check-runtime-tooling-selection
 check-runtime-tooling-selection:
 	@root="$$(perl scripts/dev/tooling-lock.pl "$(CURDIR)")" && \
-	  runtime="$$(perl scripts/dev/tooling-lock.pl "$(CURDIR)/testing/runtime-qualification")" && \
+	  runtime="$$(perl scripts/dev/tooling-lock.pl "$(CURDIR)/qualification")" && \
 	  test "$$root" = "$$runtime" || { echo 'Workspace tooling selections must agree.' >&2; exit 1; }
 
 check-pins:
@@ -321,11 +321,11 @@ publish-dry-run:
 .PHONY: check-storage-boundary check-candid-boundary check-license check-doc-links
 check-storage-boundary:
 	+RUSTUP_TOOLCHAIN=$(VALIDATION_TOOLCHAIN) RUSTUP_AUTO_INSTALL=0 CARGO_NET_OFFLINE=true bash scripts/ci/check-cargo-dependency-boundaries.sh --consumer "$(CURDIR)" --external-ic
-	+RUSTUP_TOOLCHAIN=$(VALIDATION_TOOLCHAIN) RUSTUP_AUTO_INSTALL=0 CARGO_NET_OFFLINE=true bash scripts/ci/check-cargo-dependency-boundaries.sh --consumer "$(CURDIR)/testing/runtime-qualification"
+	+RUSTUP_TOOLCHAIN=$(VALIDATION_TOOLCHAIN) RUSTUP_AUTO_INSTALL=0 CARGO_NET_OFFLINE=true bash scripts/ci/check-cargo-dependency-boundaries.sh --consumer "$(CURDIR)/qualification"
 
 # One lexical inventory covers packages, tools, benchmarks and runtime fixtures.
 check-candid-boundary:
-	perl scripts/ci/check-candid-boundary.pl --cbor "$(CURDIR)" ci/candid-boundary.json crates testing
+	perl scripts/ci/check-candid-boundary.pl --cbor "$(CURDIR)" ci/candid-boundary.json crates qualification testing
 
 check-license:
 	perl scripts/ci/check-license.pl --kind mit --file LICENSE

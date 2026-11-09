@@ -28,7 +28,7 @@
         "ic-metrics-storage"
       ],
       "metadata_files": [
-        "releases/metrics-storage/0.73.md"
+        "releases/metrics-storage/0.74.md"
       ]
     },
     {
@@ -43,12 +43,12 @@
         "ic-logging-storage"
       ],
       "metadata_files": [
-        "releases/logging-storage/0.69.md"
+        "releases/logging-storage/0.70.md"
       ]
     }
   ],
   "shared_metadata_files": [
-    "testing/runtime-qualification/Cargo.toml",
-    "testing/runtime-qualification/Cargo.lock"
+    "qualification/Cargo.toml",
+    "qualification/Cargo.lock"
   ]
 }

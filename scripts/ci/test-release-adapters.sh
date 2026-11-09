@@ -417,7 +417,7 @@ bash "$ROOT/scripts/ci/prepare-script-fixture.sh" "$ROOT" "$jobserver" \
     make/rust-format.mk scripts/ci/check-release-delivery.sh
 cmp "$ROOT/scripts/ci/run-rust-formatting.pl" "$jobserver/scripts/ci/run-rust-formatting.pl"
 cmp "$ROOT/scripts/ci/RustSource.pm" "$jobserver/scripts/ci/RustSource.pm"
-mkdir -p "$jobserver/testing/runtime-qualification"
+mkdir -p "$jobserver/qualification" "$jobserver/testing"
 cp "$ROOT/testing/package-consumer.rs" "$jobserver/testing/"
 cat > "$jobserver/scripts/ci/package-workspace.sh" <<'STUB'
 #!/usr/bin/env bash
@@ -464,8 +464,8 @@ for target in fmt fmt-check test-tooling test fetch-dependencies wasm-size versi
 done
 grep -Fx "cargo [$jobserver] ($FIXTURE_TOOLCHAIN) sort --workspace --grouped" "$JOBSERVER_EVENTS"
 grep -Fx "cargo [$jobserver] ($FIXTURE_TOOLCHAIN) fmt --package fixture-a --package fixture-b" "$JOBSERVER_EVENTS"
-grep -Fx "cargo [$jobserver/testing/runtime-qualification] ($FIXTURE_TOOLCHAIN) sort --workspace --grouped" "$JOBSERVER_EVENTS"
-grep -Fx "cargo [$jobserver/testing/runtime-qualification] ($FIXTURE_TOOLCHAIN) fmt --package fixture-a --package fixture-b" "$JOBSERVER_EVENTS"
+grep -Fx "cargo [$jobserver/qualification] ($FIXTURE_TOOLCHAIN) sort --workspace --grouped" "$JOBSERVER_EVENTS"
+grep -Fx "cargo [$jobserver/qualification] ($FIXTURE_TOOLCHAIN) fmt --package fixture-a --package fixture-b" "$JOBSERVER_EVENTS"
 grep -Fx "rustfmt [$jobserver] ($FIXTURE_TOOLCHAIN) --edition 2024 $jobserver/testing/package-consumer.rs" "$JOBSERVER_EVENTS"
 grep -Fx "rustfmt [$jobserver] ($FIXTURE_TOOLCHAIN) --edition 2024 --check $jobserver/testing/package-consumer.rs" "$JOBSERVER_EVENTS"
 awk '/ (sort --workspace --grouped|fmt --package fixture-a --package fixture-b|--edition 2024)( |$)/ { print; if (++passes == 5) exit }' \
@@ -473,8 +473,8 @@ awk '/ (sort --workspace --grouped|fmt --package fixture-a --package fixture-b|-
 printf '%s\n' \
     "cargo [$jobserver] ($FIXTURE_TOOLCHAIN) sort --workspace --grouped" \
     "cargo [$jobserver] ($FIXTURE_TOOLCHAIN) fmt --package fixture-a --package fixture-b" \
-    "cargo [$jobserver/testing/runtime-qualification] ($FIXTURE_TOOLCHAIN) sort --workspace --grouped" \
-    "cargo [$jobserver/testing/runtime-qualification] ($FIXTURE_TOOLCHAIN) fmt --package fixture-a --package fixture-b" \
+    "cargo [$jobserver/qualification] ($FIXTURE_TOOLCHAIN) sort --workspace --grouped" \
+    "cargo [$jobserver/qualification] ($FIXTURE_TOOLCHAIN) fmt --package fixture-a --package fixture-b" \
     "rustfmt [$jobserver] ($FIXTURE_TOOLCHAIN) --edition 2024 $jobserver/testing/package-consumer.rs" \
     > "$jobserver/expected-order"
 cmp "$jobserver/expected-order" "$jobserver/observed-order"

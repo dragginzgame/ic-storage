@@ -377,8 +377,8 @@ jobs:
         shell: bash
         run: |
           make fetch-dependencies
-          cargo fetch --locked --manifest-path testing/runtime-qualification/Cargo.toml
-          shasum -a 256 Cargo.lock testing/runtime-qualification/Cargo.lock
+          cargo fetch --locked --manifest-path qualification/Cargo.toml
+          shasum -a 256 Cargo.lock qualification/Cargo.lock
           rustc -Vv
           uname -sm
       - name: Admit both destination graphs before artifact qualification

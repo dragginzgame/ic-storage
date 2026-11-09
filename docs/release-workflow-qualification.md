@@ -907,7 +907,7 @@ The maintained manifest inventory contains two approved roots and two packages:
 | Owner | Former package manifest | New package manifest | Selected lockfile |
 | --- | --- | --- | --- |
 | Library workspace | `Cargo.toml` | `crates/ic-storage/Cargo.toml` | `Cargo.lock` |
-| Independent installed qualification | `testing/runtime-qualification/Cargo.toml` | `testing/runtime-qualification/crates/ic-memory-runtime-qualification/Cargo.toml` | `testing/runtime-qualification/Cargo.lock` |
+| Independent installed qualification | `qualification/Cargo.toml` | `qualification/ic-memory-runtime-qualification/Cargo.toml` | `qualification/Cargo.lock` |
 
 Both former manifests become virtual roots with explicit resolver 3, members,
 default members, shared package metadata and dependency catalogs. The library
@@ -1239,7 +1239,7 @@ Fresh focused Linux evidence:
   upstream inventory fixture also pass under genuine Bash 3.2.57. This is Linux
   shell-portability evidence, not native macOS qualification.
 - Actual `make cloc` selects only the library root. Actual
-  `make cloc CLOC_MANIFEST=testing/runtime-qualification/Cargo.toml`
+  `make cloc CLOC_MANIFEST=qualification/Cargo.toml`
   with a caller-selected target reports only `ic-memory-runtime-qualification`:
   86 runtime LOC. Graphs remain separate, selected target configuration is kept,
   and neither lockfile changes. Actual `make cloc-tooling` also completes.

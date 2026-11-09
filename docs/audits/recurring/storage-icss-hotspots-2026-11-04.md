@@ -69,7 +69,7 @@ heap-charge tradeoffs. No historical prototype is a current optimization mandate
 
 The maintained benchmark supports control/records/bulk, boundaries, ordered,
 iterators, Auth lookups and the full type catalogue. Use
-[the current guide](../../../testing/runtime-qualification/crates/ic-storage-benchmarks/README.md)
+[the current guide](../../../qualification/ic-storage-benchmarks/README.md)
 and matched ICSS buckets, populations, histories and execution modes. Rebuilding
 measures current source, not these retired formats. Native capacity/IO and IC
 instruction results must remain separate; never sum unrelated traces into one score.

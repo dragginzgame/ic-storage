@@ -59,7 +59,7 @@ loads `bridge::Map<K,V,&RegionMemory<M>>` for each operation. The
 memory type into the complete copied engine. The two paths therefore generate
 separate search, mutation and traversal functions even for identical K/V pairs.
 
-The [actual benchmark consumers](../../../testing/runtime-qualification/crates/ic-storage-benchmarks/benches/canister/collections.rs)
+The [actual benchmark consumers](../../../qualification/ic-storage-benchmarks/benches/canister/collections.rs)
 exercise both forms. On ICSS, the Region control reloads the same
 `BTreeMap<K,V,BenchMemory>` type used by ordinary maps, so it can reuse compiled
 engine code. Storage's bounded region semantics are additional behavior; the
@@ -87,7 +87,7 @@ then adds another 45,812. Under `wasm-size` those differences are 38,960 and
 27,892 bytes. These are controlled whole-module differences, not independently
 additive costs of individual source modules.
 
-[new_runtime](../../../testing/runtime-qualification/crates/ic-storage-benchmarks/benches/wasm.rs)
+[new_runtime](../../../qualification/ic-storage-benchmarks/benches/wasm.rs)
 really invokes declaration/grant admission, directory initialization and lease
 opening. [Directory](../../../crates/ic-storage/src/runtime/directory_model.rs)
 contains key and allocation indexes, validation and Wire encoding/decoding;
@@ -152,7 +152,7 @@ inventories, grouping/pair analysis, size controls, lint and installed output:
 `target/evidence/storage-wasm-gap/`. Function groups may overlap conceptually
 through inlining, but each encoded function is counted once in each inventory.
 
-Follow the [benchmark footprint recipe](../../../testing/runtime-qualification/crates/ic-storage-benchmarks/README.md#compact-wasm-footprint-control).
+Follow the [benchmark footprint recipe](../../../qualification/ic-storage-benchmarks/README.md#compact-wasm-footprint-control).
 Compare uncompressed bytes and the decoded code-section payload; also retain
 compressed transport bytes and module digests. Do not compare an optimized or
 restricted Storage build with the unoptimized/full ICSS catalogue.
@@ -265,7 +265,7 @@ Native and Wasm strict Clippy both pass. Full raw matrices are retained under
 Two unpublished consumer crates have separate production dependency graphs and
 compile the same raw-byte endpoints. The full test catalogue and verification
 model are absent from their Wasm. The benchmark README documents the exact
-[protocol, build and qualification](../../../testing/runtime-qualification/crates/ic-storage-benchmarks/README.md#matched-consumer-wasm-size).
+[protocol, build and qualification](../../../qualification/ic-storage-benchmarks/README.md#matched-consumer-wasm-size).
 
 Both sides use Rust 1.99.1 and the stripped `wasm-size` profile without Binaryen.
 Selected library source includes the pending shared-tree-backing change; the
@@ -376,7 +376,7 @@ Concrete source owners and candidates for a subsequent experiment:
 
 No production implementation changes are made in this attribution pass.
 `inspect-wasm-size.pl` preserves the inspection method in maintained source;
-[reproduction instructions](../../../testing/runtime-qualification/crates/ic-storage-benchmarks/README.md#reproducing-size-attribution)
+[reproduction instructions](../../../qualification/ic-storage-benchmarks/README.md#reproducing-size-attribution)
 include symbol builds and explicitly separate them from reported stripped sizes.
 The inspector's six inventories match an independent byte/function parser;
 stripped input is also qualified for section accounting. Raw inventories and

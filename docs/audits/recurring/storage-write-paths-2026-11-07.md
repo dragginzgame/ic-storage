@@ -22,7 +22,7 @@ Raw output, native counters and diagnostic scripts live in
 `target/evidence/storage-write-paths/`; candidate source/module hashes and frozen
 sources remain under `target/evidence/storage-comparison/`. Reproduce ordinary
 runs with `BENCH_WORKLOAD=depth BENCH_SAMPLES=1 make benchmark-storage`, and use
-the [benchmark guide's boundary probe](../../../testing/runtime-qualification/crates/ic-storage-benchmarks/README.md#iterator-coverage).
+the [benchmark guide's boundary probe](../../../qualification/ic-storage-benchmarks/README.md#iterator-coverage).
 Size measurements parse section-10 payload lengths from uncompressed Wasm.
 
 An independent edit advanced the root lock to Wire 0.17.7 during the first trial.

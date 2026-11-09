@@ -3,8 +3,8 @@ use super::*;
 
 #[test]
 fn qualification_catalog_and_lock_follow_their_owning_group_and_roll_back_together() {
-    let catalog_path = "testing/runtime-qualification/Cargo.toml";
-    let lock_path = "testing/runtime-qualification/Cargo.lock";
+    let catalog_path = "qualification/Cargo.toml";
+    let lock_path = "qualification/Cargo.lock";
     let catalog = "[workspace.dependencies]\nic-storage = { path = \"../../crates/ic-storage\", version = \"0.12.3\" }\nic-logging-storage = { path = \"../../crates/ic-logging-storage\", version = \"0.12.3\" }\nic-wire = \"0.12.3\"\n";
     let lock = "version = 4\n[[package]]\nname = \"ic-storage\"\nversion = \"0.12.3\"\n[[package]]\nname = \"ic-logging-storage\"\nversion = \"0.12.3\"\n[[package]]\nname = \"ic-wire\"\nversion = \"0.12.3\"\n";
     for name in ["storage", "metrics-storage", "logging-storage"] {

@@ -741,7 +741,7 @@ fn summary_quotes_tuple_labels_and_does_not_invent_missing_reference_costs() {
 #[test]
 fn combined_type_report_requires_all_five_complete_subreports() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../../target/benchmark-full-catalogue/report-test")
+        .join("../../target/benchmark-full-catalogue/report-test")
         .join(format!(
             "{}-{}",
             std::process::id(),
@@ -784,7 +784,7 @@ fn combined_type_report_requires_all_five_complete_subreports() {
 #[test]
 fn population_reports_distinguish_singleton_cells_in_csv_and_raw_output() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../../target/evidence/storage-population-report-tests")
+        .join("../../target/evidence/storage-population-report-tests")
         .join(format!(
             "{}-{}",
             std::process::id(),

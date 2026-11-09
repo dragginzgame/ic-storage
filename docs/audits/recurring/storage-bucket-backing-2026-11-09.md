@@ -291,7 +291,7 @@ Current frozen evidence:
 - Focused logs/source checkpoints: `target/evidence/storage-bucket-cut/`.
 
 Use the maintained comparison commands in
-[the benchmark README](../../../testing/runtime-qualification/crates/ic-storage-benchmarks/README.md)
+[the benchmark README](../../../qualification/ic-storage-benchmarks/README.md)
 for depth, bulk and size; the scripts freeze inputs, modules and configuration.
 `make test-runtime` retains installed lifecycle qualification separately. The
 benchmark driver now supports `--workload bulk --collection cell` and full-handler

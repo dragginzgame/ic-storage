@@ -21,7 +21,7 @@ export VALIDATION_INPUT_BASELINE="$fixture/checkpoint.json"
 source_id=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 pin="$(sed -n 's/^channel = "\([^"]*\)"$/\1/p' rust-toolchain.toml)"
 for group in workspace storage metrics-storage logging-storage; do
-    args=()
+    set --
     scope=workspace
     owner=storage
     expected=--workspace
@@ -32,11 +32,11 @@ for group in workspace storage metrics-storage logging-storage; do
             '{schema:1,source:$source,group:$group,scope:$scope,policy:"ci/release-validation.json"}' > "$plan"
         hash="$(bash scripts/ci/verify-file-checksum.sh --print sha256 "$plan")"
         jq -cnS --arg path "$plan" --arg hash "$hash" '{($path):$hash}' > "$VALIDATION_INPUT_BASELINE"
-        args=("VALIDATION_PLAN=$plan" "RELEASE_SOURCE=$source_id" "RELEASE_GROUP=$owner")
+        set -- "VALIDATION_PLAN=$plan" "RELEASE_SOURCE=$source_id" "RELEASE_GROUP=$owner"
     fi
     : > "$CARGO_SCOPE_EVENTS"
     for stage in lint features docs wasm; do
-        make --no-print-directory "validate-$stage" "${args[@]}" > "$fixture/$group-$stage.log" 2>&1
+        make --no-print-directory "validate-$stage" "$@" > "$fixture/$group-$stage.log" 2>&1
     done
     printf '%s\n' \
         "+$pin clippy $expected --locked --offline --all-targets -- -D warnings" \
@@ -44,7 +44,7 @@ for group in workspace storage metrics-storage logging-storage; do
         "+$pin doc $expected --locked --offline --no-deps" \
         "+$pin check $expected --locked --offline --target wasm32-unknown-unknown --tests" > "$fixture/expected"
     cmp "$fixture/expected" "$CARGO_SCOPE_EVENTS"
-    if CARGO_SCOPE_STATUS=19 make --no-print-directory validate-lint "${args[@]}" > "$fixture/$group-failure.log" 2>&1; then
+    if CARGO_SCOPE_STATUS=19 make --no-print-directory validate-lint "$@" > "$fixture/$group-failure.log" 2>&1; then
         echo 'Cargo failure was ignored' >&2; exit 1
     fi
 done
@@ -52,10 +52,10 @@ done
 if make --no-print-directory validate-toolchain "VALIDATION_PLAN=$plan" > "$fixture/full-refusal.log" 2>&1; then exit 1; fi
 : > "$CARGO_SCOPE_EVENTS"
 printf ' ' >> "$plan"
-if make --no-print-directory validate-lint "${args[@]}" > "$fixture/drift-refusal.log" 2>&1; then exit 1; fi
+if make --no-print-directory validate-lint "$@" > "$fixture/drift-refusal.log" 2>&1; then exit 1; fi
 [[ ! -s "$CARGO_SCOPE_EVENTS" ]]
 # A plan without the runner checkpoint cannot authorize a package selection.
-if env -u VALIDATION_INPUT_BASELINE make --no-print-directory validate-lint "${args[@]}" > "$fixture/no-checkpoint.log" 2>&1; then exit 1; fi
+if env -u VALIDATION_INPUT_BASELINE make --no-print-directory validate-lint "$@" > "$fixture/no-checkpoint.log" 2>&1; then exit 1; fi
 [[ ! -s "$CARGO_SCOPE_EVENTS" ]]
 cat > "$fixture/bin/repo-tool" <<'STUB'
 #!/usr/bin/env bash

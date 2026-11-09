@@ -72,7 +72,7 @@ Open PR heads are separately retained under `refs/preservation/{memory,storage}/
 | Storage private-tree research | `docs/archive/private-btree` | preserved historical research, no retired implementation revived |
 | Storage changelog and handoff | `docs/history/ic-storage` | original bytes retained as evidence; not current instructions |
 | Storage ownership guide | `docs/storage/upstreams.md` | current collection ownership within this repository |
-| Memory installed runtime runner | `testing/runtime-qualification` | independent host graph and lock retained |
+| Memory installed runtime runner | `qualification` | independent host graph and lock retained |
 | Archive consumer | `testing/package-consumer.rs` plus generated temporary workspace | verifies published archive contents, single Memory identity, lease and reopen behavior |
 
 The Storage root Cargo files and Makefile are archived as evidence; they are not

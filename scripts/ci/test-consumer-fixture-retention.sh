@@ -54,7 +54,11 @@ RETENTION_ASSERTION_EVENTS="$fixture/assertion-events" TMPDIR="$fixture" \
 # cannot masquerade as the controlled installed-tool failure.
 mkdir "$fixture/physical-temp"
 ln -s physical-temp "$fixture/aliased-temp"
-(cd "$fixture" && TMPDIR=aliased-temp "$BASH" "$ROOT/scripts/ci/test-failure-evidence.sh" aliased-temp/roundtrip) \
+(cd "$fixture" && GITHUB_OUTPUT="$fixture/aliased-output" TMPDIR=aliased-temp "$BASH" "$ROOT/scripts/ci/test-failure-evidence.sh" aliased-temp/roundtrip) \
     > "$fixture/aliased-evidence.log" 2>&1
+# The nested retained archive belongs to this disposable probe, never to the
+# enclosing CI step's output. Check its publication before fixture cleanup.
+archive="$(sed -n 's/^path=//p' "$fixture/aliased-output")"
+[[ "$archive" == "$fixture/physical-temp/roundtrip/"* && -f "$archive" ]] || exit 1
 echo 'Consumer fixture completion, failure status and evidence retention passed'
 fixture_complete=true

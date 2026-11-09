@@ -22,7 +22,7 @@ Before changing tooling, formatting, release adapters or retention, read
 vendored files or attribute dirty shared source to a registry installation.
 Every real package inherits `toko-tooling.workspace = true` in unconditional
 `[dev-dependencies]` and records its cargo-machete exemption. Both maintained
-workspace roots pin `=0.37.5`; no selection-only package or artificial Rust import
+workspace roots pin `=0.38.2`; no selection-only package or artificial Rust import
 is needed. After changing the exact pins, resolve each normal Cargo.lock with
 Cargo, then run `make toko-tooling-update`. Use `make toko-tooling-install`
 to reinstall the existing Cargo selection. Commit declarations, Cargo lockfiles
@@ -104,7 +104,7 @@ for the upstream contribution and the `ic-storage` package integration boundary.
 - Dependency preparation: `make fetch-dependencies` is a separate network step.
   Both maintained workspaces track their existing selected lockfiles. The
   independent graph is prepared separately with
-  `cargo fetch --locked --manifest-path testing/runtime-qualification/Cargo.toml`.
+  `cargo fetch --locked --manifest-path qualification/Cargo.toml`.
   Validation and release preparation require those lockfiles and populated
   cache, and run offline without changing dependency selection.
   The documented release entry points also authorize locked cache preparation
@@ -119,7 +119,7 @@ for the upstream contribution and the `ic-storage` package integration boundary.
 
 Follow the reviewed [Git hook rules](rules/git-hooks.md).
 The reviewed hook and installer are vendored unchanged. `make fmt` and
-`make fmt-check` cover the library, `testing/runtime-qualification` and the
+`make fmt-check` cover the library, `qualification` and the
 standalone `testing/package-consumer.rs` source,
 using the [selected catalog](ci/tool-versions.env) before the pinned Rust formatter.
 Setup is explicit in [docs/host-support.md](docs/host-support.md); formatting never installs tools,
@@ -165,7 +165,7 @@ or tests whose sole purpose is prohibiting a retired name.
 
 ## Independent runtime qualification
 
-`testing/runtime-qualification` is the approved unpublished independent workspace.
+`qualification` is the standard unpublished independent workspace.
 Its own root catalog and lockfile own PocketIC integration and the private
 `ic-storage-test-fixtures` crate, which shares passive protocols between its
 installed test canisters and the native runner. Root library gates exclude that

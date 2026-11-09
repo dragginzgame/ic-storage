@@ -11,7 +11,7 @@ server="$("$cli" check --directory "$server_directory")"
 mkdir -p target/evidence/storage-comparison
 output="$(mktemp -d "$root/target/evidence/storage-comparison/attempt.XXXXXX")"
 printf 'Storage comparison evidence: %s\n' "$output"
-manifest=testing/runtime-qualification/Cargo.toml
+manifest=qualification/Cargo.toml
 reference="${BENCH_REFERENCE:-dfinity}"
 [[ "$reference" == dfinity || "$reference" == dfinity-head || "$reference" == dfinity-governed ]]
 if [[ -n "${BENCH_WORKLOAD:-}" ]]; then
@@ -40,15 +40,15 @@ if [[ "$reference" == dfinity-governed ]]; then
 fi
 rustc -vV > "$output/compiler.txt"
 cargo -V > "$output/cargo.txt"
-cp "$manifest" testing/runtime-qualification/Cargo.lock "$output/"
+cp "$manifest" qualification/Cargo.lock "$output/"
 cp Cargo.lock "$output/production.lock"
 git rev-parse HEAD > "$output/source-commit"
 git diff --binary > "$output/pending.patch"
 # Hash actual working source, including untracked files from the pending hard cut.
-rg --files crates/ic-storage testing/runtime-qualification/crates/ic-storage-benchmarks scripts/ci/compare-storage.sh | LC_ALL=C sort > "$output/source-files"
+rg --files crates/ic-storage qualification/ic-storage-benchmarks scripts/ci/compare-storage.sh | LC_ALL=C sort > "$output/source-files"
 while IFS= read -r path; do shasum -a 256 "$path"; done < "$output/source-files" > "$output/source.sha256"
 tar -czf "$output/source.tar.gz" -T "$output/source-files" Cargo.toml rust-toolchain.toml "$manifest" scripts/ci/compare-storage.sh
-shasum -a 256 "$cli" "$server" Cargo.toml rust-toolchain.toml "$manifest" testing/runtime-qualification/Cargo.lock > "$output/inputs.sha256"
+shasum -a 256 "$cli" "$server" Cargo.toml rust-toolchain.toml "$manifest" qualification/Cargo.lock > "$output/inputs.sha256"
 # Large inline ICSS test types need more stack than the ordinary Rust/Wasm
 # default. This selects the synthetic comparison only, identically on both sides.
 comparison_rustflags="${RUSTFLAGS:+$RUSTFLAGS }-C link-arg=-zstack-size=8388608"
@@ -70,7 +70,7 @@ fi
 shasum -a 256 "$output/owned.wasm" "$output/$reference.wasm" "$output/owned.wasm.gz" "$output/$reference.wasm.gz" "$output/wasm-rustflags.txt" target/runtime-qualification/debug/ic-storage-benchmarks >> "$output/inputs.sha256"
 shasum -a 256 -c "$output/source.sha256" > "$output/source-check.log"
 shasum -a 256 -c "$output/inputs.sha256" > "$output/inputs-check.log"
-cmp testing/runtime-qualification/Cargo.lock "$output/Cargo.lock"
+cmp qualification/Cargo.lock "$output/Cargo.lock"
 cmp Cargo.lock "$output/production.lock"
 status=0
 selections=(all)
@@ -96,6 +96,6 @@ cat "$output/runtime.log"
 [[ "$status" == 0 ]] || exit "$status"
 shasum -a 256 -c "$output/source.sha256" >> "$output/source-check.log"
 shasum -a 256 -c "$output/inputs.sha256" >> "$output/inputs-check.log"
-cmp testing/runtime-qualification/Cargo.lock "$output/Cargo.lock"
+cmp qualification/Cargo.lock "$output/Cargo.lock"
 cmp Cargo.lock "$output/production.lock"
 printf 'Comparison summary: %s/report/summary.csv\n' "$output"

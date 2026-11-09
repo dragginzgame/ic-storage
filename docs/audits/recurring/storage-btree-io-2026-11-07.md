@@ -24,7 +24,7 @@ Raw evidence is under `target/evidence/storage-overflow-tail/` and
 `target/evidence/storage-node-header/`. Frozen comparison attempts retain source,
 input and module identities under `target/evidence/storage-comparison/`.
 Reproduce with `BENCH_WORKLOAD=depth BENCH_SAMPLES=1 make benchmark-storage` and
-the [benchmark guide's boundary instrumentation](../../../testing/runtime-qualification/crates/ic-storage-benchmarks/README.md#iterator-coverage).
+the [benchmark guide's boundary instrumentation](../../../qualification/ic-storage-benchmarks/README.md#iterator-coverage).
 Every ordinary/probe response is compared, including per-round inner counts;
 the probes add no linear memory. Stable pages and ICSS costs are controls.
 

@@ -101,7 +101,7 @@ The full type timing catalogue, other optimizer profiles and release gates were
 not rerun; they are separate from this focused development qualification.
 
 Run `BENCH_WORKLOAD=ordered BENCH_SAMPLES=1 make benchmark-storage`; apply the
-[benchmark guide's boundary probe](../../../testing/runtime-qualification/crates/ic-storage-benchmarks/README.md)
+[benchmark guide's boundary probe](../../../qualification/ic-storage-benchmarks/README.md)
 to frozen original modules for handler results. Current raw evidence lives under
 `target/evidence/storage-projection-last/` and `target/evidence/storage-comparison/`.
 The shared [selected matrix](../../measurements/storage-icss-backing-steps.csv)
