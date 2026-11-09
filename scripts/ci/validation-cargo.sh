@@ -5,10 +5,16 @@ set -euo pipefail
 stage=$1 pin=$2 plan=$3
 scope=(--workspace)
 if [[ -n "$plan" ]]; then
-    [[ -n "${VALIDATION_INPUT_BASELINE:-}" && -n "${RELEASE_SOURCE:-}" && -n "${RELEASE_GROUP:-}" ]]
+    [[ -n "${VALIDATION_INPUT_BASELINE:-}" && -n "${RELEASE_SOURCE:-}" && -n "${RELEASE_GROUP:-}" ]] || {
+        echo 'Cargo validation requires an admitted plan checkpoint, source and group' >&2
+        exit 1
+    }
     expected="$(jq -er --arg path "$plan" '.[$path] | strings' "$VALIDATION_INPUT_BASELINE")"
     actual="$(bash scripts/ci/verify-file-checksum.sh --print sha256 "$plan")"
-    [[ "$actual" == "$expected" ]]
+    [[ "$actual" == "$expected" ]] || {
+        echo 'Cargo validation plan differs from its admitted checkpoint' >&2
+        exit 1
+    }
     selection="$(jq -er --arg source "$RELEASE_SOURCE" --arg group "$RELEASE_GROUP" \
         'select(.schema == 1 and .source == $source and .group == $group and .policy == "ci/release-validation.json") | .scope' "$plan")"
     case "$selection:$RELEASE_GROUP" in
