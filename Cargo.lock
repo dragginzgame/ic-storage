@@ -367,7 +367,7 @@ checksum = "99684e3afc04c523f9276de65ea6fac6006615394827d458b0c540242c79bebf"
 
 [[package]]
 name = "ic-metrics-storage"
-version = "0.72.0"
+version = "0.73.0"
 dependencies = [
  "ic-metrics",
  "ic-storage",
