@@ -857,7 +857,7 @@ dependencies = [
 
 [[package]]
 name = "ic-storage"
-version = "0.71.0"
+version = "0.71.1"
 dependencies = [
  "ic-platform-runtime",
  "serde",
