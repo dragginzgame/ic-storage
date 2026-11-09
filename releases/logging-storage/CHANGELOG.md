@@ -11,6 +11,10 @@ retains its original package and release identities.
   Wire errors must select the same minor. Stored checkpoint formats and
   admission limits are unchanged; no backing reset or data migration is needed.
 
+### 📦 Dependencies
+
+- Qualify the root workspace with locked IC Logging 0.24.15.
+
 ## [0.69.0] - 2026-11-09
 
 ### ⚠️ Breaking

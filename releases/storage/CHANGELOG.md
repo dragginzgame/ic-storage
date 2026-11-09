@@ -9,6 +9,8 @@ retains its original package and release identities.
 
 - Adopt IC Wire 0.19 for development and qualification; core Storage has no
   production Wire dependency. Stored collection formats are unchanged.
+- Refresh the root lockfile to Build 0.81.1 and Host 0.76.2, removing the
+  older SHA-2 dependency chain from the native tooling graph.
 
 ### 🛠️ Tooling
 
