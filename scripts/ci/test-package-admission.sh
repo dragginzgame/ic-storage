@@ -80,6 +80,13 @@ cat > "$fixture/bin/rustup" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
 if [[ "$REJECT_MODE" == selected-msrv ]]; then
+    # Member discovery is real read-only Cargo metadata, after the substituted
+    # compiler identities. Keep compilation effects below separately captured.
+    case "$*" in
+        "run $FIXTURE_MSRV cargo metadata --no-deps --locked --offline --format-version 1 --manifest-path Cargo.toml"|\
+        "run $FIXTURE_MSRV cargo metadata --no-deps --locked --offline --format-version 1 --manifest-path qualification/Cargo.toml")
+            exec "$REAL_RUSTUP" "$@" ;;
+    esac
     [[ $# == 4 && "$1" == run && "$2" == "$FIXTURE_MSRV" ]] || exit 99
     printf '%s\n' "$3" >> "$MSRV_ADMISSION_EVENTS"
     case "$3:$4" in
