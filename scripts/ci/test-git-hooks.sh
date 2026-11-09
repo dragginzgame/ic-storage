@@ -36,7 +36,7 @@ mkdir "$fixture/templates"
 export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_TEMPLATE_DIR="$fixture/templates"
 
 new_fixture() {
-    local path workspace member
+    local path workspace member members_prefix
     mkdir "$fixture/$1"
     cd "$fixture/$1"
     git init --quiet
@@ -54,11 +54,13 @@ new_fixture() {
         ci/tool-versions.env rust-toolchain.toml testing/package-consumer.rs \
         .githooks/pre-commit
     for workspace in . qualification; do
-        mkdir -p "$workspace/crates/hook-fixture/src"
-        cat > "$workspace/Cargo.toml" <<'CARGO'
+        members_prefix=crates/
+        [[ "$workspace" != qualification ]] || members_prefix=""
+        mkdir -p "$workspace/${members_prefix}hook-fixture/src"
+        cat > "$workspace/Cargo.toml" <<CARGO
 [workspace]
 resolver = "3"
-members = ["crates/hook-fixture", "crates/alpha", "crates/zeta"]
+members = ["${members_prefix}hook-fixture", "${members_prefix}alpha", "${members_prefix}zeta"]
 exclude = ["qualification"]
 
 [workspace.package]
@@ -67,10 +69,10 @@ edition = "2024"
 
 [workspace.dependencies]
 # Keep this comment and the selected path/feature policy.
-zeta = { path = "crates/zeta", default-features = false }
-alpha = { path = "crates/alpha" }
+zeta = { path = "${members_prefix}zeta", default-features = false }
+alpha = { path = "${members_prefix}alpha" }
 CARGO
-        cat > "$workspace/crates/hook-fixture/Cargo.toml" <<'CARGO'
+        cat > "$workspace/${members_prefix}hook-fixture/Cargo.toml" <<'CARGO'
 [package]
 name = "hook-fixture"
 version.workspace = true
@@ -80,11 +82,11 @@ edition.workspace = true
 zeta.workspace = true
 alpha.workspace = true
 CARGO
-        printf 'pub fn fixture( ){}\n' > "$workspace/crates/hook-fixture/src/lib.rs"
+        printf 'pub fn fixture( ){}\n' > "$workspace/${members_prefix}hook-fixture/src/lib.rs"
         for member in alpha zeta; do
-            mkdir -p "$workspace/crates/$member/src"
-            printf '[package]\nname = "%s"\nversion.workspace = true\nedition.workspace = true\n' "$member" > "$workspace/crates/$member/Cargo.toml"
-            printf 'pub fn fixture() {}\n' > "$workspace/crates/$member/src/lib.rs"
+            mkdir -p "$workspace/$members_prefix$member/src"
+            printf '[package]\nname = "%s"\nversion.workspace = true\nedition.workspace = true\n' "$member" > "$workspace/$members_prefix$member/Cargo.toml"
+            printf 'pub fn fixture() {}\n' > "$workspace/$members_prefix$member/src/lib.rs"
         done
     done
     # Include the copied companion closure, including files absent from HEAD.
