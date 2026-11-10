@@ -23,13 +23,27 @@ and small-record capacity still regress. It packs small payloads inline, retains
 iterator paths and checks cached child metadata during traversal. Preserve all
 candidate measurements; do not remove integrity checks to recover performance.
 The current deployment covers Storage 0.73.0 and its Metrics Storage 0.75.0 and
-Logging Storage 0.71.0 adapters only. Release gates and publication are pending;
-no sibling edits or deployed-canister resets are included.
+Logging Storage 0.71.0 adapters only. All three groups are now published on
+crates.io with annotated GitHub tags. Batch `batch-iGEMdpfB` completed at
+`726c674dea238fdfc4b59af0aac29761489479c2` and was reconciled into the normal
+checkout. No sibling edits or deployed-canister resets were included.
 
-The earlier `target/` artifacts are no longer present at release preparation.
-The figures below are recorded historical results; required release validation
-and archive proofs must be regenerated. The current root lock additionally
-selects IC Metrics 0.29.11 and IC Logging 0.24.16.
+The earlier benchmark `target/` artifacts were no longer present at release
+preparation. The figures below remain recorded historical results. Every group
+passed the full 12-stage release plan, including native tests, strict lint, Wasm
+test compilation, size checks and archive qualification. Fresh proof lives in
+`target/release-frozen/batch-iGEMdpfB/target/release-validation/`; the durable batch
+record is `.git/release-state/frozen/batch-iGEMdpfB/`. Registry archive checksums
+were verified after each upload. The released root lock selects IC Metrics
+0.29.11 and IC Logging 0.24.16.
+
+Release validation found and fixed two qualification gaps before any release:
+bootstrap/fixture copies still used `LICENSE`, and public acceptance tests
+implicitly selected the native default backing. The corrected tests infer the
+supplied backing on both native and Wasm targets. Failed attempts remain intact.
+Newer normal-checkout IC Build 0.81.2 and IC Host 0.76.3 lock selections arrived
+after capture and were preserved, not included in this deployment. Their backup
+stash `f652e8c7400f56f0cab6ad968d05c4c0aee6479d` remains retained.
 
 ## Qualification and measured limits
 
@@ -79,7 +93,7 @@ for this implementation; no deployed consumer has been migrated here.
 
 Small-record density and traversal footprint remain follow-up optimization work;
 the measured regressions are retained in the release notes. Apply the authorized
-release-group gates to current inputs. Current version authorities remain the three product
+release-group gates again when future source inputs change. Current version authorities remain the three product
 packages and their group ledgers. Hosted CI and publication are separate from
 local checks. Earlier pre-rewrite optimization measurements remain historical
 in the [measurement index](../measurements/README.md), not active engine claims.

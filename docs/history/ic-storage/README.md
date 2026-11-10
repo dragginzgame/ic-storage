@@ -59,4 +59,6 @@ from clean source at an annotated release tag. See [the release contract](docs/r
 Release validation runs the existing Clippy gate before builds, tests and packaging;
 publication entrypoints also stop on lint failure before creating an attempt.
 
-Licensed under MIT; see LICENSE.
+Historical licensing statement: “Licensed under MIT; see LICENSE.” This applies
+to the archived revision identified in the [history index](index.md), not current
+releases. For current terms, see the [root licence](../../../LICENSE.md).
