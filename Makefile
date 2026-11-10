@@ -42,6 +42,7 @@ IC_TOOLS := wasm-opt
 LOCAL_TOOL_INSTALL_TARGETS += install-ic-tools install-release-tools
 LOCAL_TOOL_CHECK_TARGETS += ic-tools-check release-tools-check
 RELEASE_SETUP_TARGET := release-candidate-setup
+TOKO_TOOLING_RELEASE := 1
 include make/consumer.mk
 export PATH := $(CURDIR)/.tools/ic/bin:$(PATH)
 # GNU Make 3.81 cannot combine target-specific override and export. Reclassify
@@ -64,7 +65,7 @@ help:
 	@echo 'Focused installed Logging proof: test-runtime-logging (original Wasm only; no optimizer or other runtime suites).'
 	@echo 'Map comparison: benchmark-storage (prepared server/caches; BENCH_ROWS=256 BENCH_SAMPLES=3).'
 	@echo 'Consumer Wasm size: benchmark-storage-size (matched small apps; prepared server/caches).'
-	@echo 'Report: cloc (root workspace; CLOC_MANIFEST selects an independent Cargo manifest). Fleet reports run in Shared Tooling.'
+	@echo 'Report: cloc (product and qualification workspaces; CLOC_MANIFEST selects one Cargo manifest). Fleet reports run in Shared Tooling.'
 	@echo 'Maintainer releases: release-patch, release-minor, release-major; normal targets start fresh; release-resume VERSION=X.Y.Z recovers a saved attempt.'
 
 # Explicit preparation; normal checks only admit the selected published editor.
@@ -328,10 +329,7 @@ check-candid-boundary:
 	perl scripts/ci/check-candid-boundary.pl --cbor "$(CURDIR)" ci/candid-boundary.json crates qualification testing
 
 check-license:
-	perl scripts/ci/check-license.pl --kind mit --file LICENSE
-	perl scripts/ci/check-license.pl --kind mit --file crates/ic-storage/LICENSE
-	perl scripts/ci/check-license.pl --kind mit --file crates/ic-metrics-storage/LICENSE
-	perl scripts/ci/check-license.pl --kind mit --file crates/ic-logging-storage/LICENSE
+	perl scripts/ci/check-license.pl --file LICENSE.md
 
 check-doc-links:
-	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md docs/status/current.md docs/storage-release-validation.md docs/migration/ic-persistence.md docs/migration/ic-metrics-stable.md docs/storage/upstreams.md crates/ic-storage/README.md crates/ic-metrics-storage/README.md crates/ic-logging-storage/README.md docs/archive/private-btree/*.md docs/history/ic-storage/index.md
+	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md docs/status/current.md docs/validation/storage-release-validation.md docs/migration/ic-persistence.md docs/migration/ic-metrics-stable.md docs/storage/upstreams.md crates/ic-storage/README.md crates/ic-metrics-storage/README.md crates/ic-logging-storage/README.md docs/archive/private-btree/*.md docs/history/ic-storage/index.md

@@ -3,6 +3,20 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/logging-stable/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.71.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Adopt Storage 0.73 and its public type identity. Hosts must explicitly supply
+  fresh/reset whole backing and update application framing admission; previous
+  backing and collection images are rejected without automatic migration.
+  Checkpoint payload formats, validation and adapter APIs remain unchanged.
+
+### 📦 Dependencies
+
+- Qualify the root workspace with locked IC Logging 0.24.16.
+- Inherit Toko Tooling 0.39.7 and the canonical root licence file.
+
 ## [0.70.0] - 2026-11-09
 
 ### ⚠️ Breaking

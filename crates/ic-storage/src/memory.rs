@@ -1,193 +1,304 @@
-//! Storage-owned backing interface and native/IC implementations.
-use crate::WASM_PAGE_SIZE_BYTES as PAGE;
+//! Page-addressed backing IO for Storage infrastructure.
+//!
+//! A backing implements byte access, not allocation authority. Applications use
+//! admitted Storage handles rather than treating this trait as a grant of access.
+
 use std::{cell::RefCell, rc::Rc};
+
+use crate::WASM_PAGE_SIZE_BYTES;
 
 ///
 /// Memory
 ///
-/// Page-addressed backing for Storage. Growth returns the previous page count,
-/// or -1 without changing memory. Successful growth adds zero-filled pages.
-/// Reads and writes must reject the complete out-of-bounds range before IO.
-/// Implementing this trait alone does not grant allocation authority.
+/// Page-addressed storage with initialized reads and nonshrinking capacity.
+/// Implementations validate complete access ranges before touching backing bytes.
 ///
 pub trait Memory {
-    /// Current extent in 65,536-byte pages.
+    /// Returns the number of complete accessible Wasm pages.
     fn size(&self) -> u64;
-    /// Add zero-filled pages, or return -1 on refusal.
+
+    /// Adds zero-filled pages, returning the previous size or `-1` on refusal.
+    /// Refusal leaves the existing bytes and extent unchanged.
     fn grow(&self, pages: u64) -> i64;
-    /// Read an admitted byte range.
-    fn read(&self, offset: u64, bytes: &mut [u8]);
-    /// Read into a potentially uninitialized destination, following ICSS's hook.
+
+    /// Copies the selected backing bytes into an initialized destination.
     ///
-    /// Every implementation must initialize all `count` bytes on successful
-    /// return. A failed read may leave a partially initialized destination.
-    /// The default supports existing backings through [`Self::read`]; overrides
-    /// can avoid zeroing bytes that backing IO will overwrite.
+    /// # Panics
+    ///
+    /// Panics or traps if the complete range is outside the backing.
+    fn read(&self, offset: u64, bytes: &mut [u8]);
+
+    /// Initializes the destination from the selected backing bytes.
+    ///
+    /// The default implementation admits the entire source range, then reads
+    /// through a bounded, initialized scratch buffer. Custom backings pay an
+    /// additional copy per chunk; direct implementations can override this.
+    /// Failure may leave an initialized prefix in the destination.
     ///
     /// # Safety
-    /// The caller must provide an exclusive writable `count`-byte range valid
-    /// for a Rust slice. It must not overlap this memory's state or read source.
-    #[inline]
+    ///
+    /// `dst` must satisfy the validity, alignment, and exclusive writable access
+    /// requirements of a Rust slice of `count` bytes, including for zero length.
+    /// That destination must not overlap the source or the backing's own state.
+    ///
+    /// # Panics
+    ///
+    /// Panics or traps if the complete source range is outside the backing or
+    /// if the backing's safe read fails.
     #[expect(
         unsafe_code,
-        reason = "ICSS raw-read contract admits an exclusive destination and guarantees initialization"
+        reason = "The raw destination is an explicit caller-owned boundary."
     )]
     unsafe fn read_unsafe(&self, offset: u64, dst: *mut u8, count: usize) {
-        // Adapted from ICSS 0.7.2 Memory::read_unsafe (Apache-2.0).
-        // SAFETY: the caller admits the range; zeroing makes the u8 slice valid.
-        unsafe {
-            std::ptr::write_bytes(dst, 0, count);
-            self.read(offset, std::slice::from_raw_parts_mut(dst, count));
+        admit_range(offset, count, self.size());
+        let mut scratch = [0_u8; 1024];
+        let mut copied = 0;
+        while copied < count {
+            let chunk = (count - copied).min(scratch.len());
+            let source_offset = offset + u64::try_from(copied).expect("admitted offset");
+            self.read(source_offset, &mut scratch[..chunk]);
+            // SAFETY: The caller supplies the complete exclusive destination;
+            // admission and the loop bounds keep this copy inside it. Scratch
+            // contains initialized bytes and cannot overlap that destination.
+            unsafe {
+                std::ptr::copy_nonoverlapping(scratch.as_ptr(), dst.add(copied), chunk);
+            }
+            copied += chunk;
         }
     }
-    /// Write an admitted byte range. Native writes need not be transactional.
+
+    /// Replaces the selected backing bytes.
+    ///
+    /// # Panics
+    ///
+    /// Panics or traps if the complete range is outside the backing.
     fn write(&self, offset: u64, bytes: &[u8]);
 }
 
 impl<M: Memory + ?Sized> Memory for Rc<M> {
     fn size(&self) -> u64 {
-        self.as_ref().size()
-    }
-    fn grow(&self, pages: u64) -> i64 {
-        self.as_ref().grow(pages)
-    }
-    fn read(&self, offset: u64, bytes: &mut [u8]) {
-        self.as_ref().read(offset, bytes);
-    }
-    #[expect(
-        unsafe_code,
-        reason = "Forward the caller's admitted destination and initialization contract"
-    )]
-    unsafe fn read_unsafe(&self, offset: u64, dst: *mut u8, count: usize) {
-        // SAFETY: the same destination and count retain the caller's guarantees.
-        unsafe { self.as_ref().read_unsafe(offset, dst, count) }
-    }
-    fn write(&self, offset: u64, bytes: &[u8]) {
-        self.as_ref().write(offset, bytes);
-    }
-}
-impl<M: Memory + ?Sized> Memory for &M {
-    fn size(&self) -> u64 {
         (**self).size()
     }
+
     fn grow(&self, pages: u64) -> i64 {
         (**self).grow(pages)
     }
+
     fn read(&self, offset: u64, bytes: &mut [u8]) {
         (**self).read(offset, bytes);
     }
+
     #[expect(
         unsafe_code,
-        reason = "Forward the caller's admitted destination and initialization contract"
+        reason = "Forwarding preserves the caller's raw-read obligations."
     )]
     unsafe fn read_unsafe(&self, offset: u64, dst: *mut u8, count: usize) {
-        // SAFETY: the same destination and count retain the caller's guarantees.
-        unsafe { (**self).read_unsafe(offset, dst, count) }
+        // SAFETY: The destination and source obligations are unchanged.
+        unsafe { (**self).read_unsafe(offset, dst, count) };
     }
+
     fn write(&self, offset: u64, bytes: &[u8]) {
         (**self).write(offset, bytes);
     }
 }
 
-/// Shared native backing; clones identify the same physical bytes.
-pub type VectorMemory = Rc<RefCell<Vec<u8>>>;
-impl Memory for RefCell<Vec<u8>> {
+impl<M: Memory + ?Sized> Memory for &M {
     fn size(&self) -> u64 {
-        self.borrow().len() as u64 / PAGE
+        (**self).size()
     }
+
     fn grow(&self, pages: u64) -> i64 {
-        let previous = self.size();
-        let Some(length) = previous
-            .checked_add(pages)
-            .and_then(|value| value.checked_mul(PAGE))
-            .and_then(|value| usize::try_from(value).ok())
-        else {
-            return -1;
-        };
-        let mut bytes = self.borrow_mut();
-        let additional = length - bytes.len();
-        if bytes.try_reserve(additional).is_err() {
-            return -1;
-        }
-        bytes.resize(length, 0);
-        i64::try_from(previous).expect("native page count")
+        (**self).grow(pages)
     }
+
     fn read(&self, offset: u64, bytes: &mut [u8]) {
-        let start = usize::try_from(offset).expect("native offset");
-        let end = start
-            .checked_add(bytes.len())
-            .expect("native range overflow");
-        bytes.copy_from_slice(&self.borrow()[start..end]);
+        (**self).read(offset, bytes);
     }
+
     #[expect(
         unsafe_code,
-        reason = "Copy a fully admitted source into the caller's exclusive non-overlapping destination"
+        reason = "Forwarding preserves the caller's raw-read obligations."
     )]
     unsafe fn read_unsafe(&self, offset: u64, dst: *mut u8, count: usize) {
-        let start = usize::try_from(offset).expect("native offset");
-        let end = start.checked_add(count).expect("native range overflow");
-        let backing = self.borrow();
-        let source = &backing[start..end];
-        // SAFETY: the source is admitted before copying. The caller guarantees
-        // writable, non-overlapping space for every byte; u8 alignment is one.
-        unsafe { std::ptr::copy_nonoverlapping(source.as_ptr(), dst, count) }
+        // SAFETY: The destination and source obligations are unchanged.
+        unsafe { (**self).read_unsafe(offset, dst, count) };
     }
+
     fn write(&self, offset: u64, bytes: &[u8]) {
-        let start = usize::try_from(offset).expect("native offset");
-        let end = start
-            .checked_add(bytes.len())
-            .expect("native range overflow");
-        self.borrow_mut()[start..end].copy_from_slice(bytes);
+        (**self).write(offset, bytes);
     }
 }
 
-/// Native default backing for fixture and host integration.
-#[cfg(not(target_arch = "wasm32"))]
-pub type DefaultMemoryImpl = VectorMemory;
+///
+/// `VectorMemory`
+///
+/// Shared native byte backing. Clones refer to the same physical bytes.
+///
+pub type VectorMemory = Rc<RefCell<Vec<u8>>>;
 
 ///
 /// `DefaultMemoryImpl`
 ///
-/// Canister stable memory through IC Platform's owned system-call boundary.
+/// Native default backing, shared through reference-counted ownership.
+///
+#[cfg(not(target_arch = "wasm32"))]
+pub type DefaultMemoryImpl = VectorMemory;
+
+impl Memory for RefCell<Vec<u8>> {
+    fn size(&self) -> u64 {
+        u64::try_from(self.borrow().len()).expect("native byte length fits u64")
+            / WASM_PAGE_SIZE_BYTES
+    }
+
+    fn grow(&self, pages: u64) -> i64 {
+        let mut bytes = self.borrow_mut();
+        let length = u64::try_from(bytes.len()).expect("native byte length fits u64");
+        let old_pages = length / WASM_PAGE_SIZE_BYTES;
+        let Ok(previous) = i64::try_from(old_pages) else {
+            return -1;
+        };
+        if pages == 0 {
+            return previous;
+        }
+        // An externally supplied partial page is not advertised or completed
+        // implicitly: its tail remains the caller's data, outside this extent.
+        if !length.is_multiple_of(WASM_PAGE_SIZE_BYTES) {
+            return -1;
+        }
+        let Some(new_length) = old_pages
+            .checked_add(pages)
+            .and_then(|total| total.checked_mul(WASM_PAGE_SIZE_BYTES))
+            .and_then(|total| usize::try_from(total).ok())
+        else {
+            return -1;
+        };
+        let additional = new_length - bytes.len();
+        if bytes.try_reserve_exact(additional).is_err() {
+            return -1;
+        }
+        bytes.resize(new_length, 0);
+        previous
+    }
+
+    fn read(&self, offset: u64, bytes: &mut [u8]) {
+        let backing = self.borrow();
+        let range = native_range(offset, bytes.len(), backing.len());
+        bytes.copy_from_slice(&backing[range]);
+    }
+
+    #[expect(
+        unsafe_code,
+        reason = "Direct copying initializes caller-owned raw output without a temporary."
+    )]
+    unsafe fn read_unsafe(&self, offset: u64, dst: *mut u8, count: usize) {
+        let backing = self.borrow();
+        let range = native_range(offset, count, backing.len());
+        // SAFETY: The admitted source slice contains count initialized bytes;
+        // the caller guarantees a valid, exclusive, nonoverlapping destination.
+        unsafe {
+            std::ptr::copy_nonoverlapping(backing[range].as_ptr(), dst, count);
+        }
+    }
+
+    fn write(&self, offset: u64, bytes: &[u8]) {
+        let mut backing = self.borrow_mut();
+        let range = native_range(offset, bytes.len(), backing.len());
+        backing[range].copy_from_slice(bytes);
+    }
+}
+
+// Admission precedes every copy, so overflow and out-of-range failures cannot
+// leave a partially modified native destination or backing.
+fn admit_range(offset: u64, count: usize, pages: u64) {
+    let extent = pages
+        .checked_mul(WASM_PAGE_SIZE_BYTES)
+        .expect("memory extent overflow");
+    let count = u64::try_from(count).expect("memory access length overflow");
+    let end = offset.checked_add(count).expect("memory access overflow");
+    assert!(end <= extent, "memory access outside complete pages");
+}
+
+fn native_range(offset: u64, count: usize, length: usize) -> std::ops::Range<usize> {
+    let pages = u64::try_from(length).expect("native byte length fits u64") / WASM_PAGE_SIZE_BYTES;
+    admit_range(offset, count, pages);
+    let start = usize::try_from(offset).expect("admitted native offset");
+    start..start + count
+}
+
+///
+/// `DefaultMemoryImpl`
+///
+/// The IC stable-memory backing accessed through Platform Runtime's safe IC0 API.
 ///
 #[cfg(target_arch = "wasm32")]
 #[derive(Clone, Copy, Default)]
 pub struct DefaultMemoryImpl {
     _private: (),
 }
+
 #[cfg(target_arch = "wasm32")]
 impl Memory for DefaultMemoryImpl {
     fn size(&self) -> u64 {
         ic_platform_runtime::ic0::stable64_size()
     }
+
     fn grow(&self, pages: u64) -> i64 {
-        let previous = ic_platform_runtime::ic0::stable64_grow(pages);
-        if previous == u64::MAX {
-            -1
-        } else {
-            i64::try_from(previous).expect("IC page count")
+        let old_pages = self.size();
+        let Ok(previous) = i64::try_from(old_pages) else {
+            return -1;
+        };
+        if pages == 0 {
+            return previous;
         }
+        if old_pages
+            .checked_add(pages)
+            .and_then(|total| total.checked_mul(WASM_PAGE_SIZE_BYTES))
+            .is_none()
+        {
+            return -1;
+        }
+        i64::try_from(ic_platform_runtime::ic0::stable64_grow(pages)).unwrap_or(-1)
     }
+
     fn read(&self, offset: u64, bytes: &mut [u8]) {
+        // Empty syscalls need not check their offset. Admit that case here;
+        // nonempty syscalls own complete range and overflow admission.
+        if bytes.is_empty() {
+            admit_range(offset, 0, self.size());
+            return;
+        }
         ic_platform_runtime::ic0::stable64_read(bytes, offset);
     }
+
     #[expect(
         unsafe_code,
-        reason = "Bridge the caller's admitted raw destination to Platform's safe initialization helper"
+        reason = "MaybeUninit exposes raw writable bytes to the safe Runtime boundary."
     )]
     unsafe fn read_unsafe(&self, offset: u64, dst: *mut u8, count: usize) {
-        // SAFETY: the caller admits the slice's validity and exclusivity;
-        // MaybeUninit permits its original contents. Platform initializes the
-        // complete destination or traps, satisfying the raw-read postcondition.
+        if count == 0 {
+            admit_range(offset, 0, self.size());
+            return;
+        }
+        // SAFETY: The caller guarantees slice validity and exclusive access.
+        // MaybeUninit permits the bytes to be uninitialized on entry; Runtime
+        // admits the complete nonempty stable range and initializes the entire
+        // slice on success without a temporary buffer.
         let bytes = unsafe {
             std::slice::from_raw_parts_mut(dst.cast::<std::mem::MaybeUninit<u8>>(), count)
         };
         ic_platform_runtime::ic0::stable64_read_uninit(bytes, offset);
     }
+
     fn write(&self, offset: u64, bytes: &[u8]) {
+        // Empty writes require explicit admission; nonempty syscalls check the
+        // complete stable range before writing.
+        if bytes.is_empty() {
+            admit_range(offset, 0, self.size());
+            return;
+        }
         ic_platform_runtime::ic0::stable64_write(bytes, offset);
     }
 }
 
 #[cfg(test)]
-mod tests;
+mod contract_tests;

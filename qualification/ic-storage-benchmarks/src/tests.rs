@@ -164,3 +164,6 @@ fn session_envelope_preserves_full_identity_and_rejects_malformed_outer_frames()
 
 #[cfg(all(feature = "owned", feature = "dfinity"))]
 mod icss_baseline;
+
+#[cfg(all(feature = "owned", feature = "dfinity"))]
+mod cell_upgrade;

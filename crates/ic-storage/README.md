@@ -3,7 +3,7 @@
 Owned stable allocation and collections for Internet Computer applications.
 Storage owns the backing interface, codec trait, named allocation directory,
 namespace admission, exclusive leases and collection implementations. It uses
-private copied ICSS 0.7.2 collection engines, with no production
+independently implemented collection engines, with no production
 `ic-stable-structures` dependency. Rust 1.99.1 or later is required.
 
 ## Supported collections
@@ -11,20 +11,20 @@ private copied ICSS 0.7.2 collection engines, with no production
 | Public type | Implementation | Known sibling use |
 | --- | --- | --- |
 | `StableCell` | Cached singleton with explicit create/load/reset | Canic, Blob |
-| `StableBTreeMap` | Copied ICSS degree-six B-tree with page reuse | Canic, `IcyDB`, Blob, Relay, Metrics and Logging Storage |
+| `StableBTreeMap` | Persistent AVL tree with reusable size-class blocks | Canic, `IcyDB`, Blob, Relay, Metrics and Logging Storage |
 | `StableBTreeSet` | The same ordered-tree engine with unit values | Blob deletions |
 | `StableVec` | Fixed-stride indexed slots with bounded values | Canic templates and authentication |
 | `BTreeMapRegion` | Operation-local view of the same tree inside a leased page range | `IcyDB` control storage |
 
-Map, Set and regions share the copied B-tree, including its node layout,
-overflow pages and split/borrow/merge algorithms. Vector uses ICSS's fixed-stride
-slots and scalar iterator; Cell caches its decoded value. Stable Log and Min-heap
+Map, Set and regions share the independent ordered tree and allocation controls.
+Vector owns its bounded-slot format and direct iterator; Cell caches its decoded value. Stable Log and Min-heap
 remain outside the scope.
 
-There are two collection layers: private `engine` contains the copied algorithms;
-public `adapter` wraps them with governed leases and the existing successful-call
-APIs. Application types continue to implement Storage's `Storable`; a private
-bridge translates that contract. The previous competing engines, node cache,
+There are two collection layers: private `ordered_map` contains the ordered algorithm;
+public `adapter` supplies governed leases and the existing successful-call
+APIs. Cell and Vector directly implement that boundary and own their framing.
+All engines use Storage's `Storable` directly. The copied engines and codec
+bridge are deleted. The previous competing engines, node cache,
 record checksums and Vector scan-window implementation have been removed.
 
 `ic_storage::adapter` exports these collections, `MapIter`, `SetIter`, `MapEntry`,
@@ -63,18 +63,20 @@ only allocation governance while retaining unmanaged application data. Rebuild
 consumers against Storage's owned codec and backing traits. Primitive numeric
 codecs are little-endian; application codecs remain application-owned.
 
-Allocation directory encoding and checksums are unchanged. Collection images
-now use current ICSS framing: Map/Set/regions use `BTR` version 2 with explicit
-page-size metadata, Vector uses `SVC` version 1 with a 64-byte header, and Cell
-uses `SCL` version 1 with an eight-byte header. The copied engines contain no
-readers for retired Storage formats or ICSS version-1 B-trees. **Collections predating the Storage 0.68 engine baseline must be explicitly
+The allocation directory uses STORNAM1 version 1. Map/Set/regions now use
+`STORMAP1` version 1 with a 1 KiB header; Vector
+uses `STORVECT` version 1 with a 32-byte header. The new independently implemented
+Cell uses `STORCELL` version 1 and a 24-byte header. Previous collection images are
+rejected, including ICSS images. Hosts must explicitly provide fresh/reset
+backing for this hard cut; loading never converts or initializes incompatible
+images. **Collections using the previous copied engine must be explicitly
 rebuilt/reset or placed in fresh admitted allocations.** Hosts must update their collection framing checks, including
 region admission. No reader converts or silently resets old images.
 
 Collection payloads have no Storage integrity checksum. Valid-looking byte
 changes can pass application decoding. Vector requires a finite `Storable::BOUND`
-and reserves its maximum slot width, plus a 1/2/4-byte length for variable records.
-Cell retains its u32 length envelope; `StableCell::load(memory, maximum_bytes)`
+and reserves its maximum slot width, plus a four-byte length for variable records.
+Cell has a u64 length envelope with host buffer limits; `StableCell::load(memory, maximum_bytes)`
 admits a caller-selected ceiling before allocating its payload buffer.
 
 The public codec trait remains fallible. Ordinary Map, Set, Vector and Cell
@@ -95,8 +97,8 @@ explicitly recover or replace the backing. Cached lengths and Cell values are
 not recovery APIs. The native unwind guard is absent on Wasm.
 
 The map caches no routing nodes and exposes no cache configuration. Vector
-reads its durable length and has no custom cached
-length, scan windows or mutation epochs. See [source provenance and deliberate
+caches committed length under its exclusive lease, with owner-health checks.
+It has no scan windows or mutation epochs. See [source provenance and deliberate
 adaptations](../../docs/storage/upstreams.md) before changing this baseline.
 
 `reserve_pages` takes an absolute virtual extent in 65,536-byte pages, not entry
@@ -121,8 +123,7 @@ the last shared lease owner before reopening that allocation.
 
 See [allocation and host integration](ALLOCATION.md).
 
-Storage-authored code is MIT; copied engine code is Apache-2.0. See LICENSE,
-LICENSE-APACHE and the per-file notices. Package metadata declares both licenses.
+Package metadata selects the repository's canonical `LICENSE.md`.
 
 ## Native memory metering
 

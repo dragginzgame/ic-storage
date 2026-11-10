@@ -1,5 +1,5 @@
 //! Operation-local collection access within a retained allocation region.
-use super::bridge::{self, Codec, TreeMemory};
+use super::bridge::{self, TreeMemory};
 use super::error::{CollectionError as Error, Result as CollectionResult, ensure};
 use super::{Memory, Storable};
 use crate::DefaultMemoryImpl;
@@ -114,33 +114,27 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> BTreeMapRegion<K, V, M> 
     /// # Errors
     /// Refuses foreign framing; engine and stored-codec failures trap.
     pub fn get(&self, key: &K) -> CollectionResult<Option<V>> {
-        Ok(self.current_map()?.get(Codec::borrowed(key)).map(|v| v.0))
+        Ok(self.current_map()?.get(key))
     }
 
-    /// Insert using the current retained root and copied ICSS engine.
+    /// Insert using the current retained root and ordered engine.
     ///
     /// # Errors
     /// Refuses foreign framing. Engine/codec failures trap, possibly after native writes.
     pub fn insert(&mut self, key: K, value: V) -> CollectionResult<Option<V>> {
         #[cfg(not(target_arch = "wasm32"))]
         let _guard = self.memory.memory.poison_on_unwind();
-        Ok(self
-            .current_map()?
-            .insert(Codec(key), Codec(value))
-            .map(|v| v.0))
+        Ok(self.current_map()?.insert(key, value))
     }
 
-    /// Remove using the current retained root and copied ICSS engine.
+    /// Remove using the current retained root and ordered engine.
     ///
     /// # Errors
     /// Refuses foreign framing. Engine/codec failures trap, possibly after native writes.
     pub fn remove(&mut self, key: &K) -> CollectionResult<Option<V>> {
         #[cfg(not(target_arch = "wasm32"))]
         let _guard = self.memory.memory.poison_on_unwind();
-        Ok(self
-            .current_map()?
-            .remove(Codec::borrowed(key))
-            .map(|v| v.0))
+        Ok(self.current_map()?.remove(key))
     }
 
     /// Return the current tree's record count across all namespaces.
@@ -192,9 +186,8 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> BTreeMapRegion<K, V, M> 
         }
         Ok(self
             .current_map()?
-            .keys_range(super::map::codec_bounds(&bounds))
+            .keys_range(bounds)
             .take(limit)
-            .map(|k| k.0)
             .collect::<Vec<_>>()
             .into_iter())
     }

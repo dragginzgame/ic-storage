@@ -87,6 +87,36 @@ pub(super) async fn qualify(pic: &PocketIc, measure_valid_io: bool) {
         }
         println!("installed invalid IO: 12 traps, neighboring marker and prior mutation preserved");
 
+        let physical_end = initial.physical_pages * 65_536;
+        for operation in 3..6 {
+            for (offset, count) in [
+                (physical_end, 1),
+                (physical_end + 1, 0),
+                (u64::MAX, 1),
+                (u64::MAX - 1, 2),
+            ] {
+                let args = frame(
+                    protocol::IO_ID,
+                    &protocol::IoRequest {
+                        operation,
+                        count,
+                        offset,
+                    },
+                );
+                super::assert_trap(
+                    pic.update_call(canister, canister, "io", args)
+                        .await
+                        .unwrap_err(),
+                );
+                assert_eq!(
+                    snapshot().await,
+                    initial,
+                    "invalid physical IO must roll back prior writes"
+                );
+            }
+        }
+        println!("installed physical backing IO: 12 range/overflow traps preserve state");
+
         for mode in [1_u8, 2] {
             pic.advance_time(Duration::from_secs(300))
                 .await

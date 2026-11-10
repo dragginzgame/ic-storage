@@ -258,26 +258,33 @@ mod canister {
                 let memory = runtime
                     .open_memory(&ic_storage::StableKey::parse("storage.probe.v1").unwrap())
                     .unwrap();
-                // Malformed stored codecs trap in the ICSS baseline. IC rollback
+                // Malformed stored codecs trap at the application boundary. IC rollback
                 // must restore both bytes and the exclusive lease in this case.
                 let _ =
                     StableCell::<u64>::load(memory, 8).expect("host chose rollback on codec error");
                 unreachable!();
             }
             if mode != 0 {
-                if memory.size() == 0 {
-                    memory.grow(1).unwrap();
-                }
+                drop(StableCell::reset(memory, 7_u64).unwrap());
+                let memory = runtime
+                    .open_memory(&ic_storage::StableKey::parse("storage.probe.v1").unwrap())
+                    .unwrap();
                 let mut header = [0; ic_storage::STABLE_CELL_HEADER_SIZE];
-                header[..4].copy_from_slice(b"SCL\x01");
+                memory.read(0, &mut header);
                 match mode {
-                    1 => header[..4].copy_from_slice(b"BAD!"),
-                    2 => header[3] = 255,
-                    3 => header[4..8].copy_from_slice(&u32::MAX.to_le_bytes()),
+                    1 => header[0] ^= 255,
+                    2 => header[8..12].copy_from_slice(&u32::MAX.to_le_bytes()),
+                    3 => header[16..24].copy_from_slice(&u64::MAX.to_le_bytes()),
                     _ => panic!("unknown probe mode"),
                 }
                 memory.write(0, &header);
+                drop(memory);
+            } else {
+                drop(memory);
             }
+            let memory = runtime
+                .open_memory(&ic_storage::StableKey::parse("storage.probe.v1").unwrap())
+                .unwrap();
             let pages = memory.size();
             let mut before = vec![0; usize::try_from(pages * 65_536).unwrap()];
             memory.read(0, &mut before);

@@ -6,7 +6,7 @@
 //! a shared lease for disjoint application frames and reload roots per operation.
 //! Drop collections and all shared lease owners before reopening.
 //! Framing admission and explicit reservation can return typed errors. Collection
-//! engine and codec failures trap. Successful-call `Result` signatures remain;
+//! engine and codec failures trap. Ordinary successful calls return values directly;
 //! native callers must discard the runtime after a mutation panic.
 //! The allocation runtime enforces one live lease per allocation;
 //! hosts retain exclusive custody of the backing across runtimes.

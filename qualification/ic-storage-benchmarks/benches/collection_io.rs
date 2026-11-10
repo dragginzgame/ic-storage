@@ -260,11 +260,28 @@ impl<const F: bool> Store<F> {
             Self::IcssRegion(m) => icss::BTreeMap::load(m.clone()).insert(k, value),
         }
     }
+    fn remove(&mut self, key: u64) -> Option<Value<F>> {
+        let k = Key(key);
+        match self {
+            Self::Storage(m) => m.remove(&k),
+            Self::StorageRegion(m) => m.remove(&k).unwrap(),
+            Self::Governed(m) => m.remove(&k),
+            Self::Icss(m) => m.remove(&k),
+            Self::GovernedRegion(m) => icss::BTreeMap::load(m.clone()).remove(&k),
+            Self::IcssRegion(m) => icss::BTreeMap::load(m.clone()).remove(&k),
+        }
+    }
 }
 fn measure<const F: bool>(output: &mut fs::File, payload: usize) {
     for rows in [256, 4096] {
         for region in [false, true] {
-            for pattern in [Pattern::Uniform, Pattern::Hot16] {
+            for pattern in [
+                Pattern::Uniform,
+                Pattern::Hot16,
+                Pattern::Sequential,
+                Pattern::First,
+                Pattern::Last,
+            ] {
                 for count in [1, 32] {
                     for backend in ["storage", "icss-governed", "icss-manager"] {
                         let backing = Backing::default();
@@ -284,21 +301,41 @@ fn measure<const F: bool>(output: &mut fs::File, payload: usize) {
                             seed: 1,
                             pattern,
                         });
-                        for phase in ["Get", "Replace", "Grow", "GetAfterGrow"] {
-                            if F && matches!(phase, "Grow" | "GetAfterGrow") {
+                        for phase in [
+                            "Get",
+                            "MissAbove",
+                            "Replace",
+                            "Grow",
+                            "GetAfterGrow",
+                            "Shrink",
+                            "GetAfterShrink",
+                            "Remove",
+                            "GetAfterRemove",
+                            "RemoveMiss",
+                            "Reinsert",
+                            "GetAfterReinsert",
+                        ] {
+                            if F && matches!(
+                                phase,
+                                "Grow" | "GetAfterGrow" | "Shrink" | "GetAfterShrink"
+                            ) {
                                 continue;
                             }
                             // Prepare inputs and expected results before the observation window.
                             let inputs: Vec<_> = selected
                                 .iter()
                                 .map(|&id| {
-                                    let size = if phase == "Grow" {
-                                        payload * 4
-                                    } else {
-                                        payload
+                                    let size = match phase {
+                                        "Grow" => payload * 4,
+                                        "Shrink" => 0,
+                                        _ => payload,
                                     };
                                     (
-                                        id,
+                                        if phase == "MissAbove" {
+                                            id + u64::from(rows)
+                                        } else {
+                                            id
+                                        },
                                         Value(ic_storage_benchmarks::value(id, size as u32, true)),
                                     )
                                 })
@@ -307,8 +344,10 @@ fn measure<const F: bool>(output: &mut fs::File, payload: usize) {
                             let actual: Vec<_> = inputs
                                 .iter()
                                 .map(|(id, v)| {
-                                    if matches!(phase, "Replace" | "Grow") {
+                                    if matches!(phase, "Replace" | "Grow" | "Shrink" | "Reinsert") {
                                         store.put(*id, v.clone())
+                                    } else if matches!(phase, "Remove" | "RemoveMiss") {
+                                        store.remove(*id)
                                     } else {
                                         store.get(*id)
                                     }
@@ -316,8 +355,13 @@ fn measure<const F: bool>(output: &mut fs::File, payload: usize) {
                                 .collect();
                             let observation = backing.report();
                             for ((id, v), actual) in inputs.into_iter().zip(actual) {
-                                let expected = if matches!(phase, "Replace" | "Grow") {
+                                let expected = if matches!(
+                                    phase,
+                                    "Replace" | "Grow" | "Shrink" | "Reinsert"
+                                ) {
                                     model.insert(id, v)
+                                } else if matches!(phase, "Remove" | "RemoveMiss") {
+                                    model.remove(&id)
                                 } else {
                                     model.get(&id).cloned()
                                 };

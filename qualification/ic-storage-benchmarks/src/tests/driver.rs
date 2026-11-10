@@ -1,6 +1,54 @@
 use super::*;
 
 #[test]
+fn repeated_removal_checks_existing_tree_holes_without_changing_final_state() {
+    for case in [
+        case!(Map, U64, U64),
+        case!(Set, U64, Unit),
+        case!(Region, U64, U64),
+    ] {
+        for pattern in [Pattern::Uniform, Pattern::Hot16, Pattern::First] {
+            let payload = if case.collection == Collection::Set {
+                0
+            } else {
+                8
+            };
+            let mut model = (0..256)
+                .map(|id| (id, case.expected_value(id, payload, false)))
+                .collect();
+            let trace = phases(case, false, None);
+            let position = trace.iter().position(|(name, _)| name == "Remove").unwrap();
+            assert_eq!(
+                trace[position + 1],
+                ("RemoveAgain".into(), Operation::Remove)
+            );
+            let request = Request {
+                case,
+                operation: Operation::Remove,
+                rows: 256,
+                payload,
+                count: 32,
+                seed: 1,
+                pattern,
+            };
+            expected(&mut model, request);
+            let remaining = model.clone();
+            let results = expected_phase(&mut model, request, "RemoveAgain");
+            assert!(
+                results
+                    .iter()
+                    .all(|(_, value)| if case.collection == Collection::Set {
+                        *value == Some(vec![0])
+                    } else {
+                        value.is_none()
+                    })
+            );
+            assert_eq!(model, remaining);
+        }
+    }
+}
+
+#[test]
 fn vector_read_history_preserves_updates_and_restores_population_each_round() {
     for profile in [Workload::VectorReads, Workload::VectorOpen] {
         for &case in profile.cases() {
@@ -57,7 +105,7 @@ fn growth_cycles_keep_the_same_external_records_and_preserve_default_phases() {
         assert_eq!(
             phases(case, false, None)
                 .into_iter()
-                .filter(|(phase, _)| phase != "GetAfterReplace")
+                .filter(|(phase, _)| !matches!(phase.as_str(), "GetAfterReplace" | "RemoveAgain"))
                 .map(|(_, op)| op)
                 .collect::<Vec<_>>(),
             case.operations()
@@ -868,6 +916,52 @@ fn allocator_trace_admits_its_capacity_and_rejects_partial_records() {
     assert!(decode_trace_rows(&bytes[..bytes.len() - 1], 64).is_err());
     bytes[..8].copy_from_slice(&65_u64.to_le_bytes());
     assert!(decode_trace_rows(&bytes, 64).is_err());
+}
+
+#[test]
+fn batch_read_trace_checks_totals_threshold_truncation_and_overflow() {
+    let offset = 8 + 160 * 32;
+    let mut bytes = vec![0; offset + 56];
+    bytes[..8].copy_from_slice(&1_u64.to_le_bytes());
+    bytes[offset..offset + 8].copy_from_slice(&2_u64.to_le_bytes());
+    bytes[32..40].copy_from_slice(&80_000_u64.to_le_bytes());
+    bytes[offset + 40..offset + 48].copy_from_slice(&4096_u64.to_le_bytes());
+    let trace = decode_read_trace(&bytes).unwrap();
+    assert_eq!(trace.reads.len(), 1);
+    assert_eq!(trace.reads[0][3], 80_000);
+    assert_eq!(trace.total_calls_bytes, Some([4096, 0]));
+    assert!(decode_read_trace(&bytes[..bytes.len() - 1]).is_err());
+    bytes[offset + 40..offset + 48].fill(0);
+    assert!(decode_read_trace(&bytes).is_err());
+    bytes[offset + 40..offset + 48].copy_from_slice(&4096_u64.to_le_bytes());
+    bytes[32..40].fill(0);
+    assert!(decode_read_trace(&bytes).is_err());
+    bytes[..8].copy_from_slice(&161_u64.to_le_bytes());
+    assert!(decode_read_trace(&bytes).is_err());
+}
+
+#[test]
+fn custom_map_read_traces_require_explicit_supported_map_cases() {
+    for (cases, admitted) in [
+        ("Map-U64-U64,Map-U64-Bytes", true),
+        ("Map-Unknown-U64", false),
+        ("Map-U64-U64,Vector-U64-U64", false),
+    ] {
+        let args = Arguments::try_parse_from([
+            "bench",
+            "--owned-wasm",
+            "a",
+            "--dfinity-wasm",
+            "b",
+            "--output",
+            "report",
+            "--trace-stable-reads",
+            "--cases",
+            cases,
+        ])
+        .unwrap();
+        assert_eq!(validate_diagnostics(&args).is_ok(), admitted);
+    }
 }
 
 #[test]

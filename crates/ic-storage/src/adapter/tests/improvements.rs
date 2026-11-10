@@ -87,8 +87,8 @@ fn stored_value_decode_failure_traps_and_keys_remain_readable() {
     assert!(catch_unwind(AssertUnwindSafe(|| map.get(&7))).is_err());
     assert_eq!(map.keys().collect::<Vec<_>>(), vec![7]);
     assert_eq!(*backing.borrow(), before);
-    // Upstream updates before decoding a displaced value. A native panic must
-    // poison the shared owner; IC executions use rollback instead.
+    // A mutation's codec panic must poison the shared owner; IC executions use
+    // rollback instead, independently of when the engine decodes the old value.
     assert!(catch_unwind(AssertUnwindSafe(|| map.insert(7, RejectDecode(43)))).is_err());
     assert!(
         runtime

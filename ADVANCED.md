@@ -45,5 +45,5 @@ Hosts own backing identity, namespace grants, component composition, schema
 admission, clocks, lifecycle, authorization and recovery decisions. Allocation
 metadata does not prove application data validity or schema compatibility.
 Custom codecs and comparators must remain consistent across retained data.
-See [safety](SAFETY.md), [operations](docs/operations.md) and
-[the current format](docs/current-ledger.md).
+See [safety](SAFETY.md), [operations](docs/operations/operations.md) and
+[the current format](docs/design/current-ledger.md).

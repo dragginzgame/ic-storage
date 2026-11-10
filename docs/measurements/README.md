@@ -1,6 +1,6 @@
 # Selected measurements and ownership
 
-Experimental evidence follows the [shared retention contract](../../rules/engineering-details.md#changelogs-and-artifact-preservation):
+Experimental evidence follows the [shared retention contract](https://github.com/dragginzgame/toko-tooling/blob/12459b6029115b830b8477879d3bea2f030b6e63/rules/engineering-details.md#changelogs-and-artifact-preservation):
 one current summary and at most two small data files per topic, 100 KiB combined,
 within the 5 MiB repository budget. These are limits, not storage targets.
 

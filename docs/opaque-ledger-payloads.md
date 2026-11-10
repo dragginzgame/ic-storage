@@ -5,7 +5,7 @@
 # Opaque ledger payload encoding (#7)
 
 Historical 0.14.3 design note. For the supported format and current bounds, see
-[the current ledger contract](current-ledger.md).
+[the current ledger contract](design/current-ledger.md).
 
 The current codec stores `CommittedGenerationBytes::payload` as a definite-length
 CBOR byte string. The payload is already a logical ledger envelope; the outer

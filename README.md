@@ -16,7 +16,7 @@ map regions. There is no production `ic-stable-structures` dependency. Applicati
 lifecycle and recovery policy. This replacement is a complete format hard cut;
 hosts must explicitly reset backing or install fresh storage. The stable metric adapter
 owns its V1 records here; allocation-free arithmetic remains in IC Metrics.
-See [ownership](docs/ownership.md) and [safety](SAFETY.md).
+See [ownership](docs/design/ownership.md) and [safety](SAFETY.md).
 
 The root Cargo workspace owns all three packages, one dependency catalog and one
 lockfile, with Rust 1.99.1 as the minimum. Run Make and Cargo commands here.
@@ -26,9 +26,9 @@ retain a separate lockfile. Archive consumer qualification uses isolated,
 generated workspaces so a workspace path dependency cannot mask missing package
 contents or a second Storage identity.
 
-[Setup](docs/host-support.md) · [Releasing](RELEASING.md) ·
+[Setup](docs/operations/host-support.md) · [Releasing](RELEASING.md) ·
 [Documentation](docs/README.md) · [Migration map](docs/migration/ic-persistence.md) ·
-[Current handoff](docs/status/current.md) · [Contributing](rules/contributions.md)
+[Current handoff](docs/status/current.md) · [Contributing](https://github.com/dragginzgame/toko-tooling/blob/12459b6029115b830b8477879d3bea2f030b6e63/rules/contributions.md)
 
 Release ownership: Storage owns `storage`; Metrics
 Stable and Logging Storage release independently. See [group commands](RELEASING.md#release-groups),

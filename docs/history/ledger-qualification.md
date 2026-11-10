@@ -12,7 +12,7 @@ The original 0.27.0 hard-cut evidence was captured after released
 declared 0.26.2. Later reviews and experiments identify their own source below.
 These are local Linux source, behavior and footprint observations; they do not
 establish publication or retained-installation qualification. The
-[current contract](../current-ledger.md) owns consumer API and deployment requirements.
+[current contract](../design/current-ledger.md) owns consumer API and deployment requirements.
 
 ## 0.49 CBOR backend replacement (2026-10-19)
 
@@ -658,7 +658,7 @@ speedup is inferred from that complexity change.
 ## Native allocation measurements
 
 Linux x86-64, Rust 1.99.0, selected root lockfile, standard Cargo release profile,
-one test thread. The [maintained harness](../../crates/ic-storage/src/allocation_measurements_tests.rs)
+one test thread. The maintained harness (historical source: `../../crates/ic-storage/src/allocation_measurements_tests.rs`)
 counts this thread's System allocation requests. Existing input/fixture memory is
 excluded; measured results are dropped and the counter verifies zero live bytes
 at each boundary. This is requested heap, not RSS or IC instructions/cycles.

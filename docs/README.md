@@ -15,19 +15,19 @@ distinguish current integration guidance from historical engineering evidence.
   policies, host namespace grants, recovery, and manual bootstrap.
 - [Safety invariants](../SAFETY.md) defines the properties that implementation
   changes must preserve.
-- [Implementation ownership](ownership.md) identifies the runtime, collection,
+- [Implementation ownership](design/ownership.md) identifies the runtime, collection,
   host-tooling and consumer integration boundaries.
-- [Host support and qualification](host-support.md) declares native prerequisites,
+- [Host support and qualification](operations/host-support.md) declares native prerequisites,
   supported macOS hosts, and qualification gaps.
 
 ## Current focused guides
 
-- [Current ownership ledger](current-ledger.md) explains the current format,
+- [Current ownership ledger](design/current-ledger.md) explains the current format,
   retained ownership, bounded metadata and deployment requirements.
 
-- [Operations and diagnostics](operations.md) explains allocation reports,
+- [Operations and diagnostics](operations/operations.md) explains allocation reports,
   resource budgets and growth failures.
-- [Troubleshooting](troubleshooting.md) maps common symptoms and typed errors
+- [Troubleshooting](operations/troubleshooting.md) maps common symptoms and typed errors
   to safe next actions without resetting durable state.
 - [Named allocation and admission](../crates/ic-storage/ALLOCATION.md) defines
   placement, namespace grants, retained-name admission and resource limits.
@@ -86,9 +86,15 @@ consumer inventories remain with their existing owners; see the
 
 ## Maintainers
 
+- [Storage tooling adoption](adoption/storage-tooling.md) records the selected
+  tooling, local integration boundaries and remaining blockers. Shared reference
+  guides stay upstream at pinned revisions.
+- [CI change selection](validation/ci-selection.md) and
+  [release validation](validation/storage-release-validation.md) describe the
+  consumer-owned qualification plans.
 - [Detailed 0.29 release notes](changelog/0.29.md)
 - [Detailed 0.28 release notes](changelog/0.28.md)
-- [Local developer setup](local-setup.md) and [product host requirements](host-support.md)
+- [Local developer setup](https://github.com/dragginzgame/toko-tooling/blob/12459b6029115b830b8477879d3bea2f030b6e63/docs/adoption/local-setup.md) and [product host requirements](operations/host-support.md)
 - [Detailed 0.27 release notes](changelog/0.27.md)
 - [Detailed 0.26 release notes](changelog/0.26.md)
 - [Detailed 0.25 release notes](changelog/0.25.md)
@@ -108,5 +114,3 @@ or workflow:
   shape; and
 - keep historical measurements and qualification claims labeled with their
   original version and scope.
-
-- [CI change selection](ci-selection.md): conservative prose checks and full native gates.

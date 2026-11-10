@@ -492,7 +492,7 @@ The [shared checker](../scripts/ci/check-release-commands.sh) now owns generic
 Make dispatch. The consumer passes only its reviewed parse-time inputs,
 `rust-toolchain.toml` and `ci/tool-versions.env`. Local fixtures retain selection
 forwarding, gate-attempt retention and locked launcher/publication-environment
-checks. The [helper contract](verification-helpers.md) defines the boundary.
+checks. The [helper contract](https://github.com/dragginzgame/toko-tooling/blob/12459b6029115b830b8477879d3bea2f030b6e63/docs/validation/verification-helpers.md) defines the boundary.
 
 Focused checks passed with Bash 5.2.21, GNU Make 4.3, Actionlint 1.7.12 and
 ShellCheck 0.11.0:

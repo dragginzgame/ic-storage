@@ -111,6 +111,10 @@ mod canister {
         assert_eq!(backing.grow(0), i64::try_from(pages).unwrap());
         assert_eq!(backing.grow(u64::MAX), -1);
         assert_eq!(backing.size(), pages);
+        backing.read(pages * PAGE, &mut []);
+        backing.write(pages * PAGE, &[]);
+        // SAFETY: An empty destination still supplies a valid, non-null pointer.
+        unsafe { backing.read_unsafe(pages * PAGE, [].as_mut_ptr(), 0) };
         let mut marker = [0];
         rows.read(0, &mut marker);
         assert_eq!(marker, [0x42]);
@@ -252,7 +256,7 @@ mod canister {
         let count = usize::from(count);
         assert!(count <= 2);
         let rows = open_memory(ROWS).unwrap();
-        // Warm the cache and dirty valid state before the candidate failure.
+        // Dirty valid state before the candidate failure.
         // A trap must roll this mutation back as well as reject the invalid IO.
         rows.write(0, &[0x99]);
         let mut dst = [0; 2];
@@ -264,6 +268,19 @@ mod canister {
                 // Exercise the trait entry point independently of the inherent read.
                 1 => Memory::read(&rows, offset, &mut dst[..count]),
                 2 => rows.write(offset, &[0xA5; 2][..count]),
+                // Infrastructure-only probes exercise the IC boundary itself,
+                // independently of the governed allocation's range checks.
+                3 => ic_storage::DefaultMemoryImpl::default().read(offset, &mut dst[..count]),
+                4 => ic_storage::DefaultMemoryImpl::default().write(offset, &[0xA5; 2][..count]),
+                // SAFETY: dst owns count initialized writable bytes, disjoint
+                // from stable memory. The IC admits the full source range.
+                5 => unsafe {
+                    ic_storage::DefaultMemoryImpl::default().read_unsafe(
+                        offset,
+                        dst.as_mut_ptr(),
+                        count,
+                    );
+                },
                 _ => panic!("unknown IO operation"),
             }
         }

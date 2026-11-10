@@ -3,8 +3,8 @@
 Release and publication require delivery authorization for this repository and
 destination. Delegated delivery includes routine group, version and order choices
 under the shared contribution rules. Ordinary fixes leave edits unstaged. See the
-[contribution rules](rules/contributions.md), [shared release contract](docs/releases.md)
-and [host prerequisites](docs/host-support.md). The native `repo-tool` example
+[contribution rules](https://github.com/dragginzgame/toko-tooling/blob/12459b6029115b830b8477879d3bea2f030b6e63/rules/contributions.md), [shared release contract](https://github.com/dragginzgame/toko-tooling/blob/12459b6029115b830b8477879d3bea2f030b6e63/docs/releases/releases.md)
+and [host prerequisites](docs/operations/host-support.md). The native `repo-tool` example
 supplies consumer policy to the existing Shared runner; it is not canister code.
 
 Workspace tooling pins, every member's inherited dev-dependency, normal Cargo
@@ -30,7 +30,7 @@ are deferred. `release-candidate-setup` prepares selected tools and locked cache
 before version lookup; recovery checks prepared tools offline without installing.
 The existing native hooks retain their source, receipt, group and archive checks.
 Use the shared status/resume/reconcile/retire commands in
-[the batch guide](docs/release-batches.md). Reconcile only after preserving deferred
+[the batch guide](https://github.com/dragginzgame/toko-tooling/blob/12459b6029115b830b8477879d3bea2f030b6e63/docs/releases/release-batches.md). Reconcile only after preserving deferred
 work and verifying publication. Run manual publication from the qualified captured
 checkout, never from an unrelated normal-tree HEAD. Retire only a selected complete
 batch after its commits and evidence have been reconciled. No old-name aliases or
@@ -116,7 +116,7 @@ does not authorize pushing `main`: obtain explicit authorization for that effect
 and for any alternate delivery checkout, unless already authorized in the task.
 Keep implementation in the requested checkout or an explicitly authorized durable
 contribution location; temporary validation copies must never hold the only copy.
-See the [shared checkout contract](rules/contributions.md#durable-work-and-checkout-location).
+See the [shared checkout contract](https://github.com/dragginzgame/toko-tooling/blob/12459b6029115b830b8477879d3bea2f030b6e63/rules/contributions.md#durable-work-and-checkout-location).
 
 Prepare missing caches explicitly with `make fetch-dependencies` and, when needed,
 `cargo fetch --locked --manifest-path qualification/Cargo.toml`.
@@ -128,7 +128,7 @@ owns its published selection. Build 0.73 supplies the group-aware renderer.
 Toolchain/formatter and installed server preparation retain their separate owners.
 
 The native release adapter selects a complete group plan under the
-[Storage validation mapping](docs/storage-release-validation.md). Core, shared and
+[Storage validation mapping](docs/validation/storage-release-validation.md). Core, shared and
 uncertain changes retain all stages; qualified private adapter-only changes omit
 unaffected stages with explicit reasons. Repository CI and `make validate` still
 run the full roster. Clippy, compiler-floor, Wasm, runtime prerequisites and

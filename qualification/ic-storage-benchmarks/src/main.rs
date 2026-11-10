@@ -135,7 +135,15 @@ fn phases(case: Case, growth_cycles: bool, workload: Option<Workload>) -> Vec<(S
     }
     case.operations()
         .into_iter()
-        .map(|op| (format!("{op:?}"), op))
+        .flat_map(|op| {
+            let mut phases = vec![(format!("{op:?}"), op)];
+            if op == Operation::Remove {
+                // Same seed and key pattern: exercise holes in the existing tree,
+                // independently of the above-range RemoveMiss control.
+                phases.push(("RemoveAgain".into(), op));
+            }
+            phases
+        })
         .collect()
 }
 #[derive(Debug, serde::Serialize)]
@@ -143,22 +151,48 @@ struct ReadTrace {
     reads: Vec<[u64; 4]>,
     // Measurement counter calls, then malloc/free call counts and inclusive costs.
     heap: [u64; 5],
+    // Present for batch mode: records contain only reads costing >=10,000.
+    // Totals count every stable read in the entire call, including outside timing.
+    total_calls_bytes: Option<[u64; 2]>,
 }
 
 // The diagnostic injector stores 160 (destination, source, length, instructions)
 // records in Wasm globals. Reject truncation rather than interpreting a partial trace.
 fn decode_read_trace(bytes: &[u8]) -> Result<ReadTrace, &'static str> {
-    if bytes.len() != 8 + 160 * 32 + 40 {
-        return Err("invalid stable-read trace size");
-    }
+    let batch = match bytes.len() {
+        n if n == 8 + 160 * 32 + 40 => false,
+        n if n == 8 + 160 * 32 + 40 + 16 => true,
+        _ => return Err("invalid stable-read trace size"),
+    };
+    let capacity = 160;
+    let heap_offset = 8 + capacity * 32;
     let heap = std::array::from_fn(|i| {
-        u64::from_le_bytes(bytes[5128 + i * 8..5136 + i * 8].try_into().unwrap())
+        u64::from_le_bytes(
+            bytes[heap_offset + i * 8..heap_offset + 8 + i * 8]
+                .try_into()
+                .unwrap(),
+        )
     });
     if heap[0] != 2 {
         return Err("expected exactly two measurement counters");
     }
-    let reads = decode_trace_rows(&bytes[..5128], 160)?;
-    Ok(ReadTrace { reads, heap })
+    let reads = decode_trace_rows(&bytes[..heap_offset], capacity)?;
+    let total_calls_bytes = batch.then(|| {
+        std::array::from_fn(|i| {
+            let offset = heap_offset + 40 + i * 8;
+            u64::from_le_bytes(bytes[offset..offset + 8].try_into().unwrap())
+        })
+    });
+    if let Some([calls, _]) = total_calls_bytes
+        && (calls < reads.len() as u64 || reads.iter().any(|row| row[3] < 10_000))
+    {
+        return Err("inconsistent expensive-read trace");
+    }
+    Ok(ReadTrace {
+        reads,
+        heap,
+        total_calls_bytes,
+    })
 }
 
 fn decode_trace_rows(bytes: &[u8], capacity: usize) -> Result<Vec<[u64; 4]>, &'static str> {
@@ -185,8 +219,17 @@ fn validate_diagnostics(args: &Arguments) -> Result<(), &'static str> {
         if args.trace_stable_reads
             && !(matches!(args.workload, Some(Workload::Bulk))
                 && matches!(args.collection, Some(Collection::Vector)))
+            && !(args.workload.is_none()
+                && !args.cases.is_empty()
+                && args.cases.iter().all(|case| {
+                    MATRIX_CASES
+                        .iter()
+                        .any(|entry| entry.collection == Collection::Map && entry.label() == *case)
+                }))
         {
-            return Err("read probes require vector-reads, depth or bulk --collection vector");
+            return Err(
+                "read probes require vector-reads, depth, bulk --collection vector or explicit Map cases",
+            );
         }
         if args.trace_execution_cost
             && !matches!(
@@ -564,7 +607,7 @@ async fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
                                         pattern,
                                     };
                                     // Admit the intended phase before executing either backend.
-                                    let expected = expected(&mut model, request);
+                                    let expected = expected_phase(&mut model, request, &phase);
                                     let bytes =
                                         ic_wire::native::encode_request(RUN_ID, &request, LIMITS)?;
                                     let reply = if args.query {
@@ -934,7 +977,7 @@ async fn probe_refusal(
     };
     if phase == "init" {
         assert!(
-            error.contains("unbounded"),
+            error.contains("unbounded") || error.contains("vector requires a finite codec bound"),
             "unexpected init refusal: {error}"
         );
     } else {
@@ -1017,6 +1060,30 @@ fn population(rows: u32, shuffled: bool, mut state: u64) -> Vec<u64> {
     }
     ids
 }
+fn expected_phase(
+    model: &mut BTreeMap<u64, Vec<u8>>,
+    request: Request,
+    phase: &str,
+) -> Vec<(u64, Option<Vec<u8>>)> {
+    if phase == "RemoveAgain" {
+        assert_eq!(request.operation, Operation::Remove);
+        return keys(request)
+            .into_iter()
+            .map(|key| {
+                assert!(
+                    !model.contains_key(&key),
+                    "RemoveAgain: key {key} must be absent"
+                );
+                (
+                    key,
+                    (request.case.collection == Collection::Set).then(|| vec![0]),
+                )
+            })
+            .collect();
+    }
+    expected(model, request)
+}
+
 fn expected(model: &mut BTreeMap<u64, Vec<u8>>, r: Request) -> Vec<(u64, Option<Vec<u8>>)> {
     use Operation::*;
     admit_phase(model, r);

@@ -123,7 +123,7 @@ mod reference {
         }
     }
 
-    fn check_prefix<const MAX: u32>(prefix: u64) {
+    fn check_width<const MAX: u32>() {
         let backing = MeteredMemory::<ic_storage::VectorMemory>::default();
         let runtime = fixture_runtime(
             backing.clone(),
@@ -148,7 +148,7 @@ mod reference {
         for (index, size) in [0, 8, MAX].into_iter().enumerate() {
             backing.reset();
             assert_eq!(vector.get(index as u64), reference.get(index as u64));
-            assert_eq!(backing.counts().read_bytes, 8 + prefix + u64::from(size));
+            assert_eq!(backing.counts().read_bytes, 4 + u64::from(size));
             assert_eq!((backing.counts().writes, backing.counts().grows), (0, 0));
         }
         assert_eq!(
@@ -158,11 +158,11 @@ mod reference {
     }
 
     #[test]
-    fn vector_prefix_boundaries_include_empty_and_full_width_records_after_reopen() {
-        check_prefix::<255>(1);
-        check_prefix::<256>(2);
-        check_prefix::<65_535>(2);
-        check_prefix::<65_536>(4);
+    fn vector_width_boundaries_include_empty_and_full_width_records_after_reopen() {
+        check_width::<255>();
+        check_width::<256>();
+        check_width::<65_535>();
+        check_width::<65_536>();
     }
 
     #[test]

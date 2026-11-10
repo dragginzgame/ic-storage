@@ -45,9 +45,9 @@ const fn namespace(family: u8) -> std::ops::RangeInclusive<[u8; 33]> {
 // Representative consumer admission, before infallible collection loading.
 // Application header codecs/CRCs and recovery policy remain with IcyDB.
 fn admit<M: Memory>(view: &BTreeMapRegion<[u8; 33], Vec<u8>, M>) -> Result<(), ()> {
-    let mut frame = [0; 4];
+    let mut frame = [0; 8];
     view.read(0, &mut frame);
-    if frame != *b"BTR\x02" {
+    if frame != *b"STORMAP1" {
         return Err(());
     }
     let mut after_families = [0; 33];

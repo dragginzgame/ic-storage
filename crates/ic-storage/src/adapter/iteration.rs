@@ -1,9 +1,6 @@
-//! Owned entries and iterator views over the copied ICSS engine.
-use super::{
-    Memory, Storable,
-    bridge::{Codec, TreeMemory},
-};
-use crate::{DefaultMemoryImpl, engine};
+//! Owned entries and iterator views over the independent ordered engine.
+use super::{Memory, Storable, bridge::TreeMemory};
+use crate::{DefaultMemoryImpl, ordered_map};
 use std::{borrow::Cow, marker::PhantomData};
 
 ///
@@ -23,14 +20,11 @@ impl<K, V: Storable> MapEntry<K, V> {
     }
     /// Decode the value. Malformed stored bytes trap.
     pub fn value(&self) -> V {
-        <Codec<V> as engine::Storable>::from_bytes(Cow::Borrowed(&self.bytes)).0
+        ordered_map::decode(Cow::Borrowed(&self.bytes))
     }
     /// Consume the entry and decode its value.
     pub fn into_pair(self) -> (K, V) {
-        (
-            self.key,
-            <Codec<V> as engine::Storable>::from_bytes(Cow::Owned(self.bytes)).0,
-        )
+        (self.key, ordered_map::decode(Cow::Owned(self.bytes)))
     }
     /// Consume only the key without decoding its value.
     pub fn into_key(self) -> K {
@@ -38,23 +32,20 @@ impl<K, V: Storable> MapEntry<K, V> {
     }
     /// Consume and decode only the value.
     pub fn into_value(self) -> V {
-        <Codec<V> as engine::Storable>::from_bytes(Cow::Owned(self.bytes)).0
+        ordered_map::decode(Cow::Owned(self.bytes))
     }
 }
 ///
 /// `MapIter`
 ///
-/// Bidirectional ICSS traversal retaining its governed map borrow.
+/// Bidirectional ordered traversal retaining its governed map borrow.
 ///
 pub struct MapIter<'a, K: Storable + Ord + Clone, V: Storable, M: Memory = DefaultMemoryImpl>(
-    pub(super) engine::btreemap::Iter<'a, Codec<K>, Codec<V>, TreeMemory<M>>,
+    pub(super) ordered_map::Entries<'a, K, V, TreeMemory<M>>,
 );
-fn entry<K: Storable + Ord + Clone, V: Storable, M: Memory>(
-    entry: engine::btreemap::LazyEntry<'_, Codec<K>, Codec<V>, TreeMemory<M>>,
-) -> MapEntry<K, V> {
-    let (key, bytes) = entry.into_raw();
+fn entry<K, V>((key, bytes): (K, Vec<u8>)) -> MapEntry<K, V> {
     MapEntry {
-        key: key.0,
+        key,
         bytes,
         value: PhantomData,
     }

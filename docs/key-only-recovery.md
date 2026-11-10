@@ -122,7 +122,7 @@ The outer ceiling permits one maximum payload and record metadata. The current
 The protected header owns generation; recovery derives the logical counter from
 it. Earlier ledger layouts, including ICMSNAP1 and pending ICMREC01, are retired
 for 0.48 and require
-fresh/reset backing. Follow [the explicit data disposition requirements](current-ledger.md).
+fresh/reset backing. Follow [the explicit data disposition requirements](design/current-ledger.md).
 No automatic clearing, fallback reader or migration engine is provided.
 
 The bounded writer performs one canonical CBOR pass. Admitted definite collection

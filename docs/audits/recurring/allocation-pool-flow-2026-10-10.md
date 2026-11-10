@@ -4,7 +4,7 @@
 
 Trigger: maintainer requested an audit of the pending hard cut and removal of
 redundancy. Method: Shared Tooling's unchanged
-[flow convergence and duplication](../../../audits/flow-convergence-and-duplication.md),
+[flow convergence and duplication](https://github.com/dragginzgame/toko-tooling/blob/12459b6029115b830b8477879d3bea2f030b6e63/audits/flow-convergence-and-duplication.md),
 with the [product overlay](code-hygiene.md). Repairs are explicitly authorized by
 this request; no sibling edit, dependency change or Git delivery is authorized.
 

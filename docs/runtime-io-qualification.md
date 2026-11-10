@@ -478,7 +478,7 @@ actual inputs used at execution, rather than those later edits.
 
 ## Changes and compatibility
 
-[`RuntimeMemory`](../crates/ic-storage/src/runtime/backing.rs) checks safe reads, raw reads and
+`RuntimeMemory` (historical source: `../crates/ic-storage/src/runtime/backing.rs`) checks safe reads, raw reads and
 writes against the current virtual byte extent before upstream translation.
 Its short-circuit subtraction avoids offset/length addition overflow. Manager
 layout admission and growth already bound the virtual page count by the bucket
@@ -497,12 +497,12 @@ upstream `VirtualMemory` users remain outside this protection.
 [`serialize_record`](../crates/ic-storage/src/stable_cell.rs) reserves the existing exact encoded
 size before invoking the canonical encoder. The size counter counts opaque
 payload lengths without rereading every payload byte. Neither codec nor
-persisted bytes changes. [`validate_integrity`](../crates/ic-storage/src/ledger/integrity.rs)
+persisted bytes changes. `validate_integrity` (historical source: `../crates/ic-storage/src/ledger/integrity.rs`)
 recognizes strictly increasing generations as unique and avoids building the
 generation set. Unordered DTOs retain the original set and refusal order; record
 key uniqueness and committed chain/recovery validation remain in place.
 
-The [durable ledger decoder](../crates/ic-storage/src/ledger/record.rs) uses the bounded
+The durable ledger decoder (historical source: `../crates/ic-storage/src/ledger/record.rs`) uses the bounded
 visitor to refuse more than 255 records before decoding an extra entry. Resolved
 declaration snapshots are internal and have no serialized input contract.
 `PendingBootstrapCommit` (then in `src/runtime/bootstrap.rs`)
@@ -534,7 +534,7 @@ format changes. No compatibility readers or aliases were added.
   consuming the enclosing result and observes the pending type's diagnostic.
 
 The installed [Wasm fixture](../qualification/ic-storage-test-fixtures/tests/fixtures/wasm_io_qualification.rs) and
-[host runner](../qualification/ic-memory-runtime-qualification/src/main.rs) use the current root
+host runner (historical source: `../qualification/ic-memory-runtime-qualification/src/main.rs`) use the current root
 dependency graph. PocketIC 16.0.0 passed these executed checks:
 
 - All three IO methods trap for end-plus-one-byte, empty span beyond end,
@@ -652,7 +652,7 @@ relabel the historical measurements above.
 For the selected lock, prepare cached dependencies with `cargo fetch --locked
 --offline --manifest-path qualification/Cargo.toml`; a cache
 miss requires separate authorized preparation. The library's own cache/lock
-prerequisites remain those in [host support](host-support.md).
+prerequisites remain those in [host support](operations/host-support.md).
 
 From the repository root, run these focused builds sequentially:
 

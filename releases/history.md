@@ -103,7 +103,7 @@ This historical ledger receives no new releases.
 - Replace Memory's allocation-ledger and Cell record CBOR with bounded IC Wire.
   Earlier retained bytes require host-owned reset/transition before adoption;
   no legacy decoder or automatic reset is provided. Decoder/encoding errors now
-  use Wire. [Contract and adoption](../docs/current-ledger.md).
+  use Wire. [Contract and adoption](../docs/design/current-ledger.md).
 
 ### 🧹 Cleanup
 
@@ -1694,7 +1694,7 @@ This historical ledger receives no new releases.
   diagnostics, using a bounded 32 KiB stack buffer.
 
 [Detailed notes](../docs/changelog/0.27.md) ·
-[Ledger contract](../docs/current-ledger.md) ·
+[Ledger contract](../docs/design/current-ledger.md) ·
 [Focused qualification](../docs/current-ledger-qualification.md)
 
 ## [0.26.2] - 2026-10-06
@@ -2931,7 +2931,7 @@ This historical ledger receives no new releases.
 
 ## 0.15.4
 
-- Add the runnable [composed-host example](../crates/ic-memory/examples/composed_host.rs) requested
+- Add the runnable composed-host example (historical path: `crates/ic-memory/examples/composed_host.rs`) requested
   by Canic. Two cold reopens over the same backing retain fixed/logical IDs,
   authority and stored data with unchanged declarations and 16-page buckets.
   Cold attempts run host and consumer admission; warm adoption preserves the

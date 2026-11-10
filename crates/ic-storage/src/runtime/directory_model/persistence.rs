@@ -1,310 +1,184 @@
-// Adapted from ic-stable-structures 0.7.2 memory_manager.rs, DFINITY Foundation.
-// SPDX-License-Identifier: Apache-2.0
-// See LICENSE-APACHE and docs/storage/icss-source.json.
-//! ICSS bucket allocation and translation behind Storage's named custody boundary.
-//! Fixed-width controls replace whole-directory snapshot publication. Unknown or
-//! interrupted images are rejected, never initialized or guessed back into use.
-use super::{AllocationId, Error, StableKey, StorageConfig};
-use crate::{Memory, WASM_PAGE_SIZE_BYTES as PAGE, hash};
+//! Durable named allocations and translation of their admitted byte ranges.
+//!
+//! The image reserves its metadata tables once, then appends eight-page payload
+//! units. Names are held once; a sorted index provides allocation lookup. Grants,
+//! custody, leases, and application framing remain with the runtime.
+//! Default capacities reserve seventeen metadata pages and one protected root
+//! page up front. This fixed cost avoids metadata relocation during payload growth.
+
 use std::{cell::Cell, collections::BTreeSet};
 
-const MAGIC: &[u8; 8] = b"ICBUCK01";
-const ROOT_BYTES: usize = 64;
-const ENTRY_SIZE: usize = 160;
-const ENTRY_BYTES: u64 = ENTRY_SIZE as u64;
-const OWNER_SIZE: usize = 16;
-const OWNER_BYTES: u64 = OWNER_SIZE as u64;
-const BUCKET_PAGES: u64 = 8;
-const BUCKET_BYTES: u64 = BUCKET_PAGES * PAGE;
+use crate::{Memory, StorageDiagnostics};
 
-// A bounded control buffer shared by admission and verification. Its capacity
-// is a whole number of both row widths; partial tails read only active rows.
-const CONTROL_CHUNK_BYTES: usize = 2560;
-type RowVisitor<'a> = dyn FnMut(u64, &[u8]) -> Result<(), Error> + 'a;
-fn read_rows<M: Memory>(
-    memory: &M,
-    mut offset: u64,
-    count: u64,
-    width: usize,
-    visit: &mut RowVisitor<'_>,
-) -> Result<(), Error> {
-    if count == 0 {
-        return Ok(());
-    }
-    let mut buffer = [0; CONTROL_CHUNK_BYTES];
-    let mut index = 0;
-    while index < count {
-        let rows = usize::try_from((count - index).min((buffer.len() / width) as u64))
-            .expect("bounded control chunk");
-        let bytes = rows * width;
-        memory.read(offset, &mut buffer[..bytes]);
-        for row in buffer[..bytes].chunks_exact(width) {
-            visit(index, row)?;
-            index += 1;
-        }
-        offset += bytes as u64;
-    }
-    Ok(())
-}
+use super::{AllocationId, Error, StableKey, StorageConfig};
+use framing::{ENTRY_BYTES, Layout, Limits, PAGE_BYTES, ROOT_BYTES, Root, UNIT_BYTES};
 
-fn digest(bytes: &[u8]) -> u64 {
-    hash::fnv64(hash::FNV_OFFSET, bytes)
-}
-fn word(bytes: &[u8], offset: usize) -> u64 {
-    u64::from_le_bytes(bytes[offset..offset + 8].try_into().unwrap())
-}
-fn put(bytes: &mut [u8], offset: usize, value: u64) {
-    bytes[offset..offset + 8].copy_from_slice(&value.to_le_bytes());
-}
+mod framing;
+#[cfg(test)]
+mod named_backing_tests;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct Root {
-    generation: u64,
-    allocations: u64,
-    buckets: u64,
-    count: u64,
-    used: u64,
-}
-impl Root {
-    fn encode(self, dirty: bool) -> [u8; ROOT_BYTES] {
-        let mut bytes = [0; ROOT_BYTES];
-        bytes[..8].copy_from_slice(MAGIC);
-        for (index, value) in [
-            self.generation,
-            self.allocations,
-            self.buckets,
-            self.count,
-            self.used,
-            u64::from(dirty),
-        ]
-        .into_iter()
-        .enumerate()
-        {
-            put(&mut bytes, 8 + index * 8, value);
-        }
-        let checksum = digest(&bytes[..56]);
-        put(&mut bytes, 56, checksum);
-        bytes
-    }
-    fn decode(bytes: &[u8; ROOT_BYTES]) -> Result<Self, Error> {
-        if &bytes[..8] != MAGIC || word(bytes, 48) != 0 || word(bytes, 56) != digest(&bytes[..56]) {
-            return Err(Error::Invalid("bucket root or interrupted publication"));
-        }
-        let root = Self {
-            generation: word(bytes, 8),
-            allocations: word(bytes, 16),
-            buckets: word(bytes, 24),
-            count: word(bytes, 32),
-            used: word(bytes, 40),
-        };
-        if root.count > root.allocations || root.used > root.buckets {
-            return Err(Error::Invalid("bucket table bounds"));
-        }
-        root.end()?;
-        Ok(root)
-    }
-    fn owners(self) -> Result<u64, Error> {
-        self.allocations
-            .checked_mul(ENTRY_BYTES)
-            .and_then(|bytes| bytes.checked_add(ROOT_BYTES as u64))
-            .ok_or(Error::Budget)
-    }
-    fn data_start(self) -> Result<u64, Error> {
-        self.buckets
-            .checked_mul(OWNER_BYTES)
-            .and_then(|bytes| bytes.checked_add(self.owners().ok()?))
-            .map(|bytes| bytes.div_ceil(PAGE))
-            .ok_or(Error::Budget)
-    }
-    fn end(self) -> Result<u64, Error> {
-        self.used
-            .checked_mul(BUCKET_PAGES)
-            .and_then(|pages| pages.checked_add(self.data_start().ok()?))
-            .filter(|pages| pages.checked_mul(PAGE).is_some())
-            .ok_or(Error::Budget)
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
+///
+/// Entry
+///
+/// An admitted name and its logical size, with a private physical-unit index.
 pub(super) struct Entry {
     pub key: StableKey,
     pub pages: u64,
-    buckets: Vec<u64>,
-}
-impl Entry {
-    fn size_bytes(pages: u64) -> [u8; 16] {
-        let mut bytes = [0; 16];
-        put(&mut bytes, 0, pages);
-        let checksum = digest(&bytes[..8]);
-        put(&mut bytes, 8, checksum);
-        bytes
-    }
-    fn encode(&self) -> [u8; ENTRY_SIZE] {
-        let mut bytes = [0; ENTRY_SIZE];
-        bytes[..16].copy_from_slice(&Self::size_bytes(self.pages));
-        let key = self.key.as_str().as_bytes();
-        put(&mut bytes, 16, key.len() as u64);
-        bytes[24..24 + key.len()].copy_from_slice(key);
-        let checksum = digest(&bytes[16..152]);
-        put(&mut bytes, 152, checksum);
-        bytes
-    }
-    fn decode(bytes: &[u8; ENTRY_SIZE]) -> Result<Self, Error> {
-        let length = usize::try_from(word(bytes, 16)).map_err(|_| Error::Invalid("name length"))?;
-        if length > 128
-            || word(bytes, 8) != digest(&bytes[..8])
-            || word(bytes, 152) != digest(&bytes[16..152])
-            || bytes[24 + length..152].iter().any(|&byte| byte != 0)
-        {
-            return Err(Error::Invalid("allocation row"));
-        }
-        let text = std::str::from_utf8(&bytes[24..24 + length])
-            .map_err(|_| Error::Invalid("name text"))?;
-        let key = StableKey::parse(text).map_err(|_| Error::Invalid("name grammar"))?;
-        Ok(Self {
-            key,
-            pages: word(bytes, 0),
-            buckets: Vec::new(),
-        })
-    }
+    units: Vec<u64>,
 }
 
-// Keep indexed name loads and bounds checks out of each sorting-loop branch.
-#[inline(never)]
-fn compare_keys(entries: &[Entry], a: usize, b: usize) -> std::cmp::Ordering {
-    entries[a].key.cmp(&entries[b].key)
-}
-
+///
+/// Store
+///
+/// Owns one admitted backing image and its validated translation metadata.
 pub struct Store<M: Memory> {
-    memory: M,
-    root: Root,
-    budget: StorageConfig,
     pub(super) entries: Vec<Entry>,
-    key_order: Vec<usize>,
+    memory: M,
+    limits: Limits,
+    root: Root,
+    layout: Layout,
+    names: Vec<usize>,
     poisoned: Cell<bool>,
-    // ICSS's last-bucket translation cache; additionally bounds it by logical
-    // capacity so spare bytes in the final bucket never become accessible.
-    last_span: Cell<Option<Span>>,
-}
-#[derive(Clone, Copy)]
-struct Span {
-    id: AllocationId,
-    start: u64,
-    end: u64,
-    physical: u64,
 }
 
 impl<M: Memory> Store<M> {
     pub(super) fn create(memory: M, budget: StorageConfig) -> Result<Self, Error> {
+        let limits = Limits::new(budget)?;
+        let layout = Layout::new(limits)?;
         if memory.size() != 0 {
-            return Err(Error::Invalid("create requires empty backing"));
+            return Err(Error::Invalid("creation requires empty backing"));
         }
         let root = Root {
+            capacities: limits,
             generation: 0,
-            allocations: budget.allocations as u64,
-            buckets: budget.extents as u64,
-            count: 0,
-            used: 0,
+            entries: 0,
+            units: 0,
+            digest: 0,
         };
-        let pages = root.end()?;
-        if pages > budget.pages {
-            return Err(Error::Budget);
-        }
-        if memory.grow(pages) == -1 {
+        let store = Self {
+            entries: Vec::new(),
+            memory,
+            limits,
+            root,
+            layout,
+            names: Vec::new(),
+            poisoned: Cell::new(false),
+        };
+        let previous = store.io(|memory| memory.grow(layout.payload_page));
+        if previous < 0 {
             return Err(Error::Growth);
         }
-        memory.write(0, &root.encode(false));
-        Ok(Self {
-            memory,
-            root,
-            budget,
-            entries: Vec::new(),
-            key_order: Vec::new(),
-            poisoned: Cell::new(false),
-            last_span: Cell::new(None),
-        })
+        if previous != 0 {
+            store.poisoned.set(true);
+            return Err(Error::Invalid("unexpected backing growth result"));
+        }
+        store.write_root(root);
+        Ok(store)
     }
+
     pub(super) fn open(memory: M, budget: StorageConfig) -> Result<Self, Error> {
-        let physical = memory.size();
-        if physical == 0 || physical > budget.pages {
-            return Err(Error::Budget);
+        let limits = Limits::new(budget)?;
+        let physical_pages = memory.size();
+        if physical_pages == 0 {
+            return Err(Error::Invalid("missing directory image"));
         }
         let mut bytes = [0; ROOT_BYTES];
         memory.read(0, &mut bytes);
         let root = Root::decode(&bytes)?;
-        if root.end()? != physical
-            || root.count > budget.allocations as u64
-            || root.used > budget.extents as u64
-        {
-            return Err(Error::Invalid("allocation capacity or backing extent"));
-        }
-        // The validated root already gives the exact live row count. Avoid
-        // repeatedly moving admitted entries while reconstructing the directory.
-        let mut entries =
-            Vec::with_capacity(usize::try_from(root.count).map_err(|_| Error::Budget)?);
-        read_rows(
+        let limits = limits.intersect(root.capacities);
+        let layout = Layout::new(root.capacities)?;
+        root.admit(limits, layout, physical_pages)?;
+        let count = usize::try_from(root.entries).map_err(|_| Error::ArithmeticOverflow)?;
+        let mut entries = Vec::new();
+        entries
+            .try_reserve_exact(count)
+            .map_err(|_| Error::Budget)?;
+        let mut digest = 0;
+        let mut declared_units = 0_u64;
+        framing::scan::<_, ENTRY_BYTES>(
             &memory,
-            ROOT_BYTES as u64,
-            root.count,
-            ENTRY_SIZE,
-            &mut |_, bytes| {
-                let entry = Entry::decode(bytes.try_into().unwrap())?;
-                if entry.pages > budget.pages {
-                    return Err(Error::Invalid("logical size"));
+            Layout::entry_offset(0)?,
+            root.entries,
+            |index, row| {
+                let index = usize::try_from(index).map_err(|_| Error::ArithmeticOverflow)?;
+                let (key, pages, unit_count, checksum) = framing::decode_entry(row, index)?;
+                if unit_count != framing::units_for(pages) || unit_count > root.units {
+                    return Err(Error::Invalid("invalid allocation coverage"));
                 }
-                entries.push(entry);
+                declared_units = declared_units
+                    .checked_add(unit_count)
+                    .ok_or(Error::ArithmeticOverflow)?;
+                if declared_units > root.units {
+                    return Err(Error::Invalid("excess allocation coverage"));
+                }
+                let mut units = Vec::new();
+                units
+                    .try_reserve_exact(
+                        usize::try_from(unit_count).map_err(|_| Error::ArithmeticOverflow)?,
+                    )
+                    .map_err(|_| Error::Budget)?;
+                entries.push(Entry { key, pages, units });
+                digest ^= checksum;
                 Ok(())
             },
         )?;
-        // Entries retain append-order IDs; this index owns no duplicate names.
-        let mut key_order: Vec<_> = (0..entries.len()).collect();
-        key_order.sort_unstable_by(|&a, &b| compare_keys(&entries, a, b));
-        if key_order
+        let mut names: Vec<_> = (0..count).collect();
+        names.sort_unstable_by(|left, right| entries[*left].key.cmp(&entries[*right].key));
+        if names
             .windows(2)
             .any(|pair| entries[pair[0]].key == entries[pair[1]].key)
         {
-            return Err(Error::Invalid("duplicate name"));
+            return Err(Error::Invalid("duplicate allocation name"));
         }
-        // ICSS rebuilds each memory's ordered bucket vector from physical owner
-        // rows. Read only the committed rows, not the reserved table capacity.
-        read_rows(
+        framing::scan::<_, { framing::UNIT_ROW_BYTES }>(
             &memory,
-            root.owners()?,
-            root.used,
-            OWNER_SIZE,
-            &mut |bucket, bytes| {
-                let owner = word(bytes, 0);
-                if owner == 0 || owner > root.count || word(bytes, 8) != digest(&bytes[..8]) {
-                    return Err(Error::Invalid("bucket owner"));
+            layout.unit_offset(0)?,
+            root.units,
+            |unit, row| {
+                let (owner, logical, checksum) = framing::decode_unit(row, unit)?;
+                let index = owner
+                    .checked_sub(1)
+                    .ok_or(Error::Invalid("invalid unit owner"))?;
+                let entry = entries
+                    .get_mut(usize::try_from(index).map_err(|_| Error::ArithmeticOverflow)?)
+                    .ok_or(Error::Invalid("invalid unit owner"))?;
+                if logical != entry.units.len() as u64 || logical >= framing::units_for(entry.pages)
+                {
+                    return Err(Error::Invalid("invalid unit ownership order"));
                 }
-                entries[usize::try_from(owner - 1).map_err(|_| Error::Budget)?]
-                    .buckets
-                    .push(bucket);
+                entry.units.push(unit);
+                digest ^= checksum;
                 Ok(())
             },
         )?;
-        if entries
-            .iter()
-            .any(|entry| entry.pages.div_ceil(BUCKET_PAGES) != entry.buckets.len() as u64)
+        if digest != root.digest
+            || entries
+                .iter()
+                .any(|entry| entry.units.len() as u64 != framing::units_for(entry.pages))
         {
-            return Err(Error::Invalid("bucket count does not cover logical size"));
+            return Err(Error::Invalid("incomplete directory controls"));
         }
         Ok(Self {
-            memory,
-            root,
-            budget,
             entries,
-            key_order,
+            memory,
+            limits,
+            root,
+            layout,
+            names,
             poisoned: Cell::new(false),
-            last_span: Cell::new(None),
         })
     }
+
     pub(super) fn allocation_id(&self, key: &StableKey) -> Option<AllocationId> {
-        self.key_order
-            .binary_search_by(|&index| self.entries[index].key.cmp(key))
+        if self.healthy().is_err() {
+            return None;
+        }
+        self.names
+            .binary_search_by(|index| self.entries[*index].key.cmp(key))
             .ok()
-            .map(|position| AllocationId(self.key_order[position] as u64 + 1))
+            .map(|position| AllocationId(self.names[position] as u64 + 1))
     }
+
     pub(super) const fn healthy(&self) -> Result<(), Error> {
         if self.poisoned.get() {
             Err(Error::Poisoned)
@@ -312,310 +186,301 @@ impl<M: Memory> Store<M> {
             Ok(())
         }
     }
+
     #[cfg(not(target_arch = "wasm32"))]
     pub(super) fn poison(&self) {
         self.poisoned.set(true);
     }
+
     pub(super) const fn generation(&self) -> u64 {
         self.root.generation
     }
+
     pub(super) fn verify(&self) -> Result<(), Error> {
         self.healthy()?;
-        self.poisoned.set(true);
-        // Full integrity checks remain at admission and explicit diagnostics.
-        // Lease opening, growth and ordinary IO trust continuous custody.
-        let changed = || Error::Invalid("backing changed outside its owner");
-        if self.memory.size() != self.root.end()? {
-            return Err(changed());
+        let result = self.verify_admitted();
+        if result.is_err() {
+            self.poisoned.set(true);
         }
-        let mut root = [0; ROOT_BYTES];
-        self.memory.read(0, &mut root);
-        if root != self.root.encode(false) {
-            return Err(changed());
+        result
+    }
+
+    fn verify_admitted(&self) -> Result<(), Error> {
+        let mut root_bytes = [0; ROOT_BYTES];
+        self.io(|memory| memory.read(0, &mut root_bytes));
+        if root_bytes != self.root.encode(self.layout)
+            || self.io(Memory::size) != self.root.physical_pages(self.layout)?
+        {
+            return Err(Error::Invalid("directory changed after admission"));
         }
-        // Admitted rows have one canonical encoding. Comparing it also checks
-        // checksums, padding and names, without allocating another name index.
-        read_rows(
-            &self.memory,
-            ROOT_BYTES as u64,
-            self.root.count,
-            ENTRY_SIZE,
-            &mut |index, bytes| {
-                if bytes
-                    != self.entries[usize::try_from(index).expect("admitted allocation index")]
-                        .encode()
-                {
-                    return Err(changed());
-                }
-                Ok(())
-            },
-        )?;
-        read_rows(
-            &self.memory,
-            self.root.owners()?,
-            self.root.used,
-            OWNER_SIZE,
-            &mut |bucket, bytes| {
-                let owner = word(bytes, 0);
-                if owner == 0 || owner > self.root.count || word(bytes, 8) != digest(&bytes[..8]) {
-                    return Err(changed());
-                }
-                // Growth appends physical bucket IDs in increasing order. Checking
-                // every committed row against that admitted vector proves ownership
-                // without constructing a second vector or reverse ownership index.
-                if self.entries[usize::try_from(owner - 1).map_err(|_| Error::Budget)?]
-                    .buckets
-                    .binary_search(&bucket)
-                    .is_err()
-                {
-                    return Err(changed());
-                }
-                Ok(())
-            },
-        )?;
-        self.poisoned.set(false);
+        let mut digest = 0;
+        self.io(|memory| {
+            framing::scan::<_, ENTRY_BYTES>(
+                memory,
+                Layout::entry_offset(0)?,
+                self.root.entries,
+                |index, row| {
+                    let index = usize::try_from(index).map_err(|_| Error::ArithmeticOverflow)?;
+                    let entry = self
+                        .entries
+                        .get(index)
+                        .ok_or(Error::Invalid("missing admitted allocation"))?;
+                    let expected = framing::encode_entry(
+                        index,
+                        &entry.key,
+                        entry.pages,
+                        entry.units.len() as u64,
+                    );
+                    if row != &expected {
+                        return Err(Error::Invalid("allocation changed after admission"));
+                    }
+                    digest ^= framing::checksum(row);
+                    Ok(())
+                },
+            )?;
+            framing::scan::<_, { framing::UNIT_ROW_BYTES }>(
+                memory,
+                self.layout.unit_offset(0)?,
+                self.root.units,
+                |physical, row| {
+                    let (owner, logical, checksum) = framing::decode_unit(row, physical)?;
+                    let owner = owner
+                        .checked_sub(1)
+                        .ok_or(Error::Invalid("invalid unit owner"))?;
+                    let entry = self
+                        .entries
+                        .get(usize::try_from(owner).map_err(|_| Error::ArithmeticOverflow)?)
+                        .ok_or(Error::Invalid("invalid unit owner"))?;
+                    if entry
+                        .units
+                        .get(usize::try_from(logical).map_err(|_| Error::ArithmeticOverflow)?)
+                        != Some(&physical)
+                    {
+                        return Err(Error::Invalid("ownership changed after admission"));
+                    }
+                    digest ^= checksum;
+                    Ok(())
+                },
+            )
+        })?;
+        if digest != self.root.digest {
+            return Err(Error::Invalid("directory integrity mismatch"));
+        }
         Ok(())
     }
+
     pub(super) fn bind(&mut self, keys: &BTreeSet<StableKey>) -> Result<(), Error> {
         self.healthy()?;
-        let added: Vec<_> = keys
-            .iter()
-            .filter(|key| self.allocation_id(key).is_none())
-            .cloned()
-            .collect();
-        if added.is_empty() {
+        let mut additions = Vec::new();
+        for key in keys {
+            if self.allocation_id(key).is_none() {
+                if self.entries.len() as u64 + additions.len() as u64 >= self.limits.allocations {
+                    return Err(Error::Budget);
+                }
+                additions.push(Entry {
+                    key: key.clone(),
+                    pages: 0,
+                    units: Vec::new(),
+                });
+            }
+        }
+        if additions.is_empty() {
             return Ok(());
         }
         let count = self
             .entries
             .len()
-            .checked_add(added.len())
-            .ok_or(Error::Budget)?;
-        if count > self.budget.allocations || count as u64 > self.root.allocations {
+            .checked_add(additions.len())
+            .ok_or(Error::ArithmeticOverflow)?;
+        if count as u64 > self.limits.allocations {
             return Err(Error::Budget);
         }
-        self.verify()?;
-        let mut next = self.root;
-        next.generation = next.generation.checked_add(1).ok_or(Error::Budget)?;
-        next.count = count as u64;
-        self.entries.reserve(added.len());
-        self.poisoned.set(true);
-        #[cfg(not(target_arch = "wasm32"))]
-        self.memory.write(0, &self.root.encode(true));
-        for (index, key) in added.iter().enumerate() {
-            let entry = Entry {
-                key: key.clone(),
-                pages: 0,
-                buckets: Vec::new(),
+        let mut root = self.root;
+        root.entries = count as u64;
+        root.generation = root
+            .generation
+            .checked_add(1)
+            .ok_or(Error::ArithmeticOverflow)?;
+        self.entries
+            .try_reserve(additions.len())
+            .map_err(|_| Error::Budget)?;
+        let old_count = self.entries.len();
+        let mut names: Vec<_> = (0..count).collect();
+        names.sort_unstable_by(|left, right| {
+            let key = |index: usize| {
+                if index < old_count {
+                    &self.entries[index].key
+                } else {
+                    &additions[index - old_count].key
+                }
             };
-            self.memory.write(
-                ROOT_BYTES as u64 + (self.root.count + index as u64) * ENTRY_BYTES,
-                &entry.encode(),
-            );
-        }
-        self.memory.write(0, &next.encode(false));
-        for key in added {
-            let position = self
-                .key_order
-                .partition_point(|&index| self.entries[index].key < key);
-            self.key_order.insert(position, self.entries.len());
-            self.entries.push(Entry {
-                key,
-                pages: 0,
-                buckets: Vec::new(),
+            key(*left).cmp(key(*right))
+        });
+        // Binding is a trust boundary: compare every retained control with the
+        // admitted ownership before making new allocations durable.
+        self.verify()?;
+        #[cfg(not(target_arch = "wasm32"))]
+        self.begin_publication();
+        for (position, entry) in additions.iter().enumerate() {
+            let index = old_count + position;
+            let row = framing::encode_entry(index, &entry.key, 0, 0);
+            root.digest ^= framing::checksum(&row);
+            self.io(|memory| {
+                memory.write(
+                    Layout::entry_offset(index).expect("preflighted entry offset"),
+                    &row,
+                );
             });
         }
-        self.root = next;
-        self.poisoned.set(false);
+        self.write_root(root);
+        self.entries.extend(additions);
+        self.names = names;
+        self.root = root;
         Ok(())
     }
+
     pub(super) fn grow(&mut self, index: usize, pages: u64) -> Result<u64, Error> {
         self.healthy()?;
         let entry = self.entries.get(index).ok_or(Error::Missing)?;
-        let old_size = entry.pages;
-        let new_size = old_size
+        let previous = entry.pages;
+        if pages == 0 {
+            return Ok(previous);
+        }
+        let next = previous
             .checked_add(pages)
             .ok_or(Error::ArithmeticOverflow)?;
-        if pages == 0 {
-            return Ok(old_size);
-        }
-        // ICSS growth: allocate only buckets not covered by the current reserve.
-        let current_buckets = old_size.div_ceil(BUCKET_PAGES);
-        let required_buckets = new_size.div_ceil(BUCKET_PAGES);
-        let new_buckets_needed = required_buckets - current_buckets;
-        let mut next = self.root;
-        next.used = next
-            .used
-            .checked_add(new_buckets_needed)
-            .ok_or(Error::Budget)?;
-        next.generation = next.generation.checked_add(1).ok_or(Error::Budget)?;
-        if next.used > self.root.buckets
-            || next.used > self.budget.extents as u64
-            || next.end()? > self.budget.pages
-        {
+        next.checked_mul(PAGE_BYTES)
+            .ok_or(Error::ArithmeticOverflow)?;
+        let old_units = entry.units.len() as u64;
+        let extra = framing::units_for(next)
+            .checked_sub(old_units)
+            .ok_or(Error::ArithmeticOverflow)?;
+        let mut root = self.root;
+        root.units = root
+            .units
+            .checked_add(extra)
+            .ok_or(Error::ArithmeticOverflow)?;
+        root.generation = root
+            .generation
+            .checked_add(1)
+            .ok_or(Error::ArithmeticOverflow)?;
+        let physical_pages = root.physical_pages(self.layout)?;
+        if root.units > self.limits.extents || physical_pages > self.limits.pages {
             return Err(Error::Budget);
         }
+        let row = framing::encode_entry(index, &entry.key, next, old_units + extra);
+        root.digest ^= framing::checksum(&framing::encode_entry(
+            index, &entry.key, previous, old_units,
+        ));
+        root.digest ^= framing::checksum(&row);
         self.entries[index]
-            .buckets
-            .reserve(usize::try_from(new_buckets_needed).map_err(|_| Error::Budget)?);
-        let physical = self.root.end()?;
-        let end = next.end()?;
-        self.poisoned.set(true);
-        // Refusal happens before any owner/size/header write. Never publish an
-        // ICSS-style partially updated in-memory bucket vector on this error.
-        if end > physical && self.memory.grow(end - physical) == -1 {
-            self.poisoned.set(false);
-            return Err(Error::Growth);
+            .units
+            .try_reserve(usize::try_from(extra).map_err(|_| Error::ArithmeticOverflow)?)
+            .map_err(|_| Error::Budget)?;
+        let old_physical = self.root.physical_pages(self.layout)?;
+        if extra != 0 {
+            let grown = self.io(|memory| memory.grow(physical_pages - old_physical));
+            if grown < 0 {
+                return Err(Error::Growth);
+            }
+            if u64::try_from(grown).ok() != Some(old_physical) {
+                self.poisoned.set(true);
+                return Err(Error::Invalid("unexpected backing growth result"));
+            }
         }
-        // A native interruption is fail-closed, not a second transaction log.
-        // IC executions roll these writes and physical growth back on a trap.
+        // A native interruption after physical growth leaves an unexplained
+        // tail; after this marker it leaves an invalid root. Wasm traps instead
+        // roll back all effects, so the marker is unnecessary there.
         #[cfg(not(target_arch = "wasm32"))]
-        self.memory.write(0, &self.root.encode(true));
-        let mut owner = [0; OWNER_SIZE];
-        put(&mut owner, 0, index as u64 + 1);
-        let checksum = digest(&owner[..8]);
-        put(&mut owner, 8, checksum);
-        for bucket in self.root.used..next.used {
-            self.memory
-                .write(self.root.owners()? + bucket * OWNER_BYTES, &owner);
+        self.begin_publication();
+        for added in 0..extra {
+            let unit_row =
+                framing::encode_unit(self.root.units + added, index as u64 + 1, old_units + added);
+            root.digest ^= framing::checksum(&unit_row);
+            self.io(|memory| {
+                memory.write(
+                    self.layout
+                        .unit_offset(self.root.units + added)
+                        .expect("preflighted unit offset"),
+                    &unit_row,
+                );
+            });
         }
-        // Names are immutable after admission. Growing a memory updates only
-        // its independently checked size, without touching name bytes in heap
-        // or stable memory.
-        self.memory.write(
-            ROOT_BYTES as u64 + index as u64 * ENTRY_BYTES,
-            &Entry::size_bytes(new_size),
-        );
-        self.memory.write(0, &next.encode(false));
+        self.io(|memory| {
+            memory.write(
+                Layout::entry_offset(index).expect("admitted entry offset"),
+                &row,
+            );
+        });
+        self.write_root(root);
         self.entries[index]
-            .buckets
-            .extend(self.root.used..next.used);
-        self.entries[index].pages = new_size;
-        self.root = next;
-        self.last_span.set(None);
-        self.poisoned.set(false);
-        Ok(old_size)
+            .units
+            .extend(self.root.units..root.units);
+        self.entries[index].pages = next;
+        self.root = root;
+        Ok(previous)
     }
-    #[inline]
+
     pub(super) fn pages(&self, index: usize) -> Result<u64, Error> {
         self.healthy()?;
-        Ok(self.entries.get(index).ok_or(Error::Missing)?.pages)
+        self.entries
+            .get(index)
+            .map(|entry| entry.pages)
+            .ok_or(Error::Missing)
     }
-    pub(super) fn diagnostics(&self) -> Result<crate::StorageDiagnostics, Error> {
+
+    pub(super) fn diagnostics(&self) -> Result<StorageDiagnostics, Error> {
         self.verify()?;
-        let physical_pages = self.memory.size();
-        let data_pages = self.entries.iter().map(|entry| entry.pages).sum::<u64>();
-        let metadata_pages = self.root.data_start()? - 1;
-        Ok(crate::StorageDiagnostics {
+        let data_pages = self.entries.iter().try_fold(0_u64, |total, entry| {
+            total
+                .checked_add(entry.pages)
+                .ok_or(Error::ArithmeticOverflow)
+        })?;
+        let physical_pages = self.root.physical_pages(self.layout)?;
+        Ok(StorageDiagnostics {
             generation: self.root.generation,
             allocations: self.entries.len(),
             admitted_allocations: 0,
             live_leases: 0,
-            extents: usize::try_from(self.root.used).expect("admitted bucket count"),
+            extents: usize::try_from(self.root.units).map_err(|_| Error::ArithmeticOverflow)?,
             data_pages,
-            metadata_pages,
+            metadata_pages: self.layout.metadata_pages,
             directory_bytes: ROOT_BYTES as u64
-                + self.root.count * ENTRY_BYTES
-                + self.root.used * OWNER_BYTES,
+                + self.root.entries * ENTRY_BYTES as u64
+                + self.root.units * framing::UNIT_ROW_BYTES as u64,
             physical_pages,
-            unassigned_pages: physical_pages - 1 - metadata_pages - data_pages,
+            unassigned_pages: physical_pages - 1 - self.layout.metadata_pages - data_pages,
         })
     }
-    #[inline]
-    fn access(
-        &self,
-        id: AllocationId,
-        offset: u64,
-        length: usize,
-        mut io: impl FnMut(u64, std::ops::Range<usize>),
-    ) -> Result<(), Error> {
-        self.healthy()?;
-        let end = offset.checked_add(length as u64).ok_or(Error::Bounds)?;
-        if let Some(span) = self.last_span.get()
-            && span.id == id
-            && offset >= span.start
-            && end <= span.end
-        {
-            self.poisoned.set(true);
-            if length != 0 {
-                io(span.physical + offset - span.start, 0..length);
-            }
-            self.poisoned.set(false);
-            return Ok(());
-        }
-        self.access_uncached(id, offset, length, end, io)
-    }
-    #[inline(never)]
-    fn access_uncached(
-        &self,
-        id: AllocationId,
-        offset: u64,
-        length: usize,
-        end: u64,
-        mut io: impl FnMut(u64, std::ops::Range<usize>),
-    ) -> Result<(), Error> {
-        let index = usize::try_from(id.0.checked_sub(1).ok_or(Error::Missing)?)
-            .map_err(|_| Error::Missing)?;
-        let entry = self.entries.get(index).ok_or(Error::Missing)?;
-        let capacity = entry.pages.checked_mul(PAGE).ok_or(Error::Bounds)?;
-        if end > capacity {
-            return Err(Error::Bounds);
-        }
-        self.poisoned.set(true);
-        // Adapted from ICSS MemoryManagerInner::for_each_bucket: split a
-        // virtual segment at bucket boundaries and translate each bucket ID.
-        let buckets = entry.buckets.as_slice();
-        let mut remaining = length;
-        let mut bucket_idx = usize::try_from(offset / BUCKET_BYTES).expect("admitted bucket index");
-        let mut start_offset_in_bucket = offset % BUCKET_BYTES;
-        let data_start = self.root.data_start()? * PAGE;
-        while remaining > 0 {
-            let bucket_address = data_start + buckets[bucket_idx] * BUCKET_BYTES;
-            let bucket_start = bucket_idx as u64 * BUCKET_BYTES;
-            let mut run_end = bucket_idx;
-            let mut segment_len = (BUCKET_BYTES - start_offset_in_bucket).min(remaining as u64);
-            // Coalesce only buckets actually requested by this IO. No scan of
-            // cold population, no second extent index and no repair on growth.
-            while segment_len < remaining as u64
-                && buckets.get(run_end + 1) == Some(&(buckets[run_end] + 1))
-            {
-                run_end += 1;
-                segment_len += BUCKET_BYTES.min(remaining as u64 - segment_len);
-            }
-            let segment_len = usize::try_from(segment_len).expect("bounded chunk");
-            self.last_span.set(Some(Span {
-                id,
-                start: bucket_start,
-                end: ((run_end as u64 + 1) * BUCKET_BYTES).min(capacity),
-                physical: bucket_address,
-            }));
-            let done = length - remaining;
-            io(
-                bucket_address + start_offset_in_bucket,
-                done..done + segment_len,
-            );
-            remaining -= segment_len;
-            bucket_idx = run_end + 1;
-            start_offset_in_bucket = 0;
-        }
-        self.poisoned.set(false);
-        Ok(())
-    }
-    #[inline]
+
     pub(super) fn read_data(
         &self,
         id: AllocationId,
         offset: u64,
         bytes: &mut [u8],
     ) -> Result<(), Error> {
-        self.access(id, offset, bytes.len(), |physical, range| {
-            self.memory.read(physical, &mut bytes[range]);
-        })
+        let entry = self.range(id, offset, bytes.len())?;
+        if bytes.is_empty() {
+            return Ok(());
+        }
+        let (physical, count) = self.segment(entry, offset, bytes.len());
+        if count == bytes.len() {
+            self.io(|memory| memory.read(physical, bytes));
+            return Ok(());
+        }
+        self.io(|memory| memory.read(physical, &mut bytes[..count]));
+        let mut done = count;
+        while done < bytes.len() {
+            let (physical, count) = self.segment(entry, offset + done as u64, bytes.len() - done);
+            self.io(|memory| memory.read(physical, &mut bytes[done..done + count]));
+            done += count;
+        }
+        Ok(())
     }
-    #[inline]
+
     #[expect(
         unsafe_code,
-        reason = "Forward completely preflighted chunks to the backing's initialized-read contract"
+        reason = "Translate a fully checked logical range into initializing reads of caller-owned memory"
     )]
     pub(super) unsafe fn read_data_unsafe(
         &self,
@@ -624,26 +489,115 @@ impl<M: Memory> Store<M> {
         dst: *mut u8,
         count: usize,
     ) -> Result<(), Error> {
-        self.access(id, offset, count, |physical, range| {
-            // SAFETY: ranges partition the admitted caller-owned destination.
-            unsafe {
-                self.memory
-                    .read_unsafe(physical, dst.add(range.start), range.len());
-            }
-        })
+        let entry = self.range(id, offset, count)?;
+        if count == 0 {
+            return Ok(());
+        }
+        let (physical, length) = self.segment(entry, offset, count);
+        if length == count {
+            // SAFETY: The admitted range is one contiguous physical span; the
+            // caller supplies the entire writable, nonoverlapping destination.
+            self.io(|memory| unsafe { memory.read_unsafe(physical, dst, count) });
+            return Ok(());
+        }
+        // SAFETY: This first span is a bounded prefix of the caller's destination.
+        self.io(|memory| unsafe { memory.read_unsafe(physical, dst, length) });
+        let mut done = length;
+        while done < count {
+            let (physical, length) = self.segment(entry, offset + done as u64, count - done);
+            // SAFETY: The caller provides count writable, nonoverlapping bytes.
+            // The checked logical range and segment partition bound this write.
+            self.io(|memory| unsafe { memory.read_unsafe(physical, dst.add(done), length) });
+            done += length;
+        }
+        Ok(())
     }
-    #[inline]
+
     pub(super) fn write_data(
         &self,
         id: AllocationId,
         offset: u64,
         bytes: &[u8],
     ) -> Result<(), Error> {
-        self.access(id, offset, bytes.len(), |physical, range| {
-            self.memory.write(physical, &bytes[range]);
-        })
+        let entry = self.range(id, offset, bytes.len())?;
+        if bytes.is_empty() {
+            return Ok(());
+        }
+        let (physical, count) = self.segment(entry, offset, bytes.len());
+        if count == bytes.len() {
+            self.io(|memory| memory.write(physical, bytes));
+            return Ok(());
+        }
+        self.io(|memory| memory.write(physical, &bytes[..count]));
+        let mut done = count;
+        while done < bytes.len() {
+            let (physical, count) = self.segment(entry, offset + done as u64, bytes.len() - done);
+            self.io(|memory| memory.write(physical, &bytes[done..done + count]));
+            done += count;
+        }
+        Ok(())
+    }
+
+    fn range(&self, id: AllocationId, offset: u64, count: usize) -> Result<&Entry, Error> {
+        self.healthy()?;
+        let index = id.0.checked_sub(1).ok_or(Error::Missing)?;
+        let entry = self
+            .entries
+            .get(usize::try_from(index).map_err(|_| Error::Missing)?)
+            .ok_or(Error::Missing)?;
+        let end = offset
+            .checked_add(u64::try_from(count).map_err(|_| Error::Bounds)?)
+            .ok_or(Error::Bounds)?;
+        if end > entry.pages * PAGE_BYTES {
+            return Err(Error::Bounds);
+        }
+        Ok(entry)
+    }
+
+    fn segment(&self, entry: &Entry, offset: u64, count: usize) -> (u64, usize) {
+        let logical = usize::try_from(offset / UNIT_BYTES).expect("admitted logical unit index");
+        let within = offset % UNIT_BYTES;
+        let physical =
+            self.layout.payload_page * PAGE_BYTES + entry.units[logical] * UNIT_BYTES + within;
+        let mut length = (UNIT_BYTES - within).min(count as u64);
+        let mut current = logical;
+        while length < count as u64
+            && current + 1 < entry.units.len()
+            && entry.units[current + 1] == entry.units[current] + 1
+        {
+            length += UNIT_BYTES.min(count as u64 - length);
+            current += 1;
+        }
+        (
+            physical,
+            usize::try_from(length).expect("segment is bounded by the caller's slice length"),
+        )
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn begin_publication(&self) {
+        self.io(|memory| memory.write(0, &[0; 8]));
+    }
+
+    fn write_root(&self, root: Root) {
+        self.io(|memory| memory.write(0, &root.encode(self.layout)));
+    }
+
+    fn io<T>(&self, operation: impl FnOnce(&M) -> T) -> T {
+        #[cfg(not(target_arch = "wasm32"))]
+        let _guard = PanicPoison(&self.poisoned);
+        operation(&self.memory)
     }
 }
 
-#[cfg(test)]
-mod tests;
+#[cfg(not(target_arch = "wasm32"))]
+struct PanicPoison<'a>(&'a Cell<bool>);
+
+#[cfg(not(target_arch = "wasm32"))]
+impl Drop for PanicPoison<'_> {
+    fn drop(&mut self) {
+        if std::thread::panicking() {
+            self.0.set(true);
+        }
+    }
+}

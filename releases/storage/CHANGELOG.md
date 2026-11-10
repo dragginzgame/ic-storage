@@ -3,6 +3,95 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/persistence/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.73.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Replace the copied ordered engine and private codec/address helpers with an
+  independently implemented AVL engine shared by Map, Set and map regions.
+  STORMAP1 version 1 rejects previous collection images without writes; hosts
+  must explicitly reset/replace backing and update region framing admission.
+  Public successful-call APIs and governed leases remain unchanged.
+
+- Replace the adapted allocation backing with the independently implemented
+  STORNAM1 version-1 named backing. Every previous whole-store image is rejected
+  without writes: hosts must explicitly provide fresh/reset whole backing.
+  Governance and successful collection APIs remain; saved capacities cannot
+  expand on reopen. Default control reservation rises from 15 to 18 Wasm pages.
+- Independently implement the public Memory interface, native backing and IC IO.
+  Raw reads initialize caller-owned bytes; custom backings receive a bounded
+  initialized-scratch fallback. Native partial-page tails remain inaccessible
+  and positive growth of such a malformed backing is refused unchanged.
+
+- Replace the copied Vector engine with an independently implemented bounded-slot
+  vector using STORVECT version 1. Previous Vector images are rejected; hosts
+  must explicitly provide fresh/reset backing. Length is cached under the
+  exclusive lease, with health checks and no record scan during admission.
+
+- Replace the copied Cell engine and envelope with a separately implemented Cell
+  using the new STORCELL format. Previous Storage and ICSS Cell images are
+  rejected without writes. Hosts must explicitly provide fresh/reset backing;
+  no automatic reset or migration reader is included. Governed leases, cached
+  reads, codec bounds and native failure poisoning remain enforced.
+
+
+### ⚡ Performance and known limits
+
+- The matched all-collection application is 14,936 raw Wasm bytes smaller, but
+  large-population reads/scans and small-record capacity regress. At 4,096
+  uniform u64 records, Map Get×32 rises from 934,522 to 1,145,264 instructions
+  and Scan×32 from 326,047 to 773,764. These tradeoffs remain in this release;
+  see [the detailed notes](0.73.md) for scope and the ICSS comparison.
+
+### 🔧 Changed
+
+- Adopt Toko Tooling 0.39.7 in both workspaces. Retire managed shared reference
+  docs through the installer and use pinned upstream links. Group current Storage
+  guides by topic, preserving historical evidence paths, CI caching, release
+  commands, group selection and qualification gates.
+
+### 🧪 Testing
+
+- Add independent ordered-map model, range, alternating-iterator, codec, growth,
+  reuse and corruption tests. Compare Map, Set and region behavior on separate
+  Storage and ICSS images; verify incompatible upgrades preserve the previous
+  application. Retain matched application size and depth performance evidence.
+  Qualify all 565 selected catalogue cases across five collection forms, keeping
+  expected backend refusals separate from paired performance measurements.
+
+- Qualify the independent backing against byte models, interleaved growth,
+  refusal, read-only reopen, checksummed corruption and every interrupted
+  publication write. Add installed physical-memory range/overflow tests for
+  safe and raw reads and writes, including empty boundaries and rollback.
+  Verify incompatible whole-backing upgrade rejection preserves the old app.
+
+- Add independent Vector format, public model, selective-decoding, corruption,
+  extent, interrupted-IO and iterator-mutation coverage. Qualify old-image
+  upgrade rejection, fresh installation and rollback. Compare the full type
+  catalogue, populated/cold reads, bulk values and iterator boundaries with
+  external ICSS, keeping application size and full-handler counters separate.
+
+- Add public Cell acceptance coverage for growth/shrink, page boundaries, cold
+  reopen, read-only admission refusal, lease release and explicit reset isolation.
+  Count cached-read IO and codec calls; inject codec failures, growth refusal and
+  partial writes to verify admission and poisoned-owner boundaries.
+  Include frozen-old-image upgrade rejection and rollback, with fresh-install
+  qualification for the new Cell format.
+- Remove unused replacement-input iteration from matched Cell read/control
+  benchmarks. This avoids timing copies of empty `Option` values with large
+  inline payload capacity; both libraries use the corrected harness.
+- Extend the matched Map/region IO matrix with shrink-to-empty, absent reads,
+  deletion, repeated missing deletion and reinsertion, including edge-key and
+  sequential access. Compare Storage with published ICSS on both governed and
+  ICSS-managed backing, checking returned values and final contents.
+- Installed Map, Set and region traces now distinguish repeated deletion of
+  existing-tree holes from above-range misses, with strict phase admission and
+  final-state checks. Later phases retain mutation history to expose deferred
+  performance regressions.
+- Add bounded batched Map read diagnostics that retain expensive read addresses,
+  complete read call/byte totals and timed allocator counters without a heap
+  trace buffer. Incomplete or overflowing diagnostics refuse comparison.
+
 ## [0.72.0] - 2026-11-10
 
 ### ⚠️ Breaking
@@ -85,7 +174,7 @@ retains its original package and release identities.
   explicit roots and adopt the scoped latest-stable dependency policy. The new
   Wire benchmark oracle exception does not broaden Storage’s Candid permissions.
   Product APIs and release requirements are
-  unchanged. [Adoption guide](../../docs/shared-tooling-adoption.md#current-cargo-owned-0375-selection).
+  unchanged. [Adoption guide](../../docs/adoption/storage-tooling.md#current-cargo-owned-0375-selection).
 
 ## [0.71.0] - 2026-11-09
 
@@ -463,7 +552,7 @@ retains its original package and release identities.
   rustdoc and Wasm compilation to the admitted adapter in CI and release plans.
   Preserve full checks for core/shared/unknown changes and non-docs pushes, plus
   workspace archives, runtime qualification and native evidence obligations.
-  [Selection and validation](../../docs/storage-release-validation.md).
+  [Selection and validation](../../docs/validation/storage-release-validation.md).
 
 ### 🧪 Testing
 

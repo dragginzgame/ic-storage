@@ -9,7 +9,7 @@ pass for original Wasm; [the installed qualification record](runtime-io-qualific
 binds the exact working-tree source, incoming lock, tools and retained logs.
 Earlier measurements and installed checks below retain their original sources
 and byte formats. They do not qualify the Wire cut. No CBOR reader or automatic
-reset is added; the [current contract](current-ledger.md) owns retained-data
+reset is added; the [current contract](design/current-ledger.md) owns retained-data
 obligations. Optimized variants, macOS and full release checks were not rerun.
 
 ## Earlier qualification history

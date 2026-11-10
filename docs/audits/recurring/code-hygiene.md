@@ -1,8 +1,9 @@
 # IC Storage code hygiene overlay
 
-Use the unchanged [shared code hygiene method](../../../audits/code-hygiene.md)
-and [audit contract](../../../audits/README.md), whose exact Shared Tooling
-identity is recorded in [the snapshot](../../../.shared-tooling.snapshot).
+Use the unchanged [shared code hygiene method](https://github.com/dragginzgame/toko-tooling/blob/12459b6029115b830b8477879d3bea2f030b6e63/audits/code-hygiene.md)
+and [audit contract](https://github.com/dragginzgame/toko-tooling/blob/12459b6029115b830b8477879d3bea2f030b6e63/audits/README.md)
+at those pinned upstream revisions. [The snapshot](../../../.toko-tooling.snapshot)
+records the installed baseline and executables, not reference documents.
 The shared method owns generic
 questions, severity, verdicts, evidence and repair authority. This overlay owns
 the crate-specific obligations below. An audit does not authorize fixes.
@@ -10,7 +11,7 @@ the crate-specific obligations below. An audit does not authorize fixes.
 ## Product authorities and traces
 
 - Current [safety contract](../../../SAFETY.md), [advanced API](../../../ADVANCED.md),
-  [current ledger](../../current-ledger.md) and [operations](../../operations.md).
+  [current ledger](../../design/current-ledger.md) and [operations](../../operations/operations.md).
   Review current contracts; historical reports do not establish present behavior.
 - Public API roots: [library exports](../../../crates/ic-storage/src/lib.rs),
   [runtime and allocation handles](../../../crates/ic-storage/src/runtime/mod.rs),
@@ -59,7 +60,7 @@ the crate-specific obligations below. An audit does not authorize fixes.
 ## Focused evidence
 
 Inspect the selected owners under `crates/ic-storage/src`, `crates/ic-storage/tests`,
-`crates/ic-storage/examples`, and `testing/runtime-qualification`, plus relevant
+`crates/ic-storage/examples`, and `qualification`, plus relevant
 Make/CI and maintained guides. Trace declared requests through admitted snapshots,
 explicit host composition, examples and compile-fail consumers. Governed Metrics
 and Logging checkpoints live in their respective `crates/ic-*-storage/` packages;
@@ -88,7 +89,7 @@ for focused runtime checks and full qualification.
   Explicit child-tool TMPDIR/alias probes and caller-selected evidence paths must
   retain their intended boundary tests; historical artifacts are not cleanup work.
 - Check active builds before compilation or edits. Select focused checks for repairs
-  under the [shared validation cadence](../../../DRAGGINZGAME.md#validation-and-evidence).
+  under the [shared validation cadence](../../../TOKO-TOOLING.md#validation-and-evidence).
   Full `make validate` and release/group gates retain separate authorization;
   ordinary implementation ends after relevant focused checks pass. Rust 1.99.1
   is both the support floor and pinned development/release compiler. Admit actual

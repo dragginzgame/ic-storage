@@ -68,7 +68,7 @@ impl<K: Storable + Ord + Clone, M: Memory> StableBTreeSet<K, M> {
     }
     /// Perform `iter` on the governed ordered set.
     #[must_use]
-    pub fn iter(&self) -> SetIter<'_, K, M> {
+    pub const fn iter(&self) -> SetIter<'_, K, M> {
         SetIter(self.inner.iter())
     }
 }

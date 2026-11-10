@@ -1,46 +1,6 @@
-//! Private codec and memory views for the copied collection engines.
-use super::Storable;
+//! Private governed memory views for the independent ordered engine.
 use super::region::RegionMemory;
-use crate::{Memory, RuntimeMemory, engine};
-use std::borrow::Cow;
-
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
-#[repr(transparent)]
-pub(super) struct Codec<T>(pub T);
-impl<T> Codec<T> {
-    #[expect(
-        unsafe_code,
-        reason = "Transparent immutable codec view preserves key identity without a clone"
-    )]
-    pub(super) const fn borrowed(value: &T) -> &Self {
-        // SAFETY: repr(transparent) gives identical layout/alignment and the
-        // wrapper adds no invariant. This shared view has the input lifetime.
-        unsafe { &*std::ptr::from_ref(value).cast::<Self>() }
-    }
-}
-impl<T: Storable> engine::Storable for Codec<T> {
-    const BOUND: crate::storable::Bound = T::BOUND;
-    fn to_bytes(&self) -> Cow<'_, [u8]> {
-        let bytes = self.0.to_bytes().expect("collection encoding failed");
-        T::BOUND
-            .check(&bytes)
-            .expect("collection encoding exceeds codec bounds");
-        bytes
-    }
-    fn into_bytes(self) -> Vec<u8> {
-        let bytes = self.0.into_bytes().expect("collection encoding failed");
-        T::BOUND
-            .check(&bytes)
-            .expect("collection encoding exceeds codec bounds");
-        bytes
-    }
-    fn from_bytes(bytes: Cow<'_, [u8]>) -> Self {
-        T::BOUND
-            .check(&bytes)
-            .expect("stored collection value exceeds codec bounds");
-        Self(T::from_bytes(bytes).expect("stored collection value failed to decode"))
-    }
-}
+use crate::{Memory, RuntimeMemory, ordered_map};
 
 // One memory type gives ordinary maps and bounded regions the same tree
 // specialization. Ordinary maps own their lease; operation-local region trees
@@ -97,7 +57,7 @@ impl<M: Memory> Memory for TreeMemory<M> {
         }
     }
 }
-pub(super) type Map<K, V, M> = engine::BTreeMap<Codec<K>, Codec<V>, TreeMemory<M>>;
+pub(super) type Map<K, V, M> = ordered_map::OrderedMap<K, V, TreeMemory<M>>;
 
 pub(super) fn reserve<M: Memory>(memory: &M) -> super::error::Result<()> {
     if memory.size() == 0 && memory.grow(1) == -1 {

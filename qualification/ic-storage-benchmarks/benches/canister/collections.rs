@@ -296,18 +296,19 @@ impl<V: BenchValue + Storable> Benchmark for TypedCell<V> {
     fn run(&mut self, r: Request) -> Response {
         assert_eq!(r.case, self.case);
         let cell = self.cell.as_mut().unwrap();
-        let inputs: Vec<_> = (0..r.count)
-            .map(|_| {
-                if replacement(r.operation) {
-                    Some(V::make(0, payload_for(r), true))
-                } else {
-                    None
-                }
-            })
-            .collect();
+        // Read phases have no replacement input. Iterating over Option<V> here
+        // can copy the full inline V even for None, obscuring cached-read costs.
+        let inputs: Vec<_> = if replacement(r.operation) {
+            (0..r.count)
+                .map(|_| V::make(0, payload_for(r), true))
+                .collect()
+        } else {
+            Vec::new()
+        };
+        let mut inputs = inputs.into_iter();
         let mut entries = Vec::with_capacity(r.count as usize);
         let start = ic0::performance_counter(0);
-        for value in inputs {
+        for _ in 0..r.count {
             let result = match r.operation {
                 Operation::Control => {
                     std::hint::black_box(cell.get());
@@ -315,7 +316,7 @@ impl<V: BenchValue + Storable> Benchmark for TypedCell<V> {
                 }
                 Operation::Get => Some(cell.get().clone()),
                 Operation::Replace | Operation::Grow | Operation::Shrink => {
-                    Some(cell.set(value.unwrap()))
+                    Some(cell.set(inputs.next().unwrap()))
                 }
                 _ => unreachable!(),
             };

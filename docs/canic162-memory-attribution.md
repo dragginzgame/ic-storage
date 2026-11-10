@@ -16,7 +16,7 @@ remains separate from this fixture evidence.
 
 This is historical API and adoption evidence. Memory 0.42 removes the always-null
 `payload_bytes` report field; integrations upgrading to that contract must remove
-the projection. Current report guidance is in [Operations and diagnostics](operations.md).
+the projection. Current report guidance is in [Operations and diagnostics](operations/operations.md).
 
 ## Supported API and accounting
 

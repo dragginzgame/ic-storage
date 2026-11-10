@@ -1,5 +1,43 @@
 //! Public collection histories, independent of engine-private layouts.
 use super::*;
+
+#[test]
+fn wide_key_search_handles_node_occupancy_edges_and_missing_insertion_points() {
+    fn key(id: u64) -> [u8; 32] {
+        let mut bytes = [0; 32];
+        bytes[..8].copy_from_slice(&id.to_be_bytes());
+        bytes
+    }
+    for population in 0..=24 {
+        let backing = VectorMemory::default();
+        let host = runtime(backing.clone());
+        let binding = crate::StableKey::parse("test.map.v1").unwrap();
+        let mut map =
+            StableBTreeMap::<[u8; 32], u64>::create(host.open_memory(&binding).unwrap()).unwrap();
+        let mut model = std::collections::BTreeMap::new();
+        for id in (0..population).rev() {
+            assert_eq!(map.insert(key(id * 2), id), model.insert(key(id * 2), id));
+        }
+        drop(map);
+        drop(host);
+        let host = runtime(backing);
+        let mut map =
+            StableBTreeMap::<[u8; 32], u64>::load(host.open_memory(&binding).unwrap()).unwrap();
+        for id in 0..=population * 2 + 1 {
+            assert_eq!(map.get(&key(id)), model.get(&key(id)).copied());
+            assert_eq!(
+                map.insert(key(id), id + 100),
+                model.insert(key(id), id + 100)
+            );
+        }
+        for id in (0..=population * 2 + 1).rev() {
+            assert_eq!(map.remove(&key(id)), model.remove(&key(id)));
+            assert_eq!(map.get(&key(id)), None);
+        }
+        assert!(map.is_empty());
+    }
+}
+
 #[test]
 fn vector_model_mixed_updates_reopen_and_bidirectional_iteration() {
     let backing = VectorMemory::default();
@@ -207,9 +245,10 @@ fn collection_bounds_cannot_be_bypassed_by_overridden_codec_helpers() {
         UNCHECKED_DECODES.with(|calls| calls.set(0));
         assert!(
             std::panic::catch_unwind(|| {
-                <bridge::Codec<UncheckedHelpers> as crate::engine::Storable>::from_bytes(
-                    std::borrow::Cow::Owned(vec![9; len]),
-                )
+                crate::ordered_map::decode::<UncheckedHelpers>(std::borrow::Cow::Owned(vec![
+                    9;
+                    len
+                ]))
             })
             .is_err()
         );

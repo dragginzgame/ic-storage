@@ -1,33 +1,17 @@
 # Repository Instructions
 
-For scope, delegated delivery, validation, compiler support and reporting, use
-[the reviewed local baseline](TOKO-TOOLING.md) and its linked rules. Each maintained workspace root selects exact crates.io `toko-tooling` in its
-dependency catalog; normal Cargo.lock records its
-authenticated archive identity and [.toko-tooling.snapshot](.toko-tooling.snapshot)
-records the authenticated package checksum and installed payload. Rust 1.99.1
-remains the minimum and pinned development/release compiler. Product-specific
-safeguards and scoped permissions below remain binding.
+Apply the installed [Toko Tooling baseline](TOKO-TOOLING.md) and its
+revision-bound references. [.toko-tooling.snapshot](.toko-tooling.snapshot)
+records the adopted payload; do not edit it or follow a moving sibling baseline.
+This overlay owns product safeguards, local commands and approved exceptions.
+The baseline owns common action authority, validation, compiler and reporting rules,
+including scoped `git add -N` when validation requires new task-owned paths.
 
-## Active shared rules and local overlay
-
-Apply the reviewed local [Toko Tooling baseline](TOKO-TOOLING.md) and its
-linked rules. [.toko-tooling.snapshot](.toko-tooling.snapshot) owns the exact
-policy and executable revision. The maintainer-approved cleanup retires live
-inheritance from the sibling checkout; uncommitted upstream rules do not apply
-until reviewed adoption. Other repositories remain read-only unless explicitly
-authorized under the shared contribution rules.
-
-Before changing tooling, formatting, release adapters or retention, read
-[the local adoption boundaries](docs/shared-tooling-adoption.md). Never patch
-vendored files or attribute dirty shared source to a registry installation.
-Every real package inherits `toko-tooling.workspace = true` in unconditional
-`[dev-dependencies]` and records its cargo-machete exemption. Both maintained
-workspace roots pin `=0.38.2`; no selection-only package or artificial Rust import
-is needed. After changing the exact pins, resolve each normal Cargo.lock with
-Cargo, then run `make toko-tooling-update`. Use `make toko-tooling-install`
-to reinstall the existing Cargo selection. Commit declarations, Cargo lockfiles
-and snapshot receipt together. Custom deployment targets must run
-`toko-tooling-check` before effects. The three public package gates remain unchanged.
+Before tooling, formatting, release-adapter or retention changes, read
+[the local adoption boundaries](docs/adoption/storage-tooling.md). Both workspace
+catalogs and locks must select the same tooling release and snapshot. Custom
+deployment targets must run `toko-tooling-check` before effects; the three public
+package gates remain unchanged.
 
 The virtual repository-root workspace owns shared package metadata and the
 dependency catalog. The library packages are `crates/ic-storage/`, `crates/ic-metrics-storage/` and
@@ -50,17 +34,17 @@ READMEs live under their packages.
 The repository is IC Storage; Storage and the two storage adapters are the
 maintained packages. Renamed adapter identities require separate publication.
 The former Memory package is retired.
-Follow the [workspace layout rules](rules/rust-workspaces.md).
+Follow the [workspace layout rules](https://github.com/dragginzgame/toko-tooling/blob/12459b6029115b830b8477879d3bea2f030b6e63/rules/rust-workspaces.md).
 
 The current hard cut uses Storage-owned memory, codecs, named directory and
 collection engines. Previous manager/ledger, snapshot-directory and collection images are retired.
 No legacy decoder or automatic reset is allowed. Hosts own fresh/reset whole
 backing and current application framing admission. See [the current allocation
-contract](docs/current-ledger.md). IDs are opaque u64 values; host policy uses
+contract](docs/design/current-ledger.md). IDs are opaque u64 values; host policy uses
 namespace grants and configured resource limits, without numeric slot pools.
 
 Product contracts and numeric limits remain owned by this crate. Host support
-and prerequisites are declared in [docs/host-support.md](docs/host-support.md).
+and prerequisites are declared in [host support](docs/operations/host-support.md).
 
 ## Stable-memory governance
 
@@ -71,7 +55,7 @@ or access unmanaged stable memory. Host backing setup and this crate's internal
 directory implementation remain their explicit infrastructure boundary.
 Generic storage engines and upstream collections preserve this guarantee only
 when their production integrations use checked runtime handles. See the
-[shared policy note](docs/shared-tooling-adoption.md#stable-memory-governance-policy)
+[shared policy note](docs/adoption/storage-tooling.md#stable-memory-governance-policy)
 for the upstream contribution and the `ic-storage` package integration boundary.
 
 ## Development and qualification commands
@@ -94,7 +78,7 @@ for the upstream contribution and the `ic-storage` package integration boundary.
   installed server; `make test-runtime` qualifies installed IO, upgrade and
   rollback with explicitly prepared tools and both caches.
 - Full repository suite: `make validate`; releases use the qualified
-  [group validation mapping](docs/storage-release-validation.md) and require every
+  [group validation mapping](docs/validation/storage-release-validation.md) and require every
   applicable stage, under the shared
   [validation cadence](TOKO-TOOLING.md#validation-and-evidence).
   Development packaging qualifies working-tree edits; release
@@ -117,12 +101,12 @@ for the upstream contribution and the `ic-storage` package integration boundary.
 
 ## Formatting and Git hooks
 
-Follow the reviewed [Git hook rules](rules/git-hooks.md).
+Follow the reviewed [Git hook rules](https://github.com/dragginzgame/toko-tooling/blob/12459b6029115b830b8477879d3bea2f030b6e63/rules/git-hooks.md).
 The reviewed hook and installer are vendored unchanged. `make fmt` and
 `make fmt-check` cover the library, `qualification` and the
 standalone `testing/package-consumer.rs` source,
 using the [selected catalog](ci/tool-versions.env) before the pinned Rust formatter.
-Setup is explicit in [docs/host-support.md](docs/host-support.md); formatting never installs tools,
+Setup is explicit in [host support](docs/operations/host-support.md); formatting never installs tools,
 builds, fetches dependencies or changes selected lockfiles. The shared formatter
 prerequisite checker owns exact cargo-sort and rustfmt admission; this consumer
 owns the selected pin and toolchain. The Makefile's declarative `FORMAT_RUST_ARGS`
@@ -139,7 +123,7 @@ aliases work without a consumer setup adapter.
 
 ## Release recovery policy
 
-Read the reviewed [release contract](docs/releases.md).
+Read the reviewed [release contract](https://github.com/dragginzgame/toko-tooling/blob/12459b6029115b830b8477879d3bea2f030b6e63/docs/releases/releases.md).
 The common vendored runner owns release ordering, locks, saved intent and Git
 effects; Rust consumer adapters own metadata and qualification receipts. See
 [RELEASING.md](RELEASING.md) for actual commands and evidence. Qualify canonical
@@ -150,9 +134,9 @@ to prove adoption.
 
 ## Contributions, compatibility and changelogs
 
-Follow the reviewed shared [contribution rules](rules/contributions.md),
+Follow the reviewed shared [contribution rules](https://github.com/dragginzgame/toko-tooling/blob/12459b6029115b830b8477879d3bea2f030b6e63/rules/contributions.md),
 [hard-cut baseline](TOKO-TOOLING.md#pre-10-contracts) and
-[changelog rules](rules/changelogs.md). Storage configures direct release delivery
+[changelog rules](https://github.com/dragginzgame/toko-tooling/blob/12459b6029115b830b8477879d3bea2f030b6e63/rules/changelogs.md). Storage configures direct release delivery
 under Shared's delegated-delivery contract. An ordinary PR does not select PR
 release delivery; checkout locations follow Shared's durable-work contract.
 
@@ -173,9 +157,19 @@ graph. Size probes live under package `tests/fixtures/`, benchmark helpers under
 `benches/`, and the native release helper under `tools/`.
 Installed qualification retains its explicit server and Wasm
 requirements. This does not authorize other nested workspaces. Follow
-[the adoption boundary](docs/shared-tooling-adoption.md) when changing its setup.
+[the adoption boundary](docs/adoption/storage-tooling.md) when changing its setup.
 
 ## Dependency exceptions
+
+The maintainer authorized independent replacement of maintained DFINITY-derived
+production code on 2026-11-10. Cell, Vector, Memory, named backing and the ordered
+engine have been implemented through restricted handoffs; the copied engine and
+private helpers are deleted. ICSS remains only an external benchmark/test reference.
+Follow the [replacement records](docs/design/independent-storage-replacement.md)
+and [ordered-map contract](docs/design/ordered-map-replacement.md).
+Both workspace catalogs select the repository-root canonical licence through
+`license-file`; every real package inherits it. Qualification, performance and
+release readiness remain separate from source replacement.
 
 Registry requirements remain compatible ranges. Storage uses IC Platform Runtime's
 owned stable-memory API for Wasm backing IO. Native production has no
@@ -183,17 +177,15 @@ Platform/Runtime, runtime-guard or Types dependency. Wasm selects only `ic0` fro
 published Runtime 0.21 for safe stable64 IO; it must not activate runtime,
 executor, CDK, guard, Types or Candid. No `ic-stable-structures` dependency is
 allowed in the production graph. Memory, codec traits, allocation metadata and
-collection integration are owned here. The maintainer selected copied ICSS 0.7.2
-engines under private `src/engine`; retain provenance and notices. The public
-`adapter` layer preserves governed leases with ICSS trap behavior. Ordinary
-collection operations and iterator items return successful values directly;
-constructors and map-region admission retain typed errors. The maintainer authorized the ICSS-derived bucket backing hard cut on 2026-11-09.
-The private backing adapts published 0.7.2 allocation/translation code to named
-u64 identities, eight-page buckets and Storage custody. Snapshot-directory images
-are rejected without reset. No retired image readers are admitted.
-Changes require appropriate native corruption, growth, custody and installed
-IO/upgrade qualification. Do not restore old manager
-or collection compatibility paths during the rewrite.
+collection integration are owned here. The ordered engine is private under `src/ordered_map`; Map, Set and regions
+share STORMAP1 version 1. Cell admits only STORCELL version 1 and Vector only
+STORVECT version 1. The named backing admits only STORNAM1 version 1, with opaque
+u64 identities, eight-page units and Storage custody. Earlier images require
+explicit fresh/reset backing; no compatibility reader or automatic reset is allowed.
+Constructors and region admission retain typed errors; ordinary collection
+operations return successful values directly and codec/engine failures trap.
+Changes require native corruption, growth, custody and installed IO/upgrade
+qualification. Keep the single owned engine and direct public codec integration.
 
 The independent qualification workspace consumes Testkit 0.95's maintained
 async native client, with caller-owned Tokio execution, explicit request budgets
@@ -206,32 +198,10 @@ features and toolchains unchanged during pinning-only adoption.
 
 ## Rust Item Documentation Style
 
-For public structs, traits, and enums, prefer a wrapped rustdoc block with the
-item name as a short heading, a blank rustdoc line before and after the heading,
-and a blank source line before attributes:
-
-```rust
-///
-/// SchemaMetadata
-///
-/// Optional diagnostic metadata for an in-place store schema.
-///
-/// This metadata helps humans and frameworks diagnose which schema version was
-/// declared in each generation. It is bounded and validated for durable ledger
-/// encoding, but it does not perform application schema migrations or validate
-/// stable data semantics.
-///
-
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct SchemaMetadata {
-    /// Optional in-place schema version.
-    pub schema_version: Option<u32>,
-}
-```
-
-Keep this shape for new or edited item-level docs unless local context clearly
-requires a different style.
+For public structs, traits and enums, use a wrapped rustdoc block: item name as
+heading, blank rustdoc lines around it, a concise description, and a blank source
+line before attributes. Retain this local style unless context requires otherwise.
+See [Rust code hygiene](https://github.com/dragginzgame/toko-tooling/blob/12459b6029115b830b8477879d3bea2f030b6e63/docs/principles/rust-code-hygiene.md) for shared conventions.
 
 ## Independent release identities
 
@@ -261,6 +231,6 @@ Consumers import runtime, leases and keys from `ic_storage`; no `ic-memory`
 package, re-export crate or dependency remains. The named directory replaces the fixed-slot manager and ledger by explicit
 hard cut. Production runtime interfaces use StorageConfig, AllocationGrants and
 opaque AllocationId values. The supported collections are Cell, Map, Set, Vector
-and map regions. Copied ICSS 0.7.2 engines are private behind governed adapters;
+and map regions. All collections use independently implemented engines behind governed adapters;
 no production upstream dependency or compatibility decoder is admitted.
 Qualification and publication state belong to the current handoff.

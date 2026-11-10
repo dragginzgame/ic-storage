@@ -1,4 +1,4 @@
-//! Cross-read actual collection images with the published ICSS reference.
+//! Compare independent images and refuse external ICSS formats without writes.
 use ic_stable_structures as icss;
 use ic_storage::{
     Memory, RuntimeMemory, StableKey, StorageConfig,
@@ -62,139 +62,120 @@ fn memory(
         .unwrap()
 }
 #[test]
-fn map_images_cross_read_after_splits_overflows_and_removals() {
-    let runtime = runtime();
-    let mut map = StableBTreeMap::<u64, Vec<u8>>::create(memory(&runtime)).unwrap();
+fn separate_map_images_match_the_same_mutation_history() {
+    let owned_host = runtime();
+    let reference_host = runtime();
+    let mut map = StableBTreeMap::<u64, Vec<u8>>::create(memory(&owned_host)).unwrap();
+    let mut stock = icss::BTreeMap::<Reference<u64>, Reference<Vec<u8>>, _>::new(Checked(memory(
+        &reference_host,
+    )));
     let mut model = BTreeMap::new();
-    for key in (0u64..300).rev() {
-        let bytes = vec![
+    for key in (0_u64..300).rev() {
+        let value = vec![
             key.to_le_bytes()[0];
             [0, 31, 256, 4096, 65536][usize::try_from(key % 5).unwrap()]
         ];
-        map.insert(key, bytes.clone());
-        model.insert(key, bytes);
+        assert_eq!(
+            map.insert(key, value.clone()),
+            stock
+                .insert(Reference(key), Reference(value.clone()))
+                .map(|v| v.0)
+        );
+        model.insert(key, value);
     }
-    // Replace values throughout the populated tree, including internal entries
-    // and records spanning overflow pages, before admitting the same image in ICSS.
-    for (&key, value) in &mut model {
-        let replacement = vec![key.to_le_bytes()[0].wrapping_add(1); value.len()];
-        assert_eq!(map.insert(key, replacement.clone()).as_ref(), Some(&*value));
-        *value = replacement;
-    }
-    // Shrink, regrow and reuse overflow chains before cross-reading every
-    // intermediate image with ICSS's independent chain walker.
-    for size in [0, 65536, 31, 4096] {
+    for size in [0, 65537, 31, 4096] {
         for key in (0..300).step_by(13) {
-            let replacement = vec![0xa5; size];
+            let value = vec![0xa5; size];
+            let expected = model.insert(key, value.clone());
+            assert_eq!(map.insert(key, value.clone()), expected);
             assert_eq!(
-                map.insert(key, replacement.clone()),
-                model.insert(key, replacement)
+                stock.insert(Reference(key), Reference(value)).map(|v| v.0),
+                expected
             );
         }
         drop(map);
-        let stock = icss::BTreeMap::<Reference<u64>, Reference<Vec<u8>>, _>::load(Checked(memory(
-            &runtime,
-        )));
+        map = StableBTreeMap::<u64, Vec<u8>>::load(memory(&owned_host)).unwrap();
         for (&key, value) in &model {
+            assert_eq!(map.get(&key).as_ref(), Some(value));
             assert_eq!(
                 stock.get(&Reference(key)).map(|v| v.0).as_ref(),
                 Some(value)
             );
         }
-        drop(stock);
-        map = StableBTreeMap::<u64, Vec<u8>>::load(memory(&runtime)).unwrap();
-    }
-    drop(map);
-    let mut stock =
-        icss::BTreeMap::<Reference<u64>, Reference<Vec<u8>>, _>::load(Checked(memory(&runtime)));
-    for (&k, v) in &model {
-        assert_eq!(stock.get(&Reference(k)).map(|v| v.0).as_ref(), Some(v));
     }
     for key in (0..300).step_by(3) {
-        assert_eq!(
-            stock.remove(&Reference(key)).map(|v| v.0),
-            model.remove(&key)
-        );
+        let expected = model.remove(&key);
+        assert_eq!(map.remove(&key), expected);
+        assert_eq!(stock.remove(&Reference(key)).map(|v| v.0), expected);
     }
-    stock.insert(Reference(500), Reference(vec![9; 65537]));
-    model.insert(500, vec![9; 65537]);
-    drop(stock);
-    let map = StableBTreeMap::<u64, Vec<u8>>::load(memory(&runtime)).unwrap();
+    let expected: Vec<_> = model.into_iter().collect();
     assert_eq!(
-        map.iter().map(|x| x.into_pair()).collect::<Vec<_>>(),
-        model.into_iter().collect::<Vec<_>>()
+        map.iter()
+            .map(|entry| entry.into_pair())
+            .collect::<Vec<_>>(),
+        expected
+    );
+    assert_eq!(
+        stock
+            .iter()
+            .map(|entry| {
+                let (k, v) = entry.into_pair();
+                (k.0, v.0)
+            })
+            .collect::<Vec<_>>(),
+        expected
     );
 }
-fn owned_key_image_history<K>(key: impl Fn(u32, usize) -> K)
+
+fn image(runtime: &ic_storage::MemoryRuntime<ic_storage::VectorMemory>) -> Vec<u8> {
+    let allocation = memory(runtime);
+    let mut bytes = vec![0; usize::try_from(allocation.size() * 65_536).unwrap()];
+    allocation.read(0, &mut bytes);
+    bytes
+}
+
+fn reject_ordered_reference<K>(key: impl Fn(u32, usize) -> K)
 where
     K: ic_storage::storable::Storable + Ord + Clone + std::fmt::Debug,
 {
     let runtime = runtime();
     let mut stock =
         icss::BTreeMap::<Reference<K>, Reference<u64>, _>::new(Checked(memory(&runtime)));
-    let mut model = BTreeMap::new();
-    // Both sides of eager loading, plus keys spanning multiple overflow pages.
+    let mut expected = BTreeMap::new();
     for id in (0..96).rev() {
-        let width = [4, 16, 17, 31, 4096, 65536][id as usize % 6];
-        let key = key(id, width);
+        let key = key(id, [4, 16, 17, 31, 4096, 65536][id as usize % 6]);
         stock.insert(Reference(key.clone()), Reference(u64::from(id)));
-        model.insert(key, u64::from(id));
+        expected.insert(key, u64::from(id));
     }
     drop(stock);
-    let mut map = StableBTreeMap::<K, u64>::load(memory(&runtime)).unwrap();
-    for (key, value) in &model {
-        assert_eq!(map.get(key), Some(*value));
-    }
-    let expected: Vec<_> = model
-        .iter()
-        .map(|(key, value)| (key.clone(), *value))
-        .collect();
-    {
-        let mut actual = map.iter();
-        let mut expected = expected.iter();
-        let mut forward = true;
-        loop {
-            let (a, b) = if forward {
-                (actual.next(), expected.next())
-            } else {
-                (actual.next_back(), expected.next_back())
-            };
-            assert_eq!(a.map(|entry| entry.into_pair()), b.cloned());
-            if b.is_none() {
-                break;
-            }
-            forward = !forward;
-        }
-    }
-    for (index, (key, _)) in expected.iter().enumerate() {
-        if index % 3 == 0 {
-            assert_eq!(map.remove(key), model.remove(key));
-        } else {
-            assert_eq!(
-                map.insert(key.clone(), 1000),
-                model.insert(key.clone(), 1000)
-            );
-        }
-    }
-    drop(map);
+    let before = image(&runtime);
+    assert!(StableBTreeMap::<K, u64>::load(memory(&runtime)).is_err());
+    assert_eq!(image(&runtime), before);
     let stock = icss::BTreeMap::<Reference<K>, Reference<u64>, _>::load(Checked(memory(&runtime)));
+    for (key, value) in &expected {
+        assert_eq!(
+            stock.get(&Reference(key.clone())).map(|v| v.0),
+            Some(*value)
+        );
+    }
+    drop(stock);
+    let mut map = StableBTreeMap::<K, u64>::reset(memory(&runtime)).unwrap();
+    for (key, value) in &expected {
+        map.insert(key.clone(), *value);
+    }
     assert_eq!(
-        stock
-            .iter()
-            .map(|entry| {
-                let (key, value) = entry.into_pair();
-                (key.0, value.0)
-            })
+        map.iter()
+            .map(|entry| entry.into_pair())
             .collect::<Vec<_>>(),
-        model.into_iter().collect::<Vec<_>>()
+        expected.into_iter().collect::<Vec<_>>()
     );
 }
 
 #[test]
-fn string_and_byte_keys_cross_read_overflows_and_mixed_end_iteration() {
-    let text = |id: u32, width: usize| format!("{id:04}{}", "x".repeat(width - 4));
-    owned_key_image_history(text);
-    owned_key_image_history(|id, width| text(id, width).into_bytes());
+fn reference_map_images_are_rejected_without_writes() {
+    reject_ordered_reference(|id, _| u64::from(id));
+    reject_ordered_reference(|id, width| format!("{id:04}{}", "x".repeat(width - 4)));
+    reject_ordered_reference(|id, width| format!("{id:04}{}", "x".repeat(width - 4)).into_bytes());
 }
 
 #[derive(Clone)]
@@ -227,101 +208,107 @@ impl icss::Storable for Bytes {
     }
 }
 #[test]
-fn variable_vector_images_cross_read_and_update() {
+fn variable_vector_rejects_reference_images_until_explicit_reset() {
     let runtime = runtime();
-    let vector = StableVec::<Bytes>::create(memory(&runtime)).unwrap();
+    let stock = icss::Vec::<Bytes, _>::init(Checked(memory(&runtime)));
     for index in 0..1024 {
-        vector.push(&Bytes(vec![
-            u8::try_from(index % 251).unwrap();
-            if index % 2 == 0 { 256 } else { 2048 }
-        ]));
+        stock.push(&Bytes(vec![u8::try_from(index % 251).unwrap(); 256]));
     }
-    drop(vector);
+    drop(stock);
+    assert!(StableVec::<Bytes>::load(memory(&runtime)).is_err());
     let stock = icss::Vec::<Bytes, _>::init(Checked(memory(&runtime)));
     assert_eq!(stock.len(), 1024);
-    assert_eq!(stock.get(1023).unwrap().0, vec![19; 2048]);
-    stock.set(0, &Bytes(vec![9; 4096]));
-    stock.push(&Bytes(vec![10; 32]));
+    assert_eq!(stock.get(1023).unwrap().0, vec![19; 256]);
     drop(stock);
-    let vector = StableVec::<Bytes>::load(memory(&runtime)).unwrap();
-    assert_eq!(vector.len(), 1025);
-    assert_eq!(vector.get(0).unwrap().0, vec![9; 4096]);
-    assert_eq!(vector.pop().unwrap().0, vec![10; 32]);
-}
-#[test]
-fn fixed_vector_images_cross_read_and_update() {
-    let runtime = runtime();
-    let vector = StableVec::<u64>::create(memory(&runtime)).unwrap();
-    for key in 0..129 {
-        vector.push(&key);
-    }
+    let vector = StableVec::<Bytes>::reset(memory(&runtime)).unwrap();
+    assert!(vector.is_empty());
+    vector.push(&Bytes(vec![9; 4096]));
     drop(vector);
+    let vector = StableVec::<Bytes>::load(memory(&runtime)).unwrap();
+    assert_eq!(vector.pop().unwrap().0, vec![9; 4096]);
+}
+#[test]
+fn fixed_vector_rejection_preserves_the_complete_reference_image() {
+    let runtime = runtime();
     let stock = icss::Vec::<Reference<u64>, _>::init(Checked(memory(&runtime)));
-    assert_eq!(stock.get(128).map(|v| v.0), Some(128));
-    stock.set(64, &Reference(u64::MAX));
-    drop(stock);
-    let vector = StableVec::<u64>::load(memory(&runtime)).unwrap();
-    assert_eq!(vector.get(64), Some(u64::MAX));
-}
-#[test]
-fn cell_images_cross_read_and_update() {
-    let runtime = runtime();
-    drop(StableCell::create(memory(&runtime), vec![7; 4096]).unwrap());
-    let mut stock = icss::Cell::<Vec<u8>, _>::init(Checked(memory(&runtime)), Vec::new());
-    assert_eq!(stock.get(), &vec![7; 4096]);
-    stock.set(vec![8; 65536]);
-    drop(stock);
-    let mut cell = StableCell::<Vec<u8>>::load(memory(&runtime), 65536).unwrap();
-    assert_eq!(cell.get(), &vec![8; 65536]);
-    assert_eq!(cell.set(vec![9; 65536]), vec![8; 65536]);
-    drop(cell);
-    let mut stock = icss::Cell::<Vec<u8>, _>::init(Checked(memory(&runtime)), Vec::new());
-    assert_eq!(stock.get(), &vec![9; 65536]);
-    stock.set(Vec::new());
-    drop(stock);
-    let mut cell = StableCell::<Vec<u8>>::load(memory(&runtime), 0).unwrap();
-    assert!(cell.set(Vec::new()).is_empty());
-    drop(cell);
-    let stock = icss::Cell::<Vec<u8>, _>::init(Checked(memory(&runtime)), vec![255]);
-    assert!(stock.get().is_empty());
-}
-#[test]
-fn set_images_cross_read_and_update() {
-    let runtime = runtime();
-    let mut set = StableBTreeSet::<u64>::create(memory(&runtime)).unwrap();
-    for key in (0..129).rev() {
-        set.insert(key);
+    for value in 0..129 {
+        stock.push(&Reference(value));
     }
-    drop(set);
-    let mut stock = icss::BTreeSet::<Reference<u64>, _>::init(Checked(memory(&runtime)));
-    assert!(stock.remove(&Reference(64)));
-    stock.insert(Reference(500));
     drop(stock);
+    let allocation = memory(&runtime);
+    let mut before = vec![0; usize::try_from(allocation.size() * 65_536).unwrap()];
+    allocation.read(0, &mut before);
+    assert!(StableVec::<u64>::load(allocation).is_err());
+    let allocation = memory(&runtime);
+    let mut after = vec![0; before.len()];
+    allocation.read(0, &mut after);
+    assert_eq!(after, before);
+    let vector = StableVec::<u64>::reset(allocation).unwrap();
+    vector.push(&u64::MAX);
+    drop(vector);
+    assert_eq!(
+        StableVec::<u64>::load(memory(&runtime)).unwrap().get(0),
+        Some(u64::MAX)
+    );
+}
+#[test]
+fn cell_rejects_reference_images_until_explicit_reset() {
+    for length in [0, 1, 4096, 65_536] {
+        let runtime = runtime();
+        drop(icss::Cell::new(
+            Checked(memory(&runtime)),
+            vec![7_u8; length],
+        ));
+        let allocation = memory(&runtime);
+        let mut before = vec![0; usize::try_from(allocation.size() * 65_536).unwrap()];
+        allocation.read(0, &mut before);
+        assert!(StableCell::<Vec<u8>>::load(allocation, usize::MAX).is_err());
+        let allocation = memory(&runtime);
+        let mut after = vec![0; before.len()];
+        allocation.read(0, &mut after);
+        assert_eq!(after, before, "rejected reference image changed");
+        drop(StableCell::reset(allocation, vec![9_u8; length]).unwrap());
+        let cell = StableCell::<Vec<u8>>::load(memory(&runtime), length).unwrap();
+        assert_eq!(cell.get(), &vec![9_u8; length]);
+    }
+}
+#[test]
+fn set_reference_images_require_explicit_reset() {
+    let runtime = runtime();
+    let mut stock = icss::BTreeSet::<Reference<u64>, _>::init(Checked(memory(&runtime)));
+    for key in (0..129).rev() {
+        stock.insert(Reference(key));
+    }
+    drop(stock);
+    let before = image(&runtime);
+    assert!(StableBTreeSet::<u64>::load(memory(&runtime)).is_err());
+    assert_eq!(image(&runtime), before);
+    let mut set = StableBTreeSet::<u64>::reset(memory(&runtime)).unwrap();
+    set.insert(500);
+    drop(set);
     let set = StableBTreeSet::<u64>::load(memory(&runtime)).unwrap();
     assert!(!set.contains(&64));
     assert!(set.contains(&500));
     assert_eq!(set.iter().next_back().unwrap(), 500);
 }
 #[test]
-fn governed_region_images_cross_read_and_update() {
+fn governed_region_rejects_reference_image_and_preserves_neighbor() {
     let runtime = runtime();
     let lease = Rc::new(memory(&runtime));
     lease.as_ref().grow(1).unwrap();
     lease.write(0, b"host frame");
-    let mut region =
-        ic_storage::adapter::BTreeMapRegion::<u64, u64>::new(Rc::clone(&lease), 1..129);
-    region.initialize().unwrap();
-    region.insert(7, 11).unwrap();
-    drop(region);
     let region = icss::RestrictedMemory::new(Checked(Rc::clone(&lease)), 1..129);
-    let mut stock = icss::BTreeMap::<Reference<u64>, Reference<u64>, _>::load(region);
-    assert_eq!(
-        stock.insert(Reference(7), Reference(12)).map(|v| v.0),
-        Some(11)
-    );
+    let mut stock = icss::BTreeMap::<Reference<u64>, Reference<u64>, _>::new(region);
+    assert_eq!(stock.insert(Reference(7), Reference(12)).map(|v| v.0), None);
     drop(stock);
     let region = ic_storage::adapter::BTreeMapRegion::<u64, u64>::new(Rc::clone(&lease), 1..129);
-    assert_eq!(region.get(&7).unwrap(), Some(12));
+    let mut before = vec![0; usize::try_from(lease.size() * 65_536).unwrap()];
+    lease.read(0, &mut before);
+    assert!(region.get(&7).is_err());
+    assert!(region.len().is_err());
+    let mut after = vec![0; before.len()];
+    lease.read(0, &mut after);
+    assert_eq!(after, before);
     let mut frame = [0; 10];
     lease.read(0, &mut frame);
     assert_eq!(&frame, b"host frame");
@@ -378,11 +365,12 @@ fn cell_resize_io_separates_engine_from_allocation_costs() {
             governed_counts.push(observed);
         }
         for (owned, reference) in governed_counts[0].iter().zip(&governed_counts[1]) {
-            // Storage combines ICSS's three framing writes into one. All
-            // allocation reads, byte totals and physical growth are identical.
-            let mut normalized = *reference;
-            normalized.writes -= 2;
-            assert_eq!(*owned, normalized);
+            // Different Cell envelopes need not have equal serialized bytes or
+            // write counts. Compare the shared allocation effects separately.
+            assert_eq!(
+                (owned.reads, owned.grows),
+                (reference.reads, reference.grows)
+            );
         }
 
         let backing = MeteredMemory::<ic_storage::VectorMemory>::default();

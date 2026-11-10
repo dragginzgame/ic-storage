@@ -8,7 +8,7 @@ exclude = ["qualification"]
 [workspace.package]
 edition = "2024"
 rust-version = "1.99.1"
-license = "MIT"
+license-file = "LICENSE.md"
 authors = ["borovan <84897664+borovan@users.noreply.github.com>"]
 description = "Durable stable-memory allocation governance for Internet Computer canisters"
 readme = "crates/ic-storage/README.md"
@@ -22,7 +22,7 @@ categories = ["wasm", "data-structures"]
 # storage
 # Changelog : releases/storage/CHANGELOG.md
 ic-storage = { path = "crates/ic-storage", version = "0.72.0" }
-toko-tooling = "=0.38.2"
+toko-tooling = "=0.39.7"
 
 # metrics-storage
 # Changelog : releases/metrics-storage/CHANGELOG.md

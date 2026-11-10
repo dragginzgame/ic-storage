@@ -1,7 +1,7 @@
 # Single-snapshot qualification for 0.39.0
 
 The implementation replaces the two-slot physical store with one checksummed
-current snapshot. The [current ledger contract](current-ledger.md) owns the
+current snapshot. The [current ledger contract](design/current-ledger.md) owns the
 format, recovery and retained-installation requirements. Historical 0.27.1
 prototype results are separate evidence and are not reused as these results.
 

@@ -4,9 +4,12 @@
 use strict;
 use warnings;
 my $mode = @ARGV == 3 ? pop(@ARGV) : '';
-$mode eq '' || $mode eq '--execution-only' or die "unknown mode: $mode\n";
+$mode eq '' || $mode eq '--execution-only' || $mode eq '--batch-reads'
+    or die "unknown mode: $mode\n";
 my $execution_only = $mode eq '--execution-only';
-@ARGV == 2 or die "usage: $0 input.wat output.wat [--execution-only]\n";
+my $batch_reads = $mode eq '--batch-reads';
+my $capacity = 160;
+@ARGV == 2 or die "usage: $0 input.wat output.wat [--execution-only|--batch-reads]\n";
 open my $input, '<', $ARGV[0] or die "$ARGV[0]: $!";
 my $wat = do { local $/; <$input> };
 close $input;
@@ -64,7 +67,11 @@ my $extra = ' (global $read_trace_count (mut i64) (i64.const 0))' . "\n";
 for my $name (qw(active counters malloc_calls malloc_cost free_calls free_cost)) {
     $extra .= " (global \$read_trace_$name (mut i64) (i64.const 0))\n";
 }
-for my $i (0..159) {
+if ($batch_reads) {
+    $extra .= " (global \$read_trace_total_calls (mut i64) (i64.const 0))\n"
+        . " (global \$read_trace_total_bytes (mut i64) (i64.const 0))\n";
+}
+for my $i (0..$capacity - 1) {
     for my $field (qw(dst src len cost)) {
         $extra .= " (global \$read_trace_${field}_$i (mut i64) (i64.const 0))\n";
     }
@@ -103,17 +110,24 @@ WAT
     $extra .= '(local.get $result)' if $kind eq 'malloc';
     $extra .= ")\n";
 }
+my $record_condition = $batch_reads ? '(i64.ge_u (local.get $cost) (i64.const 10000))' : '(i32.const 1)';
+my $totals = $batch_reads ? <<'WAT' : '';
+  (global.set $read_trace_total_calls (i64.add (global.get $read_trace_total_calls) (i64.const 1)))
+  (global.set $read_trace_total_bytes (i64.add (global.get $read_trace_total_bytes) (local.get $len)))
+WAT
 $extra .= <<"WAT";
  (func \$read_trace_read (param \$dst i64) (param \$src i64) (param \$len i64)
   (local \$start i64) (local \$cost i64)
   (local.set \$start (call $counter (i32.const 0)))
   (call $read (local.get \$dst) (local.get \$src) (local.get \$len))
   (local.set \$cost (i64.sub (call $counter (i32.const 0)) (local.get \$start)))
-  (if (i64.lt_u (global.get \$read_trace_count) (i64.const 160)) (then
+  $totals
+  (if $record_condition (then
+  (if (i64.lt_u (global.get \$read_trace_count) (i64.const $capacity)) (then
 WAT
-$extra .= save_tree(0, 160) . "))\n";
+$extra .= save_tree(0, $capacity) . "))\n";
 $extra .= <<'WAT';
-  (global.set $read_trace_count (i64.add (global.get $read_trace_count) (i64.const 1))))
+  (global.set $read_trace_count (i64.add (global.get $read_trace_count) (i64.const 1))))))
  (func $read_trace_run
   (global.set $read_trace_count (i64.const 0))
   (global.set $read_trace_active (i64.const 0))
@@ -129,7 +143,7 @@ WAT
 # Query-only writes below the idle stack pointer never commit to application heap.
 $extra .= " (i64.store (local.get \$scratch) (global.get \$read_trace_count))\n"
     . " (call $append (local.get \$scratch) (i32.const 8))\n";
-for my $i (0..159) {
+for my $i (0..$capacity - 1) {
     my $offset = 0;
     for my $field (qw(dst src len cost)) {
         $extra .= " (i64.store offset=$offset (local.get \$scratch) (global.get \$read_trace_${field}_$i))\n";
@@ -141,10 +155,19 @@ for my $name (qw(counters malloc_calls malloc_cost free_calls free_cost)) {
     $extra .= " (i64.store (local.get \$scratch) (global.get \$read_trace_$name))\n"
         . " (call $append (local.get \$scratch) (i32.const 8))\n";
 }
+if ($batch_reads) {
+    for my $name (qw(total_calls total_bytes)) {
+        $extra .= " (i64.store (local.get \$scratch) (global.get \$read_trace_$name))\n"
+            . " (call $append (local.get \$scratch) (i32.const 8))\n";
+    }
+    $extra =~ s/(\(func \$read_trace_run\n)/$1  (global.set \$read_trace_total_calls (i64.const 0))\n  (global.set \$read_trace_total_bytes (i64.const 0))\n/
+        or die "missing read trace reset\n";
+}
 $extra .= " (call $reply))\n"
     . ' (export "canister_query stable_read_trace" (func $read_trace_query))' . "\n";
 $wat =~ s/\)\s*\z/$extra)\n/ or die "missing module end\n";
 open my $output, '>', $ARGV[1] or die "$ARGV[1]: $!";
 print {$output} $wat;
 close $output or die "$ARGV[1]: $!";
-print "instrumented $calls stable-read call sites; 160 records, no added linear memory\n";
+my $scope = $batch_reads ? 'reads costing >=10000 plus total calls/bytes' : 'all reads';
+print "instrumented $calls stable-read call sites; $capacity records ($scope), no added linear memory\n";

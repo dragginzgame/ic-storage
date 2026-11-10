@@ -9,8 +9,8 @@ using ic-host-tools and Shared Tooling where they already own the contract.
 
 Shared source: clean committed 0.1.6 revision
 `a37771f1b6b5fc9a88ed6ab3b705bdda35cd8fa3`. Canonical refresh exported 44
-files from a frozen clone; [.shared-tooling.snapshot](../../../.shared-tooling.snapshot)
-records their exact hashes and modes. The sibling checkout was not modified.
+files from a frozen clone; the historical `.shared-tooling.snapshot`
+recorded their exact hashes and modes. The sibling checkout was not modified.
 During final inspection, new optional verification helpers and guide edits were
 uncommitted upstream. Their current adoption guidance was read; it explicitly
 requires a reviewed committed source before exporting those helpers. They are
@@ -18,8 +18,8 @@ not included or attributed to the recorded 0.1.6 revision.
 Host artifact dependency: registry `ic-host-tools 0.1.10`, not the sibling's
 uncommitted tooling/documentation changes. Rust pin/MSRV remain 1.99.0/1.88.0.
 
-Methods: [common contract](../../../audits/README.md),
-[code hygiene](../../../audits/code-hygiene.md) and
+Methods: [common contract](https://github.com/dragginzgame/toko-tooling/blob/12459b6029115b830b8477879d3bea2f030b6e63/audits/README.md),
+[code hygiene](https://github.com/dragginzgame/toko-tooling/blob/12459b6029115b830b8477879d3bea2f030b6e63/audits/code-hygiene.md) and
 [local overlay](code-hygiene.md). SHA-256 identities:
 
 | Definition | SHA-256 |

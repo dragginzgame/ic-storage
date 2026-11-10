@@ -5,7 +5,6 @@ use crate::{
 };
 use std::{cell::Cell, rc::Rc};
 
-mod cells;
 mod framing;
 mod improvements;
 mod iteration;
@@ -293,25 +292,6 @@ fn native_growth_trap_poisons_the_shared_allocation_owner() {
         ))
         .is_err()
     );
-    assert!(
-        runtime
-            .open_memory(&crate::StableKey::parse("test.set.v1").unwrap())
-            .is_err()
-    );
-}
-
-#[test]
-fn malformed_allocator_flag_traps_without_forming_an_invalid_rust_bool() {
-    let runtime = runtime(VectorMemory::default());
-    let key = crate::StableKey::parse("test.map.v1").unwrap();
-    drop(StableBTreeMap::<u64, u64>::create(runtime.open_memory(&key).unwrap()).unwrap());
-    let memory = runtime.open_memory(&key).unwrap();
-    // Current ICSS geometry: allocator at 52, its header is 48 bytes,
-    // and the first chunk's allocation flag follows its four-byte marker.
-    memory.write(104, &[2]);
-    drop(memory);
-    let mut map = StableBTreeMap::<u64, u64>::load(runtime.open_memory(&key).unwrap()).unwrap();
-    assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| map.insert(7, 11))).is_err());
     assert!(
         runtime
             .open_memory(&crate::StableKey::parse("test.set.v1").unwrap())

@@ -1,8 +1,9 @@
 # Named allocation and host integration
 
 A host constructs one `MemoryRuntime` over an identified `MemoryBacking`.
-`Memory` is Storage's owned four-method backing interface: `size`, `grow`, `read`
-and `write`. Growth appends zeroed Wasm pages or returns -1 without mutation.
+`Memory` is Storage's owned backing interface: `size`, `grow`, `read`,
+`write` and the initializing raw-read hook `read_unsafe`. The raw hook has a
+bounded initialized-scratch default; direct backings override it. Growth appends zeroed Wasm pages or returns -1 without mutation.
 `VectorMemory` is the native shared-byte backing. On Wasm, `DefaultMemoryImpl`
 uses IC Platform's owned stable-memory calls. No collection library or
 memory manager is imported through Platform.
@@ -69,19 +70,20 @@ controls. Counts are capacities, not a promise of live business payload size.
 The obsolete `wire` snapshot budget is removed.
 
 The image reserves fixed-width control tables from the creation-time count
-ceilings: a 64-byte root, 160 bytes per possible named allocation, and 16 bytes
+ceilings: a 96-byte root, 168 bytes per possible named allocation, and 24 bytes
 per possible bucket, rounded up to full pages. Default control reservation is
-15 pages (960 KiB), including the root page. Only active rows are read/written;
+18 pages (1,152 KiB), including the root page. Only active rows are read/written;
 unused capacity is not initialized by explicit writes. Reopening can impose
 smaller live-usage limits but cannot enlarge the saved table capacities. Select
 larger ceilings when creating a backing if needed; no numeric IDs are exposed.
 
-The `ICBUCK01` root records table capacities, live counts and generation.
+The `STORNAM1` version-1 root records table capacities, live counts and generation.
 Allocation rows contain names and logical page sizes. Physical bucket-owner rows
 reconstruct each allocation's ordered bucket vector on open. The root and rows
 have accidental-corruption checksums. The physical bucket addresses are derived
-from the tables' end and bucket index, as in ICSS's manager. Growth writes only
-new ownership rows, the affected size field and the root; it never serializes
+from the tables' end and physical unit index. Each ownership row binds its
+physical index, owner and logical index. Growth writes only new ownership rows,
+the affected allocation row and the root; it never serializes
 a directory snapshot or rereads all metadata. Binding writes only new name rows.
 
 Native publication marks the root interrupted before changing controls and writes
@@ -94,15 +96,13 @@ fallback to an older snapshot. A fully persisted final root can reopen after a
 native panic. On IC, execution rollback restores both memory and controls.
 
 Logical growth within a bucket updates size without growing physical memory.
-Bounds checks exclude unused bucket slack, including through the translation
-cache. Reads/writes split at bucket boundaries, coalescing adjacent requested physical
+Bounds checks exclude unused bucket slack. No translation cache is maintained. Reads/writes split at bucket boundaries, coalescing adjacent requested physical
 buckets into one IO call without scanning unrelated buckets. Buckets are never reclaimed or
 assigned to another allocation. Diagnostics count slack as unassigned capacity;
 it is reserved to its owner and becomes usable through later logical growth.
 
-This is a fresh-backing and public-configuration hard cut. Existing snapshot
-images are rejected without rewriting them. Hosts must explicitly reset/retire
-whole backing or use fresh backing, and remove `StorageConfig::wire` overrides.
-Collection images and successful collection APIs are otherwise unchanged, but
-old whole-store images are not attachable. Publication and sibling adoption are
+This is a fresh-backing format hard cut. All preceding whole-store images are
+rejected without rewriting them. Hosts must explicitly reset/retire whole backing
+or use fresh backing. Successful collection APIs remain unchanged; Cell and
+Vector also have independently selected current formats. Publication and sibling adoption are
 separate actions and have not been performed.
