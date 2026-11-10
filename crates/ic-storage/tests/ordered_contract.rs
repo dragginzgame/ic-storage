@@ -41,9 +41,9 @@ fn signed_key_model_survives_mutation_and_cold_reopen() {
         let runtime = host(backing.clone());
         let memory = runtime.open_memory(&key()).unwrap();
         let mut map = if epoch == 0 {
-            StableBTreeMap::<i64, Vec<u8>>::create(memory).unwrap()
+            StableBTreeMap::<i64, Vec<u8>, _>::create(memory).unwrap()
         } else {
-            StableBTreeMap::<i64, Vec<u8>>::load(memory).unwrap()
+            StableBTreeMap::<i64, Vec<u8>, _>::load(memory).unwrap()
         };
         for step in 0..1500 {
             random ^= random << 13;
@@ -72,7 +72,8 @@ fn signed_key_model_survives_mutation_and_cold_reopen() {
 #[test]
 fn range_cursors_match_model_when_alternating_ends_and_skipping() {
     let runtime = host(VectorMemory::default());
-    let mut map = StableBTreeMap::<i64, i64>::create(runtime.open_memory(&key()).unwrap()).unwrap();
+    let mut map =
+        StableBTreeMap::<i64, i64, _>::create(runtime.open_memory(&key()).unwrap()).unwrap();
     let model: BTreeMap<_, _> = (-140..140).map(|k| (k * 3, k * 7)).collect();
     for (&key, &value) in &model {
         map.insert(key, value);
@@ -143,7 +144,7 @@ impl Storable for Value {
 fn key_projection_and_owned_entries_do_not_decode_nonclone_values() {
     let runtime = host(VectorMemory::default());
     let mut map =
-        StableBTreeMap::<u64, Value>::create(runtime.open_memory(&key()).unwrap()).unwrap();
+        StableBTreeMap::<u64, Value, _>::create(runtime.open_memory(&key()).unwrap()).unwrap();
     for key in 0..300 {
         map.insert(key, Value(vec![42; 1024]));
     }
@@ -169,7 +170,8 @@ fn oversized_keys_values_and_churn_reuse_backing() {
     let backing = VectorMemory::default();
     let runtime = host(backing.clone());
     let mut map =
-        StableBTreeMap::<Vec<u8>, Vec<u8>>::create(runtime.open_memory(&key()).unwrap()).unwrap();
+        StableBTreeMap::<Vec<u8>, Vec<u8>, _>::create(runtime.open_memory(&key()).unwrap())
+            .unwrap();
     let key_bytes = |index: u8| vec![index; 70_001];
     for cycle in 0..4 {
         for index in 0..8_u8 {
@@ -201,7 +203,7 @@ fn oversized_keys_values_and_churn_reuse_backing() {
     drop(runtime);
     let runtime = host(backing);
     assert!(
-        StableBTreeMap::<Vec<u8>, Vec<u8>>::load(runtime.open_memory(&key()).unwrap())
+        StableBTreeMap::<Vec<u8>, Vec<u8>, _>::load(runtime.open_memory(&key()).unwrap())
             .unwrap()
             .is_empty()
     );
@@ -210,7 +212,7 @@ fn oversized_keys_values_and_churn_reuse_backing() {
 #[test]
 fn set_and_interleaved_region_views_keep_current_order() {
     let runtime = host(VectorMemory::default());
-    let mut set = StableBTreeSet::<i64>::create(
+    let mut set = StableBTreeSet::<i64, _>::create(
         runtime
             .open_memory(&StableKey::parse("ordered.set.v1").unwrap())
             .unwrap(),
@@ -229,10 +231,10 @@ fn set_and_interleaved_region_views_keep_current_order() {
         assert!(!set.remove(&value));
     }
     let memory = Rc::new(runtime.open_memory(&key()).unwrap());
-    let mut first = BTreeMapRegion::<u64, u64>::new(memory.clone(), 0..32);
+    let mut first = BTreeMapRegion::<u64, u64, _>::new(memory.clone(), 0..32);
     first.initialize().unwrap();
-    let mut alias = BTreeMapRegion::<u64, u64>::new(memory.clone(), 0..32);
-    let mut neighbor = BTreeMapRegion::<u64, u64>::new(memory, 32..64);
+    let mut alias = BTreeMapRegion::<u64, u64, _>::new(memory.clone(), 0..32);
+    let mut neighbor = BTreeMapRegion::<u64, u64, _>::new(memory, 32..64);
     neighbor.initialize().unwrap();
     for key in 0..128 {
         first.insert(key, key + 1).unwrap();
@@ -263,8 +265,8 @@ fn foreign_framing_refuses_without_repair_or_allocation_changes() {
     memory.write(0, &[0x5a; 1024]);
     drop(memory);
     let before = backing.borrow().clone();
-    assert!(StableBTreeMap::<u64, u64>::load(runtime.open_memory(&key()).unwrap()).is_err());
+    assert!(StableBTreeMap::<u64, u64, _>::load(runtime.open_memory(&key()).unwrap()).is_err());
     assert_eq!(*backing.borrow(), before);
-    let map = StableBTreeMap::<u64, u64>::reset(runtime.open_memory(&key()).unwrap()).unwrap();
+    let map = StableBTreeMap::<u64, u64, _>::reset(runtime.open_memory(&key()).unwrap()).unwrap();
     assert!(map.is_empty());
 }

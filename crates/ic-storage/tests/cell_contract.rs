@@ -485,11 +485,11 @@ fn refused_admission_preserves_bytes_and_releases_its_lease() {
     assert!(runtime.open_memory(&key).is_err());
     drop(cell);
     let before = backing.borrow().clone();
-    assert!(StableCell::<Vec<u8>>::load(runtime.open_memory(&key).unwrap(), 256).is_err());
+    assert!(StableCell::<Vec<u8>, _>::load(runtime.open_memory(&key).unwrap(), 256).is_err());
     assert_eq!(*backing.borrow(), before);
     assert!(StableCell::create(runtime.open_memory(&key).unwrap(), vec![0_u8]).is_err());
     assert_eq!(*backing.borrow(), before);
-    let cell = StableCell::<Vec<u8>>::load(runtime.open_memory(&key).unwrap(), 257).unwrap();
+    let cell = StableCell::<Vec<u8>, _>::load(runtime.open_memory(&key).unwrap(), 257).unwrap();
     assert_eq!(cell.get(), &vec![23; 257]);
 }
 
@@ -505,13 +505,13 @@ fn explicit_reset_does_not_change_a_neighboring_cell() {
     drop(runtime);
     let runtime = host(backing);
     assert_eq!(
-        *StableCell::<u64>::load(runtime.open_memory(&a).unwrap(), 8)
+        *StableCell::<u64, _>::load(runtime.open_memory(&a).unwrap(), 8)
             .unwrap()
             .get(),
         99
     );
     assert_eq!(
-        StableCell::<Vec<u8>>::load(runtime.open_memory(&b).unwrap(), 70_000)
+        StableCell::<Vec<u8>, _>::load(runtime.open_memory(&b).unwrap(), 70_000)
             .unwrap()
             .get(),
         &vec![91; 70_000]

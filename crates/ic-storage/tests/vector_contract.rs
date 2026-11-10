@@ -119,9 +119,9 @@ fn mixed_operations_match_vec_through_cold_reopen() {
     for generation in 0..5_u64 {
         let runtime = host(backing.clone());
         let vector = if generation == 0 {
-            StableVec::<u64>::create(runtime.open_memory(&key()).unwrap()).unwrap()
+            StableVec::<u64, _>::create(runtime.open_memory(&key()).unwrap()).unwrap()
         } else {
-            StableVec::<u64>::load(runtime.open_memory(&key()).unwrap()).unwrap()
+            StableVec::<u64, _>::load(runtime.open_memory(&key()).unwrap()).unwrap()
         };
         for step in 0..131_u64 {
             let value = generation * 1000 + step;
@@ -152,7 +152,7 @@ fn widths<const MAX: u32, const FIXED: bool>() {
     let backing = VectorMemory::default();
     let runtime = host(backing.clone());
     let vector =
-        StableVec::<Record<MAX, FIXED>>::create(runtime.open_memory(&key()).unwrap()).unwrap();
+        StableVec::<Record<MAX, FIXED>, _>::create(runtime.open_memory(&key()).unwrap()).unwrap();
     let sizes = if FIXED {
         [MAX as usize; 3]
     } else {
@@ -167,7 +167,7 @@ fn widths<const MAX: u32, const FIXED: bool>() {
     drop(runtime);
     let runtime = host(backing);
     let vector =
-        StableVec::<Record<MAX, FIXED>>::load(runtime.open_memory(&key()).unwrap()).unwrap();
+        StableVec::<Record<MAX, FIXED>, _>::load(runtime.open_memory(&key()).unwrap()).unwrap();
     assert_eq!(vector.len(), 3);
     assert_eq!(vector.get(2).unwrap().0, vec![9; sizes[2]]);
     assert_eq!(vector.get(0).unwrap().0, vec![0; sizes[0]]);
@@ -232,7 +232,7 @@ fn populated_reads_decode_only_the_selected_record() {
 fn iterator_skips_decode_only_selected_values() {
     let runtime = host(VectorMemory::default());
     let vector =
-        StableVec::<Record<8, true>>::create(runtime.open_memory(&key()).unwrap()).unwrap();
+        StableVec::<Record<8, true>, _>::create(runtime.open_memory(&key()).unwrap()).unwrap();
     for value in 0..100_u64 {
         vector.push(&Record(value.to_le_bytes().to_vec()));
     }
@@ -317,8 +317,8 @@ fn explicit_reset_preserves_the_neighbor() {
     let backing = VectorMemory::default();
     let runtime = host(backing.clone());
     let other = StableKey::parse("vector.b.v1").unwrap();
-    let a = StableVec::<u64>::create(runtime.open_memory(&key()).unwrap()).unwrap();
-    let b = StableVec::<u64>::create(runtime.open_memory(&other).unwrap()).unwrap();
+    let a = StableVec::<u64, _>::create(runtime.open_memory(&key()).unwrap()).unwrap();
+    let b = StableVec::<u64, _>::create(runtime.open_memory(&other).unwrap()).unwrap();
     for index in 0..8193 {
         a.push(&index);
         b.push(&(index + 17));
@@ -326,14 +326,14 @@ fn explicit_reset_preserves_the_neighbor() {
     drop(a);
     drop(b);
     assert!(
-        StableVec::<u64>::reset(runtime.open_memory(&key()).unwrap())
+        StableVec::<u64, _>::reset(runtime.open_memory(&key()).unwrap())
             .unwrap()
             .is_empty()
     );
     drop(runtime);
     let runtime = host(backing);
     assert_eq!(
-        StableVec::<u64>::load(runtime.open_memory(&other).unwrap())
+        StableVec::<u64, _>::load(runtime.open_memory(&other).unwrap())
             .unwrap()
             .get(8192),
         Some(8209)
@@ -344,7 +344,7 @@ fn explicit_reset_preserves_the_neighbor() {
 fn unbounded_types_are_refused() {
     let runtime = host(VectorMemory::default());
     assert!(
-        catch_unwind(AssertUnwindSafe(|| StableVec::<Vec<u8>>::create(
+        catch_unwind(AssertUnwindSafe(|| StableVec::<Vec<u8>, _>::create(
             runtime.open_memory(&key()).unwrap()
         )))
         .is_err()
@@ -384,7 +384,7 @@ fn every_push_write_failure_poisoning_precedes_further_access() {
 #[test]
 fn iteration_observes_replacements_and_clamps_after_removal() {
     let runtime = host(VectorMemory::default());
-    let vector = StableVec::<u64>::create(runtime.open_memory(&key()).unwrap()).unwrap();
+    let vector = StableVec::<u64, _>::create(runtime.open_memory(&key()).unwrap()).unwrap();
     for value in 0..5 {
         vector.push(&value);
     }
