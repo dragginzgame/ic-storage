@@ -3,6 +3,28 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/persistence/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.72.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Handle opening now trusts the admitted directory throughout its continuous
+  custody lifetime instead of rescanning backing metadata. Grants, exclusive
+  leases, bounds and poisoned-owner refusal remain enforced. Hosts requiring
+  explicit integrity observation must use `diagnostics()` or `memory_allocations()`;
+  opening no longer detects out-of-contract raw metadata changes. Stored formats
+  are unchanged; no reset is required. See [the contract](0.72.md).
+
+### ⚡ Performance
+
+- Reduce Vector Push/Pop overhead by writing its already allocated length header
+  directly, while preserving payload-before-length publication and bounds checks.
+
+### 🧪 Testing
+
+- Extend admission comparisons with 2/4/8-name groups, retained-handle reads across
+  executions, repeated reads within one execution and verification diagnostics.
+  Keep large directory counts as stress controls rather than typical usage.
+
 ## [0.71.2] - 2026-11-09
 
 ### 📦 Dependencies

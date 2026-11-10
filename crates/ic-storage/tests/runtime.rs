@@ -185,12 +185,13 @@ fn fallible_growth_reports_overflow_and_poisoning_without_panicking() {
         Err(RuntimeGrowError::ArithmeticOverflow)
     );
     assert_eq!(*memory.borrow(), before);
-    // Deliberately violate raw custody to qualify the checked opening boundary.
+    // Deliberately violate raw custody to qualify explicit verification.
     memory.borrow_mut()[0] ^= 1;
-    assert!(
-        host.open_memory(&StableKey::parse("app.two.v1").unwrap())
-            .is_err()
-    );
+    let other = host
+        .open_memory(&StableKey::parse("app.two.v1").unwrap())
+        .unwrap();
+    assert!(host.memory_allocations().is_err());
+    assert_eq!(other.grow(0), Err(RuntimeGrowError::Poisoned));
     assert_eq!(rows.grow(0), Err(RuntimeGrowError::Poisoned));
     assert_eq!(rows.grow(1), Err(RuntimeGrowError::Poisoned));
 }

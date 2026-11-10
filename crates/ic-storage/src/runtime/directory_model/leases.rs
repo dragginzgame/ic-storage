@@ -78,7 +78,8 @@ impl<M: Memory> Owner<M> {
         if self.0.live.borrow().contains(&id) {
             return Err(Error::AlreadyOpen);
         }
-        store.verify()?;
+        // Continuous custody preserves the admitted directory. Explicit
+        // diagnostics and cold admission own backing integrity verification.
         self.0.live.borrow_mut().insert(id);
         Ok(Lease {
             state: Rc::clone(&self.0),

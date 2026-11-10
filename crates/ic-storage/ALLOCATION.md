@@ -36,9 +36,18 @@ merely because a host reopened the backing.
 `open_memory` grants one exclusive, non-cloneable `RuntimeMemory` per admitted
 key. Collections consume the lease. A lease may outlive its runtime; custody
 lasts until the final owner/handle is dropped. Data IO validates logical bounds
-and trusts custody. Complete metadata checks occur at construction, bootstrap,
-and lease opening. Growth trusts admitted exclusive custody. A backing panic or failed checked-boundary validation
-poisons the shared owner.
+and trusts custody. Opening checks current admission, owner health and exclusive
+lease ownership without backing IO. Growth likewise trusts the admitted owner.
+Complete metadata checks remain at construction, initial bootstrap, new binding
+commitment and explicit `diagnostics()`/`memory_allocations()` calls. A backing
+panic or failed integrity verification poisons the shared owner.
+
+Opening a handle no longer detects raw metadata changes made outside its owner
+after admission. Such writes remain prohibited by `MemoryBacking`; custody is
+not isolation against arbitrary linked code or a dishonest backing. Hosts that
+need an explicit integrity observation must call diagnostics. Cold reopen still
+validates the entire retained directory. No automatic scan is added per call,
+callback or handle, and no alternate checked/unchecked opening mode is provided.
 
 ## Limits and persistence
 

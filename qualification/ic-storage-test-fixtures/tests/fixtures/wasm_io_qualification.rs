@@ -51,6 +51,7 @@ mod canister {
         fn msg_arg_data_copy(dst: usize, offset: usize, size: usize);
         fn msg_reply_data_append(src: usize, size: usize);
         fn msg_reply();
+        fn trap(src: usize, size: usize) -> !;
         fn performance_counter(counter_type: u32) -> u64;
     }
 
@@ -170,22 +171,39 @@ mod canister {
         let rows = open_memory(ROWS).unwrap();
         rows.write(0, &[0xA5]);
         // Infrastructure-only fault injection over the actual canister backing.
-        // A successful return would expose a missed checkpoint/poison refusal.
+        // The driver requires our marker, not just any assertion/engine trap.
         let backing = ic_storage::DefaultMemoryImpl::default();
         let offset = [0_u64, 8, 48][usize::from(mode % 3)];
         let mut byte = [0];
         backing.read(offset, &mut byte);
         byte[0] ^= 1;
         backing.write(offset, &byte);
-        if mode < 3 {
-            assert!(open_memory(NEIGHBOR).is_err());
+        // Custody-based opening does not scan the altered backing.
+        let neighbor = open_memory(NEIGHBOR).unwrap();
+        let verification = if mode < 3 {
+            with_runtime(|runtime| runtime.diagnostics().map(|_| ()))
         } else {
-            assert!(rows.grow(1).is_err());
-        }
-        // The checkpoint has poisoned the owner; even an old handle refuses IO.
-        let mut byte = [0];
-        rows.read(0, &mut byte);
-        reply(protocol::METADATA_FAULT_ID, &byte);
+            with_runtime(|runtime| runtime.memory_allocations().map(|_| ()))
+        };
+        assert!(matches!(
+            verification,
+            Err(ic_storage::DirectoryError::Invalid(_))
+        ));
+        assert_eq!(rows.grow(0), Err(ic_storage::RuntimeGrowError::Poisoned));
+        assert_eq!(
+            neighbor.grow(1),
+            Err(ic_storage::RuntimeGrowError::Poisoned)
+        );
+        drop(neighbor);
+        assert!(matches!(
+            open_memory(NEIGHBOR),
+            Err(ic_storage::RuntimeOpenError::Directory(
+                ic_storage::DirectoryError::Poisoned
+            ))
+        ));
+        let marker = b"verified-directory-poisoning";
+        // SAFETY: the static marker is an initialized readable range; trap never returns.
+        unsafe { trap(marker.as_ptr() as usize, marker.len()) }
     }
 
     #[unsafe(export_name = "canister_query snapshot")]

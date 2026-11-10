@@ -10,6 +10,45 @@ fn key(index: usize) -> StableKey {
 }
 
 #[test]
+fn lease_opening_uses_admitted_state_without_backing_io() {
+    let memory = Faults::default();
+    let owner = Owner::init(memory.clone(), StorageConfig::default()).unwrap();
+    owner.bind(&(0..64).map(key).collect()).unwrap();
+    memory.reads.set(0);
+    memory.fail_io.set(true);
+    let leases: Vec<_> = (0..64)
+        .rev()
+        .map(|i| owner.lease(&key(i)).unwrap())
+        .collect();
+    assert_eq!(memory.reads.get(), 0);
+    assert!(matches!(owner.lease(&key(0)), Err(Error::AlreadyOpen)));
+    assert!(matches!(owner.lease(&key(65)), Err(Error::Missing)));
+    assert_eq!(memory.reads.get(), 0);
+    drop(leases);
+    assert!(owner.lease(&key(0)).is_ok());
+    // An explicit verification failure still poisons all subsequent openings.
+    assert!(catch_unwind(AssertUnwindSafe(|| owner.verify())).is_err());
+    memory.fail_io.set(false);
+    let reads = memory.reads.get();
+    assert!(matches!(owner.lease(&key(0)), Err(Error::Poisoned)));
+    assert_eq!(memory.reads.get(), reads);
+}
+
+#[test]
+fn explicit_verification_detects_raw_changes_after_an_unchecked_open() {
+    let memory = VectorMemory::default();
+    let owner = Owner::init(memory.clone(), StorageConfig::default()).unwrap();
+    owner.bind(&[key(0)].into()).unwrap();
+    // Deliberately violate custody: opening is no longer an integrity scan.
+    memory.borrow_mut()[0] ^= 1;
+    let lease = owner.lease(&key(0)).unwrap();
+    assert!(owner.diagnostics().is_err());
+    assert!(matches!(lease.try_grow(1), Err(Error::Poisoned)));
+    drop((lease, owner));
+    assert!(Owner::init(memory, StorageConfig::default()).is_err());
+}
+
+#[test]
 fn sparse_leases_exceed_256_and_retain_custody_after_owner_drop() {
     let memory = VectorMemory::default();
     let owner = Owner::init(memory.clone(), StorageConfig::default()).unwrap();
@@ -256,7 +295,7 @@ fn data_io_trusts_custody_and_growth_refusal_preserves_handles() {
 }
 
 #[test]
-fn backing_panics_and_boundary_corruption_poison_all_live_leases() {
+fn backing_panics_and_diagnostic_corruption_poison_all_live_leases() {
     for read_failure in [false, true] {
         let memory = Faults::default();
         let owner = Owner::init(memory.clone(), StorageConfig::default()).unwrap();
@@ -284,9 +323,10 @@ fn backing_panics_and_boundary_corruption_poison_all_live_leases() {
     let owner = Owner::init(memory.clone(), StorageConfig::default()).unwrap();
     owner.bind(&[key(0), key(1)].into()).unwrap();
     let a = owner.lease(&key(0)).unwrap();
-    // Deliberate fixture corruption at a checked lease-opening boundary.
+    // Deliberate fixture corruption at an explicit diagnostic boundary.
     memory.borrow_mut()[0] ^= 1;
-    assert!(owner.lease(&key(1)).is_err());
+    assert!(owner.diagnostics().is_err());
+    assert!(matches!(owner.lease(&key(1)), Err(Error::Poisoned)));
     assert!(matches!(a.try_grow(1), Err(Error::Poisoned)));
 }
 

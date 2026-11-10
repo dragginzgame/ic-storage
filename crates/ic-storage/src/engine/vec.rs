@@ -37,7 +37,6 @@
 use crate::engine::storable::{bounds, bytes_to_store_size_bounded};
 use crate::engine::{
     Address, GrowFailed, Memory, Storable, read_to_vec, read_u32, read_u64, safe_write, write,
-    write_u64,
 };
 use std::borrow::{Borrow, Cow};
 use std::cmp::min;
@@ -255,7 +254,8 @@ impl<T: Storable, M: Memory> Vec<T, M> {
         read_to_vec(&self.memory, data_offset.into(), buf, data_size);
     }
     fn set_len(&self, new_len: u64) {
-        write_u64(&self.memory, Address::from(LEN_OFFSET), new_len);
+        // Construction admitted the complete header; only payload writes grow.
+        self.memory.write(LEN_OFFSET, &new_len.to_le_bytes());
     }
     fn write_entry_size(&self, offset: u64, size: u32) -> Result<u64, GrowFailed> {
         let t_bounds = bounds::<T>();

@@ -213,12 +213,14 @@ impl<M: Memory> MemoryRuntime<M> {
         Ok(self.owner.generation())
     }
     /// Open one currently admitted name, preserving custody through detached handles.
+    /// Uses the live admitted directory without backing IO. To check backing
+    /// integrity explicitly, use [`Self::diagnostics`] or [`Self::memory_allocations`].
     ///
     /// # Panics
-    /// Propagates backing failures or a broken internal binding invariant.
+    /// Propagates a broken internal binding invariant.
     ///
     /// # Errors
-    /// Rejects unbootstrapped or unadmitted access, an existing lease, and invalid directory state.
+    /// Rejects unbootstrapped or unadmitted access, an existing lease, and a poisoned owner.
     pub fn open_memory(&self, key: &StableKey) -> Result<RuntimeMemory<M>, RuntimeOpenError> {
         let binding = self
             .binding

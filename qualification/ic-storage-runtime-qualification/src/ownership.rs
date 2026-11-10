@@ -10,16 +10,20 @@ pub(super) async fn qualify(pic: &PocketIc) {
     let snapshot = async || read(pic, canister).await;
     let initial = snapshot().await;
     for mode in 0..6_u8 {
-        super::assert_trap(
-            pic.update_call(
+        let error = pic
+            .update_call(
                 canister,
                 canister,
                 "metadata_fault",
                 frame(protocol::METADATA_FAULT_ID, &mode),
             )
             .await
-            .unwrap_err(),
+            .unwrap_err();
+        assert!(
+            format!("{error:?}").contains("verified-directory-poisoning"),
+            "expected the verified poisoning checkpoint, not an unrelated trap: {error:?}"
         );
+        super::assert_trap(error);
         assert_eq!(
             snapshot().await,
             initial,
@@ -27,7 +31,7 @@ pub(super) async fn qualify(pic: &PocketIc) {
         );
     }
     println!(
-        "installed directory checkpoints: six open/growth faults trap, poison old handles and roll back metadata/payload writes"
+        "installed directory checkpoints: six diagnostic faults verify poisoning of old/new handles and roll back metadata/payload writes"
     );
     let reply = pic
         .update_call(

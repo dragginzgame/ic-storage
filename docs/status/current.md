@@ -1,4 +1,36 @@
-# Current handoff — 2026-11-09
+# Current handoff — 2026-11-10
+
+## Pending: custody-based opening
+
+Storage 0.72.0 notes record the explicit hard cut: opening trusts the admitted
+directory without a backing rescan. Grants, health, exclusive leases and bounds
+remain enforced. Cold reconstruction, bootstrap, binding commits and explicit
+diagnostics still verify metadata. Stored formats are unchanged; no reset is
+needed. The unpublished batch API and checksum cache are removed, and small
+consumers use the single opening path. Vector length-write improvements remain.
+
+The [study](../audits/recurring/storage-vector-batch-2026-11-10.md) preserves earlier
+experiments as historical evidence; its final section owns the retained result.
+Final results: opening one handle in a four-name directory costs 163,081
+instructions (previous cache implementation 300,217; ICSS 160,391). All-collection
+application Wasm is 136,106 bytes, 1,426 smaller than the previous pending build
+(ICSS 119,318). Existing-handle read costs are unchanged.
+
+The 89 library/five runtime native tests, 864/600 Storage/ICSS admission samples,
+eight application call/upgrade pairs and original/O3/Os/Oz installed IO, ownership,
+checkpoint, upgrade and rollback qualification pass. The metadata-fault fixture
+now emits a marker only after verifying poisoning; its driver rejects unrelated
+traps. Runtime attempt `GlemZe` is authoritative; earlier `cCacwO` used the weaker
+trap-only assertion. Evidence uses `target/evidence/custody-cut-*` and size attempt
+`24uMv1`. Product versions, dependencies and sibling repositories are unchanged.
+No commit, push or publication is included; full release gates remain separate.
+
+## Delivered baseline
+
+Storage 0.71.2, Metrics Storage 0.74.0 and Logging Storage 0.70.0 were published
+before this optimization work, with the checkout at `bd81c729`. The older
+"Pending" sections below retain the original preparation records; they no longer
+describe unpublished dependency/tooling adoption.
 
 ## Pending: IC Wire 0.19 and Toko Tooling 0.38.2
 

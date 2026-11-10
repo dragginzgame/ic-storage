@@ -11,9 +11,14 @@ use std::cell::RefCell;
 type Runtime = MemoryRuntime<DefaultMemoryImpl>;
 #[cfg(feature = "dfinity")]
 type Runtime = MemoryManager<DefaultMemoryImpl>;
+#[cfg(feature = "owned")]
+type Handle = ic_storage::RuntimeMemory<DefaultMemoryImpl>;
+#[cfg(feature = "dfinity")]
+type Handle = ic_stable_structures::memory_manager::VirtualMemory<DefaultMemoryImpl>;
 
 struct State {
     runtime: Option<Runtime>,
+    held: Option<Handle>,
     count: u64,
     #[cfg(feature = "owned")]
     keys: Vec<ic_storage::StableKey>,
@@ -86,6 +91,7 @@ extern "C" fn init() {
     assert!(count <= 255);
     let mut state = State {
         runtime: Some(runtime()),
+        held: None,
         count,
         #[cfg(feature = "owned")]
         keys: (0..count)
@@ -120,8 +126,49 @@ extern "C" fn run() {
         }
         let start = ic0::performance_counter(0);
         let value = match operation {
+            11 => 0,
             0 => state.memory(0).size(),
             1 => (0..state.count).map(|i| state.memory(i).size()).sum(),
+            6 => state.held.as_ref().unwrap().size(),
+            7 | 12 => {
+                let memory = state.held.as_ref().unwrap();
+                if memory.size() == 0 {
+                    0
+                } else {
+                    let mut total = 0;
+                    for _ in 0..if operation == 12 { 32 } else { 1 } {
+                        let mut bytes = [0; 8];
+                        memory.read(0, &mut bytes);
+                        total += u64::from_le_bytes(bytes);
+                    }
+                    total
+                }
+            }
+            8 => {
+                assert!(state.held.is_none());
+                state.held = Some(state.memory(0));
+                state.held.as_ref().unwrap().size()
+            }
+            9 => {
+                drop(state.held.take().unwrap());
+                0
+            }
+            #[cfg(feature = "owned")]
+            10 => {
+                state
+                    .runtime
+                    .as_ref()
+                    .unwrap()
+                    .diagnostics()
+                    .unwrap()
+                    .data_pages
+            }
+            4 => {
+                // Retain the complete group on both backends, including Drop
+                // costs, without adding a second admission API.
+                let memories: Vec<_> = (0..state.count).map(|i| state.memory(i)).collect();
+                memories.iter().map(Memory::size).sum()
+            }
             2 => {
                 state.runtime = Some(runtime());
                 0
@@ -138,7 +185,13 @@ extern "C" fn run() {
             state.admit();
         }
         // Contents checked outside timing, including after every cold reopen.
-        let memory = state.memory(0);
+        let opened;
+        let memory = if let Some(memory) = &state.held {
+            memory
+        } else {
+            opened = state.memory(0);
+            &opened
+        };
         let pages = memory.size();
         if pages != 0 {
             let mut bytes = [0; 8];

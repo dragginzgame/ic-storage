@@ -322,8 +322,8 @@ impl<M: Memory> Store<M> {
     pub(super) fn verify(&self) -> Result<(), Error> {
         self.healthy()?;
         self.poisoned.set(true);
-        // Full admission remains explicit at lease/reopen/diagnostic boundaries.
-        // Growth trusts exclusive custody, exactly as ordinary data IO does.
+        // Full integrity checks remain at admission and explicit diagnostics.
+        // Lease opening, growth and ordinary IO trust continuous custody.
         let changed = || Error::Invalid("backing changed outside its owner");
         if self.memory.size() != self.root.end()? {
             return Err(changed());

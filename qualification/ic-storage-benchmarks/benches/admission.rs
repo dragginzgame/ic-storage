@@ -28,7 +28,7 @@ async fn main() {
         "names,buckets,operation,sample,instructions,value,pages"
     )
     .unwrap();
-    for names in [1_u64, 16, 64, 255, 256, 1024] {
+    for names in [1_u64, 2, 4, 8, 16, 64, 255, 256, 1024] {
         if args.icss && names > 255 {
             continue;
         }
@@ -43,11 +43,29 @@ async fn main() {
             )
             .await
             .unwrap();
-            for (operation, label) in ["one", "all", "reopen", "append"].into_iter().enumerate() {
+            for (operation, label) in [
+                (11, "control"),
+                (0, "one"),
+                (1, "all"),
+                (4, "all-held"),
+                (10, "verify-diagnostics"),
+                (8, "hold"),
+                (6, "held-size"),
+                (7, "held-read"),
+                (12, "held-read-32"),
+                (9, "drop"),
+                (2, "reopen"),
+                (3, "append"),
+            ] {
                 if args.icss && operation == 3 && names > 252 {
                     continue;
                 }
-                for sample in 0..3 {
+                if args.icss && operation == 10 {
+                    continue;
+                }
+                // Establish/drop one persistent lease; reads run in later calls.
+                let samples = if matches!(operation, 8 | 9) { 1 } else { 3 };
+                for sample in 0..samples {
                     let result = pic
                         .update_call(canister, canister, "run", vec![operation as u8])
                         .await
@@ -59,7 +77,16 @@ async fn main() {
                         .iter()
                         .map(|v| u64::from_le_bytes(*v))
                         .collect();
-                    assert_eq!(values[1], if operation >= 2 { 0 } else { buckets * 8 });
+                    assert_eq!(
+                        values[1],
+                        match operation {
+                            2 | 3 | 9 | 11 => 0,
+                            7 if buckets != 0 => 42,
+                            12 if buckets != 0 => 32 * 42,
+                            7 | 12 => 0,
+                            _ => buckets * 8,
+                        }
+                    );
                     assert_eq!(values[2], buckets * 8);
                     writeln!(
                         output,

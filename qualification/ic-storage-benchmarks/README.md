@@ -52,6 +52,42 @@ The direct-read path uses published Runtime >=0.19.4's
 patch or alternate lock is needed. The [backing study](../../docs/audits/recurring/storage-icss-backing-parity-2026-11-06.md)
 distinguishes the original local-package trials from registry qualification.
 
+### Checked allocation admission
+
+The `admission-wasm` and `admission` examples compare single opens, sequential
+opens that immediately drop each handle, and sequential opens retaining all
+handles. The retained-handle path reads sizes before dropping the group.
+Cold reopen and append remain separate
+operations. A separate hold/read/drop sequence retains one handle across physical
+executions and compares one/32 eight-byte reads with a no-op timer control.
+Storage-only diagnostics measures verification plus report construction; it is
+not an isolated verification stage to subtract from other operations.
+Every run checks stored contents outside timing. ICSS uses ordinary manager
+handles; it supplies no equivalent governance or integrity diagnostics.
+Its 255-ID limit is retained.
+
+Build `admission-wasm` with `--features owned` and then `--features dfinity`,
+saving each output before the next build:
+
+```sh
+cargo build --locked --offline --manifest-path qualification/Cargo.toml \
+  -p ic-storage-benchmarks --example admission-wasm --features owned \
+  --target wasm32-unknown-unknown --profile wasm-size --target-dir target/admission-build
+cargo build --locked --offline --manifest-path qualification/Cargo.toml \
+  -p ic-storage-benchmarks --example admission --target-dir target/runtime-qualification
+```
+
+The Wasm output is
+`target/admission-build/wasm32-unknown-unknown/wasm-size/examples/admission_wasm.wasm`.
+Run the native `target/runtime-qualification/debug/examples/admission` through the
+prepared Testkit CLI's `run` command with `--wasm SAVED_WASM --output RESULTS.csv`.
+Add `--icss` for the upstream reference. The driver owns the 1/2/4/8/16/64/255/256/1024
+name and 0/1/32 populated-bucket matrix, with three samples per operation.
+Hold/drop setup runs once per case. Counts describe directory allocations, not
+application records; 1,024 names is a stress control, not a recommended layout.
+Only the first allocation grows; the buckets describe reserved capacity with
+one initialized eight-byte payload, not fully populated business collections.
+
 ### Complete type-by-collection matrix
 
 ```sh
