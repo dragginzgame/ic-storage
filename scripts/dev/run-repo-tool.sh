@@ -54,7 +54,7 @@ target="${target%$'\n.'}"
 mkdir -p "$target/repo-tool-bootstrap"
 scratch="$(mktemp -d "$target/repo-tool-bootstrap/attempt.XXXXXX")"
 echo "Retained repo-tool bootstrap metadata: $scratch" >&2
-cp Cargo.lock LICENSE Cargo.toml "$scratch/"
+cp Cargo.lock LICENSE.md Cargo.toml "$scratch/"
 cp -R crates "$scratch/"
 mkdir -p "$scratch/ci"
 cp ci/cargo-release-groups.json "$scratch/ci/"

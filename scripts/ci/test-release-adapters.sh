@@ -658,7 +658,7 @@ version = "0.12.3"
 LOCK
 echo fixture > crates/ic-storage/README.md
 touch crates/ic-storage/src/lib.rs
-echo fixture-license > LICENSE
+echo fixture-license > LICENSE.md
 cat > crates/ic-storage/Cargo.toml <<'MANIFEST'
 [package]
 name = "ic-storage"
@@ -733,7 +733,7 @@ case "$2" in
             cmp Cargo.lock "$(dirname "$7")/Cargo.lock"
             [[ "$(yq -p toml -o json '.package.version' "$(dirname "$7")/crates/ic-storage/Cargo.toml")" == '"0.13.0"' ]] || exit 1
             cmp crates/ic-storage/README.md "$(dirname "$7")/crates/ic-storage/README.md"
-            cmp LICENSE "$(dirname "$7")/LICENSE"
+            cmp LICENSE.md "$(dirname "$7")/LICENSE.md"
             [[ -d "$(dirname "$7")/crates/ic-storage/src" && ! -L "$(dirname "$7")/crates/ic-storage/src" ]] || exit 1
             [[ -d "$(dirname "$7")/crates/ic-storage/examples" && ! -L "$(dirname "$7")/crates/ic-storage/examples" ]] || exit 1
             cmp crates/ic-storage/src/lib.rs "$(dirname "$7")/crates/ic-storage/src/lib.rs"

@@ -11,7 +11,7 @@ editor="$(RUSTUP_TOOLCHAIN="$pin" bash scripts/dev/install-rust-tools.sh --consu
 mkdir -p "$root/target/fixtures"
 fixture="$(mktemp -d "$root/target/fixtures/ic-storage-group-bootstrap.XXXXXX")"
 echo "Retained group bootstrap fixture: $fixture"
-cp Cargo.toml Cargo.lock LICENSE rust-toolchain.toml CHANGELOG.md "$fixture/"
+cp Cargo.toml Cargo.lock LICENSE.md rust-toolchain.toml CHANGELOG.md "$fixture/"
 mkdir -p "$fixture/docs"
 cp -R docs/changelog "$fixture/docs/"
 cp -R releases "$fixture/"
