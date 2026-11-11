@@ -1,18 +1,25 @@
 # Current handoff — 2026-11-11
 
-## Pending adoption and published state
+## Published state and qualification
 
-IC Build 0.83.0 is adopted locally for the native helper and metadata editor.
-Only Build changes in the root lock; qualification's independent graph is unchanged.
-All 88 helper tests, strict helper Clippy, snapshot/pin/production graph checks,
-editor admission and focused bootstrap recovery pass. See [Build adoption](../adoption/storage-tooling.md#current-ic-build-083-adoption)
-and `target/evidence/build-083-adoption/`. Pending Storage 0.73.2 is a compatible
-tooling patch with no public API or stored-format change. Deployment is now
-authorized to this repository's origin/main and crates.io: Storage 0.73.2,
-Metrics Storage 0.76.1 and Logging Storage 0.72.1. Adapter patches publish the
-updated Storage requirement. The shared batch runner owns all three complete
-release gates, version preparation, Git effects and publication; no sibling
-delivery or artifact cleanup is included. Native macOS qualification is separate.
+Storage 0.73.2, Metrics Storage 0.76.1 and Logging Storage 0.72.1 are published
+on crates.io with annotated GitHub tags. All registry checksums match their
+qualified archives. Batch `batch-dkC14l_X` completed at
+`41fc0eb9caa17a2cf09243a7ae75fe9936fe6df6` and is reconciled into normal `main`.
+Storage and Metrics release commits are `66f34a1c21ce92afaaba7a779228d2e1b5d0a9eb`
+and `59ac6c1cb66bb5fbbb4265721d4a3c1095780bd5`. Each group passed all 12 release
+stages. Logs, registry observations and reconciliation evidence are under
+`target/evidence/deploy-build-083/`; source-bound receipts are in the batch's
+`target/release-validation/` under `target/release-frozen/`, with durable intent
+under `.git/release-state/frozen/`. Native macOS qualification remains separate.
+
+IC Build 0.83.0 supplies the native helper and metadata editor. Its adoption
+changed only Build in the root dependency selection; release preparation then
+advanced local package identities in both locks. All 88 helper tests and focused
+bootstrap recovery pass. See [Build adoption](../adoption/storage-tooling.md#current-ic-build-083-adoption)
+and `target/evidence/build-083-adoption/`. Adapter patches publish the updated
+Storage requirement. No public API, stored-format or production code change,
+canister reset, sibling delivery or artifact cleanup is included.
 
 Wire 0.21.1, Build 0.83.0, Platform 0.29.3, Runtime 0.21.1 and Toko 0.39.10
 are selected in their owning graphs. Testkit 0.95/PocketIC 16.1.0 is unchanged.
@@ -26,20 +33,10 @@ Toko 0.39.9; they are not a fresh benchmark of the latest dependency adoption.
 Installed original/O3/Os/Oz IO, directory/custody, collection and Logging
 upgrade/rollback qualification passes with Wire 0.21.1 (`attempt.NdKepQ`).
 
-Storage 0.73.1, Metrics Storage 0.76.0 and Logging Storage 0.72.0 are published
-on crates.io with annotated GitHub tags. All three registry checksums match their
-qualified archive receipts. Core batch `batch-RkNljHBk` completed at
-`30e834436cb22fed0455e599902ab64668ab5909`; adapter batch `batch-0cbV8nRz`
-completed at `ce257f8b1c6fac366ccaab5e43c2c1876a03ea04` (Metrics release commit
-`dfc8225daaddef647deb2a7c8902b1c8ce308036`). Both batches are reconciled into the
-normal `main` checkout. Each group passed all 12 release stages, including
-native/Wasm lint, features, tests, size consumers and workspace archives.
-Receipts and logs remain under each batch's `target/release-validation/` within
-`target/release-frozen/`, with durable intent under `.git/release-state/frozen/`.
-No sibling delivery, canister reset or stored-format change is included.
-The first core gate (`batch-c41aaSnt`) stopped before version mutation on an
-empty-buffer assertion lint; its logs remain retained. The assertion is corrected
-without changing product code; the successful core batch used the corrected source.
+The preceding Wire/tooling/optimization delivery remains recorded in
+[the prior handoff](https://github.com/dragginzgame/ic-storage/blob/7c30dec7edf1de623911437a730b1a2c119a9519/docs/status/current.md).
+Successful batches `batch-RkNljHBk` and `batch-0cbV8nRz`, and the corrected
+pre-mutation assertion-lint failure `batch-c41aaSnt`, retain all evidence.
 
 The retained [custody-registry simplification](../measurements/storage-scalar-scans-2026-11-11.md#retained-custody-registry-simplification--2026-11-11)
 replaces only physical-backing claims with a sorted vector. All-collection Wasm
