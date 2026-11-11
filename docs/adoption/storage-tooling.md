@@ -23,8 +23,9 @@ IC Wire 0.21.1 is selected in both graphs. Only Wire and Toko change relative
 to the preceding locks; no unrelated selections are refreshed. Wire 0.21 changes
 generated TypeScript names and 0.21.1 optimizes host/browser traversal; Storage
 does not generate those clients. Its checkpoint framing and codec bytes remain
-unchanged. The adapters expose Wire errors, so their pending minor releases
-select the new public type identity. Core Storage uses Wire only for development.
+unchanged. The adapters expose Wire errors, so Metrics Storage 0.76.0 and
+Logging Storage 0.72.0 select the new public type identity. Core Storage uses
+Wire only for development.
 
 Evidence is under `target/evidence/deploy-toko-wire-20261111/`, including before
 locks, authenticated preview/install and focused checks. The authorized delivery

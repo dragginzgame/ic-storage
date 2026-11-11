@@ -1,6 +1,6 @@
 # Current handoff — 2026-11-11
 
-## Active work and readiness
+## Published state and qualification
 
 Wire 0.21.1, Build 0.82.0, Platform 0.29.3, Runtime 0.21.1 and Toko 0.39.10
 are selected in their owning graphs. Testkit 0.95/PocketIC 16.1.0 is unchanged.
@@ -14,14 +14,20 @@ Toko 0.39.9; they are not a fresh benchmark of the latest dependency adoption.
 Installed original/O3/Os/Oz IO, directory/custody, collection and Logging
 upgrade/rollback qualification passes with Wire 0.21.1 (`attempt.NdKepQ`).
 
-Deployment is authorized for this repository only, from the normal `main`
-checkout to `origin/main` and crates.io. Planned order is Storage 0.73.1, then
-Metrics Storage 0.76.0 and Logging Storage 0.72.0. The shared batch runner has one
-increment per roster: core uses a patch batch, followed by one two-adapter minor
-batch. Keep release gates, publication and normal-tree reconciliation separate.
+Storage 0.73.1, Metrics Storage 0.76.0 and Logging Storage 0.72.0 are published
+on crates.io with annotated GitHub tags. All three registry checksums match their
+qualified archive receipts. Core batch `batch-RkNljHBk` completed at
+`30e834436cb22fed0455e599902ab64668ab5909`; adapter batch `batch-0cbV8nRz`
+completed at `ce257f8b1c6fac366ccaab5e43c2c1876a03ea04` (Metrics release commit
+`dfc8225daaddef647deb2a7c8902b1c8ce308036`). Both batches are reconciled into the
+normal `main` checkout. Each group passed all 12 release stages, including
+native/Wasm lint, features, tests, size consumers and workspace archives.
+Receipts and logs remain under each batch's `target/release-validation/` within
+`target/release-frozen/`, with durable intent under `.git/release-state/frozen/`.
+No sibling delivery, canister reset or stored-format change is included.
 The first core gate (`batch-c41aaSnt`) stopped before version mutation on an
 empty-buffer assertion lint; its logs remain retained. The assertion is corrected
-without changing product code, and the new source requires a fresh release gate.
+without changing product code; the successful core batch used the corrected source.
 
 The retained [custody-registry simplification](../measurements/storage-scalar-scans-2026-11-11.md#retained-custody-registry-simplification--2026-11-11)
 replaces only physical-backing claims with a sorted vector. All-collection Wasm
@@ -52,8 +58,9 @@ chunked copying; production backings provide direct reads.
 All four retained steps add 937 total / 866 code bytes: current all-collection
 Wasm is 123,076 / 104,985 bytes, ICSS 119,324 / 77,133. Final qualification passes
 122 library, 26 public and 42 benchmark tests, strict native/Wasm lint, all 16
-size consumers, and installed Storage IO/upgrade/rollback. The full type catalogue
-and release gates were not rerun. Source/artifacts, per-step matrices and the
+size consumers, and installed Storage IO/upgrade/rollback. The full benchmark type
+catalogue was not rerun; the subsequent deployment passed all release gates.
+Source/artifacts, per-step matrices and the
 rejected candidate are retained under `target/evidence/map-hot-paths-20261111/`;
 final comparison/size attempts are `eCLz3Y`/`YBMpeR`. Formats/APIs remain unchanged.
 
@@ -72,14 +79,15 @@ Key-distribution breadth, split/resize tails and matched application sizes must
 qualify a future experiment; the present catalogue often embeds counter keys
 in otherwise constant bytes. Preserve independent implementation boundaries.
 
-Metrics' pending Wire test admits redundant varints with semantic round-tripping
-and unchanged-save byte preservation. Pending notes are Storage 0.73.1, Metrics
-Storage 0.76 and Logging Storage 0.72; adapter minors reflect Wire's public type
-identity. Product versions remain unchanged until the authorized release runner
-prepares them. Adoption evidence is under `target/evidence/deploy-toko-wire-20261111/`;
-no sibling changes or delivery are authorized.
+Metrics' Wire test admits redundant varints with semantic round-tripping
+and unchanged-save byte preservation. Released notes are [Storage 0.73.1](../../releases/storage/0.73.md),
+[Metrics Storage 0.76](../../releases/metrics-storage/0.76.md) and
+[Logging Storage 0.72](../../releases/logging-storage/0.72.md); adapter minors
+reflect Wire's public type identity. Adoption and delivery evidence is under
+`target/evidence/deploy-toko-wire-20261111/`. No sibling changes or delivery
+are authorized.
 
-## Published baseline and historical evidence
+## Previous published baseline and historical evidence
 
 Storage 0.73.0, Metrics Storage 0.75.0 and Logging Storage 0.71.0 are published
 on crates.io with annotated GitHub tags. Batch `batch-iGEMdpfB` completed at
