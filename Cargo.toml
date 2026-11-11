@@ -26,7 +26,7 @@ toko-tooling = "=0.39.10"
 
 # metrics-storage
 # Changelog : releases/metrics-storage/CHANGELOG.md
-ic-metrics-storage = { path = "crates/ic-metrics-storage", version = "0.75.0" }
+ic-metrics-storage = { path = "crates/ic-metrics-storage", version = "0.76.0" }
 
 # logging-storage
 # Changelog : releases/logging-storage/CHANGELOG.md
