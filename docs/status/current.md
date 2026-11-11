@@ -19,6 +19,9 @@ checkout to `origin/main` and crates.io. Planned order is Storage 0.73.1, then
 Metrics Storage 0.76.0 and Logging Storage 0.72.0. The shared batch runner has one
 increment per roster: core uses a patch batch, followed by one two-adapter minor
 batch. Keep release gates, publication and normal-tree reconciliation separate.
+The first core gate (`batch-c41aaSnt`) stopped before version mutation on an
+empty-buffer assertion lint; its logs remain retained. The assertion is corrected
+without changing product code, and the new source requires a fresh release gate.
 
 The retained [custody-registry simplification](../measurements/storage-scalar-scans-2026-11-11.md#retained-custody-registry-simplification--2026-11-11)
 replaces only physical-backing claims with a sorted vector. All-collection Wasm
