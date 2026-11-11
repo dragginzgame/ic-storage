@@ -3,6 +3,14 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/persistence/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.73.2] - Unreleased
+
+### 🔧 Changed
+
+- Adopt IC Build 0.83 for native repository tooling and the release metadata
+  editor. Contributor setup uses `make install-release-tools`; Storage's library
+  API and stored formats are unchanged. See [the detailed notes](0.73.md#0732---unreleased).
+
 ## [0.73.1] - 2026-11-11
 
 ### 📦 Dependencies

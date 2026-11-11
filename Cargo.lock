@@ -241,9 +241,9 @@ dependencies = [
 
 [[package]]
 name = "ic-build"
-version = "0.82.0"
+version = "0.83.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ebe8a786e43dd3fc9b7b3060d123edd925b295139d0a15c52bc35d4a9ec9af0"
+checksum = "47b532cca843e5855ceeb42b39c651492aa3ede7c3abb53f5b0b389e28e92b5b"
 dependencies = [
  "cargo_metadata",
  "hmac",

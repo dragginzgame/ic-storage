@@ -3,6 +3,13 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/metrics-stable/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.76.1] - Unreleased
+
+### 🔧 Changed
+
+- Advance the Storage requirement to 0.73.2 with its native tooling refresh.
+  Metrics APIs and checkpoint formats are unchanged. See [the detailed notes](0.76.md#0761---unreleased).
+
 ## [0.76.0] - 2026-11-11
 
 ### ⚠️ Breaking

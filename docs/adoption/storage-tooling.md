@@ -7,6 +7,27 @@ revision, selected roots, payload hashes and executable modes. The former
 live-policy exception is retired: dirty sibling rules never override the reviewed
 local baseline. Future policy changes require reviewed snapshot adoption.
 
+## Current IC Build 0.83 adoption
+
+The root native helper selects published IC Build 0.83.0, checksum
+`47b532cca843e5855ceeb42b39c651492aa3ede7c3abb53f5b0b389e28e92b5b`,
+from producer commit `662516e51bf20ad8a61465488ae30e366e170328`.
+The separate metadata editor in `ci/release-tools.env` also selects 0.83.0;
+`make install-release-tools` prepares it through the shared verified store.
+Existing editor versions and release evidence remain retained.
+
+Only Build changes in the root lock. The independent qualification graph has no
+Build dependency and its catalog/lock are unchanged. Progress and scheduled
+maintenance API removals have no Storage callers; the native Cargo, environment,
+archive and metadata APIs compile without adaptations. Native helper Clippy,
+all 88 helper tests, snapshot/pin/production graph admission, editor admission
+and the focused bootstrap-recovery fixture pass. The fixture runs the actual
+published renderer with substituted Cargo/tool-selection effects; it is not a
+live release proof. Evidence: `target/evidence/build-083-adoption/`.
+The adoption leaves production code and package versions unchanged. Subsequent
+authorized deployment is tracked in the [current handoff](../status/current.md);
+release qualification and publication remain separate from these focused checks.
+
 ## Current Cargo-owned 0.39.10 selection
 
 Both workspace catalogs and locks select published Toko Tooling 0.39.10, checksum

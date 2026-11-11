@@ -3,6 +3,13 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/logging-stable/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.72.1] - Unreleased
+
+### 🔧 Changed
+
+- Advance the Storage requirement to 0.73.2 with its native tooling refresh.
+  Logging APIs and checkpoint formats are unchanged. See [the detailed notes](0.72.md#0721---unreleased).
+
 ## [0.72.0] - 2026-11-11
 
 ### ⚠️ Breaking

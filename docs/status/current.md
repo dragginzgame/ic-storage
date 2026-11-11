@@ -1,13 +1,25 @@
 # Current handoff — 2026-11-11
 
-## Published state and qualification
+## Pending adoption and published state
 
-Wire 0.21.1, Build 0.82.0, Platform 0.29.3, Runtime 0.21.1 and Toko 0.39.10
+IC Build 0.83.0 is adopted locally for the native helper and metadata editor.
+Only Build changes in the root lock; qualification's independent graph is unchanged.
+All 88 helper tests, strict helper Clippy, snapshot/pin/production graph checks,
+editor admission and focused bootstrap recovery pass. See [Build adoption](../adoption/storage-tooling.md#current-ic-build-083-adoption)
+and `target/evidence/build-083-adoption/`. Pending Storage 0.73.2 is a compatible
+tooling patch with no public API or stored-format change. Deployment is now
+authorized to this repository's origin/main and crates.io: Storage 0.73.2,
+Metrics Storage 0.76.1 and Logging Storage 0.72.1. Adapter patches publish the
+updated Storage requirement. The shared batch runner owns all three complete
+release gates, version preparation, Git effects and publication; no sibling
+delivery or artifact cleanup is included. Native macOS qualification is separate.
+
+Wire 0.21.1, Build 0.83.0, Platform 0.29.3, Runtime 0.21.1 and Toko 0.39.10
 are selected in their owning graphs. Testkit 0.95/PocketIC 16.1.0 is unchanged.
 See [supplier adoption](../adoption/storage-tooling.md#current-cargo-owned-03910-selection)
 and the [current measurement record](../measurements/storage-scalar-scans-2026-11-11.md).
 The latest tooling refresh retains 39 entrypoints/102 files, changing only the
-dependency checker and hash-policy catalog. Both lockfiles change only Toko/Wire
+dependency checker and hash-policy catalog. That refresh changed only Toko/Wire
 from the preceding selection; snapshot/tool/pin/production and consumer graph
 admission pass. The retained performance studies below used Wire 0.20.0 and
 Toko 0.39.9; they are not a fresh benchmark of the latest dependency adoption.
