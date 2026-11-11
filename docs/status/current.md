@@ -1,10 +1,10 @@
 # Current handoff — 2026-11-11
 
-## Pending work and next delivery
+## Completed delivery and next work
 
-Storage 0.73.3 is selected for the requested deployment and is unpublished. It contains compatible
+Storage 0.73.3 is published on crates.io and tagged on GitHub. It contains compatible
 lease/Vector optimizations and the preserved qualification rustix correction.
-Package versions remain Storage 0.73.2, Metrics Storage 0.76.1 and Logging
+Package versions are Storage 0.73.3, Metrics Storage 0.76.1 and Logging
 Storage 0.72.1. No API/format change or consumer reset is required for this batch.
 
 The [three optimization experiments](../measurements/storage-scalar-scans-2026-11-11.md#lease-and-vector-experiments--2026-11-11)
@@ -21,7 +21,8 @@ The final 16 size consumers each pass 127 calls/two upgrades. Installed Storage
 IO/admission/upgrade across 1,031 allocations and decoder/update/upgrade rollback
 pass. The scalar matrix, 140 Vector read/mutation medians and 240 Auth-shaped
 query/update medians have matched reference results. The complete type
-catalogue, fresh macOS execution and full release gates were not rerun.
+catalogue and fresh macOS execution were not rerun. All 12 Storage release
+stages subsequently passed, including 123 library tests and archive qualification.
 Evidence: `target/evidence/lease-map-vector-20261111/`; final collection/size
 attempts `HUpsEh`/`gSebAh`. Both locks remain unchanged by these experiments.
 
@@ -32,29 +33,30 @@ Windows selections are preserved. Locked metadata and refreshed RustSec feed
 paste/serde_cbor maintenance warnings remain. Native benchmark/runtime Clippy
 and 26+4 unit tests pass (two installed-only tests ignored); focused Logging
 IO/upgrade/rollback and awaited deletion pass at `attempt.5vYTuv`.
-Evidence is `target/evidence/issue-157/`. Keep #157 open until integration
-on the default branch, under its recorded delivery requirement.
+Evidence is `target/evidence/issue-157/`. #157 is closed after confirmed
+integration on main in `8263d7447e1b7319f44572ab968cdb8423457046`.
 The last issue inventory found no other open issues or PRs.
 
-The requested delivery selects only Storage: the unchanged published adapters'
+The completed delivery selected only Storage: the unchanged published adapters'
 compatible Storage 0.73.2 requirements already admit this patch. Release metadata
-will advance the local catalog requirement without republishing those adapters.
-Run all 12 Storage release stages and publish from the captured batch before
-reconciling main. Release qualification/publication remain separate from the
-focused checks above. Further
+advanced the local catalog requirement without republishing those adapters.
+Further
 ordered-map density or scan changes need a distinct experiment and format
 decision; do not restore the rejected root-cache or combined-read candidates.
 
 ## Published state and selected suppliers
 
-Published Storage 0.73.2, Metrics Storage 0.76.1 and Logging Storage 0.72.1
+Published Storage 0.73.3, Metrics Storage 0.76.1 and Logging Storage 0.72.1
 have annotated GitHub tags and matching crates.io archive checksums.
-Batch `batch-dkC14l_X` completed at
-`41fc0eb9caa17a2cf09243a7ae75fe9936fe6df6`, passed all 12 stages per group,
-and was reconciled into normal main. Current base is `256157b7`.
-Evidence: `target/evidence/deploy-build-083/`, batch release-validation
+Storage batch `batch-Gm8WnqRN` completed at
+`861be6f38a730fa5bfaf8bfb73674e6e397c7c4e`, passed all 12 release stages,
+and was reconciled into normal main. Tag: `storage-v0.73.3`.
+The qualified archive, downloaded crate and sparse registry index agree on SHA256
+`66d8e9cdb30962bfb6a43bc9baeed9015b7c09b57dee283a0253288d35ece0f1`.
+Evidence: `target/evidence/deploy-storage-0733/`, batch release-validation
 receipts beneath `target/release-frozen/` and `.git/release-state/frozen/`.
-No additional delivery occurred during this experiment.
+Earlier batch `batch-dkC14l_X` and `target/evidence/deploy-build-083/` retain
+the preceding Storage/adapters delivery evidence.
 
 Wire 0.21.1, Build 0.83.0, Platform 0.29.3, Runtime 0.21.1 and Toko 0.39.10
 remain selected in their owning graphs; Testkit 0.95/PocketIC 16.1.0 and Rust
