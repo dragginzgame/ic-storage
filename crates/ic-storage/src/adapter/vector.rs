@@ -114,7 +114,9 @@ impl<T: Storable, M: Memory> StableVec<T, M> {
     /// backing IO failure. Unselected records are not decoded.
     #[must_use]
     pub fn get(&self, index: u64) -> Option<T> {
-        if index >= self.len() {
+        // Selected reads check owner health while admitting the complete slot.
+        if index >= self.length.get() {
+            let _ = self.memory.size();
             return None;
         }
         Some(read_value(&self.memory, self.layout, index))
@@ -160,7 +162,10 @@ impl<T: Storable, M: Memory> StableVec<T, M> {
     pub fn pop(&self) -> Option<T> {
         #[cfg(not(target_arch = "wasm32"))]
         let _guard = self.memory.poison_on_unwind();
-        let index = self.len().checked_sub(1)?;
+        let Some(index) = self.length.get().checked_sub(1) else {
+            let _ = self.memory.size();
+            return None;
+        };
         let value = read_value(&self.memory, self.layout, index);
         self.commit_length(index);
         Some(value)
@@ -300,7 +305,8 @@ fn write_value(memory: &impl Memory, layout: Layout, index: u64, bytes: &[u8]) {
         .extent(index.checked_add(1).expect("vector index overflow"))
         .expect("vector extent overflow");
     assert!(contains(memory, end), "vector record extends beyond memory");
-    let mut offset = layout.extent(index).expect("vector offset overflow");
+    // The checked complete extent also proves the slot's starting offset.
+    let mut offset = end - layout.stride();
     if !layout.fixed {
         let length = u32::try_from(bytes.len()).expect("vector record length overflow");
         memory.write(offset, &length.to_le_bytes());
@@ -316,7 +322,8 @@ fn read_value<T: Storable>(memory: &impl Memory, layout: Layout, index: u64) -> 
         .extent(index.checked_add(1).expect("vector index overflow"))
         .expect("vector extent overflow");
     assert!(contains(memory, end), "vector record extends beyond memory");
-    let mut offset = layout.extent(index).expect("vector offset overflow");
+    // The checked complete extent also proves the slot's starting offset.
+    let mut offset = end - layout.stride();
     let length = if layout.fixed {
         layout.maximum
     } else {
@@ -362,8 +369,9 @@ struct Iter<'a, T: Storable, M: Memory> {
 }
 
 impl<T: Storable, M: Memory> Iter<'_, T, M> {
+    // Callers observe owner health either directly or through selected-slot admission.
     fn remaining(&mut self) -> u64 {
-        self.back = self.back.min(self.vector.len());
+        self.back = self.back.min(self.vector.length.get());
         self.front = self.front.min(self.back);
         self.back - self.front
     }
@@ -379,6 +387,7 @@ impl<T: Storable, M: Memory> Iterator for Iter<'_, T, M> {
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
         let n = u64::try_from(n).unwrap_or(u64::MAX);
         if n >= self.remaining() {
+            let _ = self.vector.memory.size();
             self.front = self.back;
             return None;
         }
@@ -393,6 +402,7 @@ impl<T: Storable, M: Memory> Iterator for Iter<'_, T, M> {
     }
 
     fn count(mut self) -> usize {
+        let _ = self.vector.memory.size();
         usize::try_from(self.remaining()).expect("vector iterator count exceeds usize")
     }
 
@@ -409,6 +419,7 @@ impl<T: Storable, M: Memory> DoubleEndedIterator for Iter<'_, T, M> {
     fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
         let n = u64::try_from(n).unwrap_or(u64::MAX);
         if n >= self.remaining() {
+            let _ = self.vector.memory.size();
             self.back = self.front;
             return None;
         }

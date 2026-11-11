@@ -1,4 +1,4 @@
-//! Sparse exclusive leases retain the backing claim through detached handles.
+//! Exclusive leases retain the backing claim through detached handles.
 use super::{AllocationId, Error, StableKey, StorageConfig, persistence::Store};
 use crate::{Memory, MemoryBacking, runtime::custody::BackingClaim};
 use std::{cell::RefCell, collections::BTreeSet, rc::Rc};
@@ -7,7 +7,9 @@ struct State<M: Memory> {
     // Drop the identity claim before freeing the allocation that identifies it.
     _claim: BackingClaim,
     store: RefCell<Store<Rc<M>>>,
-    live: RefCell<BTreeSet<AllocationId>>,
+    // Dense internal indexes are stable for this owner's lifetime. One bit per
+    // opened index avoids a separately allocated search tree for live leases.
+    live: RefCell<Vec<u64>>,
 }
 
 pub struct Owner<M: Memory>(Rc<State<M>>);
@@ -59,7 +61,13 @@ impl<M: Memory> Owner<M> {
     }
     pub fn diagnostics(&self) -> Result<crate::StorageDiagnostics, Error> {
         let mut report = self.0.store.borrow().diagnostics()?;
-        report.live_leases = self.0.live.borrow().len();
+        report.live_leases = self
+            .0
+            .live
+            .borrow()
+            .iter()
+            .map(|word| word.count_ones() as usize)
+            .sum();
         Ok(report)
     }
     pub fn bind(&self, keys: &BTreeSet<StableKey>) -> Result<(), Error> {
@@ -75,16 +83,23 @@ impl<M: Memory> Owner<M> {
         let store = self.0.store.borrow();
         store.healthy()?;
         let id = store.allocation_id(key).ok_or(Error::Missing)?;
-        if self.0.live.borrow().contains(&id) {
+        let index = usize::try_from(id.0 - 1).map_err(|_| Error::Missing)?;
+        let mut live = self.0.live.borrow_mut();
+        let word = index / 64;
+        let mask = 1_u64 << (index % 64);
+        if word >= live.len() {
+            live.resize(word + 1, 0);
+        }
+        if live[word] & mask != 0 {
             return Err(Error::AlreadyOpen);
         }
         // Continuous custody preserves the admitted directory. Explicit
         // diagnostics and cold admission own backing integrity verification.
-        self.0.live.borrow_mut().insert(id);
+        live[word] |= mask;
         Ok(Lease {
             state: Rc::clone(&self.0),
             id,
-            index: usize::try_from(id.0 - 1).map_err(|_| Error::Missing)?,
+            index,
         })
     }
 }
@@ -171,7 +186,7 @@ impl<M: Memory> Lease<M> {
 
 impl<M: Memory> Drop for Lease<M> {
     fn drop(&mut self) {
-        self.state.live.borrow_mut().remove(&self.id);
+        self.state.live.borrow_mut()[self.index / 64] &= !(1_u64 << (self.index % 64));
     }
 }
 

@@ -35,6 +35,35 @@ fn lease_opening_uses_admitted_state_without_backing_io() {
 }
 
 #[test]
+fn sparse_leases_preserve_neighbors_across_word_boundaries_and_binding_growth() {
+    let owner = Owner::init(VectorMemory::default(), StorageConfig::default()).unwrap();
+    let keys: BTreeSet<_> = (0..257).map(key).collect();
+    owner.bind(&keys).unwrap();
+    let keys: Vec<_> = keys.into_iter().collect();
+    let indexes = [0, 63, 64, 127, 128, 256];
+    let mut handles: Vec<_> = indexes
+        .iter()
+        .map(|index| Some(owner.lease(&keys[*index]).unwrap()))
+        .collect();
+    assert_eq!(owner.diagnostics().unwrap().live_leases, indexes.len());
+    drop(handles[2].take());
+    assert_eq!(owner.diagnostics().unwrap().live_leases, indexes.len() - 1);
+    for index in [0, 63, 127, 128, 256] {
+        assert!(matches!(owner.lease(&keys[index]), Err(Error::AlreadyOpen)));
+    }
+    handles[2] = Some(owner.lease(&keys[64]).unwrap());
+    owner.bind(&(257..1025).map(key).collect()).unwrap();
+    let added = owner.lease(&key(1024)).unwrap();
+    assert_eq!(owner.diagnostics().unwrap().live_leases, indexes.len() + 1);
+    drop(handles);
+    assert_eq!(owner.diagnostics().unwrap().live_leases, 1);
+    let reopened = owner.lease(&keys[64]).unwrap();
+    assert_eq!(owner.diagnostics().unwrap().live_leases, 2);
+    drop((added, reopened));
+    assert_eq!(owner.diagnostics().unwrap().live_leases, 0);
+}
+
+#[test]
 fn explicit_verification_detects_raw_changes_after_an_unchecked_open() {
     let memory = VectorMemory::default();
     let owner = Owner::init(memory.clone(), StorageConfig::default()).unwrap();

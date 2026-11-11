@@ -3,6 +3,21 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/persistence/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.73.3] - Unreleased
+
+### ⚡ Performance
+
+- Reduce live-lease bookkeeping Wasm and open/drop work, and remove repeated
+  Vector read checks while preserving custody, bounds and poisoned-owner refusal.
+  APIs and stored formats are unchanged. See [the detailed notes](0.73.md#0733---unreleased).
+
+### 🩹 Fixed
+
+- Update native qualification's rustix selection to 1.1.6, clearing its
+  extended-attribute unsoundness advisory without changing production dependencies
+  ([#157 — Update qualification rustix past RUSTSEC-2026-0486](https://github.com/dragginzgame/ic-storage/issues/157)).
+  See [the detailed notes](0.73.md#0733---unreleased).
+
 ## [0.73.2] - 2026-11-11
 
 ### 🔧 Changed

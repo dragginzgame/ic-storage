@@ -874,3 +874,194 @@ make benchmark-storage BENCH_SAMPLES=1`. For frozen driver controls, use
 Run through the explicitly prepared Testkit server as above. Current application
 size reproduction remains `make benchmark-storage-size`. Retain the frozen
 intermediate sources for historical comparison; current commands run current code.
+
+## Lease and Vector experiments — 2026-11-11
+
+Fresh comparisons on source `256157b7` plus the preserved qualification-rustix
+fix select Wire 0.21.1, Runtime 0.21.1, Build 0.83.0 and Toko 0.39.10.
+Rust/Cargo 1.99.1, Testkit 0.95 and PocketIC 16.1.0 are unchanged.
+Application consumers use `wasm-size`; instruction harnesses use `comparison`
+with the existing 8-MiB stack flag. These are original compiler modules, with
+no post-link optimizer. Both backends receive matched settings and logical work.
+
+Three isolated trials retain the live-lease bitmap and Vector checked-read
+simplification. The combined Map read is rejected and removed completely.
+Formats, public APIs, allocation admission, exclusive custody and native owner
+poisoning remain unchanged. No new dependency or deployment is included.
+
+### Application Wasm after every step
+
+Each cell is **total uncompressed module bytes / code-section payload bytes**,
+measured by the maintained size runner's Wasm section parser. These eight
+application consumers are separate from the broad performance harness.
+The Map trial includes the retained lease change; final includes lease and
+Vector changes with the Map trial removed.
+
+| Consumer | Before | Lease bitmap | Map trial, rejected | Final | ICSS 0.7.2 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| base | 16,893 / 14,773 | 16,893 / 14,773 | 16,893 / 14,773 | 16,893 / 14,773 | 16,889 / 14,773 |
+| map | 109,076 / 92,844 | 102,426 / 87,111 | 103,972 / 88,358 | 102,426 / 87,111 | 90,195 / 49,231 |
+| set | 108,188 / 92,037 | 101,538 / 86,304 | 101,534 / 86,304 | 101,538 / 86,304 | 89,955 / 48,940 |
+| vector | 95,026 / 80,968 | 88,382 / 75,242 | 88,382 / 75,242 | 88,243 / 75,159 | 64,506 / 27,577 |
+| cell | 93,021 / 79,561 | 86,355 / 73,817 | 86,355 / 73,817 | 86,355 / 73,817 | 63,093 / 26,077 |
+| region | 110,337 / 94,040 | 103,734 / 88,355 | 105,270 / 89,600 | 103,734 / 88,355 | 89,904 / 49,043 |
+| map-region | 112,018 / 95,655 | 105,397 / 89,952 | 106,953 / 91,209 | 105,397 / 89,952 | 110,859 / 69,760 |
+| all | 123,076 / 104,985 | 116,408 / 99,236 | 117,933 / 100,471 | 116,288 / 99,172 | 119,324 / 77,133 |
+
+Net all-collection reduction is **6,788 total / 5,813 code bytes**.
+Final total size is 3,036 bytes below this ICSS consumer, while its code section
+remains 22,039 bytes larger. Individual structures are still larger than ICSS;
+the all-collection result is not a universal size claim.
+
+### Matched scalar instructions after every step
+
+These are three-round medians for 4,096 shuffled records, uniform access and
+32 operations/results per call and one sample. ICSS uses its explicit
+128-page bucket control; Storage
+keeps its eight-page allocation units. Equal logical work does not imply equal
+bucket reservation. IC memory charges are included; these are not complete
+application endpoint measurements.
+
+| Operation | Before | Lease bitmap | Map trial, rejected | Final | ICSS 0.7.2 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Map Get | 1,135,600 | 1,135,600 | 1,096,615 | 1,135,600 | 914,982 |
+| Map MissAbove | 835,099 | 835,099 | 900,329 | 835,099 | 895,291 |
+| Map Scan | 734,856 | 734,856 | 735,920 | 734,856 | 309,902 |
+| Set Get | 1,039,750 | 1,039,750 | 1,049,073 | 1,039,750 | 826,957 |
+| Region Get | 1,209,456 | 1,209,648 | 1,173,581 | 1,209,648 | 933,864 |
+| Vector Get | 103,413 | 103,413 | 103,413 | 99,543 | 102,932 |
+| Vector Scan | 102,565 | 102,565 | 102,565 | 98,697 | 95,015 |
+| Vector Push | 201,716 | 201,685 | 201,685 | 198,871 | 186,644 |
+
+The 124-row scalar matrix also includes single operations, misses, updates,
+removals, endpoints, reverse/bounded/key scans and rank operations.
+
+### Step 1: retain indexed lease bookkeeping
+
+The live-ID search tree becomes a lazily grown bitmap indexed by already stable
+internal directory positions. IDs remain opaque to callers. Dropping a lease
+clears only its bit; detached handles retain backing custody. Diagnostics count
+set bits rather than maintaining a second counter. The bitmap remains allocated
+to the highest opened index until the owner dies: at most 512 logical bytes for
+the default 4,096-entry directory, excluding Vec capacity rounding/header.
+
+Installed admission validates 864 samples per Storage version and 600 ICSS
+controls. With zero data buckets, representative later-call samples are:
+
+| Operation | Before | Bitmap | ICSS |
+| --- | ---: | ---: | ---: |
+| Open/drop one of 16 names | 164,440 | 164,067 | 160,391 |
+| Hold/drop all 16 names | 262,821 | 247,891 | 164,337 |
+| Hold/drop all 64 names | 737,432 | 649,759 | 175,377 |
+| Hold/drop all 1,024 names, stress only | 15,976,183 | 13,539,921 | unavailable |
+
+ICSS's control supplies no equivalent namespace/admission/exclusive-lease
+guarantees and admits at most 255 names in this harness. Across Storage admission
+samples, 393 improve, 216 are equal and 255 rise. The largest relative increase
+is 66 instructions on a 21,943-instruction reopen (0.30%); retained 32-read calls
+rise by 352 instructions (0.14%). The scalar matrix has 15 improvements,
+84 unchanged medians and 25 increases, including a 55-instruction increase in
+the single-operation Vector control and several short operations.
+This is a size/open-drop win, not universal instruction improvement.
+Sparse leases, adjacent bit positions, directory extension, duplicate refusal,
+drop/reopen, detached custody and poisoned owners have explicit tests.
+
+### Step 2: reject combined Map routing/value reads
+
+The trial read routing plus the declared inline value bound (at most 24 bytes)
+at each node for point gets. It kept key-only reads and iterator nodes unchanged,
+and shared physical-node/root/child checks. Tests validated complete extent
+admission and codec checks before decoding, including malformed lengths.
+
+The 4,096-row scalar Map hit improves 3.43% at batch 32, but misses regress
+7.81%; the single-hit result improves 44.8%, illustrating sensitivity to tracked
+memory regions rather than a general algorithmic gain. At 256 rows, bounded
+U8/U128/20-byte values and variable Blob20 hits regress about 4–8%, with misses
+roughly 9–11% worse. The eight-case type control has 491 regressed, 25 improved
+and four equal Storage medians. ICSS refuses the OptionU64 setup because its
+fixed-width expectation rejects the shorter None encoding: 52 rows retain
+Storage-only comparisons, with ICSS unavailable rather than zero cost.
+The remaining 468 rows are paired reference comparisons.
+
+The trial adds 1,525 total / 1,235 code bytes to the all-collection consumer.
+Reading/copying tails on routing nodes and the changed shared parsing path do
+not earn their cost across the controls. All three trial source/test files are
+restored exactly to their pretrial state; no alternate path or option remains.
+
+### Step 3: retain Vector checked-fact reuse
+
+Successful get/pop/iterator selection uses the cached committed length and the
+selected slot's existing live size/bounds check, instead of checking size twice.
+Misses, empty pop, exhausted/skipping iterators, count and size hints still
+observe poisoned ownership. Checked complete slot ends also determine starting
+offsets. Set retains its pre-encoding health check, and writes still verify
+actual capacity after growth. No persisted size cache or safety bypass is added.
+
+Against the retained lease baseline, the scalar matrix has 23 improvements,
+99 unchanged medians and two misses each increasing by two instructions.
+All 140 fixed/variable read-mutation medians improve at 256 rows. Representative
+32-read batches are 105,219 → 101,411 instructions for Array32 (ICSS 104,576),
+239,720 → 236,072 for WireRecord (ICSS 232,212), and
+2,887,697 → 2,884,047 for 4-KiB values in the 1-MiB-bound Chunk type
+(ICSS 2,961,934). Follow-up reads after set/push/pop remain correct.
+
+Auth-shaped SessionEnvelope sweeps cover 1/512/1,024/2,048 records, first/middle/
+last positions, 256/2,048-byte records and query/update executions. Of 240
+medians, 192 improve and 48 are unchanged. At 2,048 records, first-position
+2-KiB update reads improve 86,452 → 86,336 instructions (ICSS 86,135);
+the in-execution warm read improves 6,452 → 6,336 (ICSS 6,135).
+The 116-instruction saving does not explain Canic's configuration preparation
+cost or qualify a whole Auth endpoint speedup.
+
+Vector-only Wasm saves another 139 total / 83 code bytes; all-collection saves
+120 total / 64 code bytes. Eleven format tests, twelve public Vector tests,
+twelve lease tests and five public runtime tests pass. New checks exercise
+poisoning from a neighbor on selected/missing/exhausted paths and refuse missing
+or overflowing read/write slots before IO. Native and Wasm Clippy pass.
+All sixteen size modules pass 127 calls and two upgrades each at each stage.
+Final installed Storage qualification passes IO, admission, upgrade across
+1,031 named allocations, and decoder/update/upgrade trap rollback.
+Both selected lockfiles are unchanged by the experiments. Full release gates,
+the complete type catalogue, fresh macOS qualification and publication were not run.
+
+### Evidence and reproduction
+
+Raw inputs, logs, comparisons and frozen admission modules are under
+`target/evidence/lease-map-vector-20261111/`. Source archives, hashes and
+collection/application Wasms are retained in:
+
+| Stage | storage-comparison attempt | storage-consumer-size attempt |
+| --- | --- | --- |
+| Before | qtVwLH | PmNhZK |
+| Lease | EjHVZO | kklrbB |
+| Rejected Map | NcaltQ | SySUqX |
+| Final lease + Vector | HUpsEh | gSebAh |
+
+All attempt roots are under `target/evidence/`. Current-source reproduction:
+
+```sh
+make benchmark-storage-size
+BENCH_CASES=Map-U64-U64,Set-U64-Unit,Region-U64-U64,Vector-U64-U64 \
+  BENCH_PATTERNS=uniform BENCH_ROUNDS=3 BENCH_SHUFFLED=1 \
+  BENCH_UPSTREAM_BUCKET_PAGES=128 \
+  make benchmark-storage BENCH_ROWS=4096 BENCH_SAMPLES=1
+BENCH_WORKLOAD=vector-reads BENCH_UPSTREAM_BUCKET_PAGES=128 \
+  make benchmark-storage BENCH_SAMPLES=1
+BENCH_WORKLOAD=auth-lookups BENCH_UPSTREAM_BUCKET_PAGES=128 \
+  make benchmark-storage BENCH_SAMPLES=1
+```
+
+Frozen-module replays use the existing native driver with `--owned-wasm`,
+`--dfinity-wasm`, `--output`, `--samples 1` and `--upstream-bucket-pages 128`,
+through the installed Testkit runner. The rejected Map control additionally uses
+`--cases Map-U64-Unit,Map-U64-U8,Map-U64-U128,Map-U64-Array20,Map-U64-Blob20,Map-U64-OptionU64,Map-U64-Array32,Map-Array64-U128 --rows 256 --rounds 3 --patterns uniform --shuffled`.
+Admission uses the maintained `admission-wasm`/native `admission` examples,
+as described above. Retained source archives reproduce unpublished intermediate
+trials; current commands reproduce only retained code.
+
+Vector implementation work used a separate implementer reading the current
+independently authored Vector files, current specification (including its later
+integrator notes), manifests and pinned policy. The Map implementer read only
+the current independent ordered files and its approved specification context.
+Neither used predecessor or registry ICSS implementation text. The parent
+authored separate public poison tests and performed qualification.

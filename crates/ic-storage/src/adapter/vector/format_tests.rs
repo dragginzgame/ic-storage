@@ -196,7 +196,7 @@ fn selected_variable_record_is_bounded_before_buffer_allocation() {
 }
 
 #[test]
-fn missing_or_overflowing_slot_extent_refuses_before_reading() {
+fn missing_or_overflowing_slot_extent_refuses_before_io() {
     let memory = TestMemory::default();
     let layout = Layout {
         maximum: 8,
@@ -206,8 +206,12 @@ fn missing_or_overflowing_slot_extent_refuses_before_reading() {
         traps(|| {
             let _: Record = read_value(&memory, layout, index);
         });
+        traps(|| {
+            write_value(&memory, layout, index, &[0; 8]);
+        });
     }
     assert_eq!(memory.reads.get(), 0);
+    assert_eq!(memory.writes.get(), 0);
 }
 
 #[test]

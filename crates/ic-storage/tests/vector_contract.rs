@@ -401,6 +401,42 @@ fn iteration_observes_replacements_and_clamps_after_removal() {
 }
 
 #[test]
+fn poisoned_owner_is_observed_on_selected_missing_and_exhausted_paths() {
+    for populated in [false, true] {
+        let backing = Observed::default();
+        let runtime = host(backing.clone());
+        let vector = StableVec::<u64, _>::create(runtime.open_memory(&key()).unwrap()).unwrap();
+        if populated {
+            vector.push(&17);
+        }
+        let mut forward = vector.iter();
+        let mut reverse = vector.iter();
+        let mut skipped = vector.iter();
+        let mut skipped_back = vector.iter();
+        let counted = vector.iter();
+        let hinted = vector.iter();
+        let other = runtime
+            .open_memory(&StableKey::parse("vector.b.v1").unwrap())
+            .unwrap();
+        assert_eq!(other.grow(1).unwrap(), 0);
+        backing.io.set(Io::default());
+        backing.fail_write.set(Some(1));
+        assert!(catch_unwind(AssertUnwindSafe(|| other.write(0, &[1]))).is_err());
+        let io = backing.io.get();
+        assert!(catch_unwind(AssertUnwindSafe(|| vector.get(0))).is_err());
+        assert!(catch_unwind(AssertUnwindSafe(|| vector.get(u64::MAX))).is_err());
+        assert!(catch_unwind(AssertUnwindSafe(|| vector.pop())).is_err());
+        assert!(catch_unwind(AssertUnwindSafe(|| forward.next())).is_err());
+        assert!(catch_unwind(AssertUnwindSafe(|| reverse.next_back())).is_err());
+        assert!(catch_unwind(AssertUnwindSafe(|| skipped.nth(usize::MAX))).is_err());
+        assert!(catch_unwind(AssertUnwindSafe(|| skipped_back.nth_back(usize::MAX))).is_err());
+        assert!(catch_unwind(AssertUnwindSafe(|| counted.count())).is_err());
+        assert!(catch_unwind(AssertUnwindSafe(|| hinted.size_hint())).is_err());
+        assert_eq!(backing.io.get(), io, "poison refusal precedes backing IO");
+    }
+}
+
+#[test]
 fn interrupted_reads_and_refused_growth_invalidate_owner() {
     for read_failure in [true, false] {
         let backing = Observed::default();
