@@ -30,7 +30,7 @@ ic-stable-structures = "0.7.2"
 # Explicit research control for the maintainer-requested upstream comparison.
 # The facade cannot select unpublished upstream code; no production consumer uses this.
 ic-stable-structures-head = { package = "ic-stable-structures", git = "https://github.com/dfinity/stable-structures", rev = "b5d1650463f477affb3d358e86b1113953fc9937" }
-ic-storage = { path = "../crates/ic-storage", version = "0.73.1" }
+ic-storage = { path = "../crates/ic-storage", version = "0.73.2" }
 ic-storage-test-fixtures = { path = "ic-storage-test-fixtures" }
 ic-testkit = { version = "0.95.0", default-features = false }
 ic-wire = "0.21.1"
