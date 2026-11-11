@@ -88,9 +88,21 @@ fn header(value_len: u64) -> [u8; STABLE_CELL_HEADER_SIZE] {
 
 pub fn read_payload<M: Memory>(memory: &M, length: usize) -> Vec<u8> {
     // The caller has admitted this complete extent before allocating the buffer.
-    let mut bytes = vec![0; length];
-    if !bytes.is_empty() {
-        memory.read(PAYLOAD_OFFSET, &mut bytes);
+    let mut bytes = Vec::with_capacity(length);
+    if length != 0 {
+        // SAFETY: Fresh capacity provides exclusive, correctly aligned storage
+        // for at least `length` bytes, disjoint from the backing and its state.
+        // A successful read initializes the entire destination before set_len
+        // publishes it. If reading unwinds after a partial copy, the Vec still
+        // has length zero and drops without exposing uninitialized bytes.
+        #[expect(
+            unsafe_code,
+            reason = "The admitted read initializes fresh Vec capacity."
+        )]
+        unsafe {
+            memory.read_unsafe(PAYLOAD_OFFSET, bytes.as_mut_ptr(), length);
+            bytes.set_len(length);
+        }
     }
     bytes
 }

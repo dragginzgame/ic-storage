@@ -23,8 +23,8 @@ clap = { version = "4.6", default-features = false, features = ["derive", "std",
 ic-logging = { version = "0.24.0", default-features = false }
 ic-logging-storage = { path = "../crates/ic-logging-storage", version = "0.71.0" }
 # Platform supplies the composition fixture identity; Testkit owns the native client.
-ic-platform = { version = "0.28.0", default-features = false }
-ic-platform-runtime = { version = "0.21.0", default-features = false }
+ic-platform = { version = "0.29.3", default-features = false }
+ic-platform-runtime = { version = "0.21.1", default-features = false }
 # Published reference engines, confined to this unpublished benchmark workspace.
 ic-stable-structures = "0.7.2"
 # Explicit research control for the maintainer-requested upstream comparison.
@@ -33,13 +33,13 @@ ic-stable-structures-head = { package = "ic-stable-structures", git = "https://g
 ic-storage = { path = "../crates/ic-storage", version = "0.73.0" }
 ic-storage-test-fixtures = { path = "ic-storage-test-fixtures" }
 ic-testkit = { version = "0.95.0", default-features = false }
-ic-wire = "0.19.0"
+ic-wire = "0.21.1"
 ic_principal = { version = "0.1", default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 serde_bytes = "0.11"
 serde_json = "1.0"
 tokio = { version = "1.54.1", default-features = false, features = ["macros", "rt"] }
-toko-tooling = "=0.39.7"
+toko-tooling = "=0.39.10"
 
 [profile.comparison]
 inherits = "release"

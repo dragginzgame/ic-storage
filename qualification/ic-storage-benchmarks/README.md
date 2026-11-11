@@ -20,13 +20,19 @@ selected population. Builds are locked/offline on Rust 1.99.1; the command never
 installs tools or changes locks. Testkit 0.95.0 supplies the maintained async
 client and manages the prepared PocketIC 16.1.0 server. Native drivers own a
 current-thread Tokio runtime, explicit five-minute request budgets and awaited
-instance deletion. The published reference uses ICSS 0.7.2 directly, without an older Platform
+instance deletion. Each comparison server has a one-hour lifetime: complete
+three-seed matrices and final-state checks exceeded the former fifteen-minute
+limit. This host deadline does not change IC instruction budgets or timed work.
+See the [complete comparison](../../docs/measurements/storage-full-suite-2026-11-10.md)
+for retained failures, complete retries and reproduction commands.
+The published reference uses ICSS 0.7.2 directly, without an older Platform
 facade. This is a dependency of the unpublished benchmark support library only;
 Cargo dev-dependencies cannot supply traits used by that library. Production
 Storage uses independently implemented collections, with no copied ICSS engine
 or production ICSS dependency. Both backends use the selected Runtime for system calls. Client setup and installation failures stop the comparison;
 they are not retried or treated as collection results. The production graph has
-no DFINITY dependency. Both Wasm backends use the same comparison profile:
+no ICSS dependency; Runtime 0.21.1 owns its external `ic0` IO dependency.
+Both Wasm backends use the same comparison profile:
 optimization level 3, fat LTO, one codegen unit, abort panics, no Binaryen pass.
 
 ### Governed-backing attribution
@@ -125,7 +131,7 @@ and after replacement to cover both optional variants and scalar states.
 
 The Make runner builds both original Wasm modules, then executes five automatic
 collection shards with separate prepared Testkit server lifetimes, each bounded
-at 30 minutes for this full-width matrix. It writes the
+at one hour, like the other comparison runs. It writes the
 aggregate only after every shard completes. Ordinary defaults retain their
 curated selection and runtime. No manual type/size choices are needed. Deterministic gzip reduces install
 transport while retaining original modules. The synthetic modules select an
@@ -342,7 +348,7 @@ BENCH_CASES=Vector-U64-Chunk BENCH_PAYLOADS=4096 BENCH_ROUNDS=3 \
   BENCH_PATTERNS=uniform make benchmark-storage BENCH_ROWS=256 BENCH_SAMPLES=1
 ```
 
-Crossing all 256 items with 4 KiB values exhausted the 900-second server budget
+Crossing all 256 items with 4 KiB values exhausted the earlier 900-second server budget
 in qualification; its partial evidence remains a failed run, not a pass. Wide
 fallback behavior is covered separately instead of inflating every iterator run.
 Correctness refusals, corrupt slots, empty collections and poisoned ownership
@@ -530,6 +536,14 @@ engines equal cache budgets; that release has no selectable node cache.
 
 ## Consumer workloads
 
+`BENCH_WORKLOAD=cell-open BENCH_SAMPLES=1 make benchmark-storage` measures Cell
+lease acquisition, read-only admission, payload decode, the requested operation
+and drop with the allocation owner retained. It covers u64 and byte values of
+0, 32, 4096, 65536 and 1048576 bytes. Every round restores the declared payload
+before `OpenControl` and `Get`, then checks growth and shrinkage with reads after
+each mutation. ICSS's required unused default is constructed outside timing.
+These are reopened-Cell costs; ordinary Cell workloads retain cached handles.
+
 ### Vector opening
 
 `BENCH_WORKLOAD=vector-open BENCH_SAMPLES=1 make benchmark-storage` measures a
@@ -589,6 +603,13 @@ reinsertion restores the original size. Both backends use eight-page buckets.
 Repeated keys in a batch remain repeated: removal/reinsertion can mix hits and
 misses, while `RemoveMiss` runs only after the selected keys have been removed.
 It checks every returned value and all final records against a separate model.
+
+It also checks 324 Map entry/key-only scan observations: the same populations
+and payload shapes, starts at zero/middle/last, and limits 1/32/256. These scans
+use sequential insertion and no intervening mutations. Append `--scans-only`
+to the command below to omit the mutation matrix. See the
+[scalar scan attribution](../../docs/measurements/storage-scalar-scans-2026-11-11.md)
+for the measured metadata/read costs and their limits.
 
 ```sh
 cargo run --locked --offline --manifest-path qualification/Cargo.toml \
@@ -926,8 +947,13 @@ consumer Wasm. Ordinary Rust panic paths remain, as they do in applications.
 The runner builds eight feature selections separately for each crate: empty
 control, Map, Set, Vector, Cell, Region, Map+Region and all five. Every selection
 exports init, post-upgrade, put, get, remove and scan. Keys/values are `u64`; scans
-are bounded to 16 entries. The put request is two little-endian u64s, get/remove
-one, scan empty; replies contain one u64 per enabled collection in
+are bounded to 16 entries. The put request is two little-endian u64s; get/remove
+and scan each take one. Scan's argument is the inclusive lower key bound for
+Map/Region; Set/Vector retain their first-16 scans and Cell returns its value.
+This includes the actual bounded-range implementation in application size,
+which the former unbounded-only scan fixture did not. The runner checks starts
+0/17/80/999 before and after upgrades and removals: 127 calls and two upgrades
+per selection/backend. Replies contain one u64 per enabled collection in
 Map/Set/Vector/Cell/Region order. Missing optional results use u64::MAX. Vector
 put appends and remove pops; Cell put replaces and remove resets to zero. Stored
 codec bytes follow each library's defaults; logical requests/results are matched.

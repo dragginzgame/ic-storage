@@ -199,3 +199,25 @@ production source matches the application-size and lifecycle-qualified source.
 Standard reproduction is `make benchmark-storage-size`, and
 `BENCH_WORKLOAD=types make benchmark-storage` / `BENCH_WORKLOAD=bulk make benchmark-storage`;
 the retained runs selected the Cell shard through the documented driver.
+
+### Direct payload reads — 2026-11-11
+
+A separate restricted implementer refined the current independent framing
+reader using this contract, current Cell source/tests and the owned Memory
+interface. No predecessor or ICSS implementation was supplied. The reader now
+initializes fresh vector capacity directly and publishes its length only after
+successful IO. A partial-read panic drops a zero-length vector; empty reads still
+perform no IO. Framing, ceiling admission, codecs and the public API are unchanged.
+
+Patterned boundary tests exercise the default scratch reader and a direct
+override, including prefix failures and read-only retries. Public load-failure
+and lease-release tests, native/Wasm lint and installed upgrade/rollback pass.
+Custom backends using Memory's default raw-read fallback incur chunked copying;
+the production governed backing forwards directly. No universal custom-backend
+speedup is claimed.
+
+The new maintained `cell-open` workload measures reopening rather than cached
+`get()`. It restores each declared payload before the load control, then checks
+growth and shrinkage across three rounds. See the
+[matched instructions, application sizes and reproduction](../measurements/storage-scalar-scans-2026-11-11.md#direct-buffer-initialization-step-5)
+for the retained change. It does not change STORCELL version 1 or deployment state.

@@ -2,6 +2,8 @@
 
 use crate::Memory;
 
+use super::EncodedValue;
+
 const HEADER_SIZE: usize = 1024;
 const PAGE_SIZE: u64 = 65_536;
 const MAGIC: &[u8; 8] = b"STORMAP1";
@@ -231,7 +233,7 @@ impl<M: Memory> Store<M> {
         Some(node)
     }
 
-    pub fn write_node(&self, node: Node) {
+    fn check_node_write(&self, node: Node) {
         // Callers hold a previously admitted node or a newly allocated node block.
         assert!(
             valid_pointer(node.address, NODE_BYTES, self.end),
@@ -241,6 +243,10 @@ impl<M: Memory> Store<M> {
             node.link().height <= MAX_HEIGHT,
             "ordered-map height overflow"
         );
+    }
+
+    pub fn write_node(&self, node: Node) {
+        self.check_node_write(node);
         let mut bytes = [0; NODE_ROUTING_BYTES];
         for (index, value) in [
             NODE,
@@ -301,19 +307,24 @@ impl<M: Memory> Store<M> {
         self.release(node.address, NODE);
     }
 
-    pub fn value_bytes(&self, node: Node) -> Vec<u8> {
+    pub fn value_bytes(&self, node: Node) -> EncodedValue {
         if node.value == 0 {
             let length = usize::try_from(node.value_len).expect("invalid inline value length");
             assert!(length <= INLINE_VALUE, "invalid inline value length");
-            let mut bytes = vec![0; length];
-            self.memory.read(node.address + VALUE_OFFSET, &mut bytes);
-            bytes
+            let mut bytes = [0; INLINE_VALUE];
+            self.memory
+                .read(node.address + VALUE_OFFSET, &mut bytes[..length]);
+            EncodedValue::Inline {
+                bytes,
+                length: u8::try_from(length).expect("inline value length fits byte"),
+            }
         } else {
-            self.blob(node.value, node.value_len)
+            EncodedValue::Heap(self.blob(node.value, node.value_len))
         }
     }
 
     pub fn replace_value(&mut self, node: &mut Node, bytes: &[u8]) {
+        let previous = (node.value, node.value_len);
         if bytes.len() <= INLINE_VALUE {
             self.memory.write(node.address + VALUE_OFFSET, bytes);
             self.free_blob(node.value);
@@ -322,7 +333,13 @@ impl<M: Memory> Store<M> {
             node.value = self.replace_blob(node.value, bytes);
         }
         node.value_len = bytes.len() as u64;
-        self.write_node(*node);
+        if previous == (node.value, node.value_len) {
+            // The payload write suffices when its saved routing fields agree.
+            // Retain the same node checks even though no metadata is published.
+            self.check_node_write(*node);
+        } else {
+            self.write_node(*node);
+        }
     }
 
     pub fn move_payload(&self, target: &mut Node, source: Node) {
@@ -330,7 +347,8 @@ impl<M: Memory> Store<M> {
         // is untouched by the free-list prefix, and no allocation occurs in between.
         if source.value == 0 {
             let bytes = self.value_bytes(source);
-            self.memory.write(target.address + VALUE_OFFSET, &bytes);
+            self.memory
+                .write(target.address + VALUE_OFFSET, bytes.as_slice());
         }
         target.key = source.key;
         target.key_len = source.key_len;
@@ -349,9 +367,21 @@ impl<M: Memory> Store<M> {
             length <= (1_u64 << class) - BLOCK_HEADER,
             "oversized ordered-map blob"
         );
-        let mut bytes =
-            vec![0; usize::try_from(length).expect("ordered-map blob exceeds host address space")];
-        self.memory.read(address + BLOCK_HEADER, &mut bytes);
+        let length = usize::try_from(length).expect("ordered-map blob exceeds host address space");
+        let mut bytes = Vec::with_capacity(length);
+        // SAFETY: fresh capacity is exclusively writable and cannot overlap
+        // backing. The checked source is read into that capacity; read_unsafe
+        // initializes every byte on success. Keep length zero through the call
+        // so a panic after partial initialization exposes no unread bytes.
+        #[expect(
+            unsafe_code,
+            reason = "Memory initializes exclusive Vec capacity before its length is published."
+        )]
+        unsafe {
+            self.memory
+                .read_unsafe(address + BLOCK_HEADER, bytes.as_mut_ptr(), length);
+            bytes.set_len(length);
+        }
         bytes
     }
 

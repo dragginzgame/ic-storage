@@ -174,7 +174,7 @@ mod canister {
     #[cfg(not(feature = "footprint"))]
     mod matrix;
     #[cfg(not(feature = "footprint"))]
-    mod vector_open;
+    mod reopen;
     use collections::{Region, TypedCell, TypedSet, TypedVector};
     #[unsafe(export_name = "canister_init")]
     extern "C" fn init() {
@@ -190,8 +190,8 @@ mod canister {
         let settings: Initialization = argument(0);
         let case = settings.case;
         #[cfg(not(feature = "footprint"))]
-        if settings.vector_open {
-            MAP.with(|slot| *slot.borrow_mut() = Some(vector_open::new(settings)));
+        if settings.reopen {
+            MAP.with(|slot| *slot.borrow_mut() = Some(reopen::new(settings)));
             return;
         }
         #[cfg(feature = "footprint")]
@@ -209,8 +209,8 @@ mod canister {
         #[cfg(feature = "footprint")]
         let map: Box<dyn Benchmark> = {
             assert!(
-                !settings.vector_open,
-                "footprint build excludes vector-open"
+                !settings.reopen,
+                "footprint build excludes collection reopening"
             );
             match case {
                 ic_storage_benchmarks::case!(Map, U64, U64) => typed!(u64, u64),

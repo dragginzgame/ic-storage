@@ -29,19 +29,42 @@ mod storage;
 #[cfg(test)]
 mod tests;
 
-use std::{
-    borrow::Cow,
-    cmp::Ordering,
-    marker::PhantomData,
-    ops::{Bound, RangeBounds},
-};
+use std::{borrow::Cow, cmp::Ordering, marker::PhantomData, ops::RangeBounds};
 
 use crate::{
     Memory,
     storable::{Bound as CodecBound, Storable},
 };
 pub use iter::{Entries, Keys, Values};
-use storage::{INLINE_KEY, Link, MAX_HEIGHT, Node, Store};
+use storage::{INLINE_KEY, INLINE_VALUE, Link, MAX_HEIGHT, Node, Store};
+
+///
+/// `EncodedValue`
+///
+/// Owned value bytes with allocation-free storage for an inline payload.
+pub enum EncodedValue {
+    Inline {
+        bytes: [u8; INLINE_VALUE],
+        length: u8,
+    },
+    Heap(Vec<u8>),
+}
+
+impl EncodedValue {
+    pub(crate) fn as_slice(&self) -> &[u8] {
+        match self {
+            Self::Inline { bytes, length } => &bytes[..usize::from(*length)],
+            Self::Heap(bytes) => bytes,
+        }
+    }
+
+    pub(crate) fn decode<T: Storable>(self) -> T {
+        match self {
+            Self::Inline { bytes, length } => decode(Cow::Borrowed(&bytes[..usize::from(length)])),
+            Self::Heap(bytes) => decode(Cow::Owned(bytes)),
+        }
+    }
+}
 
 ///
 /// `OrderedMap`
@@ -140,15 +163,13 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> OrderedMap<K, V, M> {
         Entries::new(self, 0, self.len())
     }
     pub(crate) fn range(&self, range: impl RangeBounds<K>) -> Entries<'_, K, V, M> {
-        let (front, back) = self.range_ranks(&range);
-        Entries::new(self, front, back)
+        Entries::range(self, &range)
     }
     pub(crate) const fn keys(&self) -> Keys<'_, K, V, M> {
         Keys::new(self, 0, self.len())
     }
     pub(crate) fn keys_range(&self, range: impl RangeBounds<K>) -> Keys<'_, K, V, M> {
-        let (front, back) = self.range_ranks(&range);
-        Keys::new(self, front, back)
+        Keys::range(self, &range)
     }
     pub(crate) const fn values(&self) -> Values<'_, K, V, M> {
         Values::new(self, 0, self.len())
@@ -166,14 +187,14 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> OrderedMap<K, V, M> {
     }
 
     fn value(&self, node: Node) -> V {
-        decode(Cow::Owned(self.value_bytes(node)))
+        self.value_bytes(node).decode()
     }
 
-    fn value_bytes(&self, node: Node) -> Vec<u8> {
+    fn value_bytes(&self, node: Node) -> EncodedValue {
         check_length::<V>(node.value_len);
         let bytes = self.store.value_bytes(node);
         V::BOUND
-            .check(&bytes)
+            .check(bytes.as_slice())
             .expect("ordered-map stored codec bound mismatch");
         bytes
     }
@@ -216,53 +237,6 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> OrderedMap<K, V, M> {
             }
         }
         panic!("ordered-map traversal exceeds AVL height bound");
-    }
-
-    fn rank(&self, key: &K, after: bool) -> u64 {
-        let mut current = self.store.root_node();
-        let mut result = 0_u64;
-        let mut depth = 0;
-        while let Some(node) = current {
-            check_depth(depth);
-            let ordering = self.key(node).cmp(key);
-            if ordering == Ordering::Less || (after && ordering == Ordering::Equal) {
-                result = result
-                    .checked_add(node.left.count)
-                    .and_then(|n| n.checked_add(1))
-                    .expect("ordered-map rank overflow");
-                current = self.store.child_node(node.right);
-            } else {
-                current = self.store.child_node(node.left);
-            }
-            depth += 1;
-        }
-        assert!(result <= self.len(), "invalid ordered-map rank");
-        result
-    }
-
-    fn range_ranks(&self, range: &impl RangeBounds<K>) -> (u64, u64) {
-        let start = range.start_bound();
-        let end = range.end_bound();
-        if let (Bound::Included(a) | Bound::Excluded(a), Bound::Included(b) | Bound::Excluded(b)) =
-            (start, end)
-        {
-            assert!(a <= b, "ordered-map range starts after its end");
-            assert!(
-                a != b || !matches!((start, end), (Bound::Excluded(_), Bound::Excluded(_))),
-                "ordered-map range excludes equal endpoints"
-            );
-        }
-        let front = match start {
-            Bound::Unbounded => 0,
-            Bound::Included(key) => self.rank(key, false),
-            Bound::Excluded(key) => self.rank(key, true),
-        };
-        let back = match end {
-            Bound::Unbounded => self.len(),
-            Bound::Included(key) => self.rank(key, true),
-            Bound::Excluded(key) => self.rank(key, false),
-        };
-        (front.min(back), back)
     }
 
     fn balance(&self, mut node: Node) -> Link {

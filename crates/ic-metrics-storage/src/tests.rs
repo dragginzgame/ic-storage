@@ -138,8 +138,14 @@ fn check_wire_mutations<T: crate::metric::StoredMetric + std::fmt::Debug>(
                     }
                     Ok(Some(restored)) => {
                         admitted += 1;
-                        // Every admitted record must retain its exact canonical bytes.
-                        assert_eq!(encode(&identity, &restored), bytes);
+                        // Wire accepts redundant varints. Re-encoding must preserve
+                        // state; reading and saving unchanged state preserve original bytes.
+                        let canonical = encode(&identity, &restored);
+                        assert_eq!(
+                            codec::decode::<T>(&canonical, &identity, value.configuration())
+                                .unwrap(),
+                            restored
+                        );
                         store.save(&key, &identity, &restored).unwrap();
                         assert_eq!(writes.counts().writes, 0);
                         assert_eq!(store.map.get(&key.0), Some(bytes.clone()));

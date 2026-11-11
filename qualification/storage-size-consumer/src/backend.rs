@@ -203,14 +203,15 @@ impl State {
         }
         output
     }
-    pub(super) fn scan(&self) -> Vec<u64> {
+    pub(super) fn scan(&self, start: u64) -> Vec<u64> {
+        let _ = start;
         let mut output = Vec::new();
         let _ = &mut output;
         #[cfg(feature = "map")]
         {
             output.push(
                 self.map
-                    .iter()
+                    .range(start..)
                     .take(16)
                     .map(|entry| *entry.key() ^ entry.value())
                     .fold(0_u64, u64::wrapping_add),
@@ -232,7 +233,7 @@ impl State {
         {
             output.push(
                 self.region
-                    .keys_range_limited(.., 16)
+                    .keys_range_limited(start.., 16)
                     .unwrap()
                     .fold(0_u64, u64::wrapping_add),
             );

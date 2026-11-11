@@ -92,7 +92,9 @@ Use `OrderedMap<K: Storable + Ord + Clone, V: Storable, M: Memory>` with:
   `get(&self, &K) -> Option<V>`, `contains_key(&self, &K) -> bool`.
 - `first_key_value/last_key_value(&self) -> Option<(K,V)>`.
 - `iter(&self)` and `range(&self, impl RangeBounds<K>)` return
-  `Entries<'_, K, V, M>`, implementing double-ended iteration of `(K, Vec<u8>)`.
+  `Entries<'_, K, V, M>`, implementing double-ended iteration of `(K, EncodedValue)`.
+  The private encoded-value container owns inline bytes or a vector and supports
+  borrowed inspection and consuming codec decoding; public entries remain owned.
 - `keys(&self)` and `keys_range(&self, impl RangeBounds<K>)` return a
   double-ended iterator of K; `values(&self)` returns one of V.
 
@@ -350,3 +352,53 @@ These rebuild current inputs. Frozen predecessor/candidate modules, source
 archives and hashes remain under the recorded `target/evidence/` paths; explicit
 cleanup can remove them. The compact tables retain observations, not the ability
 to reconstruct deleted uncommitted predecessor source from hashes alone.
+
+### Range-path refinement — 2026-11-11
+
+A separate unexposed implementer refined the current independently authored
+engine using only its source/tests, this contract, AGENTS, the installed baseline,
+pinned engineering/hygiene/contribution rules and black-box measurements.
+No upstream/predecessor source, Git history, sibling code, benchmark implementation
+or public adapter tests entered that context. The coordinator extended separate
+public model coverage and ran qualification.
+
+Bound admission now retains checked successor/predecessor paths for the cursor;
+the initial bounded yield avoids a second rank descent. Unbounded ends and rank
+jumps remain lazy. STORMAP1 version 1, public interfaces, codec semantics and
+structural validation are unchanged. Bounded endpoints eagerly allocate paths,
+including for count-only/empty/opposite-end consumption; this is an explicit
+tradeoff, not a free optimization.
+
+The [qualified experiment](../measurements/storage-scalar-scans-2026-11-11.md#retained-range-path-experiment)
+is retained: 30 focused native tests, native/Wasm lint, installed collection
+IO/upgrade/rollback, matched scalar/ordered comparisons and range-aware size
+consumers pass. The 2,052-row ordered matrix improves 252 medians and regresses
+none; all others and the reference medians are unchanged. Map-only application
+growth is 197 bytes, all-collection growth 58 bytes. The report records the
+fixture correction, same-source-path size control, population sensitivity and
+unmeasured count-only cost. No release is included in this refinement.
+
+### Focused hot-path refinements — 2026-11-11
+
+The same separate implementer refined only the current independent engine and
+its own tests. The coordinator integrated the owned encoded-value container into
+the public entry adapter and extended public ownership coverage. No upstream or
+predecessor implementation entered the implementation context.
+
+Retained changes omit unchanged routing writes on value replacement, keep small
+encoded values inline in owned entries, and defer iterator advancement until the
+next request. Checks remain at the applicable bounds, codec and visited-node
+boundaries. A separate scoped-root handoff candidate was removed after measured
+instruction regressions; no root cache survives. STORMAP1 version 1 and successful
+public operations are unchanged. See the [per-step measurements](../measurements/storage-scalar-scans-2026-11-11.md#map-hot-path-experiments--2026-11-11)
+for comparisons with preceding Storage and external ICSS, including Wasm costs
+and the failed candidate.
+
+The same restricted implementer subsequently changed external blob reads to
+initialize fresh vector capacity through Memory's raw-read interface. Bounds,
+block admission and type limits precede IO; vector length publishes only on
+success. Its tests cover default/direct readers, partial failures without value
+decoding, retries and invalid lengths refused before payload IO. External keys
+share this path. Inline values and routing bytes retain their existing readers.
+The [buffer experiment](../measurements/storage-scalar-scans-2026-11-11.md#direct-buffer-initialization-step-5)
+records the production performance result and the custom-backend fallback cost.

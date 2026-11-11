@@ -75,6 +75,22 @@ struct Measurement {
 }
 type Samples = BTreeMap<(Case, u32, u32, Pattern, String, String), Vec<Measurement>>;
 fn phases(case: Case, growth_cycles: bool, workload: Option<Workload>) -> Vec<(String, Operation)> {
+    if matches!(workload, Some(Workload::CellOpen)) {
+        let mut phases = vec![
+            ("Replace".into(), Operation::Replace),
+            ("OpenControl".into(), Operation::Control),
+            ("Get".into(), Operation::Get),
+        ];
+        if case.operations().contains(&Operation::Grow) {
+            phases.extend([
+                ("Grow".into(), Operation::Grow),
+                ("GetAfterGrow".into(), Operation::Get),
+                ("Shrink".into(), Operation::Shrink),
+                ("GetAfterShrink".into(), Operation::Get),
+            ]);
+        }
+        return phases;
+    }
     if matches!(workload, Some(Workload::AuthLookups)) {
         return [
             Operation::Control,
@@ -418,8 +434,8 @@ async fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
             "instrumented_stable_reads": args.trace_stable_reads,
             "instrumented_allocator_accesses": args.trace_allocator_accesses,
             "instrumented_execution_cost": args.trace_execution_cost,
-            "vector_open": matches!(args.workload, Some(Workload::VectorOpen)),
-            "vector_open_measurement": "allocation owner retained; lease/Vector opening, existing operation preparation/result conversion and Vector/lease drop inside the timer; initialization separately includes the complete init handler",
+            "reopen": matches!(args.workload, Some(Workload::VectorOpen | Workload::CellOpen)),
+            "reopen_measurement": "allocation owner retained; lease/collection opening, operation preparation/result conversion and collection/lease drop inside the timer; ICSS Cell's unused default value is prepared before timing; Vector initialization separately includes the complete init handler",
             "read_trace_batch_limit": (args.trace_stable_reads && matches!(args.workload, Some(Workload::Depth))).then_some(1),
             "execution_measurement": args.trace_execution_cost.then_some("exported benchmark handler including request decoding, input preparation, collection loop, response encoding/reply and cleanup; includes boundary probe overhead; excludes installation/population and host execution setup"),
             "execution_mode": if args.query {"query"} else {"update"}, "rows": args.rows, "structures": ["Map","Set","Vector","Cell","Region"], "samples": args.samples, "cases": cases.iter().map(|case| serde_json::json!({"case":case, "key_type":case.key_type(), "value_type":case.value_type(), "key_bound":case.key_bound(), "value_bound":case.value_bound(), "logical_value_bytes":payloads(*case), "structure":case.structure(), "operations":case.operations(), "phases":phases(*case,args.growth_cycles,args.workload), "payload_scope":case.value.payload_scope(), "population_rows":case.rows(args.rows)})).collect::<Vec<_>>(), "batch_sizes": batches, "workload": args.workload,
@@ -523,9 +539,9 @@ async fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
                                         upstream_cache_slots: args.upstream_cache_slots,
                                         upstream_bucket_pages: args.upstream_bucket_pages,
                                         cold_cache: args.cold_cache,
-                                        vector_open: matches!(
+                                        reopen: matches!(
                                             args.workload,
-                                            Some(Workload::VectorOpen)
+                                            Some(Workload::VectorOpen | Workload::CellOpen)
                                         ),
                                     },
                                     LIMITS,
@@ -937,7 +953,7 @@ async fn probe_refusal(
         upstream_cache_slots: 0,
         upstream_bucket_pages: bucket,
         cold_cache: false,
-        vector_open: false,
+        reopen: false,
     };
     let installed = pic
         .install_canister(

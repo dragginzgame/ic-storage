@@ -6,7 +6,10 @@ use super::{
     stable_cell_payload_length, write_payload,
 };
 use crate::{Memory, VectorMemory, WASM_PAGE_SIZE_BYTES};
-use std::cell::Cell;
+use std::{
+    cell::Cell,
+    panic::{AssertUnwindSafe, catch_unwind},
+};
 
 struct HeaderMemory {
     pages: u64,
@@ -150,6 +153,7 @@ struct WritableMemory {
     grows: Cell<usize>,
     reads: Cell<usize>,
     writes: Cell<usize>,
+    fail_read: Cell<Option<usize>>,
 }
 
 impl WritableMemory {
@@ -174,6 +178,7 @@ impl Memory for WritableMemory {
 
     fn read(&self, offset: u64, bytes: &mut [u8]) {
         self.reads.set(self.reads.get() + 1);
+        assert_ne!(self.fail_read.get(), Some(self.reads.get()), "read failure");
         self.bytes.read(offset, bytes);
     }
 
@@ -181,6 +186,124 @@ impl Memory for WritableMemory {
         self.writes.set(self.writes.get() + 1);
         self.bytes.write(offset, bytes);
     }
+}
+
+struct RawPayloadMemory {
+    payload: Vec<u8>,
+    reads: Cell<usize>,
+    fail_after: Cell<Option<usize>>,
+}
+
+impl Memory for RawPayloadMemory {
+    fn size(&self) -> u64 {
+        panic!("payload reading must not query this raw backing");
+    }
+
+    fn grow(&self, _: u64) -> i64 {
+        panic!("payload reading must not grow memory");
+    }
+
+    fn read(&self, _: u64, _: &mut [u8]) {
+        panic!("payload reading must use the backing's raw read");
+    }
+
+    #[expect(
+        unsafe_code,
+        reason = "The fixture initializes the caller-owned destination."
+    )]
+    unsafe fn read_unsafe(&self, offset: u64, dst: *mut u8, count: usize) {
+        assert_eq!(offset, STABLE_CELL_HEADER_SIZE as u64);
+        assert_eq!(count, self.payload.len());
+        self.reads.set(self.reads.get() + 1);
+        let copied = self.fail_after.get().unwrap_or(count);
+        assert!(copied <= count);
+        // SAFETY: The caller supplies an exclusive destination for `count`
+        // bytes, disjoint from this payload. The selected prefix fits both.
+        unsafe {
+            std::ptr::copy_nonoverlapping(self.payload.as_ptr(), dst, copied);
+        }
+        assert!(self.fail_after.get().is_none(), "partial raw read failure");
+    }
+
+    fn write(&self, _: u64, _: &[u8]) {
+        panic!("payload reading must not write memory");
+    }
+}
+
+fn patterned_payload(length: usize) -> Vec<u8> {
+    (0..length)
+        .map(|index| u8::try_from(index % 251).unwrap())
+        .collect()
+}
+
+#[test]
+fn empty_payload_read_performs_no_backing_operations() {
+    let memory = RawPayloadMemory {
+        payload: Vec::new(),
+        reads: Cell::new(0),
+        fail_after: Cell::new(Some(0)),
+    };
+    assert!(read_payload(&memory, 0).is_empty());
+    assert_eq!(memory.reads.get(), 0);
+}
+
+#[test]
+fn payload_reads_preserve_patterns_with_default_and_direct_readers() {
+    for length in [1, 1023, 1024, 1025, 65_511, 65_512, 65_513, 65_536, 70_000] {
+        let payload = patterned_payload(length);
+        let memory = WritableMemory::default();
+        assert!(write_payload(&memory, &payload, None));
+        let admitted = stable_cell_payload_length(&memory, length).unwrap();
+        let before = memory.bytes.borrow().clone();
+        memory.reset_counts();
+        assert_eq!(read_payload(&memory, admitted), payload);
+        assert_eq!(memory.grows.get(), 0);
+        assert_eq!(memory.writes.get(), 0);
+        assert_eq!(*memory.bytes.borrow(), before);
+
+        let direct = RawPayloadMemory {
+            payload,
+            reads: Cell::new(0),
+            fail_after: Cell::new(None),
+        };
+        assert_eq!(read_payload(&direct, admitted), direct.payload);
+        assert_eq!(direct.reads.get(), 1);
+    }
+}
+
+#[test]
+fn partial_raw_read_failure_preserves_backing_and_allows_retry() {
+    let payload = patterned_payload(4097);
+    for prefix in [0, 1, 1024, 4096, 4097] {
+        let memory = RawPayloadMemory {
+            payload: payload.clone(),
+            reads: Cell::new(0),
+            fail_after: Cell::new(Some(prefix)),
+        };
+        assert!(catch_unwind(AssertUnwindSafe(|| read_payload(&memory, payload.len()))).is_err());
+        assert_eq!(memory.payload, payload);
+        memory.fail_after.set(None);
+        assert_eq!(read_payload(&memory, payload.len()), payload);
+        assert_eq!(memory.reads.get(), 2);
+    }
+}
+
+#[test]
+fn default_reader_failure_after_a_chunk_preserves_backing_and_allows_retry() {
+    let payload = patterned_payload(4097);
+    let memory = WritableMemory::default();
+    assert!(write_payload(&memory, &payload, None));
+    let admitted = stable_cell_payload_length(&memory, payload.len()).unwrap();
+    let before = memory.bytes.borrow().clone();
+    memory.reset_counts();
+    memory.fail_read.set(Some(2));
+    assert!(catch_unwind(AssertUnwindSafe(|| read_payload(&memory, admitted))).is_err());
+    assert_eq!(memory.reads.get(), 2);
+    assert_eq!(memory.grows.get(), 0);
+    assert_eq!(memory.writes.get(), 0);
+    assert_eq!(*memory.bytes.borrow(), before);
+    memory.fail_read.set(None);
+    assert_eq!(read_payload(&memory, admitted), payload);
 }
 
 #[test]

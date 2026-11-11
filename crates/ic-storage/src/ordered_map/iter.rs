@@ -1,11 +1,15 @@
-//! Two bounded traversal paths with rank jumps for skipped entries.
+//! Checked bound admission seeds two traversal paths; rank jumps skip entries.
 
-use std::{cmp::Ordering, iter::FusedIterator};
+use std::{
+    cmp::Ordering,
+    iter::FusedIterator,
+    ops::{Bound, RangeBounds},
+};
 
 use crate::{Memory, storable::Storable};
 
 use super::{
-    OrderedMap,
+    EncodedValue, OrderedMap, check_depth,
     storage::{MAX_HEIGHT, Node},
 };
 
@@ -15,6 +19,8 @@ struct Cursor<'a, K: Storable + Ord + Clone, V: Storable, M: Memory> {
     back: u64,
     forward: Option<Vec<Node>>,
     backward: Option<Vec<Node>>,
+    forward_consumed: bool,
+    backward_consumed: bool,
 }
 
 impl<'a, K: Storable + Ord + Clone, V: Storable, M: Memory> Cursor<'a, K, V, M> {
@@ -25,7 +31,66 @@ impl<'a, K: Storable + Ord + Clone, V: Storable, M: Memory> Cursor<'a, K, V, M> 
             back,
             forward: None,
             backward: None,
+            forward_consumed: false,
+            backward_consumed: false,
         }
+    }
+
+    fn range(map: &'a OrderedMap<K, V, M>, range: &impl RangeBounds<K>) -> Self {
+        let start = range.start_bound();
+        let end = range.end_bound();
+        if let (Bound::Included(a) | Bound::Excluded(a), Bound::Included(b) | Bound::Excluded(b)) =
+            (start, end)
+        {
+            assert!(a <= b, "ordered-map range starts after its end");
+            assert!(
+                a != b || !matches!((start, end), (Bound::Excluded(_), Bound::Excluded(_))),
+                "ordered-map range excludes equal endpoints"
+            );
+        }
+        let mut cursor = Self::new(map, 0, map.len());
+        if let Bound::Included(key) | Bound::Excluded(key) = start {
+            let (rank, path) = cursor.bound_path(key, matches!(start, Bound::Excluded(_)), false);
+            cursor.front = rank;
+            cursor.forward = Some(path);
+        }
+        if let Bound::Included(key) | Bound::Excluded(key) = end {
+            let (rank, path) = cursor.bound_path(key, matches!(end, Bound::Included(_)), true);
+            cursor.back = rank;
+            cursor.backward = Some(path);
+        }
+        cursor.front = cursor.front.min(cursor.back);
+        cursor
+    }
+
+    fn bound_path(&self, key: &K, after: bool, reverse: bool) -> (u64, Vec<Node>) {
+        let mut path = Vec::with_capacity(16);
+        let mut current = self.map.store.root_node();
+        let mut rank = 0_u64;
+        let mut depth = 0;
+        while let Some(node) = current {
+            check_depth(depth);
+            let ordering = self.map.key(node).cmp(key);
+            let right = ordering == Ordering::Less || (after && ordering == Ordering::Equal);
+            // A left turn retains a forward successor; a right turn retains a
+            // reverse predecessor. The final candidate is at the top, ready
+            // for take(), without repeating this checked descent by rank.
+            if right == reverse {
+                path.push(node);
+            }
+            if right {
+                rank = rank
+                    .checked_add(node.left.count)
+                    .and_then(|n| n.checked_add(1))
+                    .expect("ordered-map rank overflow");
+                current = self.map.store.child_node(node.right);
+            } else {
+                current = self.map.store.child_node(node.left);
+            }
+            depth += 1;
+        }
+        assert!(rank <= self.map.len(), "invalid ordered-map rank");
+        (rank, path)
     }
 
     fn seek(&self, mut rank: u64, reverse: bool) -> Vec<Node> {
@@ -83,18 +148,22 @@ impl<'a, K: Storable + Ord + Clone, V: Storable, M: Memory> Cursor<'a, K, V, M> 
             let path = self.seek(rank, reverse);
             if reverse {
                 self.backward = Some(path);
+                self.backward_consumed = false;
             } else {
                 self.forward = Some(path);
+                self.forward_consumed = false;
             }
         }
-        let path = if reverse {
-            self.backward.as_mut()
+        let (path, consumed) = if reverse {
+            (&mut self.backward, &mut self.backward_consumed)
         } else {
-            self.forward.as_mut()
-        }
-        .expect("initialized cursor");
-        let node = path.pop().expect("invalid ordered-map cursor path");
-        if self.front != self.back {
+            (&mut self.forward, &mut self.forward_consumed)
+        };
+        let path = path.as_mut().expect("initialized cursor");
+        if *consumed {
+            // Keep the yielded top until this direction is requested again.
+            // Unused lookahead does no IO; every visited child is still checked.
+            let node = path.pop().expect("invalid ordered-map cursor path");
             let mut link = if reverse { node.left } else { node.right };
             let mut steps = 0;
             while link.address != 0 {
@@ -117,7 +186,8 @@ impl<'a, K: Storable + Ord + Clone, V: Storable, M: Memory> Cursor<'a, K, V, M> 
                 steps += 1;
             }
         }
-        Some(node)
+        *consumed = true;
+        Some(*path.last().expect("invalid ordered-map cursor path"))
     }
 
     fn hint(&self) -> (usize, Option<usize>) {
@@ -143,6 +213,12 @@ pub struct Entries<'a, K: Storable + Ord + Clone, V: Storable, M: Memory> {
 }
 
 impl<'a, K: Storable + Ord + Clone, V: Storable, M: Memory> Entries<'a, K, V, M> {
+    pub(super) fn range(map: &'a OrderedMap<K, V, M>, range: &impl RangeBounds<K>) -> Self {
+        Self {
+            cursor: Cursor::range(map, range),
+        }
+    }
+
     pub(super) const fn new(map: &'a OrderedMap<K, V, M>, front: u64, back: u64) -> Self {
         Self {
             cursor: Cursor::new(map, front, back),
@@ -151,7 +227,7 @@ impl<'a, K: Storable + Ord + Clone, V: Storable, M: Memory> Entries<'a, K, V, M>
 }
 
 impl<K: Storable + Ord + Clone, V: Storable, M: Memory> Iterator for Entries<'_, K, V, M> {
-    type Item = (K, Vec<u8>);
+    type Item = (K, EncodedValue);
     fn next(&mut self) -> Option<Self::Item> {
         self.nth(0)
     }
@@ -193,6 +269,12 @@ pub struct Keys<'a, K: Storable + Ord + Clone, V: Storable, M: Memory> {
 }
 
 impl<'a, K: Storable + Ord + Clone, V: Storable, M: Memory> Keys<'a, K, V, M> {
+    pub(super) fn range(map: &'a OrderedMap<K, V, M>, range: &impl RangeBounds<K>) -> Self {
+        Self {
+            cursor: Cursor::range(map, range),
+        }
+    }
+
     pub(super) const fn new(map: &'a OrderedMap<K, V, M>, front: u64, back: u64) -> Self {
         Self {
             cursor: Cursor::new(map, front, back),

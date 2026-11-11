@@ -1,7 +1,10 @@
 //! Process-local backing claims, retained by every issued runtime handle.
 use super::RuntimeConstructionError;
 use crate::{Memory, VectorMemory};
-use std::{collections::BTreeSet, rc::Rc, sync::Arc};
+use std::{rc::Rc, sync::Arc};
+
+#[cfg(test)]
+mod tests;
 
 ///
 /// `BackingIdentity`
@@ -70,16 +73,16 @@ impl MemoryBacking for crate::DefaultMemoryImpl {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-static CLAIMS: std::sync::Mutex<BTreeSet<BackingIdentity>> = std::sync::Mutex::new(BTreeSet::new());
+static CLAIMS: std::sync::Mutex<Vec<BackingIdentity>> = std::sync::Mutex::new(Vec::new());
 
 #[cfg(target_arch = "wasm32")]
 thread_local! {
-    static CLAIMS: std::cell::RefCell<BTreeSet<BackingIdentity>> = const {
-        std::cell::RefCell::new(BTreeSet::new())
+    static CLAIMS: std::cell::RefCell<Vec<BackingIdentity>> = const {
+        std::cell::RefCell::new(Vec::new())
     };
 }
 
-fn with_claims<T>(operation: impl FnOnce(&mut BTreeSet<BackingIdentity>) -> T) -> T {
+fn with_claims<T>(operation: impl FnOnce(&mut Vec<BackingIdentity>) -> T) -> T {
     #[cfg(not(target_arch = "wasm32"))]
     {
         let mut claims = CLAIMS
@@ -96,16 +99,28 @@ pub(super) struct BackingClaim(BackingIdentity);
 impl BackingClaim {
     pub fn acquire(memory: &impl MemoryBacking) -> Result<Self, RuntimeConstructionError> {
         let identity = memory.backing_identity();
-        if with_claims(|claims| claims.insert(identity)) {
-            Ok(Self(identity))
-        } else {
-            Err(RuntimeConstructionError::BackingAlreadyClaimed)
-        }
+        // Sorted identities retain logarithmic lookup without tree nodes. This
+        // registry tracks physical backings, not each allocation or collection.
+        with_claims(|claims| match claims.binary_search(&identity) {
+            Ok(_) => Err(RuntimeConstructionError::BackingAlreadyClaimed),
+            Err(index) => {
+                claims.insert(index, identity);
+                Ok(Self(identity))
+            }
+        })
     }
 }
 
 impl Drop for BackingClaim {
     fn drop(&mut self) {
-        with_claims(|claims| claims.remove(&self.0));
+        with_claims(|claims| {
+            if let Ok(index) = claims.binary_search(&self.0) {
+                claims.remove(index);
+                if claims.is_empty() {
+                    // Release the peak capacity when the final custodian exits.
+                    *claims = Vec::new();
+                }
+            }
+        });
     }
 }

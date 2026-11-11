@@ -19,6 +19,9 @@ use std::{
 struct Arguments {
     /// New JSONL output file; existing evidence is never overwritten.
     output: PathBuf,
+    /// Attribute Map range scans only, without replaying mutation histories.
+    #[arg(long)]
+    scans_only: bool,
 }
 
 #[derive(Default)]
@@ -271,6 +274,76 @@ impl<const F: bool> Store<F> {
             Self::IcssRegion(m) => icss::BTreeMap::load(m.clone()).remove(&k),
         }
     }
+    fn scan(&self, start: u64, limit: usize, keys_only: bool) -> Vec<(u64, Option<Value<F>>)> {
+        match self {
+            Self::Storage(m) => {
+                if keys_only {
+                    m.keys_range(Key(start)..)
+                        .take(limit)
+                        .map(|k| (k.0, None))
+                        .collect()
+                } else {
+                    m.range(Key(start)..)
+                        .take(limit)
+                        .map(|e| {
+                            let (k, v) = e.into_pair();
+                            (k.0, Some(v))
+                        })
+                        .collect()
+                }
+            }
+            Self::Governed(m) => m
+                .range(Key(start)..)
+                .take(limit)
+                .map(|e| (e.key().0, (!keys_only).then(|| e.value())))
+                .collect(),
+            Self::Icss(m) => m
+                .range(Key(start)..)
+                .take(limit)
+                .map(|e| (e.key().0, (!keys_only).then(|| e.value())))
+                .collect(),
+            _ => panic!("entry scan attribution requires a retained Map"),
+        }
+    }
+}
+
+fn measure_scans<const F: bool>(output: &mut fs::File, payload: usize) {
+    for rows in [256, 4096] {
+        for backend in ["storage", "icss-governed", "icss-manager"] {
+            let backing = Backing::default();
+            let mut store = Store::<F>::new(backend, false, backing.clone(), 8);
+            let mut model = BTreeMap::new();
+            for id in 0..rows {
+                let value = Value(ic_storage_benchmarks::value(id, payload as u32, false));
+                assert!(store.put(id, value.clone()).is_none());
+                model.insert(id, value);
+            }
+            for start in [0, rows / 2, rows - 1] {
+                for limit in [1, 32, 256] {
+                    for keys_only in [false, true] {
+                        let expected: Vec<_> = model
+                            .range(start..)
+                            .take(limit)
+                            .map(|(&k, v)| (k, (!keys_only).then(|| v.clone())))
+                            .collect();
+                        backing.reset();
+                        let actual = store.scan(start, limit, keys_only);
+                        let observation = backing.report();
+                        assert_eq!(actual, expected);
+                        writeln!(
+                            output,
+                            "{}",
+                            json!({"backend":backend,"collection":"Map",
+                            "rows":rows,"payload":payload,"fixed":F,"start":start,"limit":limit,
+                            "returned":actual.len(),"phase":if keys_only {"KeysScan"} else {"Scan"},
+                            "bucket_pages":8,"counts":observation})
+                        )
+                        .unwrap();
+                    }
+                }
+            }
+        }
+    }
 }
 fn measure<const F: bool>(output: &mut fs::File, payload: usize) {
     for rows in [256, 4096] {
@@ -385,7 +458,12 @@ fn main() {
         .create_new(true)
         .open(args.output)
         .unwrap();
-    measure::<true>(&mut output, 8);
-    measure::<false>(&mut output, 32);
-    measure::<false>(&mut output, 4096);
+    if !args.scans_only {
+        measure::<true>(&mut output, 8);
+        measure::<false>(&mut output, 32);
+        measure::<false>(&mut output, 4096);
+    }
+    measure_scans::<true>(&mut output, 8);
+    measure_scans::<false>(&mut output, 32);
+    measure_scans::<false>(&mut output, 4096);
 }

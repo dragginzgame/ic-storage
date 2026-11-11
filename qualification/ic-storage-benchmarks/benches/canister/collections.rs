@@ -266,9 +266,9 @@ impl<V: BenchValue + Storable> Benchmark for TypedVector<V> {
 }
 
 pub(super) struct TypedCell<V: BenchValue + Storable> {
-    case: Case,
-    cell: Option<StableCell<V>>,
-    bucket_pages: std::num::NonZeroU16,
+    pub(super) case: Case,
+    pub(super) cell: Option<StableCell<V>>,
+    pub(super) bucket_pages: std::num::NonZeroU16,
 }
 impl<V: BenchValue + Storable> TypedCell<V> {
     pub(super) fn new(case: Case, bucket_pages: std::num::NonZeroU16) -> Self {

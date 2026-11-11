@@ -10,7 +10,7 @@ use std::{borrow::Cow, marker::PhantomData};
 ///
 pub struct MapEntry<K, V> {
     key: K,
-    bytes: Vec<u8>,
+    bytes: ordered_map::EncodedValue,
     value: PhantomData<V>,
 }
 impl<K, V: Storable> MapEntry<K, V> {
@@ -20,11 +20,11 @@ impl<K, V: Storable> MapEntry<K, V> {
     }
     /// Decode the value. Malformed stored bytes trap.
     pub fn value(&self) -> V {
-        ordered_map::decode(Cow::Borrowed(&self.bytes))
+        ordered_map::decode(Cow::Borrowed(self.bytes.as_slice()))
     }
     /// Consume the entry and decode its value.
     pub fn into_pair(self) -> (K, V) {
-        (self.key, ordered_map::decode(Cow::Owned(self.bytes)))
+        (self.key, self.bytes.decode())
     }
     /// Consume only the key without decoding its value.
     pub fn into_key(self) -> K {
@@ -32,7 +32,7 @@ impl<K, V: Storable> MapEntry<K, V> {
     }
     /// Consume and decode only the value.
     pub fn into_value(self) -> V {
-        ordered_map::decode(Cow::Owned(self.bytes))
+        self.bytes.decode()
     }
 }
 ///
@@ -43,7 +43,7 @@ impl<K, V: Storable> MapEntry<K, V> {
 pub struct MapIter<'a, K: Storable + Ord + Clone, V: Storable, M: Memory = DefaultMemoryImpl>(
     pub(super) ordered_map::Entries<'a, K, V, TreeMemory<M>>,
 );
-fn entry<K, V>((key, bytes): (K, Vec<u8>)) -> MapEntry<K, V> {
+fn entry<K, V>((key, bytes): (K, ordered_map::EncodedValue)) -> MapEntry<K, V> {
     MapEntry {
         key,
         bytes,

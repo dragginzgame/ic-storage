@@ -44,6 +44,6 @@ extern "C" fn remove() {
 }
 #[unsafe(export_name = "canister_query scan")]
 extern "C" fn scan() {
-    let _ = input::<0>();
-    STATE.with(|slot| reply(&slot.borrow().as_ref().unwrap().scan()));
+    let start = u64::from_le_bytes(input::<8>());
+    STATE.with(|slot| reply(&slot.borrow().as_ref().unwrap().scan(start)));
 }

@@ -7,7 +7,98 @@ revision, selected roots, payload hashes and executable modes. The former
 live-policy exception is retired: dirty sibling rules never override the reviewed
 local baseline. Future policy changes require reviewed snapshot adoption.
 
-## Current Cargo-owned 0.39.7 selection
+## Current Cargo-owned 0.39.10 selection
+
+Both workspace catalogs and locks select published Toko Tooling 0.39.10, checksum
+`ea181684d772d4632ba534b80bd47bb8b2044278ea346f2c02e37d2ea9991a57`.
+The authenticated preview/install retains the 39 entrypoints and 102 files.
+Only the dependency declaration checker and hash-dependency catalog change from
+0.39.9: the producer admits its reviewed Platform Digest adapter under precise
+owner/version/feature constraints. Storage's own production restrictions remain.
+Baseline, canonical root files and tool pins are unchanged in this refresh.
+Snapshot-only installation is followed by separate selected-tool admission;
+custom deployment entrypoints retain their pre-effect snapshot checks.
+
+IC Wire 0.21.1 is selected in both graphs. Only Wire and Toko change relative
+to the preceding locks; no unrelated selections are refreshed. Wire 0.21 changes
+generated TypeScript names and 0.21.1 optimizes host/browser traversal; Storage
+does not generate those clients. Its checkpoint framing and codec bytes remain
+unchanged. The adapters expose Wire errors, so their pending minor releases
+select the new public type identity. Core Storage uses Wire only for development.
+
+Evidence is under `target/evidence/deploy-toko-wire-20261111/`, including before
+locks, authenticated preview/install and focused checks. The authorized delivery
+includes the existing optimization batch and all three affected packages. Release
+gates, publication receipts and final identities remain separately owned by
+the [release workflow](../../RELEASING.md) and [current handoff](../status/current.md).
+Snapshot/member/tool/pin/production checks and consumer compilation pass. Installed
+original/O3/Os/Oz IO, collection/directory/custody and Logging upgrade/rollback
+qualification passes at `target/qualification/runtime/attempt.NdKepQ`.
+
+## Previous Cargo-owned 0.39.9 selection
+
+Both workspace catalogs and locks select published Toko Tooling 0.39.9, checksum
+`1dd7bdb5bbb9bb8076dd35d8dc179c9e49196d9945c8e585990e40091b468b48`.
+The authenticated installer retains 39 entrypoints and 102 files. Relative to
+0.39.8, the baseline's dependency-policy references and the declaration checker
+change: native dev-only PocketIC dependencies are admitted by the common rule.
+Storage keeps its stricter existing graph boundaries and Testkit 0.95 selection.
+Tool pins are unchanged; snapshot-only installation and selected-tool admission
+remain separate. Custom release entrypoints retain pre-effect snapshot checks.
+
+The requested supplier adoption selects Wire 0.20.0 and Build 0.82.0. The
+qualification fixture selects Platform 0.29.3; both graphs resolve Runtime
+0.21.1. Platform's required Macros/guard 0.21.1 and Types 0.19.1 follow its
+published dependency graph. Testkit's older native infrastructure identities
+remain isolated. Core Storage still selects only Runtime's `ic0` feature on Wasm
+and no Platform on native. No production ICSS dependency is introduced.
+
+Wire's public error identity changes require future minor releases of Metrics
+Storage and Logging Storage; their pending notes record the broadened varint
+acceptance. Existing encoder bytes and checkpoint formats remain valid. Build's
+removed acquisition APIs are not used by Storage's native release helper.
+The helper's 88 tests pass against 0.82.0 without a source adaptation.
+
+Evidence is retained in `target/evidence/adoption-scalar-20261111/`, including
+the initial pending diff, before-locks, authenticated preview/install, selected
+tool and production-graph checks, adapter tests and scan attribution. Earlier
+pending work remains preserved. No package version bump, deployment, Git
+delivery or sibling edit is included. See the
+[scan investigation](../measurements/storage-scalar-scans-2026-11-11.md) for the
+matched runtime/size evidence and its scope.
+
+## Previous Cargo-owned 0.39.8 selection
+
+Both workspace catalogs and locks select published Toko Tooling 0.39.8, checksum
+`baf4177553a6a818837ae9765afc021ac3e3c0722e4622f773a990dc4b41cbc9`.
+The authenticated installer preserves the 39 entrypoints and 102 managed files.
+Among installed files, only the canonical root `LICENSE.md` changes; its prior
+repository-scope appendix is no longer in the producer's canonical file. The
+baseline, contribution file, executable bytes and selected tool versions are
+unchanged. Historical release grants are not reinterpreted by this adoption.
+
+Snapshot-only installation is appropriate for this unchanged executable set;
+selected tool admission and the prepared PocketIC server are checked separately.
+All ten packages still inherit the root licence file. The existing exact-pin
+exception records now select 0.39.8. The adoption changed only Toko in either
+lock; pending IC Build 0.81.2 and IC Host 0.76.3 selections remain.
+Rust remains 1.99.1. Every inventoried product/qualification Rust file is unchanged.
+
+A separate root-lock update to Runtime 0.21.1 arrived during the subsequent
+benchmarks and is preserved. Their independent qualification lock remains on
+Runtime 0.21.0; the captured results do not qualify the new root Runtime selection.
+Snapshot/member admission, pins, production graphs, canonical licence, selected
+tools and the prepared server pass their focused checks.
+
+Evidence is retained under `target/evidence/toko-0398/`: authenticated preview
+and installation, before-locks, source hashes and focused admission checks. No
+product version change, commit, publication or sibling edit is part of this
+adoption. The separately requested [complete comparison](../measurements/storage-full-suite-2026-11-10.md)
+validates 192,444 observations, the size consumers and allocation diagnostics.
+Its observed server timeouts also justify the consumer runner's one-hour
+lifetime; this does not change producer-owned files, request budgets or Rust code.
+
+## Previous Cargo-owned 0.39.7 selection
 
 Both catalogs and locks select published Toko Tooling 0.39.7, checksum
 `fd795f6ef878496ac27a990a9208b87fa786a9148c18580338ef8ac79df501d7`.

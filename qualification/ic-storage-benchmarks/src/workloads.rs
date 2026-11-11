@@ -26,11 +26,13 @@ pub enum Workload {
     Depth,
     VectorReads,
     VectorOpen,
+    CellOpen,
 }
 
 impl Workload {
     pub fn cases(self) -> &'static [Case] {
         match self {
+            Self::CellOpen => &[crate::case!(Cell, U64, U64), crate::case!(Cell, U64, Bytes)],
             Self::VectorOpen => &[
                 crate::case!(Vector, U64, U64),
                 crate::case!(Vector, U64, Array32),
@@ -97,6 +99,8 @@ impl Workload {
     }
     pub fn payloads(self, case: Case) -> &'static [u32] {
         match (self, case) {
+            (Self::CellOpen, crate::case!(Cell, U64, Bytes)) => &[0, 32, 4096, 65_536, 1_048_576],
+            (Self::CellOpen, _) => case.payloads(),
             (Self::VectorReads | Self::VectorOpen, crate::case!(Vector, U64, Chunk)) => &[31, 4096],
             (Self::VectorReads | Self::VectorOpen, _) => case.payloads(),
             (Self::Depth, crate::case!(Map, U64, Bytes)) => &[32],
@@ -119,6 +123,7 @@ impl Workload {
     }
     pub const fn rows(self) -> u32 {
         match self {
+            Self::CellOpen => 1,
             Self::Control => 16,
             Self::AuthLookups => LOOKUP_POPULATIONS[LOOKUP_POPULATIONS.len() - 1],
             Self::Records | Self::Depth | Self::VectorOpen => 4096,
@@ -130,6 +135,7 @@ impl Workload {
     }
     pub const fn counts(self) -> &'static [u32] {
         match self {
+            Self::CellOpen => &[1],
             Self::Records | Self::Depth | Self::VectorReads | Self::VectorOpen => &[1, 32],
             Self::Types => &[1, 8],
             Self::AuthLookups => &[1],
@@ -140,6 +146,7 @@ impl Workload {
     }
     pub const fn patterns(self) -> &'static [Pattern] {
         match self {
+            Self::CellOpen => &[Pattern::Uniform],
             Self::Depth | Self::VectorReads | Self::VectorOpen => {
                 &[Pattern::Uniform, Pattern::Hot16]
             }
@@ -153,6 +160,7 @@ impl Workload {
     }
     pub const fn rounds(self) -> u32 {
         match self {
+            Self::CellOpen => 3,
             Self::Control
             | Self::Records
             | Self::Boundaries

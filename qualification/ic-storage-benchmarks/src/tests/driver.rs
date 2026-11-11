@@ -1,6 +1,37 @@
 use super::*;
 
 #[test]
+fn cell_open_keeps_one_record_through_replacement_growth_and_shrink() {
+    let profile = Workload::CellOpen;
+    assert_eq!(profile.rows(), 1);
+    assert_eq!(profile.counts(), [1]);
+    for &case in profile.cases() {
+        assert_eq!(case.collection, Collection::Cell);
+        for &payload in profile.payloads(case) {
+            let mut model = BTreeMap::from([(0, case.expected_value(0, payload, false))]);
+            for round in 0..profile.rounds() {
+                for (phase, operation) in phases(case, false, Some(profile)) {
+                    if matches!(phase.as_str(), "OpenControl" | "Get") {
+                        assert_eq!(model[&0], case.expected_value(0, payload, true));
+                    }
+                    let request = Request {
+                        case,
+                        operation,
+                        rows: 1,
+                        payload,
+                        count: 1,
+                        seed: 1 + u64::from(round) * 7919,
+                        pattern: Pattern::Uniform,
+                    };
+                    expected_phase(&mut model, request, &phase);
+                    assert_eq!(model.len(), 1);
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn repeated_removal_checks_existing_tree_holes_without_changing_final_state() {
     for case in [
         case!(Map, U64, U64),
@@ -255,7 +286,7 @@ fn bucket_selection_is_nonzero_and_survives_initialization_encoding() {
             upstream_cache_slots: 0,
             upstream_bucket_pages: args.upstream_bucket_pages,
             cold_cache: false,
-            vector_open: false,
+            reopen: false,
         };
         let bytes = ic_wire::native::encode_request(0, &initialization, LIMITS).unwrap();
         let decoded: Initialization = ic_wire::native::decode_request(0, &bytes, LIMITS).unwrap();
@@ -267,7 +298,7 @@ fn bucket_selection_is_nonzero_and_survives_initialization_encoding() {
         upstream_cache_slots: usize,
         upstream_bucket_pages: u16,
         cold_cache: bool,
-        vector_open: bool,
+        reopen: bool,
     }
     for pages in [0, 1] {
         let input = UncheckedInitialization {
@@ -275,7 +306,7 @@ fn bucket_selection_is_nonzero_and_survives_initialization_encoding() {
             upstream_cache_slots: 0,
             upstream_bucket_pages: pages,
             cold_cache: false,
-            vector_open: false,
+            reopen: false,
         };
         let bytes = ic_wire::native::encode_request(0, &input, LIMITS).unwrap();
         assert_eq!(

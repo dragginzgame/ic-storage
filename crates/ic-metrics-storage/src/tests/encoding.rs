@@ -395,7 +395,7 @@ fn wire_encoding_admits_bounded_histograms_and_numeric_extremes() {
 }
 
 #[test]
-fn wire_byte_mutations_preserve_canonical_admission_and_rejected_checkpoints() {
+fn wire_byte_mutations_preserve_state_admission_and_rejected_checkpoints() {
     let mut aggregate = Aggregate::EMPTY;
     let mut summary = Summary::EMPTY;
     let mut histogram = Histogram::new([0, 10, u64::MAX]).unwrap();

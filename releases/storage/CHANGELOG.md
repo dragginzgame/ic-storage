@@ -3,6 +3,45 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/persistence/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.73.1] - Unreleased
+
+### 📦 Dependencies
+
+- Adopt Toko Tooling 0.39.10 and development-only Wire 0.21.1, alongside Build
+  0.82 and Runtime 0.21.1; extend native Map scan attribution with
+  entry/key-only and governed-ICSS controls. Stored formats are unchanged.
+
+### 🧪 Testing
+
+- Give complete collection comparisons a bounded one-hour server lifetime so
+  larger recipes can finish their validation. Per-request timeouts are unchanged.
+  See [the detailed notes](0.73.md#0731---unreleased).
+
+- Add matched Cell reopen comparisons through 1-MiB values, including repeated
+  replacement, growth and shrinkage with reads after each mutation.
+
+### ⚡ Performance
+
+- Reduce Map replacement writes and small-value allocations; advance ordered
+  cursors only when another result is requested. Owned entries, lazy decoding
+  and checks on accessed nodes are preserved. See [the detailed notes](0.73.md#0731---unreleased).
+
+- Initialize external Map and loaded Cell buffers directly from backing,
+  preserving extent checks and partial-read failure handling. Matched 1-MiB
+  Map reads and Cell load controls improve 17.4% and 17.9%; the buffer change
+  adds 10 bytes to all-collection application Wasm.
+
+- Replace the transient backing-custody tree with a compact sorted identity
+  vector. Matched all-collection Wasm falls by 4,888 bytes (4,944 code bytes).
+  The admission matrix records at most 420 extra instructions per measured call;
+  custody, APIs and stored formats are unchanged. See [the detailed notes](0.73.md#0731---unreleased).
+
+- Reuse checked range-bound paths for Map/region iteration instead of repeating
+  the initial descent. Matched scalar scans improve 1.6% with shuffled insertion
+  and 46.0% with sequential insertion; the shuffled region key scan improves
+  33.6%. Range-aware application Wasm adds 197 bytes for Map and 58 for all
+  collections. Public APIs, persisted formats and structural checks are unchanged.
+
 ## [0.73.0] - 2026-11-10
 
 ### ⚠️ Breaking

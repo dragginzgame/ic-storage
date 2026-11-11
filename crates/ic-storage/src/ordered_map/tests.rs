@@ -1,7 +1,7 @@
 use std::{
     borrow::Cow,
     cell::{Cell, RefCell},
-    collections::BTreeMap,
+    collections::{BTreeMap, VecDeque},
     ops::Bound,
     panic::{AssertUnwindSafe, catch_unwind},
     rc::Rc,
@@ -56,6 +56,149 @@ impl Memory for TestMemory {
     }
 }
 
+/// Independent direct-read backing for raw initialization and unwind checks.
+#[derive(Clone, Default)]
+struct RawReadMemory {
+    memory: TestMemory,
+    raw_reads: Rc<Cell<usize>>,
+    initialized: Rc<Cell<usize>>,
+    fail_after: Rc<Cell<Option<usize>>>,
+}
+
+impl Memory for RawReadMemory {
+    fn size(&self) -> u64 {
+        self.memory.size()
+    }
+
+    fn grow(&self, pages: u64) -> i64 {
+        self.memory.grow(pages)
+    }
+
+    fn read(&self, offset: u64, dst: &mut [u8]) {
+        self.memory.read(offset, dst);
+    }
+
+    fn write(&self, offset: u64, src: &[u8]) {
+        self.memory.write(offset, src);
+    }
+
+    #[expect(
+        unsafe_code,
+        reason = "This isolated backing exercises raw initialization and partial-read unwind."
+    )]
+    unsafe fn read_unsafe(&self, offset: u64, dst: *mut u8, count: usize) {
+        self.raw_reads.set(self.raw_reads.get() + 1);
+        let bytes = self.memory.bytes.borrow();
+        let start = usize::try_from(offset).unwrap();
+        let end = start.checked_add(count).unwrap();
+        let source = &bytes[start..end];
+        let fail_after = self.fail_after.get();
+        let initialized = fail_after.unwrap_or(count).min(count);
+        // SAFETY: the caller supplies fresh exclusive capacity disjoint from
+        // this backing. The admitted source slice contains initialized bytes;
+        // the copied prefix fits both the source and the requested destination.
+        unsafe {
+            std::ptr::copy_nonoverlapping(source.as_ptr(), dst, initialized);
+        }
+        self.initialized.set(initialized);
+        assert!(fail_after.is_none(), "injected partial raw-read failure");
+    }
+}
+
+fn check_external_blob_roundtrip(memory: impl Memory) {
+    let mut map = OrderedMap::<Vec<u8>, Vec<u8>, _>::new(memory);
+    let key = vec![17; 35];
+    let value: Vec<_> = (0_usize..100_000)
+        .map(|index| u8::try_from(index % 251).unwrap())
+        .collect();
+    map.insert(key.clone(), value.clone());
+    assert_eq!(map.get(&key), Some(value.clone()));
+    let (stored_key, encoded) = map.iter().next().unwrap();
+    assert_eq!(stored_key, key);
+    assert_eq!(encoded.as_slice(), value);
+    assert_eq!(encoded.decode::<Vec<u8>>(), value);
+}
+
+#[test]
+fn external_blob_reads_support_default_and_direct_initialization() {
+    check_external_blob_roundtrip(TestMemory::default());
+    let memory = RawReadMemory::default();
+    check_external_blob_roundtrip(memory.clone());
+    assert_eq!(memory.raw_reads.get(), 4);
+    assert_eq!(memory.initialized.get(), 100_000);
+}
+
+#[test]
+fn partial_external_blob_reads_unwind_without_decoding_and_can_retry() {
+    let memory = RawReadMemory::default();
+    let mut map = OrderedMap::<u64, DecodeProbe, _>::new(memory.clone());
+    map.insert(
+        7,
+        DecodeProbe {
+            bytes: vec![29; 100_000],
+            owned: false,
+        },
+    );
+    let writes = memory.memory.writes.get();
+    for prefix in [0, 1, 1023, 4096, 99_999] {
+        memory.fail_after.set(Some(prefix));
+        VALUE_DECODES.set(0);
+        let reads = memory.raw_reads.get();
+        assert!(catch_unwind(AssertUnwindSafe(|| map.get(&7))).is_err());
+        assert_eq!(memory.raw_reads.get(), reads + 1);
+        assert_eq!(memory.initialized.get(), prefix);
+        assert_eq!(VALUE_DECODES.get(), 0);
+        assert_eq!(memory.memory.writes.get(), writes);
+        memory.fail_after.set(None);
+        let value = map.get(&7).unwrap();
+        assert_eq!(value.bytes, vec![29; 100_000]);
+        assert!(value.owned);
+        assert_eq!(VALUE_DECODES.get(), 1);
+    }
+}
+
+#[test]
+fn default_external_blob_read_unwinds_after_a_payload_prefix() {
+    let memory = TestMemory::default();
+    let mut map = OrderedMap::<u64, DecodeProbe, _>::new(memory.clone());
+    map.insert(
+        7,
+        DecodeProbe {
+            bytes: vec![31; 100_000],
+            owned: false,
+        },
+    );
+    let node = map.store.node(map.store.root);
+    let blocked = node.value + 16 + 4096;
+    memory.forbidden.set(Some((blocked, blocked + 1)));
+    memory.reads.set(0);
+    VALUE_DECODES.set(0);
+    let writes = memory.writes.get();
+    assert!(catch_unwind(AssertUnwindSafe(|| map.get(&7))).is_err());
+    // Routing and blob admission account for two reads; successful payload
+    // reads before the blocked chunk prove the default path began filling it.
+    assert!(memory.reads.get() > 2);
+    assert_eq!(VALUE_DECODES.get(), 0);
+    assert_eq!(memory.writes.get(), writes);
+    memory.forbidden.set(None);
+    assert_eq!(map.get(&7).unwrap().bytes, vec![31; 100_000]);
+    assert_eq!(VALUE_DECODES.get(), 1);
+}
+
+#[test]
+fn oversized_external_blob_length_is_rejected_before_raw_payload_io() {
+    let memory = RawReadMemory::default();
+    let mut map = OrderedMap::<u64, Vec<u8>, _>::new(memory.clone());
+    map.insert(7, vec![41; 32]);
+    // This length still fits the overall allocation, but exceeds this blob's
+    // admitted block capacity. It must fail before requesting raw payload IO.
+    memory.write(map.store.root + 64, &49_u64.to_le_bytes());
+    let writes = memory.memory.writes.get();
+    assert!(catch_unwind(AssertUnwindSafe(|| map.get(&7))).is_err());
+    assert_eq!(memory.raw_reads.get(), 0);
+    assert_eq!(memory.memory.writes.get(), writes);
+}
+
 #[test]
 fn mixed_mutations_match_an_ordered_model_and_reopen() {
     let memory = TestMemory::default();
@@ -84,7 +227,9 @@ fn mixed_mutations_match_an_ordered_model_and_reopen() {
             map = OrderedMap::load(memory.clone()).unwrap();
             assert_eq!(map.len(), model.len() as u64);
             assert_eq!(
-                map.iter().collect::<Vec<_>>(),
+                map.iter()
+                    .map(|(key, bytes)| (key, bytes.decode::<Vec<u8>>()))
+                    .collect::<Vec<_>>(),
                 model
                     .iter()
                     .map(|(k, v)| (*k, v.clone()))
@@ -163,6 +308,120 @@ fn ranges_and_alternating_ends_are_fused() {
 }
 
 #[test]
+fn admitted_bound_paths_cover_missing_endpoints_and_mixed_jumps() {
+    for population in [0, 31] {
+        let mut map = OrderedMap::<u64, u64, _>::new(TestMemory::default());
+        let mut model = BTreeMap::new();
+        for key in 1..=population {
+            map.insert(key * 2, key);
+            model.insert(key * 2, key);
+        }
+        let mut bounds = vec![Bound::Unbounded];
+        for key in [0, 1, 2, 3, 16, 17, 31, 32, 61, 62, 63, 64] {
+            bounds.extend([Bound::Included(key), Bound::Excluded(key)]);
+        }
+        for &start in &bounds {
+            for &end in &bounds {
+                if let (
+                    Bound::Included(a) | Bound::Excluded(a),
+                    Bound::Included(b) | Bound::Excluded(b),
+                ) = (start, end)
+                    && (a > b
+                        || (a == b
+                            && matches!((start, end), (Bound::Excluded(_), Bound::Excluded(_)))))
+                {
+                    assert!(
+                        catch_unwind(AssertUnwindSafe(|| map.range((start, end)).count())).is_err()
+                    );
+                    continue;
+                }
+                let expected: VecDeque<_> = model.range((start, end)).map(|(k, _)| *k).collect();
+                assert_eq!(map.range((start, end)).count(), expected.len());
+                for reverse_first in [false, true] {
+                    let mut remaining = expected.clone();
+                    let mut iter = map.keys_range((start, end));
+                    let mut reverse = reverse_first;
+                    for skip in [0, 0, 2, 0, 1].into_iter().cycle().take(40) {
+                        let mut answer = None;
+                        for _ in 0..=skip {
+                            answer = if reverse {
+                                remaining.pop_back()
+                            } else {
+                                remaining.pop_front()
+                            };
+                            if answer.is_none() {
+                                break;
+                            }
+                        }
+                        let actual = if reverse {
+                            iter.nth_back(skip)
+                        } else {
+                            iter.nth(skip)
+                        };
+                        assert_eq!(actual, answer, "{start:?}..{end:?}");
+                        assert_eq!(iter.size_hint(), (remaining.len(), Some(remaining.len())));
+                        reverse = !reverse;
+                    }
+                    assert!(remaining.is_empty());
+                    assert_eq!(iter.next(), None);
+                    assert_eq!(iter.next_back(), None);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn admitted_singleton_bounds_need_no_second_routing_descent() {
+    let memory = TestMemory::default();
+    let mut map = OrderedMap::<u64, u64, _>::new(memory.clone());
+    for key in 0..4096 {
+        map.insert(key * 2, key + 1);
+    }
+    for start in [Bound::Included(4096), Bound::Excluded(4095)] {
+        for end in [Bound::Included(4096), Bound::Excluded(4097)] {
+            for reverse in [false, true] {
+                memory.reads.set(0);
+                let mut keys = map.keys_range((start, end));
+                let admission_reads = memory.reads.get();
+                assert!(admission_reads > 0);
+                let key = if reverse {
+                    keys.next_back()
+                } else {
+                    keys.next()
+                };
+                assert_eq!(key, Some(4096));
+                assert_eq!(memory.reads.get(), admission_reads);
+                assert_eq!(keys.next(), None);
+                assert_eq!(keys.next_back(), None);
+
+                let mut entries = map.range((start, end));
+                memory.reads.set(0);
+                let entry = if reverse {
+                    entries.next_back()
+                } else {
+                    entries.next()
+                };
+                let (key, bytes) = entry.unwrap();
+                assert_eq!(key, 4096);
+                assert_eq!(bytes.decode::<u64>(), 2049);
+                // The only post-admission read is the inline value payload.
+                assert_eq!(memory.reads.get(), 1);
+            }
+        }
+    }
+    let mut count_only = map.range(2048..6144);
+    memory.reads.set(0);
+    assert!(count_only.nth(usize::MAX).is_none());
+    assert!(count_only.next_back().is_none());
+    assert_eq!(memory.reads.get(), 0);
+    let count_only = map.range(2048..6144);
+    memory.reads.set(0);
+    assert_eq!(count_only.count(), 2048);
+    assert_eq!(memory.reads.get(), 0);
+}
+
+#[test]
 fn empty_and_large_records_survive_reopen() {
     let memory = TestMemory::default();
     let mut map = OrderedMap::<Vec<u8>, Vec<u8>, _>::new(memory.clone());
@@ -219,6 +478,9 @@ fn lookup_and_key_iteration_never_read_value_payload() {
         .set(Some((node.value + 16, node.value + 16 + node.value_len)));
     assert!(map.contains_key(&7));
     assert_eq!(map.keys().collect::<Vec<_>>(), vec![7]);
+    assert_eq!(map.keys_range(7..=7).collect::<Vec<_>>(), vec![7]);
+    assert_eq!(map.keys_range(..=7).next_back(), Some(7));
+    assert_eq!(map.range(7..=7).count(), 1);
     assert_eq!(map.iter().count(), 1);
     assert_eq!(map.values().count(), 1);
     assert!(map.values().nth(1).is_none());
@@ -258,6 +520,8 @@ fn corrupt_links_and_failed_growth_trap_without_reset() {
     memory.write(root + 16, &root.to_le_bytes());
     let writes = memory.writes.get();
     assert!(catch_unwind(AssertUnwindSafe(|| map.get(&0))).is_err());
+    assert!(catch_unwind(AssertUnwindSafe(|| map.range(0..).count())).is_err());
+    assert!(catch_unwind(AssertUnwindSafe(|| map.range(..=7).count())).is_err());
     assert_eq!(memory.writes.get(), writes);
     let memory = TestMemory::default();
     let mut map = OrderedMap::<u64, Vec<u8>, _>::new(memory.clone());
@@ -296,8 +560,6 @@ fn engine_checks_codec_bounds_before_mutation() {
 
 #[test]
 fn cursor_jumps_and_alternating_paths_match_a_deque() {
-    use std::collections::VecDeque;
-
     let mut map = OrderedMap::<u64, u64, _>::new(TestMemory::default());
     for key in 0..400 {
         map.insert(key * 2, key + 1);
@@ -364,7 +626,107 @@ fn inline_values_remain_unread_during_key_scans_and_entries_own_their_bytes() {
     memory.forbidden.set(None);
     let (_, encoded) = map.iter().next().unwrap();
     map.insert(7, 12);
-    assert_eq!(super::decode::<u64>(Cow::Owned(encoded)), 900);
+    assert_eq!(encoded.decode::<u64>(), 900);
+}
+
+thread_local! {
+    static VALUE_DECODES: Cell<usize> = const { Cell::new(0) };
+}
+
+struct DecodeProbe {
+    bytes: Vec<u8>,
+    owned: bool,
+}
+
+impl Storable for DecodeProbe {
+    const BOUND: CodecBound = CodecBound::Unbounded;
+
+    fn to_bytes(&self) -> Result<Cow<'_, [u8]>, CodecError> {
+        Ok(Cow::Borrowed(&self.bytes))
+    }
+
+    fn into_bytes(self) -> Result<Vec<u8>, CodecError> {
+        Ok(self.bytes)
+    }
+
+    fn from_bytes(bytes: Cow<'_, [u8]>) -> Result<Self, CodecError> {
+        VALUE_DECODES.set(VALUE_DECODES.get() + 1);
+        let owned = matches!(bytes, Cow::Owned(_));
+        Ok(Self {
+            bytes: bytes.into_owned(),
+            owned,
+        })
+    }
+}
+
+#[test]
+fn encoded_values_keep_inline_decoding_borrowed_and_entry_decoding_lazy() {
+    for size in [0, 24, 25, 100_000] {
+        let memory = TestMemory::default();
+        let mut map = OrderedMap::<u64, DecodeProbe, _>::new(memory.clone());
+        map.insert(
+            7,
+            DecodeProbe {
+                bytes: vec![39; size],
+                owned: false,
+            },
+        );
+        let map = OrderedMap::<u64, DecodeProbe, _>::load(memory).unwrap();
+        VALUE_DECODES.set(0);
+        assert_eq!(map.keys().collect::<Vec<_>>(), vec![7]);
+        assert_eq!(map.range(7..=7).count(), 1);
+        let (key, encoded) = map.iter().next().unwrap();
+        assert_eq!(key, 7);
+        assert_eq!(encoded.as_slice(), vec![39; size]);
+        assert_eq!(VALUE_DECODES.get(), 0);
+        let value = encoded.decode::<DecodeProbe>();
+        assert_eq!(VALUE_DECODES.get(), 1);
+        assert_eq!(value.bytes, vec![39; size]);
+        assert_eq!(value.owned, size > super::storage::INLINE_VALUE);
+        let value = map.get(&7).unwrap();
+        assert_eq!(VALUE_DECODES.get(), 2);
+        assert_eq!(value.bytes, vec![39; size]);
+        assert_eq!(value.owned, size > super::storage::INLINE_VALUE);
+    }
+}
+
+#[test]
+fn encoded_values_remain_owned_after_replacement_removal_and_clear() {
+    let mut map = OrderedMap::<u64, Vec<u8>, _>::new(TestMemory::default());
+    let sizes = [0, 24, 25, 100_000];
+    for (key, size) in sizes.into_iter().enumerate() {
+        map.insert(key as u64, vec![u8::try_from(key).unwrap(); size]);
+    }
+    let entries = map.iter().collect::<Vec<_>>();
+    map.insert(1, vec![91; 25]);
+    map.remove(&2);
+    map.clear();
+    map.insert(0, vec![92; 100_000]);
+    for (key, bytes) in entries {
+        let expected = vec![u8::try_from(key).unwrap(); sizes[usize::try_from(key).unwrap()]];
+        assert_eq!(bytes.as_slice(), expected);
+        assert_eq!(bytes.decode::<Vec<u8>>(), expected);
+    }
+}
+
+#[test]
+fn invalid_value_codec_width_is_rejected_before_payload_reads() {
+    let memory = TestMemory::default();
+    let mut map = OrderedMap::<u64, u64, _>::new(memory.clone());
+    map.insert(7, 8);
+    memory.write(map.store.root + 64, &7_u64.to_le_bytes());
+    for entries in [false, true] {
+        memory.reads.set(0);
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            if entries {
+                let _ = map.iter().next();
+            } else {
+                let _ = map.get(&7);
+            }
+        }));
+        assert!(result.is_err());
+        assert_eq!(memory.reads.get(), 1);
+    }
 }
 
 #[test]
@@ -382,6 +744,56 @@ fn small_records_pack_tightly_and_scans_read_each_path_once() {
     let reopened = OrderedMap::<u64, u64, _>::load(memory.clone()).unwrap();
     assert_eq!(reopened.len(), 4096);
     assert!(memory.reads.get() <= 2);
+}
+
+#[test]
+fn replacements_write_only_the_payload_when_routing_fields_agree() {
+    for size in [0, 1, 24, 25, 48, 49, 100_000] {
+        let memory = TestMemory::default();
+        let mut map = OrderedMap::<u64, Vec<u8>, _>::new(memory.clone());
+        for key in [3, 1, 5] {
+            map.insert(key, vec![7; size]);
+        }
+        let pages = memory.size();
+        memory.writes.set(0);
+        assert_eq!(map.insert(1, vec![9; size]), Some(vec![7; size]));
+        assert_eq!(memory.writes.get(), 1, "payload size {size}");
+        assert_eq!(memory.size(), pages);
+        let reopened = OrderedMap::<u64, Vec<u8>, _>::load(memory).unwrap();
+        assert_eq!(reopened.len(), 3);
+        assert_eq!(reopened.get(&1), Some(vec![9; size]));
+        assert_eq!(reopened.get(&3), Some(vec![7; size]));
+        assert_eq!(reopened.get(&5), Some(vec![7; size]));
+    }
+}
+
+#[test]
+fn replacement_length_and_location_changes_publish_routing_fields() {
+    for (before, after, same_class) in [
+        (1, 2, true),
+        (24, 23, true),
+        (25, 47, true),
+        (48, 25, true),
+        (24, 25, false),
+        (25, 24, false),
+        (48, 49, false),
+        (49, 48, false),
+    ] {
+        let memory = TestMemory::default();
+        let mut map = OrderedMap::<u64, Vec<u8>, _>::new(memory.clone());
+        map.insert(7, vec![11; before]);
+        memory.writes.set(0);
+        assert_eq!(map.insert(7, vec![19; after]), Some(vec![11; before]));
+        if same_class {
+            // Reused payload storage still needs its changed length published.
+            assert_eq!(memory.writes.get(), 2);
+        } else {
+            assert!(memory.writes.get() > 1);
+        }
+        let reopened = OrderedMap::<u64, Vec<u8>, _>::load(memory).unwrap();
+        assert_eq!(reopened.len(), 1);
+        assert_eq!(reopened.get(&7), Some(vec![19; after]));
+    }
 }
 
 #[test]
@@ -408,6 +820,107 @@ fn replacements_move_between_inline_and_external_classes() {
 }
 
 #[test]
+fn cursor_only_reads_successors_and_predecessors_when_requested() {
+    for reverse in [false, true] {
+        let memory = TestMemory::default();
+        let mut map = OrderedMap::<u64, u64, _>::new(memory.clone());
+        for key in [3, 1, 5, 0, 2, 4, 6] {
+            map.insert(key, key + 10);
+        }
+        let root = map.store.node(map.store.root);
+        let child = if reverse { root.left } else { root.right };
+        memory
+            .forbidden
+            .set(Some((child.address, child.address + 104)));
+        memory.reads.set(0);
+        let mut keys = map.keys();
+        let key = if reverse {
+            keys.nth_back(3)
+        } else {
+            keys.nth(3)
+        };
+        assert_eq!(key, Some(3));
+        assert_eq!(memory.reads.get(), 1);
+        assert!(
+            catch_unwind(AssertUnwindSafe(|| {
+                if reverse {
+                    keys.next_back()
+                } else {
+                    keys.next()
+                }
+            }))
+            .is_err()
+        );
+        memory.forbidden.set(None);
+
+        let mut keys = map.keys();
+        if reverse {
+            assert_eq!(keys.nth_back(3), Some(3));
+        } else {
+            assert_eq!(keys.nth(3), Some(3));
+        }
+        memory.reads.set(0);
+        let key = if reverse {
+            keys.next_back()
+        } else {
+            keys.next()
+        };
+        assert_eq!(key, Some(if reverse { 2 } else { 4 }));
+        assert_eq!(memory.reads.get(), 2);
+
+        for count_only in [false, true] {
+            let mut keys = map.keys();
+            if reverse {
+                assert_eq!(keys.nth_back(3), Some(3));
+            } else {
+                assert_eq!(keys.nth(3), Some(3));
+            }
+            memory.reads.set(0);
+            if count_only {
+                assert_eq!(keys.count(), 3);
+            } else {
+                assert_eq!(keys.nth(usize::MAX), None);
+                assert_eq!(keys.next_back(), None);
+            }
+            assert_eq!(memory.reads.get(), 0);
+        }
+    }
+}
+
+#[test]
+fn deferred_cursor_children_are_checked_before_yield() {
+    for reverse in [false, true] {
+        let memory = TestMemory::default();
+        let mut map = OrderedMap::<u64, u64, _>::new(memory.clone());
+        for key in [3, 1, 5, 0, 2, 4, 6] {
+            map.insert(key, key + 10);
+        }
+        let root = map.store.node(map.store.root);
+        let child = if reverse { root.left } else { root.right };
+        memory.write(child.address + 72, &2_u64.to_le_bytes());
+        let writes = memory.writes.get();
+        let mut keys = map.keys();
+        let key = if reverse {
+            keys.nth_back(3)
+        } else {
+            keys.nth(3)
+        };
+        assert_eq!(key, Some(3));
+        assert!(
+            catch_unwind(AssertUnwindSafe(|| {
+                if reverse {
+                    keys.next_back()
+                } else {
+                    keys.next()
+                }
+            }))
+            .is_err()
+        );
+        assert_eq!(memory.writes.get(), writes);
+    }
+}
+
+#[test]
 fn inconsistent_cached_child_counts_and_heights_are_rejected_on_descent() {
     // Each corrupted child remains locally well-shaped. Only comparison with
     // the admitted parent link reveals that its routing metadata is inconsistent.
@@ -427,6 +940,7 @@ fn inconsistent_cached_child_counts_and_heights_are_rejected_on_descent() {
         assert!(catch_unwind(AssertUnwindSafe(|| map.keys().next())).is_err());
         assert!(catch_unwind(AssertUnwindSafe(|| map.get(&0))).is_err());
         assert!(catch_unwind(AssertUnwindSafe(|| map.range(0..2).count())).is_err());
+        assert!(catch_unwind(AssertUnwindSafe(|| map.range(..=2).count())).is_err());
         assert!(catch_unwind(AssertUnwindSafe(|| map.insert(0, 50))).is_err());
         assert!(catch_unwind(AssertUnwindSafe(|| map.remove(&0))).is_err());
         assert_eq!(memory.writes.get(), writes);
@@ -434,6 +948,7 @@ fn inconsistent_cached_child_counts_and_heights_are_rejected_on_descent() {
         assert_eq!(reverse.next_back(), Some(6));
         assert_eq!(reverse.next_back(), Some(5));
         assert_eq!(reverse.next_back(), Some(4));
+        assert_eq!(reverse.next_back(), Some(3));
         assert!(catch_unwind(AssertUnwindSafe(|| reverse.next_back())).is_err());
     }
 }

@@ -37,8 +37,8 @@ pub struct Initialization {
     pub upstream_cache_slots: usize,
     pub upstream_bucket_pages: std::num::NonZeroU16,
     pub cold_cache: bool,
-    /// Keep the allocation owner, but reopen the Vector for each request.
-    pub vector_open: bool,
+    /// Keep the allocation owner, but reopen the selected collection per request.
+    pub reopen: bool,
 }
 
 pub const SETUP_ID: u64 = 1;

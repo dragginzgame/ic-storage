@@ -71,10 +71,10 @@ impl Model {
             old,
         ]
     }
-    fn scan(&self) -> [u64; 5] {
+    fn scan(&self, start: u64) -> [u64; 5] {
         [
             self.map
-                .iter()
+                .range(start..)
                 .take(16)
                 .map(|(k, v)| k ^ v)
                 .fold(0, u64::wrapping_add),
@@ -85,7 +85,11 @@ impl Model {
                 .copied()
                 .fold(0, u64::wrapping_add),
             self.cell,
-            self.map.keys().take(16).copied().fold(0, u64::wrapping_add),
+            self.map
+                .range(start..)
+                .take(16)
+                .map(|(&key, _)| key)
+                .fold(0, u64::wrapping_add),
         ]
     }
 }
@@ -138,16 +142,18 @@ async fn qualify(pic: &PocketIc, wasm: &[u8], selection: &str) -> usize {
             );
             calls += 1;
         }
-        let response = pic
-            .query_call(canister, canister, "scan", vec![])
-            .await
-            .unwrap();
-        assert_eq!(
-            decode(&response),
-            filter(selection, model.scan()),
-            "scan {selection} phase {phase}"
-        );
-        calls += 1;
+        for start in [0_u64, 17, 80, 999] {
+            let response = pic
+                .query_call(canister, canister, "scan", start.to_le_bytes().to_vec())
+                .await
+                .unwrap();
+            assert_eq!(
+                decode(&response),
+                filter(selection, model.scan(start)),
+                "scan {selection} phase {phase}"
+            );
+            calls += 1;
+        }
         if phase == 1 {
             for key in [0_u64, 47, 95, 999] {
                 let response = pic

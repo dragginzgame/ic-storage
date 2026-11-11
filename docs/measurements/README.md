@@ -6,6 +6,8 @@ within the 5 MiB repository budget. These are limits, not storage targets.
 
 | Topic | Summary | Selected data |
 | --- | --- | --- |
+| Map paths and Cell loading | [Native attribution and structure comparison](storage-scalar-scans-2026-11-11.md) | [Five measured experiments](storage-scalar-scans-2026-11-11.md#map-hot-path-experiments--2026-11-11), per-step instruction/application-size matrices and rejected root handoff; [candidate families and workload gaps](storage-scalar-scans-2026-11-11.md#data-structure-investigation--2026-11-11) |
+| Current full Storage/ICSS comparison | [Complete suite, size and bucket controls](storage-full-suite-2026-11-10.md) | 192,444 observations; selected matrices, run identities and reproduction commands inline |
 | Allocation admission | [Integrity checks, compact index and tradeoffs](../audits/recurring/storage-admission-2026-11-09.md) | [Matched admission/reopen/append matrix](../audits/recurring/storage-admission-2026-11-09.csv) |
 | Vector terminal buffer | [Ownership transfer and matched ICSS comparison](../audits/recurring/storage-vector-last-2026-11-09.md) | Bulk, whole-handler, scalar and size controls inline |
 | Bucket backing | [Hard cut, tradeoffs and ICSS comparison](../audits/recurring/storage-bucket-backing-2026-11-09.md) | Depth, bulk and eight-selection Wasm matrices inline; [native IO attribution](../audits/recurring/storage-bulk-attribution-2026-11-09.csv) and [bulk controls](../audits/recurring/storage-bulk-controls-2026-11-09.csv) |
@@ -14,7 +16,7 @@ within the 5 MiB repository budget. These are limits, not storage targets.
 | B-tree prefix writes | [Combined write and matched ICSS comparison](../audits/recurring/storage-prefix-write-2026-11-08.md) | Depth and eight-selection size matrices inline |
 | Shared B-tree prefix | [Retained prefix/child readers and rejected lease-index trials](../audits/recurring/storage-shared-prefix-2026-11-08.md) | All-collection depth and eight-selection size matrices inline |
 | Architectural hard cut | [Selected cuts, rejected iterator and matched sizes](../audits/recurring/architectural-reduction-2026-11-08.md) | Inline eight-selection size matrix and qualification scope |
-| Storage/ICSS type matrix | [Current coverage/results](../audits/recurring/benchmark-full-catalogue-2026-11-05.md) | [565 selected rows](storage-comparison-selected.csv), [compact identities](storage-comparison-identities.json) |
+| Historical Storage/ICSS type matrix | [2026-11-05 coverage/results](../audits/recurring/benchmark-full-catalogue-2026-11-05.md) | [565 selected rows](storage-comparison-selected.csv), [compact identities](storage-comparison-identities.json) |
 | Storage 0.68 follow-through | [Three-step comparisons](../audits/recurring/storage-068-followup-2026-11-06.md) | [Instruction matrix](storage-068-followup-instructions.csv), [IO/codec matrix](storage-068-followup-io.csv) |
 | Governed backing parity | [Attribution and routing-read comparisons](../audits/recurring/storage-icss-backing-parity-2026-11-06.md) | [Step/round and diagnostic counters](storage-icss-backing-steps.csv), [payload costs](storage-icss-backing-payloads.csv); published Runtime ≥0.19.4 |
 | Ordered terminal iteration | [Retained entry shortcut and rejected projection/caller trials](../audits/recurring/storage-ordered-iteration-2026-11-07.md) | Selected rows in the summary and shared [step matrix](storage-icss-backing-steps.csv) |
@@ -29,7 +31,7 @@ within the 5 MiB repository budget. These are limits, not storage targets.
 | Matched small-consumer Wasm size | [Primary size study](../audits/recurring/storage-wasm-gap-2026-11-08.md#primary-size-benchmark-matched-small-consumer-crates) | [Eight paired selections](storage-consumer-wasm-size.csv), [artifact identities and sections](storage-consumer-wasm-size-identities.json) |
 | Storage versus ICSS Wasm gap | [Full and compact attribution](../audits/recurring/storage-wasm-gap-2026-11-08.md) | Matched optimizer, compact depth and governed-ICSS controls; duplicated tree specializations |
 | Consumer memory sizing | [Declaration inventory and historical controls](../local-memory-audit.md) | [Consumer declarations](consumer-memory-inventory.json), [selected historical controls](storage-memory-study.json) |
-| Current engine reset | [Compatibility, safety and selected baseline](../audits/recurring/icss-engine-baseline-2026-11-05.md) | Inline selected table |
+| Historical ICSS engine reset | [Compatibility, safety and selected baseline](../audits/recurring/icss-engine-baseline-2026-11-05.md) | Inline selected table |
 | Historical engine experiments | [Decisions and limits](../audits/recurring/storage-icss-hotspots-2026-11-04.md) | Inline selected table |
 | IC stable-read charging | [Mechanism and selected calibration](../audits/recurring/vector-stable-read-charges-2026-11-05.md) | Inline selected tables |
 

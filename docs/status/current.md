@@ -1,114 +1,125 @@
-# Current handoff — 2026-11-10
+# Current handoff — 2026-11-11
 
 ## Active work and readiness
 
-Toko Tooling 0.39.7 is adopted in both Cargo catalogs/locks and the authenticated
-snapshot. Only Toko changed in those locks. The 39 selected entrypoints install
-102 files; reference docs remain upstream. Both workspace catalogs own
-`license-file`, inherited by all ten packages. Snapshot/member admission, pins,
-production graphs, boundary, canonical licence and documentation checks pass.
-See [the adoption record](../adoption/storage-tooling.md#current-cargo-owned-0397-selection).
+Wire 0.21.1, Build 0.82.0, Platform 0.29.3, Runtime 0.21.1 and Toko 0.39.10
+are selected in their owning graphs. Testkit 0.95/PocketIC 16.1.0 is unchanged.
+See [supplier adoption](../adoption/storage-tooling.md#current-cargo-owned-03910-selection)
+and the [current measurement record](../measurements/storage-scalar-scans-2026-11-11.md).
+The latest tooling refresh retains 39 entrypoints/102 files, changing only the
+dependency checker and hash-policy catalog. Both lockfiles change only Toko/Wire
+from the preceding selection; snapshot/tool/pin/production and consumer graph
+admission pass. The retained performance studies below used Wire 0.20.0 and
+Toko 0.39.9; they are not a fresh benchmark of the latest dependency adoption.
+Installed original/O3/Os/Oz IO, directory/custody, collection and Logging
+upgrade/rollback qualification passes with Wire 0.21.1 (`attempt.NdKepQ`).
 
-The independent implementation now covers Memory, named backing, Cell, Vector,
-Map, Set and regions. The copied ordered engine and its private codec/address
-helpers are deleted. ICSS remains an external qualification comparison only.
-The source-exposed coordinator supplied behavioral contracts and integration;
-separate unexposed implementers authored replacement algorithms. Actual inputs
-and limitations are recorded in the [replacement inventory](../design/independent-storage-replacement.md).
+Deployment is authorized for this repository only, from the normal `main`
+checkout to `origin/main` and crates.io. Planned order is Storage 0.73.1, then
+Metrics Storage 0.76.0 and Logging Storage 0.72.0. The shared batch runner has one
+increment per roster: core uses a patch batch, followed by one two-adapter minor
+batch. Keep release gates, publication and normal-tree reconciliation separate.
 
-The maintainer has requested deployment of the independent replacement with its
-recorded performance tradeoffs. The refined implementation
-passes correctness checks and reduces application Wasm, but larger reads/scans
-and small-record capacity still regress. It packs small payloads inline, retains
-iterator paths and checks cached child metadata during traversal. Preserve all
-candidate measurements; do not remove integrity checks to recover performance.
-The current deployment covers Storage 0.73.0 and its Metrics Storage 0.75.0 and
-Logging Storage 0.71.0 adapters only. All three groups are now published on
-crates.io with annotated GitHub tags. Batch `batch-iGEMdpfB` completed at
-`726c674dea238fdfc4b59af0aac29761489479c2` and was reconciled into the normal
-checkout. No sibling edits or deployed-canister resets were included.
+The retained [custody-registry simplification](../measurements/storage-scalar-scans-2026-11-11.md#retained-custody-registry-simplification--2026-11-11)
+replaces only physical-backing claims with a sorted vector. All-collection Wasm
+falls by 4,888 total / 4,944 code bytes to 122,139 / 104,119 bytes; matched ICSS
+is 119,324 / 77,133. Admission comparisons validate 864 samples per Storage
+version and 600 ICSS controls. Reopen/append increase by at most 420 instructions
+(under 1% in the measured matrix); this is a size win, not a universal speedup.
+Many distinct custom backings now pay linear insertion/removal shifts; the
+usual IC backing has one identity. Live-lease and admission trees are unchanged.
 
-The earlier benchmark `target/` artifacts were no longer present at release
-preparation. The figures below remain recorded historical results. Every group
-passed the full 12-stage release plan, including native tests, strict lint, Wasm
-test compilation, size checks and archive qualification. Fresh proof lives in
-`target/release-frozen/batch-iGEMdpfB/target/release-validation/`; the durable batch
-record is `.git/release-state/frozen/batch-iGEMdpfB/`. Registry archive checksums
-were verified after each upload. The released root lock selects IC Metrics
-0.29.11 and IC Logging 0.24.16.
+The custody batch passes 28 focused native tests, native/Wasm lint, all 16
+size-consumer modules with 127 calls/two upgrades each, and focused installed
+Storage IO/admission/upgrade/rollback across 1,031 allocations. Evidence lives
+at `target/evidence/custody-set-20261111/` and size attempt `3MVuA5`.
+No collection engine, API or stored-format change is included.
 
-Release validation found and fixed two qualification gaps before any release:
-bootstrap/fixture copies still used `LICENSE`, and public acceptance tests
-implicitly selected the native default backing. The corrected tests infer the
-supplied backing on both native and Wasm targets. Failed attempts remain intact.
-Newer normal-checkout IC Build 0.81.2 and IC Host 0.76.3 lock selections arrived
-after capture and were preserved, not included in this deployment. Their backup
-stash `f652e8c7400f56f0cab6ad968d05c4c0aee6479d` remains retained.
+The subsequent [five hot-path experiments](../measurements/storage-scalar-scans-2026-11-11.md#map-hot-path-experiments--2026-11-11)
+retain unchanged-routing-write suppression, inline owned value buffers, lazy
+cursor advancement and direct buffer initialization. The scoped region-root
+handoff regressed instructions and was fully removed. Matched shuffled scalar
+Map key scans improve 22.2%, Set scans 25.1%; 1-MiB Map reads improve another
+17.4% in the final buffer step. The new reopened-Cell workload measures a 17.9%
+1-MiB load-control improvement, to 4.812M instructions versus ICSS's 4.971M.
+These are different workloads, not an aggregate speedup. Scalar Map value scans
+still cost about 2.37 times ICSS. Custom raw-read fallback backends incur extra
+chunked copying; production backings provide direct reads.
 
-## Qualification and measured limits
+All four retained steps add 937 total / 866 code bytes: current all-collection
+Wasm is 123,076 / 104,985 bytes, ICSS 119,324 / 77,133. Final qualification passes
+122 library, 26 public and 42 benchmark tests, strict native/Wasm lint, all 16
+size consumers, and installed Storage IO/upgrade/rollback. The full type catalogue
+and release gates were not rerun. Source/artifacts, per-step matrices and the
+rejected candidate are retained under `target/evidence/map-hot-paths-20261111/`;
+final comparison/size attempts are `eCLz3Y`/`YBMpeR`. Formats/APIs remain unchanged.
 
-The final ordered refinement passes 146 workspace library tests, 35 selected
-public collection/backing contracts, 28 comparison-library tests and strict
-native/Wasm Clippy. Eight paired application consumers pass 118 calls and two
-upgrades each. Installed original/O3/Os/Oz IO, custody, logging/checkpoints,
-upgrade and rollback pass at `target/qualification/runtime/attempt.Dh67gD`.
-An incompatible ordered-image upgrade traps, preserves the previous application,
-and permits a fresh installation. First-candidate archive qualification passed at
-`target/package-qualification/attempt.n5kPft` for all three product packages.
-Those archives predate the refinement; release archive gates remain separate.
+The earlier retained [range-path experiment](../measurements/storage-scalar-scans-2026-11-11.md#retained-range-path-experiment)
+reuses checked bound paths. Its ordered comparison improves 252 medians and
+leaves 1,800 unchanged, with no regressions. Shuffled scalar Map scans still
+cost 2.44 times ICSS. Eager bounded-path allocation adds count-only work whose
+IC cost is not separately timed. Dynamic-range size consumers corrected an
+unbounded-only fixture that did not instantiate the changed code.
 
-| Final ordered refinement | Previous Storage | Candidate | ICSS |
-| --- | ---: | ---: | ---: |
-| All-collection raw Wasm bytes | 141,342 | 126,406 | 119,318 |
-| All-collection code-section bytes | 121,771 | 108,523 | 77,127 |
-| 4,096-record Map Get×32 instructions | 934,522 | 1,145,264 | 914,982 |
-| 4,096-record Map Scan×32 instructions | 326,047 | 773,764 | 309,902 |
+[Structure research and symbol attribution](../measurements/storage-scalar-scans-2026-11-11.md#data-structure-investigation--2026-11-11)
+confirm one AVL engine serves Map, Set and regions despite their public BTree
+names. Packed B/B+trees are candidates, not implemented alternatives or a
+selected format. Hashing cannot replace real ordered consumer operations.
+Key-distribution breadth, split/resize tails and matched application sizes must
+qualify a future experiment; the present catalogue often embeds counter keys
+in otherwise constant bytes. Preserve independent implementation boundaries.
 
-These are matched application sizes and uniform u64 metered inner-operation
-scopes, not whole-application throughput. The 752-row depth comparison passes
-state checks; 265 rows regress versus preceding Storage. All ICSS instruction
-controls match. Small-record Map capacity rises from 26 to 34 pages. See the
-[ordered-engine record](../design/ordered-map-replacement.md) for identities,
-full size matrix, scope and retained failures.
+Metrics' pending Wire test admits redundant varints with semantic round-tripping
+and unchanged-save byte preservation. Pending notes are Storage 0.73.1, Metrics
+Storage 0.76 and Logging Storage 0.72; adapter minors reflect Wire's public type
+identity. Product versions remain unchanged until the authorized release runner
+prepares them. Adoption evidence is under `target/evidence/deploy-toko-wire-20261111/`;
+no sibling changes or delivery are authorized.
 
-Earlier [Cell](../design/cell-replacement.md),
-[Vector](../design/vector-replacement.md),
-[Memory](../design/memory-replacement.md) and
-[backing](../design/backing-replacement.md) records retain their independent
-qualification, size/performance tradeoffs and reproduction commands. Their
-historical results do not qualify changed ordered-engine inputs. The final frozen
-modules pass the complete 565-case catalogue: 54,318 sample observations across
-all five collection forms, with expected refusals and unpaired results recorded
-separately. Source/artifact hashes pass after the runs. Native attribution records
-fewer Map reads but twice the touched stable-address intervals versus ICSS in the
-selected 4,096-record case; exact IC fee attribution remains unproven.
+## Published baseline and historical evidence
 
-## Persistence and release boundaries
+Storage 0.73.0, Metrics Storage 0.75.0 and Logging Storage 0.71.0 are published
+on crates.io with annotated GitHub tags. Batch `batch-iGEMdpfB` completed at
+`726c674dea238fdfc4b59af0aac29761489479c2` and was reconciled locally. All groups
+passed the 12-stage release plan and archive checksums were verified. Evidence:
+`target/release-frozen/batch-iGEMdpfB/target/release-validation/` and durable
+`.git/release-state/frozen/batch-iGEMdpfB/`. No canister reset or sibling delivery
+was included. Released Metrics/Logging selections were 0.29.11/0.24.16.
+Release preparation repaired the LICENSE.md fixture paths and native/Wasm backing
+inference in public tests. Concurrent Build 0.81.2/Host 0.76.3 work was preserved
+outside that batch; backup stash `f652e8c7400f56f0cab6ad968d05c4c0aee6479d` remains.
 
-Hosts must explicitly provide fresh/reset whole backing and update application
-framing admission. Current formats are STORNAM1, STORCELL, STORVECT and STORMAP1,
-version 1. Previous images refuse without writes; no migration reader, automatic
-reset or production ICSS fallback exists. The destructive reset is authorized
-for this implementation; no deployed consumer has been migrated here.
+The [complete comparison](../measurements/storage-full-suite-2026-11-10.md)
+retains 192,444 observations, all recipes and 1/8/128-page bucket controls.
+It predates current inputs: its qualification Runtime was 0.21.0 while a root
+0.21.1 change arrived during retries. Do not attribute those results to the
+current supplier graph. Small-record density/scans trail ICSS; larger values
+and terminal/rank operations have measured wins. Earlier 565-case qualification,
+54,318 observations, old-image rejection and optimized lifecycle proofs remain
+in the [ordered-engine record](../design/ordered-map-replacement.md), including
+`attempt.Dh67gD` and the earlier `attempt.n5kPft` package qualification.
+Old benchmark artifacts missing at release preparation cannot be reconstructed
+from retained summaries; fresh release evidence remains at the paths above.
 
-Small-record density and traversal footprint remain follow-up optimization work;
-the measured regressions are retained in the release notes. Apply the authorized
-release-group gates again when future source inputs change. Current version authorities remain the three product
-packages and their group ledgers. Hosted CI and publication are separate from
-local checks. Earlier pre-rewrite optimization measurements remain historical
-in the [measurement index](../measurements/README.md), not active engine claims.
+## Persistence, preservation and external boundaries
 
-## Preservation and external boundaries
+The [replacement inventory](../design/independent-storage-replacement.md) links
+Cell, Vector, Memory, named backing and ordered-engine source/qualification
+records. Engines were independently authored through restricted handoffs; ICSS
+is an external test/benchmark dependency only. Current formats are STORNAM1,
+STORCELL, STORVECT and STORMAP1 version 1. Earlier images require explicit
+fresh/reset backing and application framing admission; no legacy reader or
+implicit reset exists. No deployed consumer has been migrated here. A future
+format proposal must not silently broaden the previous reset authorization.
 
-Keep failed attempts, frozen comparison/release artifacts, archives, receipts,
-`.git/release-state/`, historical tool caches and all existing preservation
-stashes. Raw experiment evidence remains under `target/evidence/`; ordinary
-`cargo clean` can remove it. Compact decisions and reproduction belong in the
-linked records. No cleanup or sibling work was performed.
+Keep failed attempts, frozen sources, archives, receipts, `.git/release-state/`,
+tool caches and preservation stashes. Target evidence can disappear with explicit
+cargo clean; durable decisions/reproduction remain in the linked records. No
+artifact cleanup is authorized by this handoff trim. Product group gates and
+publication remain separate from focused optimization qualification.
 
-Canic/Auth complete endpoint costs remain outside Storage qualification. Canic
-and IcyDB have unrelated pending work. The authorized IcyDB preparation remains
-at `/tmp/icydb-control-layout`, branch `storage/control-allocation`, base
-`03c5713e`; preserve it unchanged. Its native checks passed, installed composition
-is unqualified, and durable relocation or draft-PR approval remains pending.
-Do not modify that sibling or treat its pending delivery as part of this batch.
+Canic/Auth whole-endpoint costs are outside Storage qualification. Canic/IcyDB
+have unrelated pending work. Preserve the authorized IcyDB preparation at
+`/tmp/icydb-control-layout`, branch `storage/control-allocation`, base `03c5713e`:
+native checks passed, installed composition is unqualified, and durable relocation
+or draft-PR approval remains pending. Do not modify or deliver that sibling.

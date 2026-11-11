@@ -3,6 +3,16 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/metrics-stable/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.76.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Adopt IC Wire 0.21.1 and its public codec-error identity. Wire now accepts
+  redundant varints; encoder bytes and stored checkpoint formats are unchanged.
+  Unchanged-state saves preserve the original stored bytes, including accepted
+  noncanonical encodings. State, identity, budget and regression checks remain.
+  See [the adoption notes](0.76.md).
+
 ## [0.75.0] - 2026-11-10
 
 ### ⚠️ Breaking

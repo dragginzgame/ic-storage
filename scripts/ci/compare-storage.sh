@@ -75,10 +75,9 @@ cmp Cargo.lock "$output/production.lock"
 status=0
 selections=(all)
 [[ "${BENCH_WORKLOAD:-}" != types ]] || selections=(map set vector cell region)
-server_ttl=900
-# The complete type matrix includes full-width 64 KiB payloads and independent
-# final-state checks. Keep its bounded lifetime separate from ordinary runs.
-[[ "${BENCH_WORKLOAD:-}" != types ]] || server_ttl=1800
+# Complete three-seed matrices, large payloads and final-state checks can exceed
+# fifteen minutes. Keep one bounded server lifetime; request budgets stay separate.
+server_ttl=3600
 printf '%s\n' "$server_ttl" > "$output/server-ttl-seconds.txt"
 for selection in "${selections[@]}"; do
     shard_arguments=()

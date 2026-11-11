@@ -109,6 +109,48 @@ fn range_cursors_match_model_when_alternating_ends_and_skipping() {
             }
             assert!(actual.next().is_none());
             assert!(actual.next_back().is_none());
+
+            // A bound-admitted cursor must remain valid after rank jumps from
+            // either end, including gaps between stored keys and empty ranges.
+            let mut actual = map.range((start, end));
+            let mut actual_keys = map.keys_range((start, end));
+            let mut expected = model.range((start, end));
+            for (reverse, skip) in [
+                (false, 3),
+                (true, 7),
+                (false, 0),
+                (true, 0),
+                (false, 25),
+                (true, 9),
+            ] {
+                let wanted = if reverse {
+                    expected.nth_back(skip)
+                } else {
+                    expected.nth(skip)
+                }
+                .map(|(&k, &v)| (k, v));
+                let entry = if reverse {
+                    actual.nth_back(skip)
+                } else {
+                    actual.nth(skip)
+                };
+                let key = if reverse {
+                    actual_keys.nth_back(skip)
+                } else {
+                    actual_keys.nth(skip)
+                };
+                assert_eq!(entry.map(MapEntry::into_pair), wanted);
+                assert_eq!(key, wanted.map(|(key, _)| key));
+            }
+            let remainder: Vec<_> = expected.map(|(&k, &v)| (k, v)).collect();
+            assert_eq!(
+                actual.map(MapEntry::into_pair).collect::<Vec<_>>(),
+                remainder
+            );
+            assert_eq!(
+                actual_keys.collect::<Vec<_>>(),
+                remainder.iter().map(|&(k, _)| k).collect::<Vec<_>>()
+            );
         }
     }
     let mut actual = map.iter();
@@ -163,6 +205,31 @@ fn key_projection_and_owned_entries_do_not_decode_nonclone_values() {
     assert_eq!(VALUE_DECODES.get(), 1);
     assert_eq!(map.get(&299).unwrap().0, vec![9; 8]);
     assert_eq!(VALUE_DECODES.get(), 2);
+}
+
+#[test]
+fn retained_entries_own_small_and_large_values_after_clear_and_drop() {
+    let runtime = host(VectorMemory::default());
+    let mut map =
+        StableBTreeMap::<u64, Value, _>::create(runtime.open_memory(&key()).unwrap()).unwrap();
+    let lengths = [0, 1, 8, 24, 25, 256];
+    for (key, length) in lengths.into_iter().enumerate() {
+        map.insert(key as u64, Value(vec![u8::try_from(key).unwrap(); length]));
+    }
+    VALUE_DECODES.set(0);
+    let entries: Vec<_> = map.iter().collect();
+    assert_eq!(VALUE_DECODES.get(), 0);
+    map.clear();
+    drop(map);
+    drop(runtime);
+    for (key, entry) in entries.into_iter().enumerate() {
+        let expected = vec![u8::try_from(key).unwrap(); lengths[key]];
+        assert_eq!(entry.value().0, expected);
+        let (stored_key, value) = entry.into_pair();
+        assert_eq!(stored_key, key as u64);
+        assert_eq!(value.0, expected);
+    }
+    assert_eq!(VALUE_DECODES.get(), lengths.len() * 2);
 }
 
 #[test]

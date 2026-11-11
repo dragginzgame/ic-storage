@@ -191,7 +191,7 @@ The independent qualification workspace consumes Testkit 0.95's maintained
 async native client, with caller-owned Tokio execution, explicit request budgets
 and awaited instance deletion. Testkit 0.95.0 owns the reviewed PocketIC 16.1.0
 server selection. Changing that pair requires repeating installed qualification.
-The composition fixture selects Platform 0.28 and Runtime 0.21 independently;
+The composition fixture selects Platform 0.29 and Runtime 0.21 independently;
 Testkit's older transitive Platform/Types identities remain native infrastructure
 and must not enter Storage's production graph. Keep both lockfiles, sources,
 features and toolchains unchanged during pinning-only adoption.
