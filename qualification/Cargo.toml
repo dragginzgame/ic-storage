@@ -21,7 +21,7 @@ license-file = "../LICENSE.md"
 [workspace.dependencies]
 clap = { version = "4.6", default-features = false, features = ["derive", "std", "help", "usage", "error-context"] }
 ic-logging = { version = "0.24.0", default-features = false }
-ic-logging-storage = { path = "../crates/ic-logging-storage", version = "0.71.0" }
+ic-logging-storage = { path = "../crates/ic-logging-storage", version = "0.72.0" }
 # Platform supplies the composition fixture identity; Testkit owns the native client.
 ic-platform = { version = "0.29.3", default-features = false }
 ic-platform-runtime = { version = "0.21.1", default-features = false }
