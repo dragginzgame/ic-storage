@@ -1,7 +1,7 @@
 //! Focused installed Logging checkpoints using the fixture's shared Wire contract.
 use ic_storage_test_fixtures::logging as protocol;
 
-use ic_testkit::pocket_ic::{CanisterId, PocketIc};
+use ic_testkit::pocket_ic::{CanisterId, nonblocking::PocketIc};
 use ic_wire::native;
 use protocol::{Append, Outcome, Reply, Snapshot, Update, Upgrade};
 use serde::Serialize;
@@ -91,9 +91,7 @@ pub(super) async fn qualify(pic: &PocketIc) {
         "trapped update must roll back heap and checkpoint"
     );
 
-    pic.advance_time(Duration::from_secs(300))
-        .await
-        .expect("advance PocketIC time");
+    pic.advance_time(Duration::from_secs(300)).await;
     super::assert_trap(
         pic.upgrade_canister(
             canister,
@@ -109,9 +107,7 @@ pub(super) async fn qualify(pic: &PocketIc) {
         retained,
         "trapped upgrade must roll back its checkpoint"
     );
-    pic.advance_time(Duration::from_secs(300))
-        .await
-        .expect("advance PocketIC time");
+    pic.advance_time(Duration::from_secs(300)).await;
     pic.upgrade_canister(
         canister,
         wasm.clone(),
@@ -144,9 +140,7 @@ pub(super) async fn qualify(pic: &PocketIc) {
     assert!(pruned.snapshot.rows.is_empty());
     assert_eq!(pruned.snapshot.next_sequence, Some(2));
     assert_eq!(pruned.snapshot.last_created_at_secs, Some(20));
-    pic.advance_time(Duration::from_secs(300))
-        .await
-        .expect("advance PocketIC time");
+    pic.advance_time(Duration::from_secs(300)).await;
     pic.upgrade_canister(
         canister,
         wasm,
@@ -183,9 +177,7 @@ pub(super) async fn qualify(pic: &PocketIc) {
     );
     assert_eq!(budget.snapshot.next_sequence, Some(4));
     assert_eq!(read(pic, canister).await, resumed.snapshot);
-    pic.advance_time(Duration::from_secs(300))
-        .await
-        .expect("advance PocketIC time");
+    pic.advance_time(Duration::from_secs(300)).await;
     pic.upgrade_canister(
         canister,
         fs::read(env::var("IC_LOGGING_QUALIFICATION_WASM").unwrap()).unwrap(),

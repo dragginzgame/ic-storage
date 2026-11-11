@@ -22,7 +22,7 @@ categories = ["wasm", "data-structures"]
 # storage
 # Changelog : releases/storage/CHANGELOG.md
 ic-storage = { path = "crates/ic-storage", version = "0.73.3" }
-toko-tooling = "=0.39.10"
+toko-tooling = "=0.39.12"
 
 # metrics-storage
 # Changelog : releases/metrics-storage/CHANGELOG.md

@@ -1,6 +1,6 @@
 //! Installed Memory scenarios and actual valid-IO measurements.
 pub(super) use ic_storage_test_fixtures::io as protocol;
-use ic_testkit::pocket_ic::{CanisterId, PocketIc};
+use ic_testkit::pocket_ic::{CanisterId, nonblocking::PocketIc};
 use ic_wire::native;
 use protocol::Snapshot;
 use std::{env, fs, time::Duration};
@@ -118,9 +118,7 @@ pub(super) async fn qualify(pic: &PocketIc, measure_valid_io: bool) {
         println!("installed physical backing IO: 12 range/overflow traps preserve state");
 
         for mode in [1_u8, 2] {
-            pic.advance_time(Duration::from_secs(300))
-                .await
-                .expect("advance PocketIC time");
+            pic.advance_time(Duration::from_secs(300)).await;
             super::assert_trap(
                 pic.upgrade_canister(
                     canister,
@@ -137,9 +135,7 @@ pub(super) async fn qualify(pic: &PocketIc, measure_valid_io: bool) {
                 "failed upgrade must preserve original state"
             );
         }
-        pic.advance_time(Duration::from_secs(300))
-            .await
-            .expect("advance PocketIC time");
+        pic.advance_time(Duration::from_secs(300)).await;
         pic.upgrade_canister(
             canister,
             wasm.clone(),
@@ -171,20 +167,13 @@ pub(super) async fn qualify(pic: &PocketIc, measure_valid_io: bool) {
                     offset,
                 },
             );
-            let cycles_before = pic
-                .cycle_balance(canister)
-                .await
-                .expect("read canister cycles");
+            let cycles_before = pic.cycle_balance(canister).await;
             let reply = pic
                 .update_call(canister, canister, "io", args)
                 .await
                 .unwrap();
             let cycles = cycles_before
-                .checked_sub(
-                    pic.cycle_balance(canister)
-                        .await
-                        .expect("read canister cycles"),
-                )
+                .checked_sub(pic.cycle_balance(canister).await)
                 .expect("measured update must not increase the cycle balance");
             let reply: protocol::IoReply =
                 native::decode_response(protocol::IO_ID, &reply, protocol::RESPONSE).unwrap();

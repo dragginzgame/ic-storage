@@ -233,6 +233,62 @@ fn retained_entries_own_small_and_large_values_after_clear_and_drop() {
 }
 
 #[test]
+fn mixed_payloads_survive_bidirectional_entry_and_value_jumps() {
+    let runtime = host(VectorMemory::default());
+    let mut map =
+        StableBTreeMap::<Vec<u8>, Vec<u8>, _>::create(runtime.open_memory(&key()).unwrap())
+            .unwrap();
+    let lengths = [0, 1, 16, 24, 25, 256];
+    let mut model = BTreeMap::new();
+    for step in 0..97_u8 {
+        let index = u8::try_from(u16::from(step) * 37 % 97).unwrap();
+        let key = vec![index; 1 + lengths[usize::from(index) % lengths.len()]];
+        let value = vec![index; lengths[usize::from(index + 3) % lengths.len()]];
+        map.insert(key.clone(), value.clone());
+        model.insert(key, value);
+    }
+    let mut entries = map.iter();
+    let mut values = map.values();
+    let mut expected = model.iter();
+    for (reverse, skip) in [
+        (false, 0),
+        (false, 7),
+        (true, 3),
+        (true, 0),
+        (false, 11),
+        (true, 2),
+        (false, 0),
+    ] {
+        let wanted = if reverse {
+            expected.nth_back(skip)
+        } else {
+            expected.nth(skip)
+        };
+        let (entry, value) = if reverse {
+            (entries.nth_back(skip), values.nth_back(skip))
+        } else {
+            (entries.nth(skip), values.nth(skip))
+        };
+        assert_eq!(
+            entry.map(MapEntry::into_pair),
+            wanted.map(|(key, value)| (key.clone(), value.clone()))
+        );
+        assert_eq!(value, wanted.map(|(_, value)| value.clone()));
+    }
+    assert_eq!(
+        entries.map(MapEntry::into_pair).collect::<Vec<_>>(),
+        expected
+            .clone()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(
+        values.collect::<Vec<_>>(),
+        expected.map(|(_, v)| v.clone()).collect::<Vec<_>>()
+    );
+}
+
+#[test]
 fn oversized_keys_values_and_churn_reuse_backing() {
     let backing = VectorMemory::default();
     let runtime = host(backing.clone());

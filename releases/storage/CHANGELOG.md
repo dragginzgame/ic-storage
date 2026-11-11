@@ -3,6 +3,27 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/persistence/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.73.4] - Unreleased
+
+### ⚡ Performance
+
+- Avoid an intermediate node copy during ordered iteration. Matched scalar
+  key scans improve about 2.2% and entry/value scans about 1%, with unchanged
+  point/mutation controls and 74 fewer all-collection Wasm bytes. Public APIs,
+  owned entries and stored formats are unchanged. See [the detailed notes](0.73.md#0734---unreleased).
+
+- Simplify Map first/last traversal. Batches of 32 improve 1.37%/1.54%; the
+  broader ordered matrix has no regressions. Expanded size probes now exercise
+  these methods and show 133 fewer Wasm bytes on identical application surfaces.
+  See [the comparison](../../docs/measurements/storage-scalar-scans-2026-11-11.md#direct-extrema-follow-up--2026-11-11).
+
+### 🧰 Tooling
+
+- Adopt Toko Tooling 0.39.12 and Testkit 0.100.2; migrate native qualification
+  drivers to the re-exported async client while retaining PocketIC 16.1.0.
+  Installed checks pass and all 16 application Wasm sizes are unchanged.
+  See [the detailed notes](0.73.md#0734---unreleased).
+
 ## [0.73.3] - 2026-11-11
 
 ### ⚡ Performance

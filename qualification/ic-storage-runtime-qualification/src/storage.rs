@@ -1,6 +1,6 @@
 //! Installed Storage adapters under the same caller-owned server as Memory.
 use ic_storage_test_fixtures::storage as protocol;
-use ic_testkit::pocket_ic::{CanisterId, ClientError, PocketIc};
+use ic_testkit::pocket_ic::{CanisterId, RejectResponse, nonblocking::PocketIc};
 use ic_wire::native;
 fn frame(id: u64, value: &impl serde::Serialize) -> Vec<u8> {
     native::encode_request(id, value, protocol::REQUEST).unwrap()
@@ -13,7 +13,7 @@ async fn update(
     method: &str,
     id: u64,
     mode: u8,
-) -> Result<(), ClientError> {
+) -> Result<(), RejectResponse> {
     pic.update_call(canister, canister, method, frame(id, &mode))
         .await
         .map(|bytes| {
@@ -126,9 +126,7 @@ pub(super) async fn qualify(pic: &PocketIc) {
         .unwrap();
     let committed = snapshot().await;
     assert_eq!(committed, expected(initial.generation, [100, 101, 102]));
-    pic.advance_time(Duration::from_secs(300))
-        .await
-        .expect("advance PocketIC time");
+    pic.advance_time(Duration::from_secs(300)).await;
     super::assert_trap(
         pic.upgrade_canister(
             canister,
@@ -144,9 +142,7 @@ pub(super) async fn qualify(pic: &PocketIc) {
         committed,
         "failed upgrade preserves collections and generation"
     );
-    pic.advance_time(Duration::from_secs(300))
-        .await
-        .expect("advance PocketIC time");
+    pic.advance_time(Duration::from_secs(300)).await;
     pic.upgrade_canister(canister, wasm, frame(protocol::UPGRADE_ID, &0_u8), None)
         .await
         .unwrap();

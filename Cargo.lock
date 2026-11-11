@@ -358,9 +358,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire"
-version = "0.21.1"
+version = "0.21.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a18713f6661269cfc518adef26d96a6c440d5f0e271d0e7ebdbe5c50e89af51"
+checksum = "2a99f609a6ea85187a0699e9a7ff2a7f9c32baecc5f688235b9affe70fd8d78a"
 dependencies = [
  "bytemuck",
  "postcard",
@@ -594,9 +594,9 @@ dependencies = [
 
 [[package]]
 name = "toko-tooling"
-version = "0.39.10"
+version = "0.39.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ea181684d772d4632ba534b80bd47bb8b2044278ea346f2c02e37d2ea9991a57"
+checksum = "acb1fd3f459a63940669e925d427fd6821abf02a7525bf9ef38d323dc778a8d2"
 
 [[package]]
 name = "toml"

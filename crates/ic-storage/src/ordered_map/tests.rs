@@ -273,6 +273,71 @@ fn monotone_insertions_and_deletions_keep_a_short_tree() {
 }
 
 #[test]
+fn empty_and_singleton_extrema_preserve_value_and_io_behavior() {
+    let memory = TestMemory::default();
+    let mut map = OrderedMap::<u64, u64, _>::new(memory.clone());
+    memory.reads.set(0);
+    assert_eq!(map.first_key_value(), None);
+    assert_eq!(map.last_key_value(), None);
+    assert_eq!(memory.reads.get(), 0);
+    map.insert(7, 17);
+    assert_eq!(map.first_key_value(), Some((7, 17)));
+    assert_eq!(map.last_key_value(), Some((7, 17)));
+    map.remove(&7);
+    memory.reads.set(0);
+    assert_eq!(map.first_key_value(), None);
+    assert_eq!(map.last_key_value(), None);
+    assert_eq!(memory.reads.get(), 0);
+}
+
+#[test]
+fn extrema_reject_inconsistent_selected_children_before_value_decode() {
+    for reverse in [false, true] {
+        for (offset, replacement) in [(72, 2_u64), (32, 0x0102)] {
+            let memory = TestMemory::default();
+            let mut map = OrderedMap::<u64, DecodeProbe, _>::new(memory.clone());
+            for key in [3, 1, 5, 0, 2, 4, 6] {
+                map.insert(
+                    key,
+                    DecodeProbe {
+                        bytes: vec![u8::try_from(key).unwrap()],
+                        owned: false,
+                    },
+                );
+            }
+            let root = map.store.node(map.store.root);
+            let child = if reverse { root.right } else { root.left };
+            memory.write(child.address + offset, &replacement.to_le_bytes());
+            let writes = memory.writes.get();
+            VALUE_DECODES.set(0);
+            memory.reads.set(0);
+            assert!(
+                catch_unwind(AssertUnwindSafe(|| {
+                    if reverse {
+                        map.last_key_value()
+                    } else {
+                        map.first_key_value()
+                    }
+                }))
+                .is_err()
+            );
+            assert_eq!(VALUE_DECODES.get(), 0);
+            assert_eq!(memory.reads.get(), 2);
+            let (key, value) = if reverse {
+                map.first_key_value()
+            } else {
+                map.last_key_value()
+            }
+            .unwrap();
+            assert_eq!(key, if reverse { 0 } else { 6 });
+            assert_eq!(value.bytes, vec![u8::try_from(key).unwrap()]);
+            assert_eq!(VALUE_DECODES.get(), 1);
+            assert_eq!(memory.writes.get(), writes);
+        }
+    }
+}
+
+#[test]
 fn ranges_and_alternating_ends_are_fused() {
     let mut map = OrderedMap::<u64, u64, _>::new(TestMemory::default());
     for key in 0..31 {
@@ -611,6 +676,65 @@ fn cursor_jumps_and_alternating_paths_match_a_deque() {
     assert_eq!(entries.next().unwrap().0, 74);
     assert_eq!(entries.next_back().unwrap().0, 674);
     assert_eq!(entries.count(), 299);
+}
+
+#[test]
+fn cursor_entries_preserve_payloads_across_mixed_jumps_and_reuse() {
+    let memory = TestMemory::default();
+    let mut map = OrderedMap::<u64, Vec<u8>, _>::new(memory.clone());
+    let mut model = BTreeMap::new();
+    for index in 0_u64..127 {
+        let key = index * 37 % 127;
+        let size = [0, 8, 24, 25, 300][usize::try_from(key % 5).unwrap()];
+        let value = vec![u8::try_from(key).unwrap(); size];
+        map.insert(key, value.clone());
+        model.insert(key, value);
+    }
+    let mut expected: VecDeque<_> = model
+        .range(17..=110)
+        .map(|(key, value)| (*key, value.clone()))
+        .collect();
+    let mut cursor = map.range(17..=110);
+    let mut retained = Vec::new();
+    for (step, skip) in [0, 0, 2, 0, 4].into_iter().cycle().take(24).enumerate() {
+        let reverse = step % 2 != 0;
+        let mut answer = None;
+        for _ in 0..=skip {
+            answer = if reverse {
+                expected.pop_back()
+            } else {
+                expected.pop_front()
+            };
+            if answer.is_none() {
+                break;
+            }
+        }
+        let actual = if reverse {
+            cursor.nth_back(skip)
+        } else {
+            cursor.nth(skip)
+        };
+        match (actual, answer) {
+            (Some((key, bytes)), Some((expected_key, expected_bytes))) => {
+                assert_eq!(key, expected_key);
+                assert_eq!(bytes.as_slice(), expected_bytes);
+                retained.push((bytes, expected_bytes));
+            }
+            (None, None) => {}
+            _ => panic!("directional cursor disagrees with model"),
+        }
+        assert_eq!(cursor.size_hint(), (expected.len(), Some(expected.len())));
+    }
+    let reads = memory.reads.get();
+    assert_eq!(cursor.count(), expected.len());
+    assert_eq!(memory.reads.get(), reads);
+    map.clear();
+    for key in 0..127 {
+        map.insert(key, vec![99; 300]);
+    }
+    for (bytes, expected) in retained {
+        assert_eq!(bytes.decode::<Vec<u8>>(), expected);
+    }
 }
 
 #[test]

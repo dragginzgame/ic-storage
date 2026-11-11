@@ -1,6 +1,6 @@
 //! Same-canister backing custody and retained component handles.
 use super::memory::{frame, protocol, read};
-use ic_testkit::pocket_ic::PocketIc;
+use ic_testkit::pocket_ic::nonblocking::PocketIc;
 
 pub(super) async fn qualify(pic: &PocketIc) {
     let wasm =
@@ -51,9 +51,7 @@ pub(super) async fn qualify(pic: &PocketIc) {
             ..initial
         }
     );
-    pic.advance_time(std::time::Duration::from_secs(300))
-        .await
-        .expect("advance PocketIC time");
+    pic.advance_time(std::time::Duration::from_secs(300)).await;
     pic.upgrade_canister(canister, wasm, frame(protocol::UPGRADE_ID, &0_u8), None)
         .await
         .unwrap();

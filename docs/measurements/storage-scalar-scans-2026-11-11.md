@@ -1065,3 +1065,250 @@ integrator notes), manifests and pinned policy. The Map implementer read only
 the current independent ordered files and its approved specification context.
 Neither used predecessor or registry ICSS implementation text. The parent
 authored separate public poison tests and performed qualification.
+
+## Cursor borrowing experiment — 2026-11-11
+
+The next experiment starts from released Storage 0.73.3, source `c76bc36`.
+Supplier selections, Rust 1.99.1, PocketIC 16.1.0 and both locks are unchanged.
+The size consumers use `wasm-size`; instruction modules use `comparison` with
+the matched 8-MiB stack flag. Both are original compiler modules without a
+post-link optimizer. Application Wasm sizes are separate from benchmark harnesses.
+
+### Reject compact directional frames
+
+The first trial projects each checked node into a directional frame with one
+pending child link and shared payload metadata. Its expected frame layout is
+80 bytes instead of 104; a 16-element path would reserve 384 fewer payload bytes.
+The same child/codec checks and physical reads remain. Factoring payload readers
+also changes their calling convention outside traversal.
+
+Although scalar key scans improve 7.0%, endpoint and deletion controls regress:
+Map first/last increase 8.9%/8.6%, missing removal 6.1%, and removal 4.6%.
+Across 98 scalar medians, 61 improve, four are unchanged and 33 regress.
+The candidate is rejected without promoting it to the larger ordered matrix.
+Its production changes are removed completely; no compact-frame mode or
+alternative payload representation remains.
+
+### Isolate borrowing at the cursor boundary
+
+The narrower trial lends the selected node within the iterator call instead of
+returning a complete node copy. Existing payload readers and returned application
+entries remain owned. Mutable path operations finish before the internal borrow;
+no reference escapes into a returned entry. Point lookup/mutation source,
+physical layout, traversal checks and payload decoding are unchanged.
+`ordered_map.rs` and `ordered_map/storage.rs` match the released source exactly.
+
+The 98-row scalar comparison improves 34 medians with 64 unchanged and no
+regressions. Key scans improve 2.2%, entry/value scans about 1%; all point/mutation
+controls are identical. This does not close the density or value-scan gap.
+The broader 2,052-row ordered comparison improves 900 medians with 1,152
+unchanged and no regressions. It includes fixed/external keys, strings and
+variable payloads, 256 records, and batches from one to 128. Every ICSS
+reference median and both stable-capacity columns match. Row counts are not a
+weighted application speedup. The narrow borrowing change is retained.
+
+### Comparison after each trial
+
+Three-round medians, 4,096 shuffled scalar records, uniform access, 32 operations
+or results per call and one sample. ICSS 0.7.2 uses its 128-page bucket control;
+Storage retains eight-page allocation units. These are metered inner-operation
+instructions, including applicable memory charges, not endpoint throughput.
+All reference instruction medians and stable-page counts match across trials.
+
+| Map operation | Released | Compact frames, rejected | Borrowed cursor | ICSS |
+| --- | ---: | ---: | ---: | ---: |
+| Get | 1,135,600 | 1,134,116 | 1,135,600 | 914,982 |
+| First | 607,911 | 662,055 | 607,911 | 847,631 |
+| Insert | 2,008,560 | 1,911,128 | 2,008,560 | 2,002,760 |
+| Remove | 2,103,794 | 2,201,191 | 2,103,794 | 1,986,372 |
+| RemoveMiss | 831,451 | 882,459 | 831,451 | 929,243 |
+| KeysScan | 314,977 | 292,854 | 308,157 | 289,750 |
+| Scan | 734,856 | 717,618 | 727,912 | 309,902 |
+| ValuesScan | 718,373 | 703,830 | 711,463 | 309,789 |
+
+Each application size below is **total uncompressed module bytes / code-section
+payload bytes**, from the maintained runner's section parser.
+
+| Consumer | Released | Compact frames, rejected | Borrowed cursor | ICSS |
+| --- | ---: | ---: | ---: | ---: |
+| Base | 16,893 / 14,773 | 16,893 / 14,773 | 16,893 / 14,773 | 16,889 / 14,773 |
+| Map | 102,426 / 87,111 | 101,802 / 86,471 | 102,418 / 87,103 | 90,195 / 49,231 |
+| Set | 101,538 / 86,304 | 101,045 / 85,812 | 101,534 / 86,300 | 89,955 / 48,940 |
+| Vector | 88,243 / 75,159 | 88,243 / 75,159 | 88,243 / 75,159 | 64,506 / 27,577 |
+| Cell | 86,355 / 73,817 | 86,355 / 73,817 | 86,355 / 73,817 | 63,093 / 26,077 |
+| Region | 103,734 / 88,355 | 103,102 / 87,707 | 103,721 / 88,342 | 89,904 / 49,043 |
+| Map + region | 105,397 / 89,952 | 104,673 / 89,212 | 105,330 / 89,885 | 110,859 / 69,760 |
+| All | 116,288 / 99,172 | 116,436 / 99,296 | 116,214 / 99,098 | 119,324 / 77,133 |
+
+The narrow trial saves 74 total/code bytes for all collections and eight for Map.
+Individual consumers remain larger than ICSS. The all-collection total is smaller
+than ICSS while its code section remains larger; those are separate measurements.
+
+### Qualification and reproduction
+
+Both trials pass 28 focused engine tests, eight public ordered-collection tests
+and native/Wasm Clippy. New independently authored tests cover mixed-direction
+rank jumps, inline/external keys and values, count without reads and entries
+retained across clear/backing reuse. Existing corruption, codec, growth and
+deferred-child checks remain. All 16 application size modules pass 127 calls and
+two upgrades at every measured stage. The narrow trial additionally passes
+installed Storage IO, admission, upgrade across 1,031 allocations, and
+decoder/update/upgrade trap rollback. Formatting passes.
+
+The restricted implementer used only current independently authored ordered
+source/tests, its approved behavior specification/policies and black-box results.
+The coordinator authored the separate public test, integrated and qualified the
+trial. No upstream implementation or historical engine source entered the
+implementer's context. Full release gates, complete type catalogue and fresh
+macOS execution are not part of this experiment; no release is included.
+
+Raw evidence and comparison recipes are in
+`target/evidence/cursor-experiment-20261111/`. Frozen sources and modules:
+
+| Stage | storage-comparison attempt | storage-consumer-size attempt |
+| --- | --- | --- |
+| Released baseline | 4gKxhV | maAUqY |
+| Rejected compact frames | duFjzp | T6LGVn |
+| Borrowed cursor | cvR5I7 | xPLBOi |
+
+Current-source reproduction uses `make benchmark-storage-size` and:
+
+```sh
+BENCH_CASES=Map-U64-U64,Set-U64-Unit,Region-U64-U64 \
+  BENCH_PATTERNS=uniform BENCH_ROUNDS=3 BENCH_SHUFFLED=1 \
+  BENCH_UPSTREAM_BUCKET_PAGES=128 \
+  make benchmark-storage BENCH_ROWS=4096 BENCH_SAMPLES=1
+BENCH_WORKLOAD=ordered BENCH_UPSTREAM_BUCKET_PAGES=128 \
+  make benchmark-storage BENCH_SAMPLES=1
+```
+
+The ordered controls replay each frozen comparison pair through the maintained
+native driver with `--workload ordered --samples 1 --upstream-bucket-pages 128`.
+The installed check builds the current `wasm-storage-qualification` fixture under
+`wasm-size` and runs the existing native qualifier with `--storage-only`, through
+the prepared Testkit server. Sources, artifacts, logs and locks remain bound to
+the recorded attempts. Current-source commands reproduce only retained changes.
+
+## Direct extrema follow-up — 2026-11-11
+
+The retained cursor and Toko/Testkit adoption form this experiment's baseline.
+Both selected locks remain unchanged throughout this follow-up. The root lock
+already selected Wire 0.21.2 when this task began; qualification remains on
+Wire 0.21.1, with Testkit 0.100.2/PocketIC 16.1.0 and Toko 0.39.12. That unrelated
+root selection is preserved, not claimed as an adoption performed here.
+
+The current driver replayed the frozen post-adoption baseline: all 98 scalar
+medians exactly match the earlier borrowed-cursor result, including ICSS controls
+and stable capacities. The broader baseline was rerun on the current client too.
+
+### Trial 1: reject decoder outlining
+
+Moving routing-node decoding into a non-generic, non-inlined helper preserves
+checks and physical IO but adds 60 total / 59 code bytes to every ordered consumer.
+Base, Cell and Vector are unchanged. The Map module grows 102,418 → 102,478 bytes,
+and all collections grow 116,214 → 116,274; ICSS controls remain 90,195 and
+119,324 respectively. All 28 engine/eight public tests and 16 installed size
+consumers pass. The size hypothesis fails, so this trial is removed before an
+instruction sweep. No instruction saving or exact compiler cause is claimed.
+Source and lock hashes confirm restoration before the next trial.
+
+| Consumer | Before | Decoder trial, rejected | ICSS 0.7.2 |
+| --- | ---: | ---: | ---: |
+| base | 16,893 | 16,893 | 16,889 |
+| map | 102,418 | 102,478 | 90,195 |
+| set | 101,534 | 101,594 | 89,955 |
+| vector | 88,243 | 88,243 | 64,506 |
+| cell | 86,355 | 86,355 | 63,093 |
+| region | 103,721 | 103,781 | 89,904 |
+| map-region | 105,330 | 105,390 | 110,859 |
+| all | 116,214 | 116,274 | 119,324 |
+
+### Trial 2: retain direct first/last traversal
+
+First/last now walk the bounded leftmost/rightmost edge, using the same root and
+child admissions and key/value readers. The general private rank-selection path,
+used only by these methods, is deleted. Actual iterator rank jumps are unchanged.
+Empty behavior, height limits, count/height consistency, codec validation, stored
+formats, public APIs and allocation governance remain intact.
+
+At 4,096 shuffled scalar rows, three-round medians and one sample, four of 98
+measurements improve and 94 are identical. These are inner-operation instruction
+counts, including applicable memory charges, not whole-endpoint throughput.
+ICSS 0.7.2 uses the 128-page bucket control; Storage keeps eight-page units.
+
+| Map operation | Lookups per batch | Before | Direct extrema | ICSS 0.7.2 |
+| --- | ---: | ---: | ---: | ---: |
+| First | 1 | 171,721 | 171,504 | 98,848 |
+| Last | 1 | 173,959 | 173,635 | 260,946 |
+| First | 32 | 607,911 | 599,603 | 847,631 |
+| Last | 32 | 759,527 | 747,795 | 903,951 |
+
+Batches of 32 improve 1.37% for first and 1.54% for last. Single first lookup
+remains slower than ICSS; the comparison does not establish a universal winner.
+The wider ordered matrix covers 256 rows, fixed/external/string keys and values,
+variable payloads, and batches from one to 128: 126 of 2,052 medians improve,
+1,926 are identical and none regress. Only First/Last change. Every reference
+median and both stable-capacity columns match in both comparisons.
+
+### Close the application-size coverage gap
+
+The previous small applications never called first/last: their unchanged sizes
+could not qualify this trial's emitted-code cost. Both maintained consumers now
+have the same no-argument extrema query. Map returns the first and last key/value
+pairs; other selections return no values. The native model checks empty state,
+populated state, removals and both upgrade boundaries. Each of the 16 modules
+passes 131 calls and two upgrades. Models and verification remain native-only.
+
+The old engine and candidate were rebuilt and validated against these **same
+expanded applications**. Adding an endpoint changes the probe itself; differences
+from earlier probe totals must not be attributed to this engine optimization.
+Each cell below is total raw Wasm bytes / code-section payload bytes.
+
+| Consumer | Expanded baseline | Direct extrema | ICSS 0.7.2 |
+| --- | ---: | ---: | ---: |
+| base | 17,110 / 14,928 | 17,110 / 14,928 | 17,106 / 14,928 |
+| map | 103,284 / 87,821 | 103,151 / 87,704 | 90,687 / 49,664 |
+| set | 101,762 / 86,469 | 101,762 / 86,469 | 90,195 / 49,121 |
+| vector | 88,477 / 75,330 | 88,477 / 75,330 | 64,738 / 27,746 |
+| cell | 86,587 / 73,986 | 86,587 / 73,986 | 63,325 / 26,246 |
+| region | 103,949 / 88,511 | 103,949 / 88,511 | 90,142 / 49,222 |
+| map-region | 106,196 / 90,603 | 106,063 / 90,486 | 111,351 / 70,193 |
+| all | 117,082 / 99,818 | 116,949 / 99,701 | 119,816 / 77,566 |
+
+Map, Map+Region and all-collection applications each save 133 total / 117 code
+bytes. Other consumers and every ICSS size control are unchanged. This is a
+small measured improvement with no new representation or alternate engine.
+
+### Qualification, inputs and reproduction
+
+Thirty engine and eight public ordered-contract tests pass. New independent tests
+cover empty/singleton/removed-empty extrema and mirrored child-count/height
+corruption, including refusal before value decode and read-only opposite extrema.
+Native/Wasm core Clippy, size-driver/consumer Clippy and formatting pass.
+Installed Storage IO/admission, upgrade across 1,031 named allocations and
+codec/update/upgrade rollback pass using the current candidate fixture.
+
+A separate unexposed implementer used only current independently authored engine
+source/tests, approved contracts/policies and black-box results. The coordinator
+integrated, reviewed and measured the trial, and extended the public-API size
+fixtures. No predecessor or ICSS implementation entered the implementer's input.
+The existing cursor and tooling work remains preserved. No deployment, release
+qualification, full type-catalogue rerun or fresh macOS execution is included.
+
+Evidence: `target/evidence/ordered-followup-20261111/`, with retained sources,
+patches, input hashes, comparisons and failed-hypothesis results. Frozen modules:
+
+| Stage | Comparison source/modules | Application-size attempt |
+| --- | --- | --- |
+| Post-adoption baseline | `on4yqw`; scalar/ordered replay in follow-up evidence | `P4PlrP` |
+| Rejected decoder outlining | No instruction sweep | `S061uB` |
+| Direct extrema, original probes | `gP5STC` | `OVovKu` |
+| Expanded probes, old engine | Same post-adoption baseline | `QXA9rW` |
+| Expanded probes, direct extrema | Same `gP5STC`; ordered replay in follow-up evidence | `3YlVjn` |
+
+Reproduce current-source scalar/ordered results with the commands in the preceding
+cursor section and `make benchmark-storage-size` for the expanded probes. Frozen
+ordered replays use the maintained driver with `--workload ordered --samples 1
+--upstream-bucket-pages 128`. The installed qualifier uses `--storage-only` with
+its current supplied Wasm through Testkit's managed server. Rebuilding current
+sources reproduces the retained candidate, not the rejected outlining trial.

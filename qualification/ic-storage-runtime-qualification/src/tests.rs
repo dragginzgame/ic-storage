@@ -1,9 +1,14 @@
 use super::*;
 
 #[test]
-#[should_panic(expected = "expected a canister trap, got client failure")]
-fn client_failure_cannot_qualify_as_rollback_trap() {
-    assert_trap(ClientError::Protocol("malformed server response".into()));
+#[should_panic(expected = "expected an execution trap")]
+fn missing_canister_cannot_qualify_as_rollback_trap() {
+    assert_trap(RejectResponse {
+        reject_code: ic_testkit::pocket_ic::RejectCode::DestinationInvalid,
+        reject_message: "missing canister".into(),
+        error_code: ErrorCode::CanisterNotFound,
+        certified: false,
+    });
 }
 
 #[test]

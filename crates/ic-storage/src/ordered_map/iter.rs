@@ -125,7 +125,7 @@ impl<'a, K: Storable + Ord + Clone, V: Storable, M: Memory> Cursor<'a, K, V, M> 
         panic!("ordered-map cursor exceeds AVL height bound");
     }
 
-    fn take(&mut self, reverse: bool, skip: usize) -> Option<Node> {
+    fn take(&mut self, reverse: bool, skip: usize) -> Option<&Node> {
         let skip = u64::try_from(skip).unwrap_or(u64::MAX);
         if skip >= self.back - self.front {
             self.front = self.back;
@@ -187,7 +187,7 @@ impl<'a, K: Storable + Ord + Clone, V: Storable, M: Memory> Cursor<'a, K, V, M> 
             }
         }
         *consumed = true;
-        Some(*path.last().expect("invalid ordered-map cursor path"))
+        Some(path.last().expect("invalid ordered-map cursor path"))
     }
 
     fn hint(&self) -> (usize, Option<usize>) {
@@ -232,8 +232,9 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> Iterator for Entries<'_,
         self.nth(0)
     }
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        let map = self.cursor.map;
         let node = self.cursor.take(false, n)?;
-        Some((self.cursor.map.key(node), self.cursor.map.value_bytes(node)))
+        Some((map.key(*node), map.value_bytes(*node)))
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.cursor.hint()
@@ -253,8 +254,9 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> DoubleEndedIterator
         self.nth_back(0)
     }
     fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
+        let map = self.cursor.map;
         let node = self.cursor.take(true, n)?;
-        Some((self.cursor.map.key(node), self.cursor.map.value_bytes(node)))
+        Some((map.key(*node), map.value_bytes(*node)))
     }
 }
 
@@ -288,8 +290,9 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> Iterator for Keys<'_, K,
         self.nth(0)
     }
     fn nth(&mut self, n: usize) -> Option<K> {
+        let map = self.cursor.map;
         let node = self.cursor.take(false, n)?;
-        Some(self.cursor.map.key(node))
+        Some(map.key(*node))
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.cursor.hint()
@@ -307,8 +310,9 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> DoubleEndedIterator for 
         self.nth_back(0)
     }
     fn nth_back(&mut self, n: usize) -> Option<K> {
+        let map = self.cursor.map;
         let node = self.cursor.take(true, n)?;
-        Some(self.cursor.map.key(node))
+        Some(map.key(*node))
     }
 }
 
@@ -336,8 +340,9 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> Iterator for Values<'_, 
         self.nth(0)
     }
     fn nth(&mut self, n: usize) -> Option<V> {
+        let map = self.cursor.map;
         let node = self.cursor.take(false, n)?;
-        Some(self.cursor.map.value(node))
+        Some(map.value(*node))
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.cursor.hint()
@@ -357,8 +362,9 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> DoubleEndedIterator
         self.nth_back(0)
     }
     fn nth_back(&mut self, n: usize) -> Option<V> {
+        let map = self.cursor.map;
         let node = self.cursor.take(true, n)?;
-        Some(self.cursor.map.value(node))
+        Some(map.value(*node))
     }
 }
 

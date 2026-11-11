@@ -166,6 +166,18 @@ impl State {
         }
         output
     }
+    pub(super) fn extrema(&self) -> Vec<u64> {
+        #[cfg(feature = "map")]
+        {
+            let first = self.map.first_key_value().unwrap_or((u64::MAX, u64::MAX));
+            let last = self.map.last_key_value().unwrap_or((u64::MAX, u64::MAX));
+            vec![first.0, first.1, last.0, last.1]
+        }
+        #[cfg(not(feature = "map"))]
+        {
+            Vec::new()
+        }
+    }
     pub(super) fn scan(&self, start: u64) -> Vec<u64> {
         let _ = start;
         let mut output = Vec::new();

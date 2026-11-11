@@ -7,6 +7,70 @@ revision, selected roots, payload hashes and executable modes. The former
 live-policy exception is retired: dirty sibling rules never override the reviewed
 local baseline. Future policy changes require reviewed snapshot adoption.
 
+## Current Toko 0.39.12 and Testkit 0.100.2 adoption
+
+Both workspace catalogs and locks select published Toko Tooling 0.39.12,
+checksum `acb1fd3f459a63940669e925d427fd6821abf02a7525bf9ef38d323dc778a8d2`.
+The authenticated installer retains 39 entrypoints and 102 files. The baseline
+adds direct-supplier freshness review; the LOC caller gains corrected table
+width handling. Tool pins and pre-effect deployment snapshot gates are unchanged.
+
+The independent graph and CLI select published Testkit 0.100.2, checksum
+`3a48cc6270053eec22a3d6a8cd5dbc622589153c66b405bf9cfbfd53f379f0a3`.
+Drivers use its upstream async PocketIC re-export directly, with no compatibility
+client. Builders, convenience operations and rejection handling follow the new
+API. Expected initialization refusals use reinstall on a fresh empty canister to
+receive a typed rejection; only execution trap codes qualify rollback/refusal.
+The selected server remains 16.1.0. Five-minute polling budgets and awaited
+best-effort deletion replace the old absolute HTTP/deletion guarantees; the
+managed CLI retains its server lifetime bound. These are native qualification
+changes, not production Storage API or format changes.
+
+Cargo refreshed only Toko in the root lock. The qualification update follows
+Testkit's required native graph, including PocketIC 16.1.0, Host 0.76.4 and
+Types 0.19.3, removing its older Platform 0.27 / Types 0.18 identities. Both
+locked dependency caches were prepared. Prior tools and evidence remain retained.
+
+The 2026-11-11 registry review covered all 21 direct registry suppliers across
+both workspaces. Qualification still selects Logging 0.24.6 (latest 0.24.16),
+Platform 0.29.3 (latest 0.31.1) and thiserror 2.0.18 (latest 2.0.21). These optional
+refreshes are deferred to the next requested repository-wide supplier refresh;
+Platform additionally needs its own compatibility qualification. The transitive
+thiserror 1.x identity follows the native upstream graph. Other direct supplier
+locks select the latest stable non-yanked releases at review time. The pinned
+ICSS Git research control remains intentionally separate from registry freshness.
+
+Evidence: `target/evidence/toko-testkit-adoption-20261111/`, including original
+locks, preserved pending diff, registry review, installer and qualification logs.
+Snapshot/member/pin/tool checks, both production target graphs, dependency and
+Candid boundaries, root/qualification LOC callers, formatting and documentation
+links pass. Native Clippy covers both clients and the benchmark's owned/reference
+feature path; 46 native tests pass. Two installed-server entrypoints are ignored
+by native tests and exercised through the installed runner instead.
+
+`make test-runtime` passes original/O3/Os/Oz IO, collection/directory/custody and
+Logging upgrade/rollback checks at `target/qualification/runtime/attempt.FMfrJq`.
+The seven-case benchmark smoke at `target/evidence/storage-comparison/attempt.on4yqw`
+covers all five collections, both unbounded Vector initialization refusals and
+ICSS's fixed-Option setup refusal. Reproduce it with:
+
+```sh
+BENCH_CASES=Map-U64-U64,Set-U64-Unit,Vector-U64-U64,Cell-U64-Array32,Region-U64-U64,Vector-U64-Bytes,Map-U64-OptionU64 \
+  BENCH_PATTERNS=uniform make benchmark-storage BENCH_ROWS=8 BENCH_SAMPLES=1
+```
+
+`make benchmark-storage-size` passes 127 calls and two upgrades for each of 16
+modules at `target/evidence/storage-consumer-size/attempt.P4PlrP`. All recorded
+consumer byte sizes exactly match the preceding cursor trial; the all-collection
+Storage application remains 116,214 bytes. The migrated admission driver also
+passes 864 Storage and 600 ICSS observations against retained lease/Vector-trial
+fixtures. That is client compatibility evidence, not a new performance claim.
+The pending production Rust files match their pre-adoption hashes.
+
+The full type catalogue, release gates and fresh macOS runs are not part of this
+focused Linux qualification. No package version bump, deployment or sibling
+change is included.
+
 ## Current IC Build 0.83 adoption
 
 The root native helper selects published IC Build 0.83.0, checksum
@@ -28,7 +92,7 @@ The adoption leaves production code and package versions unchanged. Subsequent
 authorized deployment is tracked in the [current handoff](../status/current.md);
 release qualification and publication remain separate from these focused checks.
 
-## Current Cargo-owned 0.39.10 selection
+## Previous Cargo-owned 0.39.10 selection
 
 Both workspace catalogs and locks select published Toko Tooling 0.39.10, checksum
 `ea181684d772d4632ba534b80bd47bb8b2044278ea346f2c02e37d2ea9991a57`.

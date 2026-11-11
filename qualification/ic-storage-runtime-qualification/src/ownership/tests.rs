@@ -4,5 +4,5 @@ use super::*;
 async fn installed_backing_custody() {
     let pic = crate::connect_to_server().await;
     qualify(&pic).await;
-    pic.drop().await.unwrap();
+    pic.drop().await;
 }

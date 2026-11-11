@@ -449,11 +449,12 @@ async fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
             "state": "fresh canister per case/sample/backend; operations run in declared order"
         }))?,
     )?;
-    let pic = PocketIcBuilder::new(std::time::Duration::from_secs(300))
+    let pic = PocketIcBuilder::new()
+        .with_max_request_time_ms(Some(300_000))
         .with_server_url(url.parse()?)
         .with_application_subnet()
-        .build()
-        .await?;
+        .build_async()
+        .await;
     let mut raw = fs::File::create(args.output.join("samples.jsonl"))?;
     let mut stages = fs::File::create(args.output.join("lookup-stages.csv"))?;
     writeln!(
@@ -527,8 +528,8 @@ async fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
                                 continue;
                             }
                             let name = ["ic-storage", "ic-stable-structures"][backend];
-                            let canister = pic.create_canister().await?;
-                            pic.add_cycles(canister, 100_000_000_000_000).await?;
+                            let canister = pic.create_canister().await;
+                            pic.add_cycles(canister, 100_000_000_000_000).await;
                             pic.install_canister(
                                 canister,
                                 wasm[backend].clone(),
@@ -548,7 +549,7 @@ async fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
                                 )?,
                                 None,
                             )
-                            .await?;
+                            .await;
                             if matches!(args.workload, Some(Workload::VectorOpen)) {
                                 let bytes = pic
                                     .query_call(
@@ -557,7 +558,8 @@ async fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
                                         "initialization_cost",
                                         ic_wire::native::encode_request(INIT_COST_ID, &(), LIMITS)?,
                                     )
-                                    .await?;
+                                    .await
+                                    .map_err(|error| format!("Vector open setup: {error:?}"))?;
                                 let instructions: u64 =
                                     ic_wire::native::decode_response(INIT_COST_ID, &bytes, LIMITS)?;
                                 let mut output = fs::OpenOptions::new()
@@ -804,7 +806,7 @@ async fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     }
-    pic.drop().await?;
+    pic.drop().await;
     write_summary(
         fs::File::create(args.output.join("summary.csv"))?,
         &timings,
@@ -940,14 +942,14 @@ fn case_sources(case: Case) -> (&'static str, &'static str) {
     (case.key.source(), case.value.source())
 }
 async fn probe_refusal(
-    pic: &ic_testkit::pocket_ic::PocketIc,
+    pic: &ic_testkit::pocket_ic::nonblocking::PocketIc,
     wasm: &[u8],
     case: Case,
     bucket: std::num::NonZeroU16,
     phase: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    let canister = pic.create_canister().await?;
-    pic.add_cycles(canister, 100_000_000_000_000).await?;
+    let canister = pic.create_canister().await;
+    pic.add_cycles(canister, 100_000_000_000_000).await;
     let settings = Initialization {
         case,
         upstream_cache_slots: 0,
@@ -955,42 +957,48 @@ async fn probe_refusal(
         cold_cache: false,
         reopen: false,
     };
+    // This canister is fresh and empty. Reinstall runs its initialization with
+    // identical initial memory while returning a structured rejection; the
+    // upstream install convenience method instead panics on canister refusal.
     let installed = pic
-        .install_canister(
+        .reinstall_canister(
             canister,
             wasm.to_vec(),
             ic_wire::native::encode_request(0, &settings, LIMITS)?,
             None,
         )
         .await;
-    let error = if phase == "init" {
-        format!(
-            "{:?}",
-            installed.expect_err("unbounded Vector unexpectedly initialized")
-        )
+    let refusal = if phase == "init" {
+        installed.expect_err("unbounded Vector unexpectedly initialized")
     } else {
-        installed?;
-        format!(
-            "{:?}",
-            pic.update_call(
-                canister,
-                CanisterId::anonymous(),
-                "setup",
-                ic_wire::native::encode_request(
-                    SETUP_ID,
-                    &Setup {
-                        start: 0,
-                        count: 1,
-                        payload: case.payloads()[0],
-                        ids: vec![0]
-                    },
-                    LIMITS
-                )?
-            )
-            .await
-            .expect_err("native ICSS fixed Option unexpectedly accepted None")
+        installed.map_err(|error| format!("refusal probe initialization: {error:?}"))?;
+        pic.update_call(
+            canister,
+            CanisterId::anonymous(),
+            "setup",
+            ic_wire::native::encode_request(
+                SETUP_ID,
+                &Setup {
+                    start: 0,
+                    count: 1,
+                    payload: case.payloads()[0],
+                    ids: vec![0],
+                },
+                LIMITS,
+            )?,
         )
+        .await
+        .expect_err("native ICSS fixed Option unexpectedly accepted None")
     };
+    assert!(
+        matches!(
+            refusal.error_code,
+            ic_testkit::pocket_ic::ErrorCode::CanisterTrapped
+                | ic_testkit::pocket_ic::ErrorCode::CanisterCalledTrap
+        ),
+        "expected a codec admission trap, got {refusal:?}"
+    );
+    let error = format!("{refusal:?}");
     if phase == "init" {
         assert!(
             error.contains("unbounded") || error.contains("vector requires a finite codec bound"),
@@ -1002,8 +1010,12 @@ async fn probe_refusal(
             "unexpected setup refusal: {error}"
         );
     }
-    pic.stop_canister(canister, None).await?;
-    pic.delete_canister(canister, None).await?;
+    pic.stop_canister(canister, None)
+        .await
+        .map_err(|error| format!("stop refusal probe: {error:?}"))?;
+    pic.delete_canister(canister, None)
+        .await
+        .map_err(|error| format!("delete refusal probe: {error:?}"))?;
     Ok(error)
 }
 fn combine_collections(root: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {

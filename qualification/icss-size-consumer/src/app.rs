@@ -47,3 +47,8 @@ extern "C" fn scan() {
     let start = u64::from_le_bytes(input::<8>());
     STATE.with(|slot| reply(&slot.borrow().as_ref().unwrap().scan(start)));
 }
+#[unsafe(export_name = "canister_query extrema")]
+extern "C" fn extrema() {
+    let _ = input::<0>();
+    STATE.with(|slot| reply(&slot.borrow().as_ref().unwrap().extrema()));
+}

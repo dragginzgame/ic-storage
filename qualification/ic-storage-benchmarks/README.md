@@ -17,11 +17,11 @@ make benchmark-storage BENCH_ROWS=64 BENCH_SAMPLES=1 # quick complete smoke matr
 
 Rows accept 1–1,000,000, samples 1–20. Cell always has one value, regardless of the
 selected population. Builds are locked/offline on Rust 1.99.1; the command never
-installs tools or changes locks. Testkit 0.95.0 supplies the maintained async
+installs tools or changes locks. Testkit 0.100.2 re-exports the async
 client and manages the prepared PocketIC 16.1.0 server. Native drivers own a
-current-thread Tokio runtime, explicit five-minute request budgets and awaited
-instance deletion. Each comparison server has a one-hour lifetime: complete
-three-seed matrices and final-state checks exceeded the former fifteen-minute
+current-thread Tokio runtime, five-minute polling budgets and awaited best-effort
+instance deletion. Polling budgets are not absolute HTTP deadlines. Each
+comparison server has a one-hour lifetime: complete three-seed matrices and final-state checks exceeded the former fifteen-minute
 limit. This host deadline does not change IC instruction budgets or timed work.
 See the [complete comparison](../../docs/measurements/storage-full-suite-2026-11-10.md)
 for retained failures, complete retries and reproduction commands.
@@ -946,14 +946,19 @@ consumer Wasm. Ordinary Rust panic paths remain, as they do in applications.
 
 The runner builds eight feature selections separately for each crate: empty
 control, Map, Set, Vector, Cell, Region, Map+Region and all five. Every selection
-exports init, post-upgrade, put, get, remove and scan. Keys/values are `u64`; scans
+exports init, post-upgrade, put, get, remove, scan and extrema. Keys/values are
+`u64`; scans
 are bounded to 16 entries. The put request is two little-endian u64s; get/remove
 and scan each take one. Scan's argument is the inclusive lower key bound for
 Map/Region; Set/Vector retain their first-16 scans and Cell returns its value.
 This includes the actual bounded-range implementation in application size,
 which the former unbounded-only scan fixture did not. The runner checks starts
-0/17/80/999 before and after upgrades and removals: 127 calls and two upgrades
-per selection/backend. Replies contain one u64 per enabled collection in
+0/17/80/999 before and after upgrades and removals. The no-argument extrema
+query calls Map first/last and returns first key/value followed by last key/value;
+without Map it returns an empty response. Empty Map pairs use two u64::MAX values.
+The runner verifies extrema on fresh empty state, populated state and after
+removal/upgrades: 131 calls and two upgrades per selection/backend. Rebuild both
+consumers and the runner together. The other replies contain one u64 per enabled collection in
 Map/Set/Vector/Cell/Region order. Missing optional results use u64::MAX. Vector
 put appends and remove pops; Cell put replaces and remove resets to zero. Stored
 codec bytes follow each library's defaults; logical requests/results are matched.

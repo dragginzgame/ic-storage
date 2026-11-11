@@ -1,5 +1,5 @@
 //! Native validation and size accounting; never linked into either consumer Wasm.
-use ic_testkit::pocket_ic::{PocketIc, PocketIcBuilder};
+use ic_testkit::pocket_ic::{CanisterId, PocketIcBuilder, nonblocking::PocketIc};
 use serde_json::json;
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -102,14 +102,36 @@ fn decode(bytes: &[u8]) -> Vec<u64> {
         .map(|b| u64::from_le_bytes(*b))
         .collect()
 }
-async fn qualify(pic: &PocketIc, wasm: &[u8], selection: &str) -> usize {
-    let canister = pic.create_canister().await.unwrap();
-    pic.add_cycles(canister, 100_000_000_000_000).await.unwrap();
-    pic.install_canister(canister, wasm.to_vec(), vec![], None)
+async fn check_extrema(pic: &PocketIc, canister: CanisterId, selection: &str, model: &Model) {
+    let expected = if selected(selection, 0) {
+        let first = model
+            .map
+            .first_key_value()
+            .map(|(&k, &v)| (k, v))
+            .unwrap_or((u64::MAX, u64::MAX));
+        let last = model
+            .map
+            .last_key_value()
+            .map(|(&k, &v)| (k, v))
+            .unwrap_or((u64::MAX, u64::MAX));
+        vec![first.0, first.1, last.0, last.1]
+    } else {
+        Vec::new()
+    };
+    let response = pic
+        .query_call(canister, canister, "extrema", vec![])
         .await
         .unwrap();
+    assert_eq!(decode(&response), expected, "extrema {selection}");
+}
+async fn qualify(pic: &PocketIc, wasm: &[u8], selection: &str) -> usize {
+    let canister = pic.create_canister().await;
+    pic.add_cycles(canister, 100_000_000_000_000).await;
+    pic.install_canister(canister, wasm.to_vec(), vec![], None)
+        .await;
     let mut model = Model::default();
-    let mut calls = 0;
+    check_extrema(pic, canister, selection, &model).await;
+    let mut calls = 1;
     let mut put = async |key: u64, value: u64, model: &mut Model| {
         let arg = [key.to_le_bytes(), value.to_le_bytes()].concat();
         let response = pic
@@ -130,6 +152,8 @@ async fn qualify(pic: &PocketIc, wasm: &[u8], selection: &str) -> usize {
         put(key, key * 17 + 5, &mut model).await;
     }
     for phase in 0..3 {
+        check_extrema(pic, canister, selection, &model).await;
+        calls += 1;
         for key in [0_u64, 47, 95, 999] {
             let response = pic
                 .query_call(canister, canister, "get", key.to_le_bytes().to_vec())
@@ -238,12 +262,12 @@ async fn main() {
     let output = env::args().nth(1).expect("artifact directory");
     let output = Path::new(&output);
     let url = env::var("IC_TESTKIT_POCKET_IC_URL").expect("prepared Testkit server URL");
-    let pic = PocketIcBuilder::new(std::time::Duration::from_secs(300))
+    let pic = PocketIcBuilder::new()
+        .with_max_request_time_ms(Some(300_000))
         .with_server_url(url.parse().unwrap())
         .with_application_subnet()
-        .build()
-        .await
-        .unwrap();
+        .build_async()
+        .await;
     let expected: BTreeSet<_> = [
         "canister_init",
         "canister_post_upgrade",
@@ -251,6 +275,7 @@ async fn main() {
         "canister_update remove",
         "canister_query get",
         "canister_query scan",
+        "canister_query extrema",
     ]
     .map(str::to_owned)
     .into();
@@ -290,5 +315,5 @@ async fn main() {
         )
         .unwrap();
     }
-    pic.drop().await.unwrap();
+    pic.drop().await;
 }

@@ -3,5 +3,5 @@
 async fn installed_storage_adapters() {
     let pic = crate::connect_to_server().await;
     super::qualify(&pic).await;
-    pic.drop().await.unwrap();
+    pic.drop().await;
 }

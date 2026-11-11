@@ -151,12 +151,10 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> OrderedMap<K, V, M> {
     }
 
     pub(crate) fn first_key_value(&self) -> Option<(K, V)> {
-        self.pair_at(0)
+        self.extreme(false)
     }
     pub(crate) fn last_key_value(&self) -> Option<(K, V)> {
-        self.len()
-            .checked_sub(1)
-            .and_then(|rank| self.pair_at(rank))
+        self.extreme(true)
     }
 
     pub(crate) const fn iter(&self) -> Entries<'_, K, V, M> {
@@ -214,27 +212,20 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> OrderedMap<K, V, M> {
         None
     }
 
-    fn pair_at(&self, rank: u64) -> Option<(K, V)> {
-        if rank >= self.len() {
+    fn extreme(&self, reverse: bool) -> Option<(K, V)> {
+        if self.is_empty() {
             return None;
         }
-        let node = self.select(rank);
-        Some((self.key(node), self.value(node)))
-    }
-
-    fn select(&self, mut rank: u64) -> Node {
         let mut current = self.store.root_node();
         for _ in 0..MAX_HEIGHT {
             let node = current.expect("invalid ordered-map subtree count");
-            assert!(rank < node.link().count, "invalid ordered-map rank");
-            match rank.cmp(&node.left.count) {
-                Ordering::Equal => return node,
-                Ordering::Less => current = self.store.child_node(node.left),
-                Ordering::Greater => {
-                    rank -= node.left.count + 1;
-                    current = self.store.child_node(node.right);
-                }
+            let child = if reverse { node.right } else { node.left };
+            if child.address == 0 {
+                return Some((self.key(node), self.value(node)));
             }
+            // Extremes follow one edge; subtree ranks are unnecessary. Every
+            // visited child still agrees with its admitted parent's metadata.
+            current = self.store.child_node(child);
         }
         panic!("ordered-map traversal exceeds AVL height bound");
     }

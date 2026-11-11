@@ -1,8 +1,8 @@
 # Toko Tooling snapshot v1
-# version	0.39.10
+# version	0.39.12
 format	1
 source	https://crates.io/crates/toko-tooling
-revision	ea181684d772d4632ba534b80bd47bb8b2044278ea346f2c02e37d2ea9991a57
+revision	acb1fd3f459a63940669e925d427fd6821abf02a7525bf9ef38d323dc778a8d2
 # entrypoint	TOKO-TOOLING.md
 # entrypoint	scripts/ci/run-release.sh
 # entrypoint	scripts/ci/release-pr.sh
@@ -42,7 +42,7 @@ revision	ea181684d772d4632ba534b80bd47bb8b2044278ea346f2c02e37d2ea9991a57
 # entrypoint	scripts/ci/check-candid-boundary.pl
 # entrypoint	CONTRIBUTING.md
 # entrypoint	.github/actions/cache-tool-downloads/action.yml
-file	cfed3d5ae20733a798849caa2656fde5195e1188af45109c40850f4cd62a93d8	-	TOKO-TOOLING.md
+file	5564b1a5905a808003b3f3461e5ac9c886d08ece834bf54e72327ab4396340f9	-	TOKO-TOOLING.md
 file	d4d73d12601ca093878f8206a41185e383ad30484fa9206d60bfcf78248b865c	x	scripts/ci/run-release.sh
 file	07ff21bc90ad9d9882be78d38af9f659d2e13d1a1e5e5208ed540f93bcfcdfaf	-	scripts/ci/release-pr.sh
 file	3bbcd3458afbeee5803bf4f51e624afd2b11578ee961250522c9332ed0fc7b4f	x	scripts/ci/check-make-execution.sh
@@ -125,7 +125,7 @@ file	68e88225adfb40ff0807516b682c4882825ebbeaf3b5245ae4642db600a45ea1	-	scripts/
 file	5bb62496317accb40a1bf875dc96c15f47de6b10c2f272bc924f44adf16d0018	-	scripts/distribution/registry-package.pl
 file	881c7093141527d907dbea4e2a050e1d37ebec9aedd576b6aad6d5c065eae4ab	x	scripts/distribution/refresh-consumer.sh
 file	f6ecd07a9577b0b307d2bef6c8185125c611e05732c119c63bb474cbf50e18d5	-	make/execution.mk
-file	92f0d33bdcf5f99ad88b5614bb35055d0128b4ba8026f9ae5cdb97e5cef40393	x	scripts/dev/cloc.sh
+file	d2d43d1876ce29f5e08255ea86f92080ec5db0f9cadeed3b095bdd5d01fdaf1c	x	scripts/dev/cloc.sh
 file	c75f2312273eabc31a5b287673b45fa73b0fb0edb76b018b2967a13145375a49	x	scripts/ci/run-release-batch.pl
 file	1b01f4b482fb85986d1ffab592626ccbfec187ac7a5133ab946b0acd51a18381	-	scripts/ci/check-release-delivery.sh
 file	a1ed6b41c20ec62404a127fa3432a56beb1e76541c08fa7231adc8e0409047e1	-	scripts/dev/clean-empty-source-dirs.pl
@@ -141,6 +141,6 @@ file	ee9ec8f9f45ff2e61ed0287fcac6b2b3c151e802565cacd29c6eeacf32c3b97f	-	scripts/
 file	f06fab74d51ec386133feeda6cd26509e8a9797ae14d93afdf5fb7369b0141a0	-	scripts/dev/tool-store-maintenance.pl
 file	0a69975366b073edadc1b8999ee8e9c9411e67a19f9aad74d7625da6c6004d66	-	scripts/ci/cargo-qualification-release.jq
 file	1fd11f64f7698c1b5b17049d2b1551daba3af33bbdaba92228d7fc1f743e9055	-	scripts/ci/release-validation-plan.pl
-file	a06744d29640837c07b78d8aadeb1d7393ccd558ece6aa42072df1be039abebc	-	scripts/dev/cloc-classify.pl
+file	d973f8f415ece4bfec2abda23f832995246daaeb4b97cc7cd25fdb68c08d847d	-	scripts/dev/cloc-classify.pl
 file	ec46c51af7fc2b7ef2959343331e6aa9efb40904d55f5c5b5a43cb446736f9a8	-	scripts/ci/cargo-publication-selection.pl
 file	efe6acefb807e41e7f2bc3bfe3314deba5647d694ccfd48c3beac4e7956bfb49	-	scripts/dev/OwnedTree.pm

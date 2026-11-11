@@ -16,12 +16,12 @@ async fn main() {
     let args = Args::parse();
     let wasm = fs::read(&args.wasm).unwrap();
     let url = std::env::var("IC_TESTKIT_POCKET_IC_URL").unwrap();
-    let pic = PocketIcBuilder::new(std::time::Duration::from_secs(300))
+    let pic = PocketIcBuilder::new()
+        .with_max_request_time_ms(Some(300_000))
         .with_server_url(url.parse().unwrap())
         .with_application_subnet()
-        .build()
-        .await
-        .unwrap();
+        .build_async()
+        .await;
     let mut output = fs::File::create(args.output).unwrap();
     writeln!(
         output,
@@ -33,16 +33,15 @@ async fn main() {
             continue;
         }
         for buckets in [0_u64, 1, 32] {
-            let canister = pic.create_canister().await.unwrap();
-            pic.add_cycles(canister, 100_000_000_000_000).await.unwrap();
+            let canister = pic.create_canister().await;
+            pic.add_cycles(canister, 100_000_000_000_000).await;
             pic.install_canister(
                 canister,
                 wasm.clone(),
                 [names.to_le_bytes(), buckets.to_le_bytes()].concat(),
                 None,
             )
-            .await
-            .unwrap();
+            .await;
             for (operation, label) in [
                 (11, "control"),
                 (0, "one"),
@@ -101,5 +100,5 @@ async fn main() {
             pic.delete_canister(canister, None).await.unwrap();
         }
     }
-    pic.drop().await.unwrap();
+    pic.drop().await;
 }

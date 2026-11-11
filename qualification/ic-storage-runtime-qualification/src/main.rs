@@ -5,7 +5,9 @@ mod ownership;
 mod storage;
 
 use clap::Parser;
-use ic_testkit::pocket_ic::{CanisterId, ClientError, ErrorCode, PocketIc, PocketIcBuilder};
+use ic_testkit::pocket_ic::{
+    CanisterId, ErrorCode, PocketIcBuilder, RejectResponse, nonblocking::PocketIc,
+};
 use std::env;
 
 ///
@@ -28,10 +30,7 @@ struct Arguments {
     storage_only: bool,
 }
 
-fn assert_trap(error: ClientError) {
-    let ClientError::Canister(error) = error else {
-        panic!("expected a canister trap, got client failure: {error:?}");
-    };
+fn assert_trap(error: RejectResponse) {
     assert!(
         matches!(
             error.error_code,
@@ -45,25 +44,19 @@ async fn connect_to_server() -> PocketIc {
     // The caller owns server startup/teardown. Never implicitly spawn or
     // download a binary as part of qualification.
     let url = env::var("IC_TESTKIT_POCKET_IC_URL").expect("caller-selected PocketIC server URL");
-    PocketIcBuilder::new(std::time::Duration::from_secs(300))
+    PocketIcBuilder::new()
+        .with_max_request_time_ms(Some(300_000))
         .with_server_url(url.parse().unwrap())
         .with_application_subnet()
-        .build()
+        .build_async()
         .await
-        .expect("connect to prepared PocketIC server")
 }
 
 async fn install_fixture(pic: &PocketIc, wasm: &[u8], init: Vec<u8>) -> CanisterId {
-    let canister = pic
-        .create_canister()
-        .await
-        .expect("create fixture canister");
-    pic.add_cycles(canister, 100_000_000_000_000)
-        .await
-        .expect("fund fixture canister");
+    let canister = pic.create_canister().await;
+    pic.add_cycles(canister, 100_000_000_000_000).await;
     pic.install_canister(canister, wasm.to_vec(), init, None)
-        .await
-        .expect("install fixture canister");
+        .await;
     canister
 }
 
@@ -83,7 +76,7 @@ async fn main() {
             logging::qualify(&pic).await;
         }
     }
-    pic.drop().await.expect("delete qualification instance");
+    pic.drop().await;
 }
 
 #[cfg(test)]
