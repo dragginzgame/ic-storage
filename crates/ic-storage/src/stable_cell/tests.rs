@@ -243,7 +243,7 @@ fn empty_payload_read_performs_no_backing_operations() {
         reads: Cell::new(0),
         fail_after: Cell::new(Some(0)),
     };
-    assert_eq!(read_payload(&memory, 0), []);
+    assert_eq!(read_payload(&memory, 0), [0_u8; 0]);
     assert_eq!(memory.reads.get(), 0);
 }
 
