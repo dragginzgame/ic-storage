@@ -30,7 +30,7 @@ ic-metrics-storage = { path = "crates/ic-metrics-storage", version = "0.76.3" }
 
 # logging-storage
 # Changelog : releases/logging-storage/CHANGELOG.md
-ic-logging-storage = { path = "crates/ic-logging-storage", version = "0.72.2" }
+ic-logging-storage = { path = "crates/ic-logging-storage", version = "0.72.3" }
 
 # External production dependencies.
 ic-logging = { version = "0.24.0", default-features = false }
