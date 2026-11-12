@@ -3,7 +3,7 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/metrics-stable/CHANGELOG.md)
 retains its original package and release identities.
 
-## [0.76.3] - Unreleased
+## [0.76.3] - 2026-11-12
 
 ### ⚡ Performance
 
