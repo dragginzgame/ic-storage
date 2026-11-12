@@ -1,6 +1,6 @@
 # Current handoff — 2026-11-12
 
-## Current supplier adoption and Git delivery scope
+## Current supplier adoption and delivery
 
 Toko Tooling 0.39.17 is installed with all 40 entrypoints and 104 files. The
 catalogs select Host 0.76.5, Wire 0.21.4, Platform 0.31.3 and Runtime 0.21.3;
@@ -18,13 +18,12 @@ pass after fixing the dependency-update include's fixture closure. Evidence:
 `target/evidence/supplier-refresh-20261112/`; layout proof is under
 `target/module-layout/`. No new performance or macOS result is claimed.
 
-Delivery scope is Git only for this repository, including the reviewed pending
-module, qualification and measurement work. No new product versions, tags or
-crates.io publication are selected; the published identities below remain current.
-The node-first study remains unresolved as an Auth optimization, as described
-below. Earlier adoption evidence remains linked from the canonical record.
+The subsequent deployment published Storage 0.73.5, Metrics Storage 0.76.2 and
+Logging Storage 0.72.2, including the reviewed module, qualification and
+measurement work. The node-first study remains unresolved as an Auth optimization,
+as described below. Earlier adoption evidence remains linked from the canonical record.
 
-## Pending performance experiments
+## Performance findings and remaining experiments
 
 The [small-read study](../measurements/storage-scalar-scans-2026-11-11.md#small-read-experiments--2026-11-12)
 retains removal-admission reuse (62 total / 53 code Wasm bytes, selected removal
@@ -33,9 +32,9 @@ their production/test trials are removed. Broader Cell benchmark coverage remain
 
 The [identity study](../measurements/storage-identity-lookups-2026-11-12.md) adds
 full Principal/composite-key 1k/10k/100k comparisons. Node-first allocation leaves
-initial cold hits unchanged and fails Auth's <1M target. Preserve this earlier
-pending edit and its immediate-NODE-reservation corruption fix for review, not
-as an accepted lookup optimization. Focused native/installed/size proofs and the
+initial cold hits unchanged and fails Auth's <1M target. The allocation-order
+change and its immediate-NODE-reservation corruption fix are included in 0.73.5;
+this is not a demonstrated Auth lookup improvement. Focused native/installed/size proofs and the
 198-row comparison are in the study; siblings remain unchanged.
 
 The [batch-placement follow-up](../measurements/storage-identity-lookups-2026-11-12.md#small-allocation-batches--rejected)
@@ -52,6 +51,30 @@ trial; node/key pairing and short-key scratch remain hypotheses. Larger inline
 keys require a new-format decision; Auth cannot authorize retiring other records.
 
 ## Published state
+
+All three groups published on 2026-11-12 from batch `batch-lzNupEJ_`:
+
+| Package | Version | Release commit | Annotated tag |
+| --- | --- | --- | --- |
+| ic-storage | 0.73.5 | `d299e5aecf0d587e3e0f2fc9e6b0b1ee5125ffc9` | `storage-v0.73.5` |
+| ic-metrics-storage | 0.76.2 | `f64a651d39c3c2d038a09f7768492aa95940df0c` | `metrics-storage-v0.76.2` |
+| ic-logging-storage | 0.72.2 | `0ed6c10edfdc2075f0137772ce0d7b4ce7a35341` | `logging-storage-v0.72.2` |
+
+Every group passed all 12 release stages and its final archive qualification.
+The batch was reconciled into normal main. Registry indexes and downloaded crates
+match the qualified archive SHA256 values:
+
+- Storage: `08dced669191b0b7525f9e662e816873bd5194f10273d10ed5bfd3785bad2dfd`.
+- Metrics Storage: `abb6b43d049514e864a613bfe53cfbdff4bb7fecceae39172f5c0d176950721b`.
+- Logging Storage: `d43d6baf6e021cbc94c1129b8439125abab7ba4026539563e7d382306fc55978`.
+
+Evidence is retained in `target/evidence/deploy-storage-0735/`, the managed
+checkout `target/release-frozen/batch-lzNupEJ_/` and durable state under
+`.git/release-state/frozen/batch-lzNupEJ_/`. Remote main and annotated tags were
+verified. [Release CI](https://github.com/dragginzgame/ic-storage/actions/runs/43226207634)
+was still running at handoff; this record does not claim a fresh macOS pass.
+
+### Previous deployment
 
 Storage **0.73.4** is published on crates.io and delivered to GitHub main with
 annotated tag [storage-v0.73.4](https://github.com/dragginzgame/ic-storage/releases/tag/storage-v0.73.4).
@@ -99,7 +122,7 @@ No alternate experiment implementation remains.
 
 ## Suppliers and remaining work
 
-Current pending supplier selections are recorded above. The performance study
+Current supplier selections are recorded above. The performance study
 also preserves the completed concurrent Wire 0.21.3 and errno 0.3.15 lock updates
 and Rust 1.99.1. The prior publication's registry review remains at
 `target/evidence/deploy-storage-0734/freshness.json`; it is not a current registry audit.
