@@ -946,13 +946,76 @@ Report raw module bytes, code-section bytes and gzip transport separately.
 The [size investigation](../../docs/audits/recurring/storage-wasm-gap-2026-11-08.md)
 records all three backing/engine combinations and the remaining gap to ICSS.
 
+## Metrics adapter checkpoints
+
+The `metrics-checkpoints` native example without `--wasm` records backing IO
+through the real Metrics adapter. With `--wasm`, it installs the corresponding
+Wasm example using the prepared Testkit server URL and records first/second
+operation instructions separately. The cases cover 1/16/256 histogram bounds,
+1/64 retained rows, accepted/rejected/unchanged saves, reads, retirement and reuse.
+Output files must not already exist.
+
+An optional `--canister-logs NEW.jsonl` records new debug messages after each
+operation when running an explicitly instrumented Wasm. Ordinary canisters have
+no stage instrumentation, and profile totals are not speedup measurements.
+See the [histogram comparison study](../../docs/measurements/metrics-histogram-comparisons-2026-11-12.md)
+for attribution, uninstrumented controls and the retained numeric comparisons.
+
+```sh
+cargo run --locked --offline --manifest-path qualification/Cargo.toml \
+  -p ic-storage-benchmarks --example metrics-checkpoints --features metrics-checkpoints \
+  --target-dir target/runtime-qualification -- --output NEW_NATIVE.csv
+RUSTFLAGS='-C link-arg=-zstack-size=8388608' cargo build --locked --offline \
+  --manifest-path qualification/Cargo.toml -p ic-storage-benchmarks \
+  --example metrics-checkpoints-wasm --features metrics-checkpoints \
+  --target wasm32-unknown-unknown --profile comparison \
+  --target-dir target/storage-comparison-build/owned
+```
+
+Through the explicitly prepared Testkit CLI, run:
+
+```sh
+"$TESTKIT_CLI" run --directory .tools/ic-testkit-server --ttl 900 -- \
+  target/runtime-qualification/debug/examples/metrics-checkpoints \
+  --wasm target/storage-comparison-build/owned/wasm32-unknown-unknown/comparison/examples/metrics_checkpoints_wasm.wasm \
+  --output NEW_INSTALLED.csv
+```
+
+The [Metrics checkpoint study](../../docs/measurements/storage-discard-mutations-2026-11-12.md#complete-metrics-checkpoint-calls)
+records the matched control, scope and rejected buffer trial. To reproduce the
+control, save the current adapter source and build after replacing only its
+`map.insert_discard` / `map.remove_discard` calls with `map.insert` / `map.remove`.
+Retain both artifacts and source hashes, then restore the adapter before further
+work. No production feature or alternate checkpoint engine is needed.
+
 ## Matched consumer Wasm size
+
+The `discard-mutations` performance workload compares presence-only Map/region
+mutations against ICSS's returning operations with their values discarded:
+
+```sh
+make benchmark-storage BENCH_WORKLOAD=discard-mutations BENCH_SAMPLES=1
+```
+
+It covers scalar/full identity keys, four payload sizes through 64 KiB, uniform
+and hot access, and single/batched calls. The benchmark-only `returning-mutations`
+feature provides a same-engine Storage returning control. The native
+`collection-io --discard-only` workload attributes payload reads and decodes.
+See [the discard study](../../docs/measurements/storage-discard-mutations-2026-11-12.md)
+for exact controls, results and limitations.
 
 Run from the repository root with the existing prepared tools and locked caches:
 
 ```sh
 make benchmark-storage-size
 ```
+
+Use `SIZE_DISCARD_MUTATIONS=1 make benchmark-storage-size` to qualify applications
+that use the new operations. Both backends then return presence for Map/region
+put/remove; other collection replies remain unchanged. ICSS uses its returning
+operations followed by `is_some()`. The default mode retains previous-value
+replies, allowing engine changes to be measured without changing application
+semantics. Results record the mode; compare like modes across libraries.
 
 This is the primary application-footprint comparison. The earlier full-catalogue
 and compact controls remain useful for attribution and instruction benchmarking;

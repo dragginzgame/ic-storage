@@ -842,9 +842,9 @@ dependencies = [
 
 [[package]]
 name = "ic-logging"
-version = "0.24.16"
+version = "0.24.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79e62f148e87b0cf9628e6a65e80b39c16284f89692fe9a8674807dea22a9535"
+checksum = "bcc6bfcecf142d7b5f7ec998a0d22ed1ec48fad18d40767ecb46e9e74c7b805e"
 
 [[package]]
 name = "ic-logging-storage"
@@ -866,6 +866,23 @@ dependencies = [
  "candid",
  "serde",
  "serde_bytes",
+]
+
+[[package]]
+name = "ic-metrics"
+version = "0.29.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "94c0bc852016b1a7af5bdef20bfadd18d586842ef6f845ddb96d941ff8070c63"
+
+[[package]]
+name = "ic-metrics-storage"
+version = "0.76.2"
+dependencies = [
+ "ic-metrics",
+ "ic-storage",
+ "ic-wire",
+ "serde",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -957,6 +974,8 @@ name = "ic-storage-benchmarks"
 version = "0.0.0"
 dependencies = [
  "clap",
+ "ic-metrics",
+ "ic-metrics-storage",
  "ic-platform-runtime",
  "ic-stable-structures 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ic-stable-structures 0.7.2 (git+https://github.com/dfinity/stable-structures?rev=b5d1650463f477affb3d358e86b1113953fc9937)",
@@ -1053,9 +1072,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire"
-version = "0.21.4"
+version = "0.21.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cbb0db960c84649d3b3d5159df724839da9c055caa8ca333e075b62c1f58a624"
+checksum = "0a2dc82864886cccf0eb8733d286dd38e46a2649143d80a88eb95787de6ad84f"
 dependencies = [
  "bytemuck",
  "postcard",

@@ -1165,3 +1165,5 @@ fn removal_reuses_nodes_and_missing_repeated_removal_stays_read_only() {
 }
 
 mod allocation_order;
+
+mod discard;

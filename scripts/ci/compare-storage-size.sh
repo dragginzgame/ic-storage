@@ -7,6 +7,10 @@ cd "$root"
 export RUSTUP_AUTO_INSTALL=0
 server="$("$cli" check --directory "$server_directory")"
 manifest=qualification/Cargo.toml
+discard="${SIZE_DISCARD_MUTATIONS:-0}"
+[[ "$discard" == 0 || "$discard" == 1 ]] || { echo 'SIZE_DISCARD_MUTATIONS must be 0 or 1' >&2; exit 2; }
+runner_args=()
+[[ "$discard" == 0 ]] || runner_args=(--discard-mutations)
 # Keep the independently owned application endpoints matched across backends.
 if ! cmp -s qualification/storage-size-consumer/src/app.rs \
     qualification/icss-size-consumer/src/app.rs; then
@@ -35,6 +39,7 @@ for selection in base map set vector cell region map-region all; do
         all) features=(--features "map,set,vector,cell,region") ;;
         *) features=(--features "$selection") ;;
     esac
+    [[ "$discard" == 0 ]] || features+=(--features discard-mutations)
     for backend in storage icss; do
         package="$backend-size-consumer"
         cargo tree --locked --offline --manifest-path "$manifest" -p "$package" \
@@ -60,7 +65,7 @@ shasum -a 256 "$output/"*.wasm "$cli" "$server" target/runtime-qualification/deb
 shasum -a 256 -c "$output/source.sha256" > "$output/source-check.log"
 env -u POCKET_IC_BIN -u IC_TESTKIT_POCKET_IC_URL "$cli" run --directory "$server_directory" --ttl 900 \
     --server-stdout "$output/server.stdout" --server-stderr "$output/server.stderr" \
-    -- "$root/target/runtime-qualification/debug/examples/size-consumers" "$output" > "$output/runtime.log" 2>&1 || {
+    -- "$root/target/runtime-qualification/debug/examples/size-consumers" "$output" ${runner_args[@]+"${runner_args[@]}"} > "$output/runtime.log" 2>&1 || {
         cat "$output/runtime.log" >&2; exit 1;
     }
 shasum -a 256 -c "$output/source.sha256" >> "$output/source-check.log"

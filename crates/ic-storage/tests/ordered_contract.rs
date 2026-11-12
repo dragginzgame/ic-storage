@@ -33,6 +33,57 @@ fn key() -> StableKey {
 }
 
 #[test]
+fn discard_and_returning_mutations_share_reopened_map_and_region_state() {
+    let backing = VectorMemory::default();
+    let mut model = BTreeMap::new();
+    let mut random = 971_u64;
+    for epoch in 0..3 {
+        let runtime = host(backing.clone());
+        let memory = runtime.open_memory(&key()).unwrap();
+        let mut map = if epoch == 0 {
+            StableBTreeMap::<u64, Vec<u8>, _>::create(memory).unwrap()
+        } else {
+            StableBTreeMap::<u64, Vec<u8>, _>::load(memory).unwrap()
+        };
+        for step in 0..500 {
+            random = random
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1);
+            let key = (random >> 32) % 97;
+            let value =
+                vec![u8::try_from(step % 256).unwrap(); [0, 8, 24, 25, 256, 1024][step % 6]];
+            match step % 4 {
+                0 => assert_eq!(
+                    map.insert_discard(key, value.clone()),
+                    model.insert(key, value).is_some()
+                ),
+                1 => assert_eq!(map.insert(key, value.clone()), model.insert(key, value)),
+                2 => assert_eq!(map.remove_discard(&key), model.remove(&key).is_some()),
+                _ => assert_eq!(map.remove(&key), model.remove(&key)),
+            }
+            assert_eq!(map.len(), model.len() as u64);
+        }
+        assert_eq!(
+            map.iter()
+                .map(MapEntry::into_pair)
+                .collect::<BTreeMap<_, _>>(),
+            model
+        );
+        drop(map);
+        // Region admission uses the same image, including roots changed by discard mutations.
+        let memory = Rc::new(runtime.open_memory(&key()).unwrap());
+        let mut first = BTreeMapRegion::<u64, Vec<u8>, _>::new(memory.clone(), 0..64);
+        let mut second = BTreeMapRegion::<u64, Vec<u8>, _>::new(memory, 0..64);
+        assert!(!first.insert_discard(1000, vec![7; 4096]).unwrap());
+        assert!(second.insert_discard(1000, vec![8; 8]).unwrap());
+        assert_eq!(first.get(&1000).unwrap(), Some(vec![8; 8]));
+        assert!(first.remove_discard(&1000).unwrap());
+        assert!(!second.remove_discard(&1000).unwrap());
+        assert_eq!(second.len().unwrap(), model.len() as u64);
+    }
+}
+
+#[test]
 fn signed_key_model_survives_mutation_and_cold_reopen() {
     let backing = VectorMemory::default();
     let mut model = BTreeMap::new();

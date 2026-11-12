@@ -16,6 +16,7 @@ ignored = ["toko-tooling"]
 crate-type = ["cdylib"]
 
 [features]
+discard-mutations = []
 default = ["map", "set", "vector", "cell", "region"]
 map = ["dep:ic-storage"]
 set = ["dep:ic-storage"]

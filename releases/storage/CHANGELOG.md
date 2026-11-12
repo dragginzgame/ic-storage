@@ -3,6 +3,17 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/persistence/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.73.6] - Unreleased
+
+### ⚡ Performance
+
+- Add `insert_discard` and `remove_discard` to governed Maps and map regions,
+  returning presence without reading or decoding the previous value payload.
+  Allocation, stored-length and key checks remain; returning APIs and stored
+  images are unchanged.
+  [#118 — Investigate discard-value mutations for governed stable maps](https://github.com/dragginzgame/ic-storage/issues/118).
+  See [the detailed notes](0.73.md#0736---unreleased).
+
 ## [0.73.5] - 2026-11-12
 
 ### ⚡ Performance

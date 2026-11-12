@@ -115,6 +115,8 @@ pub enum Operation {
     IterLast,
     KeysLast,
     ValuesLast,
+    ReplaceDiscard,
+    RemoveDiscard,
 }
 pub const OPERATIONS: [Operation; 27] = [
     Operation::Control,
@@ -271,7 +273,11 @@ pub fn payload_for(r: Request) -> u32 {
 pub fn replacement(op: Operation) -> bool {
     matches!(
         op,
-        Operation::Replace | Operation::Grow | Operation::Shrink | Operation::Set
+        Operation::Replace
+            | Operation::ReplaceDiscard
+            | Operation::Grow
+            | Operation::Shrink
+            | Operation::Set
     )
 }
 

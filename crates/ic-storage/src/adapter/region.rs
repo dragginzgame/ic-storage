@@ -127,6 +127,21 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> BTreeMapRegion<K, V, M> 
         Ok(self.current_map()?.insert(key, value))
     }
 
+    /// Insert or replace without reading or decoding the previous value payload.
+    /// Returns whether an entry was replaced. Callers own old-payload validation;
+    /// stored lengths, key codecs and allocation metadata remain checked.
+    ///
+    /// # Panics
+    /// Invalid new codecs, keys, metadata or growth trap; native owners are poisoned.
+    ///
+    /// # Errors
+    /// Refuses foreign framing. Engine/codec failures trap, possibly after native writes.
+    pub fn insert_discard(&mut self, key: K, value: V) -> CollectionResult<bool> {
+        #[cfg(not(target_arch = "wasm32"))]
+        let _guard = self.memory.memory.poison_on_unwind();
+        Ok(self.current_map()?.insert_discard(key, value))
+    }
+
     /// Remove using the current retained root and ordered engine.
     ///
     /// # Errors
@@ -135,6 +150,21 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> BTreeMapRegion<K, V, M> 
         #[cfg(not(target_arch = "wasm32"))]
         let _guard = self.memory.memory.poison_on_unwind();
         Ok(self.current_map()?.remove(key))
+    }
+
+    /// Remove without reading or decoding the removed value payload.
+    /// Returns whether an entry was removed. Callers own old-payload validation;
+    /// stored lengths, key codecs and allocation metadata remain checked.
+    ///
+    /// # Panics
+    /// Invalid keys or metadata trap; native owners are poisoned.
+    ///
+    /// # Errors
+    /// Refuses foreign framing. Engine/codec failures trap, possibly after native writes.
+    pub fn remove_discard(&mut self, key: &K) -> CollectionResult<bool> {
+        #[cfg(not(target_arch = "wasm32"))]
+        let _guard = self.memory.memory.poison_on_unwind();
+        Ok(self.current_map()?.remove_discard(key))
     }
 
     /// Return the current tree's record count across all namespaces.

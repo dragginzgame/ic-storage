@@ -1,6 +1,42 @@
 use super::*;
 
 #[test]
+fn discard_history_checks_presence_values_and_restores_population() {
+    let profile = Workload::DiscardMutations;
+    for &case in profile.cases() {
+        for &pattern in profile.patterns() {
+            for &count in profile.counts() {
+                let mut model: BTreeMap<_, _> = (0..256)
+                    .map(|key| (key, case.expected_value(key, 256, false)))
+                    .collect();
+                for round in 0..3 {
+                    for (phase, operation) in phases(case, false, Some(profile)) {
+                        let request = Request {
+                            case,
+                            operation,
+                            rows: 256,
+                            payload: 256,
+                            count,
+                            seed: 1 + round * 7919,
+                            pattern,
+                        };
+                        let result = expected_phase(&mut model, request, &phase);
+                        if phase == "RemoveDiscardAgain" {
+                            assert!(
+                                result
+                                    .iter()
+                                    .all(|(_, value)| value.as_deref() == Some(&[0]))
+                            );
+                        }
+                    }
+                    assert_eq!(model.len(), 256);
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn identity_lookup_history_measures_misses_and_reuses_removed_records() {
     let profile = Workload::IdentityLookups;
     assert_eq!(IDENTITY_POPULATIONS, [1000, 10_000, 100_000]);

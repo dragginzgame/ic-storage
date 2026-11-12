@@ -88,7 +88,10 @@ impl State {
         let _ = &mut output;
         #[cfg(feature = "map")]
         {
+            #[cfg(not(feature = "discard-mutations"))]
             output.push(self.map.insert(key, value).unwrap_or(u64::MAX));
+            #[cfg(feature = "discard-mutations")]
+            output.push(u64::from(self.map.insert(key, value).is_some()));
         }
         #[cfg(feature = "set")]
         {
@@ -108,7 +111,10 @@ impl State {
         #[cfg(feature = "region")]
         {
             let mut region = storage::BTreeMap::<u64, u64, _>::load(self.region.clone());
+            #[cfg(not(feature = "discard-mutations"))]
             output.push(region.insert(key, value).unwrap_or(u64::MAX));
+            #[cfg(feature = "discard-mutations")]
+            output.push(u64::from(region.insert(key, value).is_some()));
         }
         output
     }
@@ -145,7 +151,10 @@ impl State {
         let _ = &mut output;
         #[cfg(feature = "map")]
         {
+            #[cfg(not(feature = "discard-mutations"))]
             output.push(self.map.remove(&key).unwrap_or(u64::MAX));
+            #[cfg(feature = "discard-mutations")]
+            output.push(u64::from(self.map.remove(&key).is_some()));
         }
         #[cfg(feature = "set")]
         {
@@ -162,7 +171,10 @@ impl State {
         #[cfg(feature = "region")]
         {
             let mut region = storage::BTreeMap::<u64, u64, _>::load(self.region.clone());
+            #[cfg(not(feature = "discard-mutations"))]
             output.push(region.remove(&key).unwrap_or(u64::MAX));
+            #[cfg(feature = "discard-mutations")]
+            output.push(u64::from(region.remove(&key).is_some()));
         }
         output
     }

@@ -75,6 +75,23 @@ struct Measurement {
 }
 type Samples = BTreeMap<(Case, u32, u32, Pattern, String, String), Vec<Measurement>>;
 fn phases(case: Case, growth_cycles: bool, workload: Option<Workload>) -> Vec<(String, Operation)> {
+    if matches!(workload, Some(Workload::DiscardMutations)) {
+        return [
+            ("Control", Operation::Control),
+            ("Replace", Operation::Replace),
+            ("ReplaceDiscard", Operation::ReplaceDiscard),
+            ("GetAfterDiscard", Operation::Get),
+            ("Remove", Operation::Remove),
+            ("InsertDiscard", Operation::ReplaceDiscard),
+            ("GetAfterInsertDiscard", Operation::Get),
+            ("RemoveDiscard", Operation::RemoveDiscard),
+            ("RemoveDiscardAgain", Operation::RemoveDiscard),
+            ("RestoreDiscard", Operation::ReplaceDiscard),
+        ]
+        .into_iter()
+        .map(|(name, operation)| (name.into(), operation))
+        .collect();
+    }
     if matches!(workload, Some(Workload::IdentityLookups)) {
         return [
             ("Control", Operation::Control),
@@ -1294,21 +1311,23 @@ fn expected(model: &mut BTreeMap<u64, Vec<u8>>, r: Request) -> Vec<(u64, Option<
                     }
                 }
                 Contains => Some(vec![u8::from(model.contains_key(&key))]),
-                Replace | Insert | Reinsert | Grow | Shrink => {
+                Replace | ReplaceDiscard | Insert | Reinsert | Grow | Shrink => {
                     let old = model.insert(
                         key,
                         r.case
                             .expected_value(key, payload_for(r), replacement(r.operation)),
                     );
-                    if structure == "Set" {
+                    if r.operation == ReplaceDiscard {
+                        Some(vec![u8::from(old.is_some())])
+                    } else if structure == "Set" {
                         Some(vec![u8::from(old.is_none())])
                     } else {
                         old
                     }
                 }
-                Remove | RemoveMiss | RemoveInserted | Pop => {
+                Remove | RemoveDiscard | RemoveMiss | RemoveInserted | Pop => {
                     let old = model.remove(&key);
-                    if structure == "Set" {
+                    if structure == "Set" || r.operation == RemoveDiscard {
                         Some(vec![u8::from(old.is_some())])
                     } else {
                         old

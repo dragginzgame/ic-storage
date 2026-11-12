@@ -3,6 +3,15 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/logging-stable/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.72.3] - Unreleased
+
+### ⚡ Performance
+
+- Use Storage's discard-result mutations after existing checkpoint validation,
+  preserving no-op writes, identity/watermark checks and checkpoint bytes.
+  [#118 — Investigate discard-value mutations for governed stable maps](https://github.com/dragginzgame/ic-storage/issues/118).
+  See [the detailed notes](0.72.md#0723---unreleased).
+
 ## [0.72.2] - 2026-11-12
 
 ### 🧰 Tooling

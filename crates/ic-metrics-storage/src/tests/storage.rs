@@ -121,6 +121,47 @@ fn one_map_reopens_mixed_types_and_namespaces_with_wide_totals() {
 }
 
 #[test]
+fn histogram_configuration_checks_every_full_width_bound_without_writes() {
+    fn check<const N: usize>() {
+        let memory: MeteredMemory = MeteredMemory::default();
+        let mut store =
+            MetricsStore::new(StableBTreeMap::create(admitted_memory(memory.clone())).unwrap());
+        let bounds = std::array::from_fn::<_, N, _>(|i| (i as u64 + 1) << 40);
+        let value = Histogram::new(bounds).unwrap();
+        let key = key("configuration");
+        store.save_histogram(&key, &identity(), &value).unwrap();
+        for index in 0..N {
+            for delta in [1, 1_u64 << 32] {
+                let mut other = bounds;
+                other[index] += delta;
+                let candidate = Histogram::new(other).unwrap();
+                memory.reset();
+                assert_eq!(
+                    store.load_histogram(&key, &identity(), &other),
+                    Err(StoreError::BoundsMismatch)
+                );
+                assert_eq!(
+                    store.save_histogram(&key, &identity(), &candidate),
+                    Err(StoreError::BoundsMismatch)
+                );
+                assert_eq!(memory.counts().writes, 0);
+                assert_eq!(memory.counts().grows, 0);
+            }
+        }
+        drop(store);
+        let reopened = MetricsStore::new(StableBTreeMap::load(admitted_memory(memory)).unwrap());
+        assert_eq!(
+            reopened.load_histogram(&key, &identity(), &bounds),
+            Ok(Some(value))
+        );
+    }
+    check::<0>();
+    check::<1>();
+    check::<16>();
+    check::<256>();
+}
+
+#[test]
 fn histogram_equality_shortcut_preserves_full_state_comparison() {
     use crate::metric::StoredMetric;
     fn check<const N: usize>() {
@@ -160,6 +201,24 @@ fn histogram_equality_shortcut_preserves_full_state_comparison() {
         continued.record(0);
         assert_eq!(continued.aggregate(), clipped.aggregate());
         assert_eq!(continued.same_state(&clipped), N == 0);
+        // Saturated aggregate fields cannot hide a change in any numeric lane,
+        // including counts that differ only above the low 32 bits.
+        for index in 0..N {
+            let mut counts = [0; N];
+            counts[index] = 1_u64 << 32;
+            let changed_bucket = ic_metrics::persistence::restore_histogram(
+                bounds,
+                counts,
+                u64::MAX,
+                [false; N],
+                true,
+                aggregate,
+            )
+            .unwrap();
+            assert_ne!(changed_bucket, clipped);
+            assert!(!changed_bucket.same_state(&clipped));
+            assert!(!clipped.same_state(&changed_bucket));
+        }
         if N != 0 {
             let mut counts = [0; N];
             counts[0] = u64::MAX;

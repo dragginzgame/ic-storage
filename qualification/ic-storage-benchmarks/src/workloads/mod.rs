@@ -30,11 +30,17 @@ pub enum Workload {
     VectorOpen,
     CellOpen,
     IdentityLookups,
+    DiscardMutations,
 }
 
 impl Workload {
     pub fn cases(self) -> &'static [Case] {
         match self {
+            Self::DiscardMutations => &[
+                crate::case!(Map, U64, Bytes),
+                crate::case!(Map, IdentityKey, Bytes),
+                crate::case!(Region, U64, Bytes),
+            ],
             Self::IdentityLookups => &[
                 crate::case!(Map, Principal, Bytes),
                 crate::case!(Map, IdentityKey, Bytes),
@@ -113,6 +119,7 @@ impl Workload {
     }
     pub fn payloads(self, case: Case) -> &'static [u32] {
         match (self, case) {
+            (Self::DiscardMutations, _) => &[8, 256, 4096, 65_536],
             (Self::IdentityLookups, _) => &[256, 1024],
             (Self::CellOpen, crate::case!(Cell, U64, Bytes)) => {
                 &[0, 32, 63, 64, 65, 4096, 65_536, 1_048_576]
@@ -148,7 +155,7 @@ impl Workload {
             Self::Bulk => 8,
             Self::Boundaries => 64,
             Self::Types => 32,
-            Self::Iterators | Self::Ordered | Self::VectorReads => 256,
+            Self::Iterators | Self::Ordered | Self::VectorReads | Self::DiscardMutations => 256,
         }
     }
     pub const fn counts(self) -> &'static [u32] {
@@ -156,6 +163,7 @@ impl Workload {
             Self::IdentityLookups => &[1],
             Self::CellOpen => &[1],
             Self::Records | Self::Depth | Self::VectorReads | Self::VectorOpen => &[1, 32],
+            Self::DiscardMutations => &[1, 4],
             Self::Types => &[1, 8],
             Self::AuthLookups => &[1],
             Self::Ordered => &[1, 5, 6, 11, 12, 31, 32, 64, 128],
@@ -167,7 +175,7 @@ impl Workload {
         match self {
             Self::IdentityLookups => &[Pattern::Uniform],
             Self::CellOpen => &[Pattern::Uniform],
-            Self::Depth | Self::VectorReads | Self::VectorOpen => {
+            Self::Depth | Self::VectorReads | Self::VectorOpen | Self::DiscardMutations => {
                 &[Pattern::Uniform, Pattern::Hot16]
             }
             Self::Records => &[Pattern::Uniform, Pattern::Hot16, Pattern::Zipf],
@@ -180,7 +188,7 @@ impl Workload {
     }
     pub const fn rounds(self) -> u32 {
         match self {
-            Self::CellOpen | Self::IdentityLookups => 3,
+            Self::CellOpen | Self::IdentityLookups | Self::DiscardMutations => 3,
             Self::Control
             | Self::Records
             | Self::Boundaries

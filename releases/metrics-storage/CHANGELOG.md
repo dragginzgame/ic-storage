@@ -3,6 +3,21 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/metrics-stable/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.76.3] - Unreleased
+
+### ⚡ Performance
+
+- Compare histogram bounds/counts as full-width numeric words. At 256 bounds,
+  selected loads improve 8.6% and unchanged saves 22% (34.5% on repeated calls),
+  with 1.17 KB more benchmark Wasm and unchanged validation/format contracts.
+  See [the histogram study](../../docs/measurements/metrics-histogram-comparisons-2026-11-12.md).
+
+- Use Storage's discard-result mutations after existing checkpoint/envelope
+  validation, avoiding a second read of the discarded old value. Unchanged
+  checkpoints remain write-free; identity, continuity and formats are unchanged.
+  [#118 — Investigate discard-value mutations for governed stable maps](https://github.com/dragginzgame/ic-storage/issues/118).
+  See [the detailed notes](0.76.md#0763---unreleased).
+
 ## [0.76.2] - 2026-11-12
 
 ### 🧰 Tooling

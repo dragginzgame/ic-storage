@@ -355,7 +355,7 @@ impl<M: Memory> MetricsStore<M> {
             }
         }
         let bytes = codec::encode(identity, value)?;
-        self.map.insert(key.0.clone(), bytes);
+        self.map.insert_discard(key.0.clone(), bytes);
         Ok(())
     }
 
@@ -377,7 +377,7 @@ impl<M: Memory> MetricsStore<M> {
             return Ok(false);
         };
         codec::envelope(&bytes, identity)?;
-        self.map.remove(&key.0);
+        self.map.remove_discard(&key.0);
         Ok(true)
     }
 }

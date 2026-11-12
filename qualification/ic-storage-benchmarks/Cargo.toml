@@ -21,6 +21,8 @@ category = "benchmarks"
 ignored = ["toko-tooling"]
 
 [features]
+metrics-checkpoints = ["owned", "dep:ic-metrics", "dep:ic-metrics-storage"]
+returning-mutations = ["owned"]
 owned = ["dep:ic-storage"]
 dfinity = []
 dfinity-governed = ["dfinity", "dep:ic-storage"]
@@ -33,6 +35,8 @@ ic-stable-structures-head = { workspace = true, optional = true }
 ic-storage = { workspace = true, optional = true }
 
 [dependencies]
+ic-metrics = { workspace = true, optional = true }
+ic-metrics-storage = { workspace = true, optional = true }
 ic-stable-structures.workspace = true
 ic-wire.workspace = true
 ic_principal.workspace = true
@@ -69,3 +73,14 @@ crate-type = ["cdylib"]
 [[example]]
 name = "admission"
 path = "benches/admission.rs"
+
+[[example]]
+name = "metrics-checkpoints"
+path = "benches/metrics_checkpoints/runner.rs"
+required-features = ["metrics-checkpoints"]
+
+[[example]]
+name = "metrics-checkpoints-wasm"
+path = "benches/metrics_checkpoints/wasm.rs"
+crate-type = ["cdylib"]
+required-features = ["metrics-checkpoints"]

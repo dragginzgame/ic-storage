@@ -22,6 +22,9 @@ struct Arguments {
     /// Attribute Map range scans only, without replaying mutation histories.
     #[arg(long)]
     scans_only: bool,
+    /// Compare discard-result mutations with returning mutations and ICSS.
+    #[arg(long, conflicts_with = "scans_only")]
+    discard_only: bool,
 }
 
 #[derive(Default)]
@@ -274,6 +277,20 @@ impl<const F: bool> Store<F> {
             Self::IcssRegion(m) => icss::BTreeMap::load(m.clone()).remove(&k),
         }
     }
+    fn put_discard(&mut self, key: u64, value: Value<F>) -> bool {
+        match self {
+            Self::Storage(m) => m.insert_discard(Key(key), value),
+            Self::StorageRegion(m) => m.insert_discard(Key(key), value).unwrap(),
+            _ => self.put(key, value).is_some(),
+        }
+    }
+    fn remove_discard(&mut self, key: u64) -> bool {
+        match self {
+            Self::Storage(m) => m.remove_discard(&Key(key)),
+            Self::StorageRegion(m) => m.remove_discard(&Key(key)).unwrap(),
+            _ => self.remove(key).is_some(),
+        }
+    }
     fn scan(&self, start: u64, limit: usize, keys_only: bool) -> Vec<(u64, Option<Value<F>>)> {
         match self {
             Self::Storage(m) => {
@@ -451,6 +468,47 @@ fn measure<const F: bool>(output: &mut fs::File, payload: usize) {
         }
     }
 }
+fn measure_discard(output: &mut fs::File) {
+    for payload in [8, 256, 4096, 65_536] {
+        for region in [false, true] {
+            for backend in ["storage", "icss-manager"] {
+                for discard in [false, true] {
+                    let backing = Backing::default();
+                    let mut store = Store::<false>::new(backend, region, backing.clone(), 8);
+                    for id in 0..256 {
+                        store.put(id, Value(vec![7; payload]));
+                    }
+                    for phase in ["Replace", "Remove", "Insert", "RemoveAgain", "Missing"] {
+                        let input = Value(vec![9; payload]);
+                        backing.reset();
+                        let present = match (phase, discard) {
+                            ("Replace" | "Insert", true) => store.put_discard(127, input),
+                            ("Replace" | "Insert", false) => store.put(127, input).is_some(),
+                            (_, true) => store.remove_discard(127),
+                            (_, false) => store.remove(127).is_some(),
+                        };
+                        let observation = backing.report();
+                        assert_eq!(
+                            present,
+                            matches!(phase, "Replace" | "Remove" | "RemoveAgain")
+                        );
+                        if backend == "storage" && discard {
+                            assert_eq!(observation["value_decodes"], 0);
+                        }
+                        writeln!(output, "{}", json!({"backend":backend,"collection":if region {"Region"} else {"Map"},
+                            "rows":256,"payload":payload,"discard":discard,"phase":phase,"counts":observation})).unwrap();
+                        if matches!(phase, "Replace" | "Insert") {
+                            assert_eq!(store.get(127), Some(Value(vec![9; payload])));
+                        } else {
+                            assert_eq!(store.get(127), None);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 fn main() {
     let args = Arguments::parse();
     let mut output = fs::OpenOptions::new()
@@ -458,6 +516,10 @@ fn main() {
         .create_new(true)
         .open(args.output)
         .unwrap();
+    if args.discard_only {
+        measure_discard(&mut output);
+        return;
+    }
     if !args.scans_only {
         measure::<true>(&mut output, 8);
         measure::<false>(&mut output, 32);

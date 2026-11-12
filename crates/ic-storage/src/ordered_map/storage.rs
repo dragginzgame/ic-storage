@@ -333,6 +333,16 @@ impl<M: Memory> Store<M> {
         }
     }
 
+    pub fn admit_value(&self, node: Node) {
+        if node.value != 0 {
+            let class = self.block(node.value, BLOB);
+            assert!(
+                node.value_len <= (1_u64 << class) - BLOCK_HEADER,
+                "oversized ordered-map blob"
+            );
+        }
+    }
+
     pub fn replace_value(&mut self, node: &mut Node, bytes: &[u8]) {
         let previous = (node.value, node.value_len);
         if bytes.len() <= INLINE_VALUE {

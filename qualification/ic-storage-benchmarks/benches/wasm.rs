@@ -335,6 +335,7 @@ mod canister {
                         matches!(
                             r.operation,
                             Operation::Replace
+                                | Operation::ReplaceDiscard
                                 | Operation::Insert
                                 | Operation::Reinsert
                                 | Operation::Grow
@@ -459,6 +460,30 @@ mod canister {
             } else {
                 for (key, result_key, value) in inputs {
                     let result = match r.operation {
+                        Operation::ReplaceDiscard => {
+                            #[cfg(all(feature = "owned", not(feature = "returning-mutations")))]
+                            let replaced = self.map.insert_discard(key, value.unwrap());
+                            #[cfg(any(
+                                feature = "dfinity",
+                                feature = "dfinity-head",
+                                feature = "returning-mutations"
+                            ))]
+                            let replaced = self.map.insert(key, value.unwrap()).is_some();
+                            booleans.push((result_key, replaced));
+                            continue;
+                        }
+                        Operation::RemoveDiscard => {
+                            #[cfg(all(feature = "owned", not(feature = "returning-mutations")))]
+                            let removed = self.map.remove_discard(&key);
+                            #[cfg(any(
+                                feature = "dfinity",
+                                feature = "dfinity-head",
+                                feature = "returning-mutations"
+                            ))]
+                            let removed = self.map.remove(&key).is_some();
+                            booleans.push((result_key, removed));
+                            continue;
+                        }
                         Operation::Control => {
                             std::hint::black_box(&key);
                             None
@@ -489,7 +514,10 @@ mod canister {
                 decode: None,
                 instructions,
                 // Normalization is deliberately after the measured interval.
-                entries: if r.operation == Operation::Contains {
+                entries: if matches!(
+                    r.operation,
+                    Operation::Contains | Operation::ReplaceDiscard | Operation::RemoveDiscard
+                ) {
                     booleans
                         .into_iter()
                         .map(|(k, v)| (k.id(), Some(vec![u8::from(v)])))

@@ -402,6 +402,34 @@ impl<K: BenchKey + Storable, V: BenchValue + Storable> Region<K, V> {
             Map::<K, V>::load(self.memory.clone()).remove(key)
         }
     }
+    fn insert_discard(&mut self, key: K, value: V) -> bool {
+        #[cfg(all(feature = "owned", not(feature = "returning-mutations")))]
+        {
+            self.map.insert_discard(key, value).unwrap()
+        }
+        #[cfg(any(
+            feature = "dfinity",
+            feature = "dfinity-head",
+            feature = "returning-mutations"
+        ))]
+        {
+            self.insert(key, value).is_some()
+        }
+    }
+    fn remove_discard(&mut self, key: &K) -> bool {
+        #[cfg(all(feature = "owned", not(feature = "returning-mutations")))]
+        {
+            self.map.remove_discard(key).unwrap()
+        }
+        #[cfg(any(
+            feature = "dfinity",
+            feature = "dfinity-head",
+            feature = "returning-mutations"
+        ))]
+        {
+            self.remove(key).is_some()
+        }
+    }
     fn len(&self) -> u64 {
         #[cfg(feature = "owned")]
         {
@@ -466,12 +494,23 @@ impl<K: BenchKey + Storable, V: BenchValue + Storable> Benchmark for Region<K, V
             .collect();
         let mut entries = Vec::with_capacity(r.count as usize);
         let mut key_entries = None;
+        let mut booleans = Vec::with_capacity(r.count as usize);
         let start = ic0::performance_counter(0);
         if r.operation == Operation::KeysScan {
             key_entries = Some(self.keys(scan_start, r.count as usize));
         } else {
             for (key, value) in inputs {
                 let result = match r.operation {
+                    Operation::ReplaceDiscard => {
+                        let result = self.insert_discard(key.clone(), value.unwrap());
+                        booleans.push((key, result));
+                        continue;
+                    }
+                    Operation::RemoveDiscard => {
+                        let result = self.remove_discard(&key);
+                        booleans.push((key, result));
+                        continue;
+                    }
                     Operation::Control => {
                         std::hint::black_box(&key);
                         None
@@ -494,7 +533,15 @@ impl<K: BenchKey + Storable, V: BenchValue + Storable> Benchmark for Region<K, V
         Response {
             decode: None,
             instructions,
-            entries: if let Some(keys) = key_entries {
+            entries: if matches!(
+                r.operation,
+                Operation::ReplaceDiscard | Operation::RemoveDiscard
+            ) {
+                booleans
+                    .into_iter()
+                    .map(|(key, result)| (key.id(), Some(vec![u8::from(result)])))
+                    .collect()
+            } else if let Some(keys) = key_entries {
                 keys.into_iter()
                     .map(|key| (key.id(), Some(Vec::new())))
                     .collect()

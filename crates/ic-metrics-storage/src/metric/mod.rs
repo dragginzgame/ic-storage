@@ -119,7 +119,10 @@ impl<const N: usize> StoredMetric for MeasurementHistogram<N> {
         } else {
             self.overflow() == previous.overflow()
                 && self.aggregate() == previous.aggregate()
-                && self == previous
+                && self.overflow_count_overflowed() == previous.overflow_count_overflowed()
+                && self.bucket_overflowed() == previous.bucket_overflowed()
+                && equal_words(self.upper_bounds(), previous.upper_bounds())
+                && equal_words(self.bucket_counts(), previous.bucket_counts())
         }
     }
 
@@ -171,9 +174,15 @@ impl<const N: usize> StoredMetric for MeasurementHistogram<N> {
             state.overflowed,
             state.aggregate.restore()?,
         )?;
-        if value.upper_bounds() != configuration {
+        if !equal_words(value.upper_bounds(), configuration) {
             return Err(StoreError::BoundsMismatch);
         }
         Ok(value)
     }
+}
+
+// Compare numeric fields directly: Wasm's byte-oriented array equality is
+// expensive on these larger arrays. Keep full-width equality and length checks.
+fn equal_words(left: &[u64], right: &[u64]) -> bool {
+    left.len() == right.len() && left.iter().zip(right).all(|(left, right)| left == right)
 }

@@ -1,0 +1,97 @@
+rows,structure,case,key_type,value_type,logical_value_bytes,batch_or_scan_limit,pattern,operation,discard_median_instructions,returning_median_instructions,discard_over_returning,discard_median_stable_pages,returning_median_stable_pages,upstream_bucket_pages,payload_scope
+256,Map,Map-U64-Bytes,u64,Vec<u8>,8,1,Uniform,RemoveDiscard,176834,177500,0.9962,26,26,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,8,1,Uniform,ReplaceDiscard,172738,173482,0.9957,26,26,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,8,1,Hot16,RemoveDiscard,176818,177484,0.9962,26,26,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,8,1,Hot16,ReplaceDiscard,172734,173478,0.9957,26,26,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,8,4,Uniform,RemoveDiscard,226511,229203,0.9883,26,26,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,8,4,Uniform,ReplaceDiscard,206452,209580,0.9851,26,26,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,8,4,Hot16,RemoveDiscard,224653,227346,0.9882,26,26,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,8,4,Hot16,ReplaceDiscard,211291,214416,0.9854,26,26,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,256,1,Uniform,RemoveDiscard,338064,338893,0.9976,26,26,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,256,1,Uniform,ReplaceDiscard,173853,174842,0.9943,26,26,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,256,1,Hot16,RemoveDiscard,338048,338877,0.9976,26,26,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,256,1,Hot16,ReplaceDiscard,173849,174838,0.9943,26,26,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,256,4,Uniform,RemoveDiscard,550812,554126,0.9940,26,26,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,256,4,Uniform,ReplaceDiscard,378030,382438,0.9885,26,26,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,256,4,Hot16,RemoveDiscard,390796,394110,0.9916,26,26,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,256,4,Hot16,ReplaceDiscard,296347,300756,0.9853,26,26,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,4096,1,Uniform,RemoveDiscard,978064,982733,0.9952,58,58,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,4096,1,Uniform,ReplaceDiscard,177693,182522,0.9735,58,58,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,4096,1,Hot16,RemoveDiscard,818048,822717,0.9943,58,58,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,4096,1,Hot16,ReplaceDiscard,177689,182518,0.9735,58,58,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,4096,4,Uniform,RemoveDiscard,2474343,2493014,0.9925,58,58,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,4096,4,Uniform,ReplaceDiscard,953359,973127,0.9797,58,58,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,4096,4,Hot16,RemoveDiscard,1030796,1049470,0.9822,58,58,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,4096,4,Hot16,ReplaceDiscard,631676,651445,0.9697,58,58,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,65536,1,Uniform,RemoveDiscard,1538064,1764431,0.8717,538,538,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,65536,1,Uniform,ReplaceDiscard,399200,625309,0.6384,538,538,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,65536,1,Hot16,RemoveDiscard,1538048,1764415,0.8717,538,538,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,65536,1,Hot16,ReplaceDiscard,399196,625305,0.6384,538,538,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,65536,4,Uniform,RemoveDiscard,4550812,5295514,0.8594,538,538,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,65536,4,Uniform,ReplaceDiscard,1989109,2414552,0.8238,538,538,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,65536,4,Hot16,RemoveDiscard,2470796,3215498,0.7684,538,538,8,logical-value-bytes
+256,Map,Map-U64-Bytes,u64,Vec<u8>,65536,4,Hot16,ReplaceDiscard,1992413,2417636,0.8241,538,538,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,8,1,Uniform,RemoveDiscard,187426,188280,0.9955,26,26,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,8,1,Uniform,ReplaceDiscard,182171,183239,0.9942,26,26,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,8,1,Hot16,RemoveDiscard,187430,188284,0.9955,26,26,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,8,1,Hot16,ReplaceDiscard,182175,183243,0.9942,26,26,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,8,4,Uniform,RemoveDiscard,272495,277388,0.9824,26,26,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,8,4,Uniform,ReplaceDiscard,241460,244795,0.9864,26,26,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,8,4,Hot16,RemoveDiscard,269846,274739,0.9822,26,26,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,8,4,Hot16,ReplaceDiscard,250095,253427,0.9869,26,26,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,256,1,Uniform,RemoveDiscard,348656,349876,0.9965,26,26,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,256,1,Uniform,ReplaceDiscard,263287,264663,0.9948,26,26,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,256,1,Hot16,RemoveDiscard,348660,349880,0.9965,26,26,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,256,1,Hot16,ReplaceDiscard,263293,264669,0.9948,26,26,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,256,4,Uniform,RemoveDiscard,598723,603758,0.9917,26,26,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,256,4,Uniform,ReplaceDiscard,486317,490713,0.9910,26,26,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,256,4,Hot16,RemoveDiscard,436613,441648,0.9886,26,26,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,256,4,Hot16,ReplaceDiscard,335009,339402,0.9871,26,26,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,4096,1,Uniform,RemoveDiscard,988606,993961,0.9946,58,58,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,4096,1,Uniform,ReplaceDiscard,507091,511829,0.9907,58,58,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,4096,1,Hot16,RemoveDiscard,828610,833965,0.9936,58,58,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,4096,1,Hot16,ReplaceDiscard,507095,511833,0.9907,58,58,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,4096,4,Uniform,RemoveDiscard,2522545,2543382,0.9918,58,58,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,4096,4,Uniform,ReplaceDiscard,1455753,1475319,0.9867,58,58,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,4096,4,Hot16,RemoveDiscard,1075457,1095999,0.9813,58,58,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,4096,4,Hot16,ReplaceDiscard,821597,841161,0.9767,58,58,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,65536,1,Uniform,RemoveDiscard,1628955,1775385,0.9175,538,538,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,65536,1,Uniform,ReplaceDiscard,888899,1115010,0.7972,538,538,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,65536,1,Hot16,RemoveDiscard,1628959,1775389,0.9175,538,538,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,65536,1,Hot16,ReplaceDiscard,888903,1115014,0.7972,538,538,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,65536,4,Uniform,RemoveDiscard,4602545,5347260,0.8607,538,538,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,65536,4,Uniform,ReplaceDiscard,2667259,3092708,0.8624,538,538,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,65536,4,Hot16,RemoveDiscard,2676394,3421111,0.7823,538,538,8,logical-value-bytes
+256,Map,Map-IdentityKey-Bytes,Principal key,Vec<u8>,65536,4,Hot16,ReplaceDiscard,2275951,2701397,0.8425,538,538,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,8,1,Uniform,RemoveDiscard,179326,180028,0.9961,26,26,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,8,1,Uniform,ReplaceDiscard,174910,175687,0.9956,26,26,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,8,1,Hot16,RemoveDiscard,179310,180012,0.9961,26,26,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,8,1,Hot16,ReplaceDiscard,174906,175683,0.9956,26,26,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,8,4,Uniform,RemoveDiscard,236431,239427,0.9875,26,26,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,8,4,Uniform,ReplaceDiscard,215156,218091,0.9865,26,26,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,8,4,Hot16,RemoveDiscard,234517,237514,0.9874,26,26,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,8,4,Hot16,ReplaceDiscard,220079,223011,0.9869,26,26,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,256,1,Uniform,RemoveDiscard,340627,341484,0.9975,26,26,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,256,1,Uniform,ReplaceDiscard,176471,177325,0.9952,26,26,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,256,1,Hot16,RemoveDiscard,340611,341468,0.9975,26,26,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,256,1,Hot16,ReplaceDiscard,256465,257319,0.9967,26,26,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,256,4,Uniform,RemoveDiscard,561104,564629,0.9938,26,26,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,256,4,Uniform,ReplaceDiscard,387207,391814,0.9882,26,26,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,256,4,Hot16,RemoveDiscard,401088,404613,0.9913,26,26,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,256,4,Hot16,ReplaceDiscard,305496,310104,0.9851,26,26,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,4096,1,Uniform,RemoveDiscard,980682,985379,0.9952,58,58,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,4096,1,Uniform,ReplaceDiscard,260026,264880,0.9817,58,58,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,4096,1,Hot16,RemoveDiscard,820666,825363,0.9943,58,58,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,4096,1,Hot16,ReplaceDiscard,260022,264876,0.9817,58,58,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,4096,4,Uniform,RemoveDiscard,2484747,2503629,0.9925,58,58,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,4096,4,Uniform,ReplaceDiscard,1042568,1062535,0.9812,58,58,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,4096,4,Hot16,RemoveDiscard,1041088,1059973,0.9822,58,58,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,4096,4,Hot16,ReplaceDiscard,640857,660825,0.9698,58,58,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,65536,1,Uniform,RemoveDiscard,1540682,1767077,0.8719,538,538,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,65536,1,Uniform,ReplaceDiscard,481533,707667,0.6805,538,538,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,65536,1,Hot16,RemoveDiscard,1540666,1767061,0.8719,538,538,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,65536,1,Hot16,ReplaceDiscard,481529,707663,0.6804,538,538,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,65536,4,Uniform,RemoveDiscard,4561104,5306017,0.8596,538,538,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,65536,4,Uniform,ReplaceDiscard,2078057,2503699,0.8300,538,538,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,65536,4,Hot16,RemoveDiscard,2481088,3226001,0.7691,538,538,8,logical-value-bytes
+256,Region,Region-U64-Bytes,u64,Vec<u8>,65536,4,Hot16,ReplaceDiscard,2081437,2507077,0.8302,538,538,8,logical-value-bytes

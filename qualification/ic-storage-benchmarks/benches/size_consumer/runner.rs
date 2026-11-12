@@ -1,12 +1,22 @@
 //! Native validation and size accounting; never linked into either consumer Wasm.
+use clap::Parser;
 use ic_testkit::pocket_ic::{CanisterId, PocketIcBuilder, nonblocking::PocketIc};
 use serde_json::json;
 use std::{
     collections::{BTreeMap, BTreeSet},
     env, fs,
     io::Write,
-    path::Path,
+    path::{Path, PathBuf},
 };
+
+#[derive(Parser)]
+struct Arguments {
+    /// Directory containing the matched consumer modules.
+    output: PathBuf,
+    /// Map/region mutations return presence rather than previous values.
+    #[arg(long)]
+    discard_mutations: bool,
+}
 
 const SELECTIONS: [&str; 8] = [
     "base",
@@ -29,6 +39,15 @@ fn filter(selection: &str, values: [u64; 5]) -> Vec<u64> {
         .enumerate()
         .filter_map(|(i, v)| selected(selection, i).then_some(v))
         .collect()
+}
+
+fn mutation_result(selection: &str, mut values: [u64; 5], discard: bool) -> Vec<u64> {
+    if discard {
+        for index in [0, 4] {
+            values[index] = u64::from(values[index] != u64::MAX);
+        }
+    }
+    filter(selection, values)
 }
 #[derive(Default)]
 struct Model {
@@ -124,7 +143,7 @@ async fn check_extrema(pic: &PocketIc, canister: CanisterId, selection: &str, mo
         .unwrap();
     assert_eq!(decode(&response), expected, "extrema {selection}");
 }
-async fn qualify(pic: &PocketIc, wasm: &[u8], selection: &str) -> usize {
+async fn qualify(pic: &PocketIc, wasm: &[u8], selection: &str, discard: bool) -> usize {
     let canister = pic.create_canister().await;
     pic.add_cycles(canister, 100_000_000_000_000).await;
     pic.install_canister(canister, wasm.to_vec(), vec![], None)
@@ -140,7 +159,7 @@ async fn qualify(pic: &PocketIc, wasm: &[u8], selection: &str) -> usize {
             .unwrap();
         assert_eq!(
             decode(&response),
-            filter(selection, model.put(key, value)),
+            mutation_result(selection, model.put(key, value), discard),
             "put {selection}"
         );
         calls += 1;
@@ -186,7 +205,7 @@ async fn qualify(pic: &PocketIc, wasm: &[u8], selection: &str) -> usize {
                     .unwrap();
                 assert_eq!(
                     decode(&response),
-                    filter(selection, model.remove(key)),
+                    mutation_result(selection, model.remove(key), discard),
                     "remove {selection}"
                 );
                 calls += 1;
@@ -259,8 +278,8 @@ fn sizes(bytes: &[u8]) -> (usize, usize, usize, BTreeSet<String>) {
 }
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
-    let output = env::args().nth(1).expect("artifact directory");
-    let output = Path::new(&output);
+    let arguments = Arguments::parse();
+    let output = Path::new(&arguments.output);
     let url = env::var("IC_TESTKIT_POCKET_IC_URL").expect("prepared Testkit server URL");
     let pic = PocketIcBuilder::new()
         .with_max_request_time_ms(Some(300_000))
@@ -285,8 +304,8 @@ async fn main() {
             let wasm = fs::read(output.join(format!("{selection}-{backend}.wasm"))).unwrap();
             let (code, data, custom, exports) = sizes(&wasm);
             assert_eq!(exports, expected, "export parity");
-            let calls = qualify(&pic, &wasm, selection).await;
-            records.push(json!({"selection": selection, "backend": backend, "module_bytes": wasm.len(), "code_section_payload_bytes": code, "data_section_payload_bytes": data, "custom_section_bytes": custom, "validated_calls": calls, "upgrades": 2}));
+            let calls = qualify(&pic, &wasm, selection, arguments.discard_mutations).await;
+            records.push(json!({"selection": selection, "backend": backend, "module_bytes": wasm.len(), "code_section_payload_bytes": code, "data_section_payload_bytes": data, "custom_section_bytes": custom, "validated_calls": calls, "upgrades": 2, "discard_mutations": arguments.discard_mutations}));
             println!(
                 "Validated {selection}/{backend}: {} bytes, {calls} calls, 2 upgrades",
                 wasm.len()

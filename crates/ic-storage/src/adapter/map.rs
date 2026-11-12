@@ -73,6 +73,17 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> StableBTreeMap<K, V, M> 
         let _guard = self.inner.memory().allocation().poison_on_unwind();
         self.inner.insert(key, value)
     }
+    /// Insert or replace without reading or decoding the previous value payload.
+    /// Returns whether an existing entry was replaced. Stored lengths and allocation
+    /// metadata remain checked; callers own any required old-payload validation.
+    ///
+    /// # Panics
+    /// Invalid new codecs, keys, metadata and allocation failures trap.
+    pub fn insert_discard(&mut self, key: K, value: V) -> bool {
+        #[cfg(not(target_arch = "wasm32"))]
+        let _guard = self.inner.memory().allocation().poison_on_unwind();
+        self.inner.insert_discard(key, value)
+    }
     /// Read a matching value; malformed stored values trap.
     pub fn get(&self, key: &K) -> Option<V> {
         self.inner.get(key)
@@ -96,6 +107,17 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> StableBTreeMap<K, V, M> 
         #[cfg(not(target_arch = "wasm32"))]
         let _guard = self.inner.memory().allocation().poison_on_unwind();
         self.inner.remove(key)
+    }
+    /// Remove without reading or decoding the removed value payload.
+    /// Returns whether an entry was removed. Stored lengths and allocation metadata
+    /// remain checked; callers own any required old-payload validation.
+    ///
+    /// # Panics
+    /// Key codec and engine failures trap.
+    pub fn remove_discard(&mut self, key: &K) -> bool {
+        #[cfg(not(target_arch = "wasm32"))]
+        let _guard = self.inner.memory().allocation().poison_on_unwind();
+        self.inner.remove_discard(key)
     }
     /// First ordered key/value pair.
     #[must_use]

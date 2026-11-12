@@ -200,7 +200,7 @@ impl<M: Memory> LoggingStore<M> {
             validate_checkpoint(previous, current)?;
         }
         let bytes = codec::encode(identity, current)?;
-        self.map.insert(key.0.clone(), bytes);
+        self.map.insert_discard(key.0.clone(), bytes);
         Ok(())
     }
 
@@ -223,7 +223,7 @@ impl<M: Memory> LoggingStore<M> {
         if self.load(key, identity, limits)?.is_none() {
             return Ok(false);
         }
-        self.map.remove(&key.0);
+        self.map.remove_discard(&key.0);
         Ok(true)
     }
 }

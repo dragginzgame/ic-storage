@@ -128,7 +128,10 @@ impl State {
         let _ = &mut output;
         #[cfg(feature = "map")]
         {
+            #[cfg(not(feature = "discard-mutations"))]
             output.push(self.map.insert(key, value).unwrap_or(u64::MAX));
+            #[cfg(feature = "discard-mutations")]
+            output.push(u64::from(self.map.insert_discard(key, value)));
         }
         #[cfg(feature = "set")]
         {
@@ -147,7 +150,10 @@ impl State {
         }
         #[cfg(feature = "region")]
         {
+            #[cfg(not(feature = "discard-mutations"))]
             output.push(self.region.insert(key, value).unwrap().unwrap_or(u64::MAX));
+            #[cfg(feature = "discard-mutations")]
+            output.push(u64::from(self.region.insert_discard(key, value).unwrap()));
         }
         output
     }
@@ -183,7 +189,10 @@ impl State {
         let _ = &mut output;
         #[cfg(feature = "map")]
         {
+            #[cfg(not(feature = "discard-mutations"))]
             output.push(self.map.remove(&key).unwrap_or(u64::MAX));
+            #[cfg(feature = "discard-mutations")]
+            output.push(u64::from(self.map.remove_discard(&key)));
         }
         #[cfg(feature = "set")]
         {
@@ -199,7 +208,10 @@ impl State {
         }
         #[cfg(feature = "region")]
         {
+            #[cfg(not(feature = "discard-mutations"))]
             output.push(self.region.remove(&key).unwrap().unwrap_or(u64::MAX));
+            #[cfg(feature = "discard-mutations")]
+            output.push(u64::from(self.region.remove_discard(&key).unwrap()));
         }
         output
     }

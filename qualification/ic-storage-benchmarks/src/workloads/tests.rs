@@ -17,6 +17,7 @@ fn every_profile_result_fits_the_existing_wire_budget() {
         Workload::VectorOpen,
         Workload::CellOpen,
         Workload::IdentityLookups,
+        Workload::DiscardMutations,
     ] {
         for &case in profile.cases() {
             for &payload in profile.payloads(case) {

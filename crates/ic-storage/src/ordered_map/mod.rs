@@ -103,11 +103,19 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> OrderedMap<K, V, M> {
         self.store.clear();
     }
 
+    pub(crate) fn insert(&mut self, key: K, value: V) -> Option<V> {
+        self.insert_with_previous(key, value, true).1
+    }
+
+    pub(crate) fn insert_discard(&mut self, key: K, value: V) -> bool {
+        self.insert_with_previous(key, value, false).0
+    }
+
     #[expect(
         clippy::needless_pass_by_value,
         reason = "The governed insertion interface transfers ownership of the key."
     )]
-    pub(crate) fn insert(&mut self, key: K, value: V) -> Option<V> {
+    fn insert_with_previous(&mut self, key: K, value: V, read_previous: bool) -> (bool, Option<V>) {
         let key_bytes = encode(&key);
         let value_bytes = value
             .into_bytes()
@@ -115,9 +123,15 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> OrderedMap<K, V, M> {
         V::BOUND
             .check(&value_bytes)
             .expect("ordered-map codec bound mismatch");
-        let (root, previous) =
-            self.insert_at(self.store.root_node(), &key, &key_bytes, &value_bytes, 0);
-        if previous.is_none() {
+        let (root, replaced, previous) = self.insert_at(
+            self.store.root_node(),
+            &key,
+            &key_bytes,
+            &value_bytes,
+            0,
+            read_previous,
+        );
+        if !replaced {
             self.store.root = root.address;
             self.store.len = self
                 .store
@@ -126,12 +140,21 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> OrderedMap<K, V, M> {
                 .expect("ordered-map length overflow");
             self.store.commit();
         }
-        previous
+        (replaced, previous)
     }
 
     pub(crate) fn remove(&mut self, key: &K) -> Option<V> {
-        let (root, previous) = self.remove_at(self.store.root_node(), key, 0);
-        if previous.is_some() {
+        self.remove_with_previous(key, true).1
+    }
+
+    pub(crate) fn remove_discard(&mut self, key: &K) -> bool {
+        self.remove_with_previous(key, false).0
+    }
+
+    fn remove_with_previous(&mut self, key: &K, read_previous: bool) -> (bool, Option<V>) {
+        let (root, removed, previous) =
+            self.remove_at(self.store.root_node(), key, 0, read_previous);
+        if removed {
             self.store.root = root.address;
             self.store.len = self
                 .store
@@ -140,7 +163,7 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> OrderedMap<K, V, M> {
                 .expect("invalid ordered-map length");
             self.store.commit();
         }
-        previous
+        (removed, previous)
     }
 
     pub(crate) fn get(&self, key: &K) -> Option<V> {
@@ -186,6 +209,17 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> OrderedMap<K, V, M> {
 
     fn value(&self, node: Node) -> V {
         self.value_bytes(node).decode()
+    }
+
+    fn previous_value(&self, node: Node, read: bool) -> Option<V> {
+        if read {
+            Some(self.value(node))
+        } else {
+            // Discard skips payload IO/decoding, never stored length or block admission.
+            check_length::<V>(node.value_len);
+            self.store.admit_value(node);
+            None
+        }
     }
 
     fn value_bytes(&self, node: Node) -> EncodedValue {
@@ -286,12 +320,13 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> OrderedMap<K, V, M> {
         key_bytes: &[u8],
         value: &[u8],
         depth: u64,
-    ) -> (Link, Option<V>) {
+        read_previous: bool,
+    ) -> (Link, bool, Option<V>) {
         check_depth(depth);
         let Some(mut node) = root else {
-            return (self.store.new_node(key_bytes, value).link(), None);
+            return (self.store.new_node(key_bytes, value).link(), false, None);
         };
-        let (updated, previous) = match key.cmp(&self.key(node)) {
+        let (_, replaced, previous) = match key.cmp(&self.key(node)) {
             Ordering::Less => {
                 let result = self.insert_at(
                     self.store.child_node(node.left),
@@ -299,6 +334,7 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> OrderedMap<K, V, M> {
                     key_bytes,
                     value,
                     depth + 1,
+                    read_previous,
                 );
                 node.left = result.0;
                 result
@@ -310,44 +346,58 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> OrderedMap<K, V, M> {
                     key_bytes,
                     value,
                     depth + 1,
+                    read_previous,
                 );
                 node.right = result.0;
                 result
             }
             Ordering::Equal => {
-                let previous = self.value(node);
+                let previous = self.previous_value(node, read_previous);
                 self.store.replace_value(&mut node, value);
-                return (node.link(), Some(previous));
+                return (node.link(), true, previous);
             }
         };
-        let _ = updated;
-        if previous.is_some() {
-            (node.link(), previous)
+        if replaced {
+            (node.link(), true, previous)
         } else {
-            (self.balance(node), None)
+            (self.balance(node), false, None)
         }
     }
 
-    fn remove_at(&mut self, root: Option<Node>, key: &K, depth: u64) -> (Link, Option<V>) {
+    fn remove_at(
+        &mut self,
+        root: Option<Node>,
+        key: &K,
+        depth: u64,
+        read_previous: bool,
+    ) -> (Link, bool, Option<V>) {
         check_depth(depth);
         let Some(mut node) = root else {
-            return (Link::default(), None);
+            return (Link::default(), false, None);
         };
-        let previous = match key.cmp(&self.key(node)) {
+        let (removed, previous) = match key.cmp(&self.key(node)) {
             Ordering::Less => {
-                let (left, previous) =
-                    self.remove_at(self.store.child_node(node.left), key, depth + 1);
+                let (left, removed, previous) = self.remove_at(
+                    self.store.child_node(node.left),
+                    key,
+                    depth + 1,
+                    read_previous,
+                );
                 node.left = left;
-                previous
+                (removed, previous)
             }
             Ordering::Greater => {
-                let (right, previous) =
-                    self.remove_at(self.store.child_node(node.right), key, depth + 1);
+                let (right, removed, previous) = self.remove_at(
+                    self.store.child_node(node.right),
+                    key,
+                    depth + 1,
+                    read_previous,
+                );
                 node.right = right;
-                previous
+                (removed, previous)
             }
             Ordering::Equal => {
-                let previous = self.value(node);
+                let previous = self.previous_value(node, read_previous);
                 self.store.free_blob(node.key);
                 self.store.free_blob(node.value);
                 if node.left.address == 0 || node.right.address == 0 {
@@ -358,7 +408,8 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> OrderedMap<K, V, M> {
                         } else {
                             node.left
                         },
-                        Some(previous),
+                        true,
+                        previous,
                     );
                 }
                 let (right, successor) = self.detach_first(
@@ -369,13 +420,13 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> OrderedMap<K, V, M> {
                 );
                 node.right = right;
                 self.store.move_payload(&mut node, successor);
-                Some(previous)
+                (true, previous)
             }
         };
-        if previous.is_none() {
-            (node.link(), None)
+        if removed {
+            (self.balance(node), true, previous)
         } else {
-            (self.balance(node), previous)
+            (node.link(), false, None)
         }
     }
 

@@ -179,8 +179,8 @@ mod canister {
             let mut view = region(runtime);
             view.initialize().unwrap();
             for key in 0..128 {
-                map.insert(key, key + 10);
-                view.insert(key, key + 20).unwrap();
+                assert!(!map.insert_discard(key, key + 10));
+                assert!(!view.insert_discard(key, key + 20).unwrap());
             }
             let _ = StableCell::create(
                 runtime
@@ -220,8 +220,13 @@ mod canister {
             let byte = u8::try_from(value).unwrap();
             records.set(0, &SessionBytes(vec![byte; 2048]));
             records.set(1, &SessionBytes(vec![byte + 1; 256]));
-            map.insert(0, value);
-            region(runtime).insert(0, value + 1).unwrap();
+            assert!(map.insert_discard(0, value));
+            assert!(map.remove_discard(&1));
+            assert!(!map.insert_discard(1, 11));
+            let mut view = region(runtime);
+            assert!(view.insert_discard(0, value + 1).unwrap());
+            assert!(view.remove_discard(&1).unwrap());
+            assert!(!view.insert_discard(1, 21).unwrap());
             StableCell::<u64>::load(
                 runtime
                     .open_memory(&ic_storage::StableKey::parse("storage.cell.v1").unwrap())
