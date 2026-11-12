@@ -2,6 +2,6 @@
 #[ignore = "requires an explicitly prepared server URL and Storage fixture Wasm"]
 async fn installed_storage_adapters() {
     let pic = crate::connect_to_server().await;
-    super::qualify(&pic).await;
+    super::qualify(&pic, None).await;
     pic.drop().await;
 }

@@ -5,7 +5,7 @@ pending copied-ICSS engine baseline, not a published Storage release.
 
 ## Coverage contract
 
-The [single catalogue](../../../qualification/ic-storage-benchmarks/src/catalogue.rs)
+The [single catalogue](../../../qualification/ic-storage-benchmarks/src/catalogue/mod.rs)
 owns 73 concrete types and 565 unique collection/role cases. Its callback roster
 drives metadata, normalization and concrete Wasm generic dispatch.
 Each type appears as a Map/Region value under u64, an ordered Map/Region key

@@ -3,6 +3,15 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/logging-stable/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.72.2] - Unreleased
+
+### 🧰 Tooling
+
+- Move codec and test modules with children to `mod.rs`, preserving their Rust
+  paths and contents. See [the detailed notes](0.72.md).
+- Adopt inherited Toko Tooling 0.39.17 and Wire 0.21.4 selections without changing
+  checkpoint behavior.
+
 ## [0.72.1] - 2026-11-11
 
 ### 🔧 Changed

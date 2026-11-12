@@ -123,12 +123,10 @@ pub(super) fn runner_evidence(root: &Path, args: &[&str]) -> Result<()> {
 fn admitted_adapter_baselines_survive_recovery_and_refuse_drift() {
     for group in ["metrics-storage", "logging-storage"] {
         let fixture = Fixture::for_group(group);
-        let path = format!("crates/ic-{group}/src/tests.rs");
-        fs::write(
-            fixture.repo.root.join(&path),
-            "// selected adapter change\n",
-        )
-        .unwrap();
+        let path = format!("crates/ic-{group}/src/tests/mod.rs");
+        let file = fixture.repo.root.join(&path);
+        fs::create_dir_all(file.parent().unwrap()).unwrap();
+        fs::write(file, "// selected adapter change\n").unwrap();
         {
             let mut state = fixture.repo.exec.state.borrow_mut();
             state.git.validation_baseline = Some(state.git.source.clone());
@@ -176,7 +174,7 @@ fn admitted_adapter_baselines_survive_recovery_and_refuse_drift() {
 fn adapter_private_changes_select_only_proven_unaffected_omissions() {
     for (group, path) in [
         ("metrics-storage", "codec/mod.rs"),
-        ("logging-storage", "codec.rs"),
+        ("logging-storage", "codec/mod.rs"),
     ] {
         let selected = stages(group, &[format!("crates/ic-{group}/src/{path}")], true);
         assert_eq!(selected.len(), STAGES.len());
@@ -362,7 +360,7 @@ exec /usr/bin/make "$@"
     for (group, private) in [
         ("storage", "src/lib.rs"),
         ("metrics-storage", "src/codec/mod.rs"),
-        ("logging-storage", "src/codec.rs"),
+        ("logging-storage", "src/codec/mod.rs"),
     ] {
         for scenario in [
             "workspace",

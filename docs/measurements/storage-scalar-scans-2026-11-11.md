@@ -35,7 +35,7 @@ Native read counts alone cannot explain the instruction ratio.
 
 ## Verified costs and next experiments
 
-1. [Range admission](../../crates/ic-storage/src/ordered_map.rs) computes a lower
+1. [Range admission](../../crates/ic-storage/src/ordered_map/mod.rs) computes a lower
    rank with `rank`, then [Cursor::seek](../../crates/ic-storage/src/ordered_map/iter.rs)
    walks from the root again to construct a path. A first/middle one-record range
    in the 4,096-row tree reads 24 routing nodes and one value, with 13 key decodes.
@@ -345,7 +345,7 @@ No third-party implementation was copied or adapted in this investigation.
 
 ### Constraints that eliminate misleading shortcuts
 
-1. **Byte order is not `Ord`.** [Integer codecs](../../crates/ic-storage/src/storable.rs)
+1. **Byte order is not `Ord`.** [Integer codecs](../../crates/ic-storage/src/storable/mod.rs)
    use little-endian bytes: numeric 255 precedes 256, but their encoded byte
    strings sort in the reverse order. Arbitrary user-defined ordering cannot
    be inferred from `Storable`. Radix indexing would need a separately specified
@@ -377,11 +377,11 @@ No third-party implementation was copied or adapted in this investigation.
 
 ### What the next comparison must add
 
-The current [type catalogue](../../qualification/ic-storage-benchmarks/src/catalogue.rs)
+The current [type catalogue](../../qualification/ic-storage-benchmarks/src/catalogue/mod.rs)
 covers many shapes, but shape breadth is not key-distribution breadth.
 [Array and principal generators](../../qualification/ic-storage-benchmarks/src/catalogue/models.rs)
 embed a big-endian counter in otherwise constant bytes;
-[bounded and unbounded byte generators](../../qualification/ic-storage-benchmarks/src/types/breadth.rs)
+[bounded and unbounded byte generators](../../qualification/ic-storage-benchmarks/src/types/breadth/mod.rs)
 also use an identity prefix and a constant suffix. Shuffled insertion changes
 history, not these bytes. A tree-family decision needs independent controls for:
 
@@ -428,8 +428,8 @@ persistent B-tree available to substitute for Map.
 
 The other tree family is Rust's heap `BTreeSet`, used for
 [admitted StableKeys](../../crates/ic-storage/src/runtime/admission.rs),
-[live allocation leases](../../crates/ic-storage/src/runtime/directory_model/leases.rs)
-and [backing custody](../../crates/ic-storage/src/runtime/custody.rs). These sets
+[live allocation leases](../../crates/ic-storage/src/runtime/directory_model/leases/mod.rs)
+and [backing custody](../../crates/ic-storage/src/runtime/custody/mod.rs). These sets
 track transient runtime authority; they do not implement persistent collection
 records. Substituting a heap map and rebuilding it from storage would change
 reopen cost and memory use. Conversely, running these transient sets through a
@@ -513,7 +513,7 @@ no new instruction benchmark, engine replacement or release occurred.
 
 Only the transient physical-backing claim registry changes, from `BTreeSet` to
 a sorted `Vec<BackingIdentity>` in
-[custody.rs](../../crates/ic-storage/src/runtime/custody.rs). It keeps binary
+[custody/mod.rs](../../crates/ic-storage/src/runtime/custody/mod.rs). It keeps binary
 search for duplicate detection and removal, retains the native mutex/Wasm
 thread-local boundary, and releases vector capacity after the last claim drops.
 No identity type, public API, lease ownership, admission order, stored format,
@@ -1312,3 +1312,163 @@ ordered replays use the maintained driver with `--workload ordered --samples 1
 --upstream-bucket-pages 128`. The installed qualifier uses `--storage-only` with
 its current supplied Wasm through Testkit's managed server. Rebuilding current
 sources reproduces the retained candidate, not the rejected outlining trial.
+
+## Small-read experiments — 2026-11-12
+
+These isolated trials preserve public APIs, current version-1 images, exclusive
+leases and corruption admission. Independent implementers used current owned
+engine source/tests and restricted behavior handoffs; no ICSS or predecessor
+implementation was supplied. ICSS 0.7.2 remains an external comparison only.
+
+The selected graph includes Toko 0.39.15, Runtime 0.21.2, qualification Platform
+0.31.2 and Testkit 0.101.0/PocketIC 16.1.0, using Rust 1.99.1. A concurrent
+Wire 0.21.2 → 0.21.3 / errno 0.3.14 → 0.3.15 lock update invalidated the first
+Map command's final input check after it had produced results. That failed
+attempt is retained as failure evidence, not reported as passing qualification.
+After the maintainer confirmed updates were finished, fresh baseline/candidate
+runs passed all input checks. All 576 comparable baseline medians and all small
+application sizes were unchanged by the dependency refresh.
+
+### Retain admitted-node release
+
+Map removal reuses the fixed allocation class from the node just admitted during
+its exclusive traversal, avoiding one repeated header read per released node.
+It still checks the complete extent, free-head extent and duplicate head before
+writing the free link. Blob release retains its separate block admission.
+Subsequent public operations readmit persisted nodes; the private node value is
+not a reusable public reclamation capability. The new tests include corrupted
+identity/class, invalid free heads and a persisted reference to a freed node.
+
+At 256 shuffled rows, uniform access, batches 1/32 and three-round medians,
+280 of 576 measurements improve, 286 are identical and ten increase by less than
+0.02%. Every ICSS reference and capacity result is unchanged. The 4,096-row
+frozen-module replay has 12 improvements, 82 identical and four small increases
+out of 98. Those larger-population modules predate the lock refresh; the refreshed
+256-row control separately establishes identical instruction measurements.
+The numbers below are measured inner-operation instructions including applicable
+memory charges, not whole-application throughput. ICSS uses 128-page buckets;
+Storage retains eight-page units.
+
+| Case, batch 32 | Rows | Before | After | ICSS 0.7.2 |
+| --- | ---: | ---: | ---: | ---: |
+| Map U64 remove | 256 | 709,533 | 699,411 | 1,839,263 |
+| Map U64 remove inserted | 256 | 699,855 | 689,067 | 2,128,623 |
+| Map U64 replace, small regression | 256 | 577,837 | 577,933 | 1,002,943 |
+| Region U64 remove | 256 | 790,709 | 779,747 | 1,858,368 |
+| Map U64 remove | 4,096 | 2,103,794 | 2,092,992 | 1,986,372 |
+| Map U64 remove inserted | 4,096 | 1,663,361 | 1,652,575 | 2,004,934 |
+
+Matched small application sizes are total uncompressed / code-section bytes,
+separate from the catalogue benchmark harness:
+
+| Consumer | Before | Map trial | ICSS 0.7.2 |
+| --- | ---: | ---: | ---: |
+| base | 17,110 / 14,928 | 17,110 / 14,928 | 17,106 / 14,928 |
+| map | 103,151 / 87,704 | 103,213 / 87,757 | 90,687 / 49,664 |
+| set | 101,762 / 86,469 | 101,824 / 86,522 | 90,195 / 49,121 |
+| vector | 88,477 / 75,330 | 88,477 / 75,330 | 64,738 / 27,746 |
+| cell | 86,587 / 73,986 | 86,587 / 73,986 | 63,325 / 26,246 |
+| region | 103,949 / 88,511 | 104,011 / 88,564 | 90,142 / 49,222 |
+| map-region | 106,063 / 90,486 | 106,125 / 90,539 | 111,351 / 70,193 |
+| all | 116,949 / 99,701 | 117,011 / 99,754 | 119,816 / 77,566 |
+
+The 62 total / 53 code bytes added to each affected consumer are accepted for
+this modest removal improvement. This is not a claim that Storage wins every
+Map workload: the populated remove control remains slower than ICSS.
+
+Evidence is under `target/evidence/storage-small-io-20261112/`. Refreshed
+comparison attempts are `cslG1u` (baseline) and `1N8RTZ` (candidate); application
+size attempts are `gb7DWs` and `GFczQJ`. The failed command is `UXxYi9`.
+Frozen sources, hashes, patches, raw observations and comparisons remain there.
+
+### Reject small variable-slot coalescing
+
+The Vector trial read the four-byte length and complete slot in one call when
+the declared maximum was at most 64 bytes. It validated the length and decoded
+only live bytes. Fixed and larger paths stayed unchanged. Thirteen internal and
+12 public Vector tests plus Wasm Clippy passed, including malformed lengths,
+stale padding, neighbors and crossing ranges. Correctness alone did not justify
+the change: reading unused padding causes unacceptable empty-record regressions.
+
+The matched 256-row selection covers U64, Array32, Blob20 (0/8/20-byte payloads)
+and OptionU64, uniform access, batches 1/32, three rounds, without shuffled
+population. Of 156 medians, 90 improve, 48 are identical and 18 regress. Both
+boundary selections have 36 improvements, 24 identical and 18 regressions among
+78 medians. All ICSS and capacity controls match. OptionU64 remains a Storage-only
+case where ICSS admission is unavailable, not a zero-cost ICSS result.
+
+| Blob20 Get, batch 32 | Rows / pattern | Bytes | Before | Rejected trial | ICSS |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Ordinary empty | 256 / uniform | 0 | 100,455 | 105,767 | 98,206 |
+| Ordinary short | 256 / uniform | 8 | 112,039 | 109,447 | 110,624 |
+| Ordinary full | 256 / uniform | 20 | 112,807 | 109,831 | 111,392 |
+| 4 KiB crossing, empty | 170 / last | 0 | 100,455 | 105,767 | 98,206 |
+| 64 KiB crossing, empty | 2,730 / last | 0 | 100,455 | 185,767 | 98,206 |
+| 64 KiB crossing, short | 2,730 / last | 8 | 192,039 | 189,447 | 110,624 |
+
+Single populated crossing reads improve sharply (for example 161,423 → 1,342
+instructions for eight bytes at 2,730 rows), showing why boundary behavior must
+be measured alongside repeated reads. These observations do not isolate every
+stable helper/heap charge. The empty crossing batch's 84.9% regression rejects
+the default even though ordinary populated batches improve 2.3–2.6%.
+
+| Application, total / code bytes | Before | Rejected trial | ICSS |
+| --- | ---: | ---: | ---: |
+| Vector | 88,477 / 75,330 | 88,903 / 75,659 | 64,738 / 27,746 |
+| All collections | 117,011 / 99,754 | 117,420 / 100,066 | 119,816 / 77,566 |
+
+Other application sizes are unchanged. All 16 size consumers pass their calls
+and upgrades. Production and trial-specific tests are restored; no optional
+coalescing mode remains. The trial patch and measurements are retained under
+the small-read evidence directory, comparison `cry2fS`, size `qdJ7c3`, and
+`vector-before-*` / `vector-after-*` frozen replays. Baseline modules are `1N8RTZ`.
+
+### Reject small Cell stack decoding
+
+The Cell trial decoded admitted payloads up to 64 bytes from a stack buffer;
+larger payloads retained direct initialization of an owned vector. The expanded
+`cell-open` workload now covers U64, fixed arrays, owned bytes at 0/32/63/64/65
+bytes and larger controls through 1 MiB, plus strings. All phases reopen the Cell
+and preserve the existing replacement/growth/shrink history. Both benchmark
+backends gained the missing array/string reopen dispatch, after an initial
+installed attempt exposed that coverage gap.
+
+A completed concurrent Map allocation-order edit was preserved. A fresh baseline
+temporarily removed only this Cell trial, so both sides include the same Map
+edit. Across 93 medians, 20 improve and 73 regress; all ICSS and capacity controls
+match. Most regressions are small, but the fixed-type benefit does not justify
+the additional branch and copying for owned values. The trial is removed.
+
+| Reopen control | Before | Rejected Cell trial | ICSS 0.7.2 |
+| --- | ---: | ---: | ---: |
+| U64 | 83,199 | 83,012 | 81,919 |
+| Array32 | 83,325 | 83,132 | 82,049 |
+| Array64 | 83,591 | 83,410 | 82,467 |
+| Bytes, empty | 2,810 | 2,827 | 81,791 |
+| Bytes, 32 | 83,287 | 83,448 | 82,056 |
+| Bytes, 64 | 83,319 | 83,512 | 82,088 |
+| Bytes, 65 | 83,320 | 83,323 | 82,089 |
+| String, 32 | 84,167 | 84,339 | 82,874 |
+| Bytes, 1 MiB | 4,811,966 | 4,811,969 | 4,970,637 |
+
+Scalar/array loads save about 0.22%; small owned payloads regress about 0.2%, and
+empty bytes about 0.6%. The Cell-only application shrinks from 86,587 / 73,986
+total/code bytes to 86,198 / 73,613, versus ICSS 63,325 / 26,246. However the
+all-collection application grows 117,011 / 99,754 → 117,159 / 99,885, versus
+ICSS 119,816 / 77,566. Other selections are unchanged. No universal speed or
+size improvement follows from the Cell-only result.
+
+Nineteen internal and fourteen public Cell tests, Wasm Clippy and all sixteen
+installed size consumers pass. Initial new-test failures corrected fixture key
+framing and the test's mistaken retry expectation; production poisoning was
+unchanged. Codec failures release the lease, while backing IO panics poison the
+current owner. Corruption, ceilings and current-image admission remain intact.
+Trial-specific implementation/tests are removed; the broader benchmark remains.
+
+Isolated comparison baseline/candidate: `2SoS24` / `wZ2Bh3`; application sizes:
+`5RgvDt` / `R8PvTc`. Earlier baseline `GX52tn` predates the concurrent Map edit;
+`65TeMD` is the failed missing-dispatch run. Raw evidence, patches and source
+identities remain under the small-read evidence directory. Reproduce the
+expanded current workload with `BENCH_WORKLOAD=cell-open BENCH_SAMPLES=1
+BENCH_UPSTREAM_BUCKET_PAGES=128 make benchmark-storage`. This reruns the retained
+Cell implementation, not the rejected stack trial.

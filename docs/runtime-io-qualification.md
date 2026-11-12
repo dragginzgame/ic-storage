@@ -494,7 +494,7 @@ from `0x6D` to `0xFF`. This is executed corruption evidence. The crate guard
 protects handles opened through `ic-memory`, including its ledger; direct
 upstream `VirtualMemory` users remain outside this protection.
 
-[`serialize_record`](../crates/ic-storage/src/stable_cell.rs) reserves the existing exact encoded
+[`serialize_record`](../crates/ic-storage/src/stable_cell/mod.rs) reserves the existing exact encoded
 size before invoking the canonical encoder. The size counter counts opaque
 payload lengths without rereading every payload byte. Neither codec nor
 persisted bytes changes. `validate_integrity` (historical source: `../crates/ic-storage/src/ledger/integrity.rs`)

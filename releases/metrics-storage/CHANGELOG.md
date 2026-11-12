@@ -3,6 +3,15 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/metrics-stable/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.76.2] - Unreleased
+
+### 🧰 Tooling
+
+- Move the tests module to `tests/mod.rs` because it has child modules. Rust
+  paths and test contents are unchanged. See [the detailed notes](0.76.md).
+- Adopt inherited Toko Tooling 0.39.17 and Wire 0.21.4 selections without changing
+  checkpoint behavior.
+
 ## [0.76.1] - 2026-11-11
 
 ### 🔧 Changed

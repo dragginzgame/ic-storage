@@ -16,8 +16,8 @@ The inspected current consumers use Storage-issued named allocations. These
 share a canister's physical stable backing; they are not separate Wasm heaps
 or ICSS MemoryManager buckets. Storage records new names with no data extents
 and grows by the requested number of 64 KiB pages. Directory metadata also
-occupies real pages. See [directory construction](../crates/ic-storage/src/runtime/directory_model.rs)
-and [physical accounting](../crates/ic-storage/src/runtime/directory_model/persistence.rs).
+occupies real pages. See [directory construction](../crates/ic-storage/src/runtime/directory_model/mod.rs)
+and [physical accounting](../crates/ic-storage/src/runtime/directory_model/persistence/mod.rs).
 
 A declaration can remain at zero data pages. Opening/initializing a collection
 and writing application data are separate events. Consequently, multiplying
@@ -256,7 +256,7 @@ keys, coordinator adds three, and Wasm-store adds six; shared keys count once.
 ## Three benchmark recipes, no new production knobs
 
 The consumer inventory selects three fixed experiments in
-[`workloads.rs`](../qualification/ic-storage-benchmarks/src/workloads.rs).
+[`workloads/mod.rs`](../qualification/ic-storage-benchmarks/src/workloads/mod.rs).
 These are repeatable test points, not measured typical consumer sizes or promises
 that a database fits a given byte/page allowance. See the
 [benchmark commands and boundaries](../qualification/ic-storage-benchmarks/README.md#consumer-workloads).

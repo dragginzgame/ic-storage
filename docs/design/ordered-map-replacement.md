@@ -80,7 +80,7 @@ schema identity/admission remains the caller's responsibility.
 
 ## New private integration interface
 
-Author `crates/ic-storage/src/ordered_map.rs` and child modules only. The parent
+Author `crates/ic-storage/src/ordered_map/mod.rs` and child modules only. The parent
 integrates it into the crate and deletes the predecessor after acceptance.
 Use `OrderedMap<K: Storable + Ord + Clone, V: Storable, M: Memory>` with:
 

@@ -3,6 +3,32 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/persistence/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.73.5] - Unreleased
+
+### ⚡ Performance
+
+- Reuse node admission during Map/Set/region removal instead of rereading its
+  allocation header. Selected 256-record removal batches improve 1.4–1.5%,
+  with 62 additional application Wasm bytes and unchanged stored formats.
+  See [the matched comparison](../../docs/measurements/storage-scalar-scans-2026-11-11.md#small-read-experiments--2026-11-12).
+
+### 🧰 Tooling
+
+- Move modules with child directories to `mod.rs`, including test-only children,
+  preserving Rust module paths and pending implementation changes. Update source
+  links and release-helper fixtures, including focused Logging CI selection.
+- Add a full-identity 1k/10k/100k lookup/churn workload and broader reopened-Cell
+  coverage. The [matched study](../../docs/measurements/storage-identity-lookups-2026-11-12.md)
+  records the allocation-order trial and unresolved Auth performance budget.
+- Record rejected allocation-batching trials and add an earlier-image input to
+  focused Storage runtime qualification, checking mutation/rollback after upgrade.
+- Adopt Toko Tooling 0.39.17 and expose its shared `make deps-update` command
+  for sequential root and qualification Cargo updates. See [the detailed notes](0.73.md#0735---unreleased).
+- Adopt Host 0.76.5, Wire 0.21.4 and Runtime 0.21.3 requirements, preserving
+  production features and stored formats.
+- Update independent qualification to Platform 0.31.3, Runtime 0.21.3 and
+  Testkit 0.101.0, retaining PocketIC 16.1.0 and the existing client APIs.
+
 ## [0.73.4] - 2026-11-11
 
 ### ⚡ Performance

@@ -66,7 +66,7 @@ add dependencies. The native build must not import Platform. Public successful
 behavior, native backing identity representation, and persisted collection or
 allocation formats remain unchanged by this component.
 
-Write only `crates/ic-storage/src/memory.rs` (overwrite without reading old
+Write only `crates/ic-storage/src/memory/mod.rs` (overwrite without reading old
 contents) and a new `crates/ic-storage/src/memory/contract_tests.rs`. Use ordinary
 module discovery for the new tests; do not read previous tests. New tests should
 cover growth, boundaries, initializing reads, fallback and forwarding behavior.

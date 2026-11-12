@@ -284,7 +284,7 @@ not a retained implementation in this investigation.
 
 Evidence traced in the current implementation:
 
-- [Custody](../../../crates/ic-storage/src/runtime/custody.rs) forbids unmanaged
+- [Custody](../../../crates/ic-storage/src/runtime/custody/mod.rs) forbids unmanaged
   writes and competing managers over a claimed backing, and explicitly says it
   is not isolation against arbitrary linked code or a dishonest backing. Claims
   are shared across wrappers and retained until the final owner/lease drops.
@@ -292,11 +292,11 @@ Evidence traced in the current implementation:
   validate the backing and current declarations before admitting names. A live
   runtime owns its admitted in-memory directory. Warm bootstrap already compares
   the established binding without backing IO.
-- [Leases](../../../crates/ic-storage/src/runtime/directory_model/leases.rs)
+- [Leases](../../../crates/ic-storage/src/runtime/directory_model/leases/mod.rs)
   enforce live ownership separately from verification. Their indices remain valid
   because bindings append without removing or reordering existing entries. The
   runtime uses shared Rc/RefCell state; ordinary mutations update that same state.
-- [Persistence and IO](../../../crates/ic-storage/src/runtime/directory_model/persistence.rs)
+- [Persistence and IO](../../../crates/ic-storage/src/runtime/directory_model/persistence/mod.rs)
   already trust admitted metadata during reads, writes and growth. Logical bounds
   and bucket translation prevent governed data writes from reaching control rows.
   Native backing failures poison the owner; mutation publication and IC rollback

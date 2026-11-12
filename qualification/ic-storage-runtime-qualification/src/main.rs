@@ -28,6 +28,9 @@ struct Arguments {
     /// Qualify only collection IO, admission, upgrade and rollback in the Storage fixture.
     #[arg(long, conflicts_with_all = ["measure_valid_io", "logging_only"])]
     storage_only: bool,
+    /// Populate using this earlier compatible fixture, then upgrade to the selected fixture.
+    #[arg(long, requires = "storage_only")]
+    storage_install_wasm: Option<std::path::PathBuf>,
 }
 
 fn assert_trap(error: RejectResponse) {
@@ -65,13 +68,13 @@ async fn main() {
     let arguments = Arguments::parse();
     let pic = connect_to_server().await;
     if arguments.storage_only {
-        storage::qualify(&pic).await;
+        storage::qualify(&pic, arguments.storage_install_wasm.as_deref()).await;
     } else if arguments.logging_only {
         logging::qualify(&pic).await;
     } else {
         memory::qualify(&pic, arguments.measure_valid_io).await;
         if !arguments.measure_valid_io {
-            storage::qualify(&pic).await;
+            storage::qualify(&pic, None).await;
             ownership::qualify(&pic).await;
             logging::qualify(&pic).await;
         }

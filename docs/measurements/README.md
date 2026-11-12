@@ -6,6 +6,7 @@ within the 5 MiB repository budget. These are limits, not storage targets.
 
 | Topic | Summary | Selected data |
 | --- | --- | --- |
+| Full identity cold lookups | [Allocation-order study, rejected batching and actual Auth regression](storage-identity-lookups-2026-11-12.md) | [198 allocation-order rows](storage-identity-lookups-2026-11-12.csv), [198 batch-placement rows](storage-identity-batches-2026-11-12.csv); read attribution and application Wasm inline |
 | Map paths and Cell loading | [Native attribution and structure comparison](storage-scalar-scans-2026-11-11.md) | [Five measured experiments](storage-scalar-scans-2026-11-11.md#map-hot-path-experiments--2026-11-11), per-step instruction/application-size matrices and rejected root handoff; [candidate families and workload gaps](storage-scalar-scans-2026-11-11.md#data-structure-investigation--2026-11-11) |
 | Current full Storage/ICSS comparison | [Complete suite, size and bucket controls](storage-full-suite-2026-11-10.md) | 192,444 observations; selected matrices, run identities and reproduction commands inline |
 | Allocation admission | [Integrity checks, compact index and tradeoffs](../audits/recurring/storage-admission-2026-11-09.md) | [Matched admission/reopen/append matrix](../audits/recurring/storage-admission-2026-11-09.csv) |

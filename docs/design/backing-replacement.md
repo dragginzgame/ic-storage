@@ -129,7 +129,7 @@ impl<M: Memory> Store<M> {
 
 ## Work boundary and acceptance
 
-Write only `crates/ic-storage/src/runtime/directory_model/persistence.rs`
+Write only `crates/ic-storage/src/runtime/directory_model/persistence/mod.rs`
 (overwrite without reading old contents) and new private submodules/tests under
 its `persistence/` directory with fresh names. Do not read, overwrite or reference
 the existing tests.rs; parent will retire old-layout tests and retain meaningful

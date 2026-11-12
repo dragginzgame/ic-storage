@@ -98,7 +98,7 @@ pub(super) fn adapter_local(group: &str, path: &str) -> bool {
             || relative.starts_with("tests/")
             || group == "metrics-storage"
                 && (relative.starts_with("codec/") || relative.starts_with("metric/"))
-            || group == "logging-storage" && relative == "codec.rs")
+            || group == "logging-storage" && relative == "codec/mod.rs")
 }
 
 pub(super) fn stages(

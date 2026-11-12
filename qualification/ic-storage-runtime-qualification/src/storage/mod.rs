@@ -5,7 +5,7 @@ use ic_wire::native;
 fn frame(id: u64, value: &impl serde::Serialize) -> Vec<u8> {
     native::encode_request(id, value, protocol::REQUEST).unwrap()
 }
-use std::{env, fs, time::Duration};
+use std::{env, fs, path::Path, time::Duration};
 
 async fn update(
     pic: &PocketIc,
@@ -21,10 +21,16 @@ async fn update(
         })
 }
 
-pub(super) async fn qualify(pic: &PocketIc) {
+pub(super) async fn qualify(pic: &PocketIc, install_path: Option<&Path>) {
     let wasm =
         fs::read(env::var("IC_STORAGE_QUALIFICATION_WASM").expect("Storage fixture path")).unwrap();
-    let canister = super::install_fixture(pic, &wasm, frame(protocol::INIT_ID, &())).await;
+    let install_wasm = install_path.map(fs::read).transpose().unwrap();
+    let canister = super::install_fixture(
+        pic,
+        install_wasm.as_deref().unwrap_or(&wasm),
+        frame(protocol::INIT_ID, &()),
+    )
+    .await;
     let snapshot = async || {
         let bytes = pic
             .query_call(
@@ -151,6 +157,29 @@ pub(super) async fn qualify(pic: &PocketIc) {
         committed,
         "reopening unchanged names does not commit a generation"
     );
+    if install_path.is_some() {
+        super::assert_trap(
+            update(pic, canister, "mutate", protocol::MUTATE_ID, 1_u8)
+                .await
+                .unwrap_err(),
+        );
+        assert_eq!(
+            snapshot().await,
+            committed,
+            "new code must roll back old-image writes"
+        );
+        update(pic, canister, "mutate", protocol::MUTATE_ID, 0_u8)
+            .await
+            .unwrap();
+        assert_eq!(
+            snapshot().await,
+            committed,
+            "new code must mutate the old image"
+        );
+        println!(
+            "installed Storage: earlier fixture image upgrades and remains mutable without reset"
+        );
+    }
     println!(
         "installed Storage: non-initializing cell admission preserves bytes/pages and leases; cells, map, set, vector and region survive upgrade across 1,031 named allocations; decoder/update/upgrade traps roll back"
     );

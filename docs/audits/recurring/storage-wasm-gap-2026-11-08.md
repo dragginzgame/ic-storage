@@ -89,9 +89,9 @@ additive costs of individual source modules.
 
 [new_runtime](../../../qualification/ic-storage-benchmarks/benches/wasm.rs)
 really invokes declaration/grant admission, directory initialization and lease
-opening. [Directory](../../../crates/ic-storage/src/runtime/directory_model.rs)
+opening. [Directory](../../../crates/ic-storage/src/runtime/directory_model/mod.rs)
 contains key and allocation indexes, validation and Wire encoding/decoding;
-[persistence](../../../crates/ic-storage/src/runtime/directory_model/persistence.rs)
+[persistence](../../../crates/ic-storage/src/runtime/directory_model/persistence/mod.rs)
 adds snapshot preparation/publication. Heap B-tree/set and sorting instantiations
 also contribute. Bare ICSS does not provide this complete contract.
 
@@ -355,7 +355,7 @@ necessary or that every byte can be removed.
 
 Concrete source owners and candidates for a subsequent experiment:
 
-1. [Directory indexes](../../../crates/ic-storage/src/runtime/directory_model.rs)
+1. [Directory indexes](../../../crates/ic-storage/src/runtime/directory_model/mod.rs)
    retain both `by_key` and `by_id`. Validation already requires `image.entries`
    to have strictly ascending IDs, yet `by_id` separately maps each ID to its
    position. Replacing that derived index with binary search is a bounded local
@@ -368,7 +368,7 @@ Concrete source owners and candidates for a subsequent experiment:
    `StableKey` used by collection construction. Review which canonical ordering
    can be carried forward rather than reconstructed. Historical inclusion and
    arbitrary private callers must still preserve duplicate/authority checks.
-3. [Snapshot persistence](../../../crates/ic-storage/src/runtime/directory_model/persistence.rs)
+3. [Snapshot persistence](../../../crates/ic-storage/src/runtime/directory_model/persistence/mod.rs)
    and directory validation remain material: named Cell functions include
    4,707 bytes in validation, 3,619 in persisted read and 3,220 in commit preparation.
    Wire/Serde work also lives in callers and Rust helpers. These counts do not

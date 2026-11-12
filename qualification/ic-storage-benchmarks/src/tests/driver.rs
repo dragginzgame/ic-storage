@@ -1,13 +1,62 @@
 use super::*;
 
 #[test]
+fn identity_lookup_history_measures_misses_and_reuses_removed_records() {
+    let profile = Workload::IdentityLookups;
+    assert_eq!(IDENTITY_POPULATIONS, [1000, 10_000, 100_000]);
+    assert_eq!(profile.counts(), [1]);
+    for &case in profile.cases() {
+        for &payload in profile.payloads(case) {
+            let mut model: BTreeMap<_, _> = (0..32)
+                .map(|key| (key, case.expected_value(key, payload, false)))
+                .collect();
+            for round in 0..profile.rounds() {
+                for (phase, operation) in phases(case, false, Some(profile)) {
+                    let request = Request {
+                        case,
+                        operation,
+                        rows: 32,
+                        payload,
+                        count: 1,
+                        seed: 1 + u64::from(round) * 7919,
+                        pattern: Pattern::Uniform,
+                    };
+                    let result = expected_phase(&mut model, request, &phase);
+                    if matches!(phase.as_str(), "ColdMissAbove" | "ColdRemovedGet") {
+                        assert!(result.iter().all(|(_, value)| value.is_none()));
+                    }
+                }
+                assert_eq!(
+                    model.keys().copied().collect::<Vec<_>>(),
+                    (0..32).collect::<Vec<_>>()
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn cell_open_keeps_one_record_through_replacement_growth_and_shrink() {
     let profile = Workload::CellOpen;
     assert_eq!(profile.rows(), 1);
     assert_eq!(profile.counts(), [1]);
+    for case in [
+        case!(Cell, U64, U64),
+        case!(Cell, U64, Array32),
+        case!(Cell, U64, Array64),
+        case!(Cell, U64, Bytes),
+        case!(Cell, U64, String),
+    ] {
+        assert!(profile.cases().contains(&case));
+    }
+    let bytes = case!(Cell, U64, Bytes);
+    for boundary in [0, 63, 64, 65] {
+        assert!(profile.payloads(bytes).contains(&boundary));
+    }
     for &case in profile.cases() {
         assert_eq!(case.collection, Collection::Cell);
         for &payload in profile.payloads(case) {
+            assert!(case.accepts_payload(payload));
             let mut model = BTreeMap::from([(0, case.expected_value(0, payload, false))]);
             for round in 0..profile.rounds() {
                 for (phase, operation) in phases(case, false, Some(profile)) {

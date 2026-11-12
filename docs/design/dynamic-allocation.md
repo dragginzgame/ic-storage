@@ -7,7 +7,7 @@ fresh/reset backing on 2026-11-10. The canonical host/geometry contract is
 
 ## Ownership and implementation
 
-[Persistence](../../crates/ic-storage/src/runtime/directory_model/persistence.rs)
+[Persistence](../../crates/ic-storage/src/runtime/directory_model/persistence/mod.rs)
 was independently implemented from a restricted behavioral handoff. The
 [implementation record](backing-replacement.md) identifies inputs and qualification.
 There is one production backing implementation, no public memory-manager

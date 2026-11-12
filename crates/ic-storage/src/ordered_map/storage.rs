@@ -271,6 +271,10 @@ impl<M: Memory> Store<M> {
     }
 
     pub fn new_node(&mut self, key: &[u8], value: &[u8]) -> Node {
+        // Keep routing and overflow key blocks adjacent on fresh allocation.
+        // Large values must not separate them into different cold memory pages.
+        // Reuse, pointer validation and the STORMAP1 layout remain unchanged.
+        let address = self.allocate(NODE_CLASS, NODE);
         let key_address = if key.len() > INLINE_KEY {
             self.new_blob(key)
         } else {
@@ -281,7 +285,6 @@ impl<M: Memory> Store<M> {
         } else {
             0
         };
-        let address = self.allocate(NODE_CLASS, NODE);
         let mut inline_key = [0; INLINE_KEY];
         if key.len() <= INLINE_KEY {
             inline_key[..key.len()].copy_from_slice(key);
@@ -304,7 +307,14 @@ impl<M: Memory> Store<M> {
     }
 
     pub fn free_node(&self, node: Node) {
-        self.release(node.address, NODE);
+        // Removal passes a node admitted during this exclusive traversal. No
+        // intervening operation changes its NODE identity or fixed size class;
+        // later removals must readmit storage rather than reuse a saved Node.
+        assert!(
+            valid_pointer(node.address, NODE_BYTES, self.end),
+            "invalid ordered-map node extent"
+        );
+        self.release_admitted(node.address, NODE_CLASS);
     }
 
     pub fn value_bytes(&self, node: Node) -> EncodedValue {
@@ -475,17 +485,22 @@ impl<M: Memory> Store<M> {
                 .write(free_head_offset(class), &next.to_le_bytes());
             head
         };
-        if kind != NODE {
-            let mut bytes = [0; 16];
-            put(&mut bytes, 0, kind);
-            put(&mut bytes, 8, class as u64);
-            self.memory.write(address, &bytes);
-        }
+        // Claim every allocation immediately. A node can share its size class
+        // with later overflow payloads; leaving its old FREE identity until
+        // node initialization would admit it twice through a corrupt free cycle.
+        let mut bytes = [0; 16];
+        put(&mut bytes, 0, kind);
+        put(&mut bytes, 8, class as u64);
+        self.memory.write(address, &bytes);
         address
     }
 
     fn release(&self, address: u64, kind: u64) {
         let class = self.block(address, kind);
+        self.release_admitted(address, class);
+    }
+
+    fn release_admitted(&self, address: u64, class: usize) {
         let head = self.free_head(class);
         assert_ne!(address, head, "double free of ordered-map block");
         let mut bytes = [0; 24];

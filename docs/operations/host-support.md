@@ -130,7 +130,7 @@ already tracked by Git. Adopt new locks through an explicitly authorized commit
 or PR before the real-checkout declaration/release gate can pass; qualification
 alone does not authorize staging them.
 
-Installed runtime qualification uses the published `ic-testkit` 0.100.2 server CLI
+Installed runtime qualification uses the published `ic-testkit` 0.101.0 server CLI
 selected in `ci/runtime-tools.env`, installed through Shared Tooling's exact Cargo
 binary installer. It has a separate locked registry tool graph, outside both
 workspace lockfiles. Prepare it and Testkit's authenticated server selection explicitly:
@@ -152,7 +152,7 @@ Wasm, input hashes and all optimizer/server/runtime logs remain under
 `target/qualification/runtime/`, including failures. Normal library builds and
 their Wasm budgets remain unoptimized. The runner consumes
 `IC_TESTKIT_POCKET_IC_URL`; it never downloads or
-spawns a server. Testkit 0.100.2 re-exports PocketIC's async client and
+spawns a server. Testkit 0.101.0 re-exports PocketIC's async client and
 selects server 16.1.0. Drivers own a current-thread Tokio runtime, explicit
 five-minute polling budgets and awaited best-effort instance deletion. The
 managed CLI bounds server lifetime; polling budgets are not absolute HTTP
@@ -213,7 +213,7 @@ cargo +1.99.1 build --manifest-path qualification/Cargo.toml \
   --target-dir target -p ic-storage-test-fixtures --locked --offline --profile wasm-size \
   --target wasm32-unknown-unknown --example wasm-storage-qualification
 testkit_cli="$(RUSTUP_TOOLCHAIN=1.99.1 bash scripts/dev/install-rust-tools.sh \
-  --consumer "$PWD" --package ic-testkit --version 0.100.2 \
+  --consumer "$PWD" --package ic-testkit --version 0.101.0 \
   --bin ic-testkit-server --profile release --features cli --check)"
 IC_STORAGE_QUALIFICATION_WASM="$PWD/target/wasm32-unknown-unknown/wasm-size/examples/wasm_storage_qualification.wasm" \
   "$testkit_cli" run --directory "$PWD/.tools/ic-testkit-server" --ttl 900 -- \

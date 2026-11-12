@@ -15,19 +15,19 @@ the crate-specific obligations below. An audit does not authorize fixes.
   Review current contracts; historical reports do not establish present behavior.
 - Public API roots: [library exports](../../../crates/ic-storage/src/lib.rs),
   [runtime and allocation handles](../../../crates/ic-storage/src/runtime/mod.rs),
-  [stable keys](../../../crates/ic-storage/src/key.rs),
-  [backing IO](../../../crates/ic-storage/src/memory.rs),
-  [codecs](../../../crates/ic-storage/src/storable.rs),
-  [collections](../../../crates/ic-storage/src/adapter.rs) and the
+  [stable keys](../../../crates/ic-storage/src/key/mod.rs),
+  [backing IO](../../../crates/ic-storage/src/memory/mod.rs),
+  [codecs](../../../crates/ic-storage/src/storable/mod.rs),
+  [collections](../../../crates/ic-storage/src/adapter/mod.rs) and the
   [host example](../../../crates/ic-storage/examples/composed_host.rs).
   Inventory constructors separately from inert/diagnostic DTOs and runtime owners.
 - Trust transitions: declarations and namespace grants → host policy admission →
   validated directory candidate → durable snapshot/root publication → exclusive
   allocation lease. Trace [admission](../../../crates/ic-storage/src/runtime/admission.rs),
-  [custody](../../../crates/ic-storage/src/runtime/custody.rs),
-  [directory validation](../../../crates/ic-storage/src/runtime/directory_model.rs),
-  [persistence](../../../crates/ic-storage/src/runtime/directory_model/persistence.rs)
-  and [lease IO](../../../crates/ic-storage/src/runtime/directory_model/leases.rs).
+  [custody](../../../crates/ic-storage/src/runtime/custody/mod.rs),
+  [directory validation](../../../crates/ic-storage/src/runtime/directory_model/mod.rs),
+  [persistence](../../../crates/ic-storage/src/runtime/directory_model/persistence/mod.rs)
+  and [lease IO](../../../crates/ic-storage/src/runtime/directory_model/leases/mod.rs).
   Recovery must reject malformed current-format bytes, overlapping extents and
   invalid identities before issuing authority. Keep constructors and decoding aligned;
   decoded DTOs and diagnostics never grant memory access.
@@ -41,7 +41,7 @@ the crate-specific obligations below. An audit does not authorize fixes.
 - Collection boundaries include [record framing](https://github.com/dragginzgame/ic-storage/blob/4dea092f07e06749eb3f14aa24817c0962fbc0be/crates/ic-storage/src/adapter/record.rs),
   [B-tree routing and allocation](https://github.com/dragginzgame/ic-storage/blob/4dea092f07e06749eb3f14aa24817c0962fbc0be/crates/ic-storage/src/adapter/tree.rs),
   [Cell](../../../crates/ic-storage/src/adapter/cell.rs),
-  [Vector](../../../crates/ic-storage/src/adapter/vector.rs), and
+  [Vector](../../../crates/ic-storage/src/adapter/vector/mod.rs), and
   [map regions](../../../crates/ic-storage/src/adapter/region.rs).
   Check bounded decoding, checksums, staged publication, cache invalidation and
   free-space reuse. Root loading and key-only scans do not validate every payload.

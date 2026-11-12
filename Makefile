@@ -1,4 +1,5 @@
 .DEFAULT_GOAL := help
+# Shared companions: make/cargo-dependencies.mk
 .PHONY: help test version ensure-clean fetch-dependencies check-pins check-production-graph \
         install-tools tools-check install-host-tools host-tools-check install-ic-tools ic-tools-check test-tools test-failure-evidence test-offline-tool-reuse \
         lint-tooling test-hooks test-tooling test-fixture-cell validate validate-toolchain wasm-size \
@@ -44,6 +45,7 @@ LOCAL_TOOL_CHECK_TARGETS += ic-tools-check release-tools-check
 RELEASE_SETUP_TARGET := release-candidate-setup
 TOKO_TOOLING_RELEASE := 1
 include make/consumer.mk
+include make/cargo-dependencies.mk
 export PATH := $(CURDIR)/.tools/ic/bin:$(PATH)
 # GNU Make 3.81 cannot combine target-specific override and export. Reclassify
 # caller values before applying the formatter-only exported compiler policy.
@@ -59,6 +61,7 @@ TESTKIT_SERVER_DIRECTORY := $(CURDIR)/.tools/ic-testkit-server
 
 help:
 	@echo 'Setup: install-tools (host, IC, Cargo tools), fetch-dependencies, install-hooks; prepare the Rust toolchain first.'
+	@echo 'Dependencies: deps-update (Cargo updates root and qualification sequentially; optional DEPENDENCY_PACKAGE and DEPENDENCY_PRECISE selectors).'
 	@echo 'Focused checks: toko-tooling-check, tools-check, test-tools, test-failure-evidence, check-pins, check-production-graph, check-storage-boundary, check-candid-boundary, test-tooling, test-fixture-cell, test-release-adapters, test-hooks, fmt-check, lint-tooling.'
 	@echo 'Formatting: fmt. Full release checks: validate, validate-toolchain.'
 	@echo 'Installed runtime: install-runtime-server (explicit Testkit setup), runtime-server-check (offline), test-runtime (prepared server and locked caches).'

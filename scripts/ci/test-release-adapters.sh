@@ -53,6 +53,7 @@ mkdir -p "$directory/ci" "$directory/make"
 cp "$ROOT/Makefile" "$ROOT/rust-toolchain.toml" "$directory/"
 cp "$ROOT/ci/release-tools.env" "$ROOT/ci/runtime-tools.env" "$ROOT/ci/tool-versions.env" "$directory/ci/"
 cp "$ROOT/make/consumer.mk" "$ROOT/make/tools.mk" "$ROOT/make/release.mk" "$ROOT/make/rust-format.mk" "$ROOT/make/execution.mk" "$directory/make/"
+bash "$ROOT/scripts/ci/prepare-script-fixture.sh" "$ROOT" "$directory" make/cargo-dependencies.mk
 cp "$ROOT/ci/release-validation.json" "$ROOT/ci/cargo-release-groups.json" "$directory/ci/"
 mkdir -p "$directory/scripts/ci" "$directory/scripts/dev"
 cat > "$directory/scripts/dev/toko-tooling.sh" <<'STUB'

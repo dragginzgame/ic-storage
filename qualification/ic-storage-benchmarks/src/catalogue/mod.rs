@@ -100,6 +100,8 @@ macro_rules! type_catalogue {
         Session => ($crate::SessionEnvelope, "SessionEnvelope", "storage", true, "bounded-variable", &[256,2048], false);
         Chunk => ($crate::ChunkBytes, "ChunkBytes(max=1MiB)", "storage", true, "bounded-variable", &[0,31,32,33,1024,4096], false);
         AppTuple => ($crate::TupleKey, "Storage TupleKey", "storage", true, "fixed", &[28], false);
+        IdentityKey => ($crate::IdentityKey<false>, "Principal key", "storage", true, "bounded-variable", &[31], false);
+        CompositeIdentityKey => ($crate::IdentityKey<true>, "Composite Principal key", "storage", true, "bounded-variable", &[62], false);
         AppOptional => ($crate::OptionalU64, "Storage OptionalU64", "storage", true, "bounded-variable", &[9], false);
         Bounded255 => ($crate::BoundedBytes<255>, "Storage BoundedBytes<255>", "storage", true, "bounded-variable", &[0,8,255], false);
         Bounded256 => ($crate::BoundedBytes<256>, "Storage BoundedBytes<256>", "storage", true, "bounded-variable", &[0,8,256], false);
@@ -273,6 +275,9 @@ const EXTRA_PAIRS: &[(DataType, DataType)] = &[
     (DataType::Bounded255, DataType::Bytes),
     (DataType::Bytes, DataType::Bounded255),
     (DataType::AppTuple, DataType::AppOptional),
+    (DataType::Principal, DataType::Bytes),
+    (DataType::IdentityKey, DataType::Bytes),
+    (DataType::CompositeIdentityKey, DataType::Bytes),
 ];
 const CAPACITY: usize = DATA_TYPES.len() * 7 + 40 + EXTRA_PAIRS.len() * 2;
 const fn build_matrix() -> ([Case; CAPACITY], usize) {
@@ -368,7 +373,11 @@ pub fn operations(case: Case) -> Vec<Operation> {
         value,
     } = case;
     let base = match collection {
-        Collection::Map => crate::OPERATIONS.to_vec(),
+        Collection::Map => {
+            let mut operations = crate::OPERATIONS.to_vec();
+            operations.push(WarmGet);
+            operations
+        }
         Collection::Region => vec![
             Control,
             Get,

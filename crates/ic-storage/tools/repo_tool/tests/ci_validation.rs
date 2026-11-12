@@ -100,7 +100,7 @@ impl Execute for CiEffects<'_> {
 fn ci_diff_and_ownership_refuse_uncertain_scope() {
     let lock = fixture_lock();
     let metrics = "crates/ic-metrics-storage/src/codec/mod.rs";
-    let logging = "crates/ic-logging-storage/src/codec.rs";
+    let logging = "crates/ic-logging-storage/src/codec/mod.rs";
     assert_eq!(
         selected_group(&changed_paths(&raw(&[metrics])).unwrap(), &lock).unwrap(),
         Some("metrics-storage")
@@ -165,7 +165,7 @@ fn ci_dispatch_preserves_full_pushes_fallbacks_and_required_failures() {
         ),
         (
             "pull_request",
-            "crates/ic-logging-storage/src/codec.rs",
+            "crates/ic-logging-storage/src/codec/mod.rs",
             false,
             "validate-storage-tests",
             true,
@@ -173,7 +173,7 @@ fn ci_dispatch_preserves_full_pushes_fallbacks_and_required_failures() {
         ),
         (
             "pull_request",
-            "crates/ic-logging-storage/src/codec.rs",
+            "crates/ic-logging-storage/src/codec/mod.rs",
             false,
             "validate-lint",
             true,
@@ -181,7 +181,7 @@ fn ci_dispatch_preserves_full_pushes_fallbacks_and_required_failures() {
         ),
         (
             "pull_request",
-            "crates/ic-logging-storage/src/codec.rs",
+            "crates/ic-logging-storage/src/codec/mod.rs",
             false,
             "test-failure-evidence",
             true,
@@ -255,7 +255,7 @@ fn ci_wrong_head_refuses_before_dispatch() {
         group: String::new(),
         exec: CiEffects {
             inner: &fixture.repo.exec,
-            diff: raw(&["crates/ic-logging-storage/src/codec.rs"]),
+            diff: raw(&["crates/ic-logging-storage/src/codec/mod.rs"]),
             missing: false,
             fail: "",
             calls: RefCell::default(),

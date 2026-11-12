@@ -353,6 +353,15 @@ mod canister {
             } else {
                 Vec::new()
             };
+            if r.operation == Operation::WarmGet {
+                // Two complete pre-reads in this same execution. A first
+                // stable read can defer mapping charges to the next access.
+                for _ in 0..2 {
+                    for (key, _, _) in &inputs {
+                        std::hint::black_box(self.map.get(key));
+                    }
+                }
+            }
             let start = ic0::performance_counter(0);
             if r.operation == Operation::IterLast {
                 for _ in 0..r.count {
@@ -454,7 +463,9 @@ mod canister {
                             std::hint::black_box(&key);
                             None
                         }
-                        Operation::Get | Operation::MissAbove => self.map.get(&key),
+                        Operation::Get | Operation::WarmGet | Operation::MissAbove => {
+                            self.map.get(&key)
+                        }
                         Operation::Replace
                         | Operation::Insert
                         | Operation::Reinsert

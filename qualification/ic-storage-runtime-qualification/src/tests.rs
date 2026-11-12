@@ -118,3 +118,21 @@ fn measurement_arguments_reject_extra_tokens() {
         assert!(Arguments::try_parse_from(args).is_err());
     }
 }
+
+#[test]
+fn earlier_storage_image_requires_the_storage_qualification_scope() {
+    assert!(
+        Arguments::try_parse_from(["runner", "--storage-install-wasm", "earlier.wasm"]).is_err()
+    );
+    let args = Arguments::try_parse_from([
+        "runner",
+        "--storage-only",
+        "--storage-install-wasm",
+        "earlier.wasm",
+    ])
+    .unwrap();
+    assert_eq!(
+        args.storage_install_wasm.unwrap(),
+        std::path::Path::new("earlier.wasm")
+    );
+}

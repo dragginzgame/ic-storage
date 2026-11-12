@@ -31,11 +31,11 @@ the installed fixtures without retained mutation. Rebuild fixtures and runner
 together: the earlier raw packet protocol has been retired. These schemas add
 no public library endpoint and change no durable ledger or collection format.
 
-Testkit 0.100.2 re-exports the async PocketIC client and selects server 16.1.0.
+Testkit 0.101.0 re-exports the async PocketIC client and selects server 16.1.0.
 Drivers own a current-thread Tokio runtime, five-minute polling budgets and
 awaited best-effort instance deletion. The managed CLI bounds server lifetime;
 the polling budget is not an absolute HTTP deadline. The composition fixture
-independently selects Platform 0.29 / Runtime 0.21. Native client dependencies
+independently selects Platform 0.31 / Runtime 0.21. Native client dependencies
 do not enter product Wasm. Prepare the
 server explicitly with `make install-runtime-server`,
 check it offline with `make runtime-server-check`, and prepare the selected IC
@@ -66,6 +66,13 @@ with measurement mode. The Logging proof reports assertions, not cost measuremen
 `--storage-only` similarly requires only the Storage Wasm and server URL, and
 qualifies collection admission, IO, upgrades and rollback without running the
 allocation-IO or Logging suites. It conflicts with both other selection flags.
+Add `--storage-install-wasm /absolute/path/to/earlier-compatible-fixture.wasm`
+to populate with an earlier fixture before upgrading to
+`IC_STORAGE_QUALIFICATION_WASM`. Both fixtures must implement the same test
+protocol and admit the same persisted format. The runner additionally checks
+successful mutation and trapped-write rollback after that upgrade; it performs
+no migration or automatic reset. Omitting this option retains the usual
+same-build install/upgrade proof. Record both input modules with the evidence.
 `--help` lists the supported arguments without reading Wasm or contacting the
 server. Unknown and trailing arguments are rejected before runtime setup.
 Measurements retain the `valid_io` instruction rows and additionally report

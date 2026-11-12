@@ -116,6 +116,15 @@ pub(super) fn create(
         (DataType::AppTuple, DataType::AppOptional) => {
             pair::<TupleKey, OptionalU64>(case, collection, settings)
         }
+        (DataType::Principal, DataType::Bytes) => {
+            pair::<ReferenceValue<BenchmarkPrincipal>, Vec<u8>>(case, collection, settings)
+        }
+        (DataType::IdentityKey, DataType::Bytes) => {
+            pair::<IdentityKey<false>, Vec<u8>>(case, collection, settings)
+        }
+        (DataType::CompositeIdentityKey, DataType::Bytes) => {
+            pair::<IdentityKey<true>, Vec<u8>>(case, collection, settings)
+        }
         _ => unreachable!("unregistered key/value pair"),
     }
 }

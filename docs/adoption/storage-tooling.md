@@ -7,6 +7,118 @@ revision, selected roots, payload hashes and executable modes. The former
 live-policy exception is retired: dirty sibling rules never override the reviewed
 local baseline. Future policy changes require reviewed snapshot adoption.
 
+## Current supplier and Toko 0.39.17 adoption
+
+The 2026-11-12 registry review selects published Toko Tooling 0.39.17,
+IC Host Artifacts/FS/Process 0.76.5, IC Wire 0.21.4, IC Platform 0.31.3 and
+Runtime 0.21.3. Platform's qualification graph also selects Types 0.19.5 and
+macros/runtime-guard 0.21.3. Product and qualification catalogs now name the
+requested patch floors with compatible requirements; Toko retains its required
+exact selection in both workspaces. Testkit 0.101.0 and PocketIC 16.1.0 stay fixed.
+
+The starting lockfiles already contained the selected Host, Wire and Platform
+packages. Targeted Cargo resolution changes only Toko 0.39.15 → 0.39.17 relative
+to those saved inputs; unrelated selections are preserved. Both locked caches
+were prepared separately. The crates.io website API returned HTTP 403, so the
+version review used the canonical sparse registry index instead. An initial
+update named Types in the product graph, where it is deliberately absent; the
+corrected package-scoped update preserves that boundary.
+
+The authenticated installer retains all 40 entrypoints and 104 installed files.
+The new archive checksum is
+`aaeab49adb84ea0d66cf86ecc48d826125f9c3ac6eafaf2a362bccfeba7acbfd`.
+It adds the requested directory-module rule to the installed baseline. The
+preceding 28 exact-content module moves already satisfy that rule, including
+test-only directories. No snapshot-owned file was hand-edited. Executable pins
+are unchanged; existing prepared tools pass admission without reinstalling them.
+The optional new Rustdoc checker is not added to this consumer's entrypoints.
+
+Storage still selects only Runtime's `ic0` feature for Wasm. Native products
+have no Platform/Runtime dependency, and Host/Build/Testkit remain outside the
+production graph. Custom deployment commands retain their snapshot prerequisite
+and the three independent release groups retain their existing requirements.
+This adoption and Git readiness work do not select a release or publication.
+
+Snapshot/pins/prepared-tool admission and both production graphs pass. Product
+native/Wasm Clippy, 178 product unit tests, 88 native repository-helper tests,
+qualification Clippy and 49 benchmark/runtime native tests pass; two installed
+entrypoints remain ignored in the native invocation. Installed original/O3/Os/Oz
+IO, corruption, custody, upgrade and rollback pass at
+`target/qualification/runtime/attempt.exkRp9`.
+
+The focused Make-adapter test exposed a pending `deps-update` adoption gap: the
+isolated Makefile lacked `make/cargo-dependencies.mk`. The root now declares
+that companion, and the consumer fixture copies its complete declared closure.
+The `--make-only` substitute checks pass, including pre-effect snapshot admission;
+no real release, commit or publication is performed by those fixtures.
+
+Evidence and saved starting locks are under
+`target/evidence/supplier-refresh-20261112/`. Earlier performance numbers remain
+bound to their recorded suppliers, not relabelled as results for this graph.
+
+## Qualification Platform 0.31.2 and Testkit 0.101 adoption
+
+The independent workspace selects published Platform 0.31.2, Runtime 0.21.2
+and Testkit 0.101.0. The CLI in `ci/runtime-tools.env` also selects Testkit
+0.101.0; its server remains PocketIC 16.1.0. The existing async client imports,
+polling budgets and caller-owned server lifecycle need no API changes.
+Testkit's snapshot-cache preparation changes have no Storage callers.
+
+This targeted lock refresh changes Platform 0.29.3 to 0.31.2 and Testkit
+0.100.2 to 0.101.0, adding num-bigint 0.5.1 for Platform's native management
+codec. Runtime/macros/guard 0.21.2 and Types 0.19.4 were already in the starting
+qualification lock and are preserved. The fixture's Runtime requirement now
+names that selected patch. No other lock selections, product source, features
+or toolchain change; the pending Toko 0.39.15 work remains intact.
+
+Platform's principal-only composition fixture still uses one Runtime executor.
+Testkit's new native Platform codec must remain outside product Wasm; the
+production dependency gate retains that separation. Evidence, starting locks,
+supplier selection and qualification logs:
+`target/evidence/platform-testkit-adoption-20261112/`.
+
+Native Clippy covers runtime, benchmark/example callers and the Platform
+composition fixture; Wasm Clippy qualifies the composition fixture. All 47
+selected native tests pass. Two installed-server tests remain excluded from
+native execution and their runtime contracts are exercised by `make test-runtime`.
+Installed original/O3/Os/Oz IO, ownership, collection/directory corruption,
+upgrade and rollback checks pass at `target/qualification/runtime/attempt.FwcGrd`.
+Production graph, dependency boundary, pin and prepared-server checks pass.
+This is focused Linux adoption proof, not a new performance comparison, macOS
+result or release qualification. No publication is included.
+
+## Current Toko 0.39.15 adoption
+
+Both workspace catalogs and locks select published Toko Tooling 0.39.15,
+checksum `6cc984822e80e52ff7203aadcaf293a13f9fcf33f84175871321cb3a7de703a9`.
+The authenticated installer retains all 39 previous entrypoints and adds
+`make/cargo-dependencies.mk` with its declared dependencies: 40 entrypoints,
+104 installed files. The existing
+baseline, release scripts and selected tool versions are unchanged.
+
+The root Makefile includes the shared dependency entrypoint after `consumer.mk`.
+`make deps-update` runs ordinary `cargo update -v` sequentially for the root
+and qualification workspaces. Optional `DEPENDENCY_PACKAGE` and
+`DEPENDENCY_PRECISE` selectors apply to both; Cargo rejects absent packages.
+The command has no automatic CI/release prerequisite, edits no manifest
+requirements and does not roll back a partially completed update. Inspect both
+lockfiles after a failure. It performs no registry audit or extra reporting.
+
+This adoption updates only Toko selections. The pre-existing root lock change
+to Runtime 0.21.2 is preserved; qualification retains Runtime 0.21.1 and the
+existing Testkit/server pair. No product version, release gate or source changes
+are included. Evidence: `target/evidence/toko-03915-adoption-20261112/`.
+
+Snapshot/member, pin and prepared-tool admission pass. The real `deps-update`
+caller passes offline with the already-selected Toko package/version, reaches
+both workspaces sequentially and preserves both lockfile hashes. The default
+help goal, Perl syntax, formatting and documentation checks pass. Publication
+routing with a substituted helper shows the snapshot prerequisite before the
+helper. An earlier Make dry-run still reached the recursive native helper and
+refused the dirty source; no publication occurred. Its output is retained, and
+future routing previews must substitute that recursive helper explicitly.
+No product build, installed runtime rerun or release was needed for this update.
+
 ## Current Toko 0.39.12 and Testkit 0.100.2 adoption
 
 Both workspace catalogs and locks select published Toko Tooling 0.39.12,

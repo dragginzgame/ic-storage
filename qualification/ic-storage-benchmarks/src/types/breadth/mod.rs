@@ -2,6 +2,47 @@
 use super::{BenchKey, BenchValue};
 
 ///
+/// IdentityKey
+///
+/// Complete length-prefixed Principals, with a record tag and optional second
+/// Principal/device slot. This is a shared benchmark codec, not Auth policy.
+///
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct IdentityKey<const COMPOSITE: bool>(Vec<u8>);
+
+impl<const COMPOSITE: bool> BenchKey for IdentityKey<COMPOSITE> {
+    fn from_id(id: u64) -> Self {
+        let mut bytes = vec![3];
+        if COMPOSITE {
+            bytes.push(29);
+            bytes.extend([0xa5; 28]);
+            bytes.push(2);
+        }
+        let principal = <crate::BenchmarkPrincipal as BenchKey>::from_id(id);
+        bytes.push(29);
+        bytes.extend_from_slice(principal.as_slice());
+        if COMPOSITE {
+            bytes.push(0);
+        }
+        Self(bytes)
+    }
+    fn id(&self) -> u64 {
+        let offset = if COMPOSITE { 32 } else { 2 };
+        let id = u64::from_be_bytes(self.0[offset..offset + 8].try_into().unwrap());
+        assert_eq!(*self, Self::from_id(id));
+        id
+    }
+}
+impl<const COMPOSITE: bool> BenchValue for IdentityKey<COMPOSITE> {
+    fn make(key: u64, _: u32, replacement: bool) -> Self {
+        Self::from_id(key ^ if replacement { 0xa5a5_a5a5 } else { 0 })
+    }
+    fn canonical(self) -> Vec<u8> {
+        self.0
+    }
+}
+
+///
 /// BoundedBytes
 ///
 /// Variable bytes with an explicit maximum, independent of their actual length.
@@ -178,6 +219,26 @@ mod codec {
             self.0
         }
     }
+    impl<const COMPOSITE: bool> Encoding for IdentityKey<COMPOSITE> {
+        const MAX: u32 = 128;
+        const FIXED: bool = false;
+        fn encode(&self) -> Cow<'_, [u8]> {
+            Cow::Borrowed(&self.0)
+        }
+        fn decode(bytes: Cow<'_, [u8]>) -> Result<Self, &'static str> {
+            if bytes.len() != if COMPOSITE { 62 } else { 31 }
+                || bytes[0] != 3
+                || bytes[1] != 29
+                || (COMPOSITE && (bytes[31] != 29 || bytes[61] != 0))
+            {
+                return Err("identity key framing");
+            }
+            Ok(Self(bytes.into_owned()))
+        }
+        fn into_encoded(self) -> Vec<u8> {
+            self.0
+        }
+    }
     impl Encoding for TupleKey {
         const MAX: u32 = 28;
         const FIXED: bool = true;
@@ -241,6 +302,7 @@ mod codec {
     };
 }
     codecs!((<const MAX: u32>), BoundedBytes<MAX>);
+    codecs!((<const COMPOSITE: bool>), IdentityKey<COMPOSITE>);
     codecs!((), TupleKey);
     codecs!((), OptionalU64);
 }

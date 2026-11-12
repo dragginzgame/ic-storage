@@ -1076,3 +1076,92 @@ fn inconsistent_cached_child_counts_and_heights_are_rejected_on_descent() {
         assert!(catch_unwind(AssertUnwindSafe(|| reverse.next_back())).is_err());
     }
 }
+
+#[test]
+fn node_release_reuses_admission_without_a_second_header_read() {
+    let memory = TestMemory::default();
+    let mut map = OrderedMap::<u64, u64, _>::new(memory.clone());
+    map.insert(7, 70);
+    memory.reads.set(0);
+    let writes = memory.writes.get();
+    assert_eq!(map.remove(&7), Some(70));
+    // One routing admission, one inline payload read and one free-head read.
+    // The previously repeated block-header read is absent.
+    assert_eq!(memory.reads.get(), 3);
+    assert_eq!(memory.writes.get() - writes, 3);
+    assert!(map.is_empty());
+    assert!(OrderedMap::<u64, u64, _>::load(memory).unwrap().is_empty());
+}
+
+#[test]
+fn removal_readmits_node_identity_and_class_before_releasing() {
+    for (offset, replacement) in [(0, 0_u64), (8, 6)] {
+        let memory = TestMemory::default();
+        let mut map = OrderedMap::<u64, u64, _>::new(memory.clone());
+        map.insert(7, 70);
+        memory.write(map.store.root + offset, &replacement.to_le_bytes());
+        let writes = memory.writes.get();
+        assert!(catch_unwind(AssertUnwindSafe(|| map.remove(&7))).is_err());
+        assert_eq!(memory.writes.get(), writes);
+        assert!(OrderedMap::<u64, u64, _>::load(memory).is_none());
+    }
+}
+
+#[test]
+fn node_release_preserves_free_head_extent_and_duplicate_checks() {
+    for duplicate in [false, true] {
+        let memory = TestMemory::default();
+        let mut map = OrderedMap::<u64, u64, _>::new(memory.clone());
+        map.insert(7, 70);
+        let head = if duplicate { map.store.root } else { u64::MAX };
+        memory.write(80, &head.to_le_bytes());
+        let writes = memory.writes.get();
+        assert!(catch_unwind(AssertUnwindSafe(|| map.remove(&7))).is_err());
+        assert_eq!(memory.writes.get(), writes);
+    }
+}
+
+#[test]
+fn removal_rejects_a_persisted_reference_to_an_already_freed_node() {
+    let memory = TestMemory::default();
+    let mut map = OrderedMap::<u64, u64, _>::new(memory.clone());
+    map.insert(1, 10);
+    map.insert(0, 20);
+    let root = map.store.node(map.store.root);
+    let removed = root.left.address;
+    assert_eq!(map.remove(&0), Some(20));
+    // Restore a structurally plausible parent link to the now-free allocation.
+    memory.write(root.address + 16, &removed.to_le_bytes());
+    memory.write(root.address + 32, &1_u64.to_le_bytes());
+    memory.write(root.address + 72, &1_u64.to_le_bytes());
+    memory.write(24, &2_u64.to_le_bytes());
+    let mut reopened = OrderedMap::<u64, u64, _>::load(memory.clone()).unwrap();
+    let writes = memory.writes.get();
+    assert!(catch_unwind(AssertUnwindSafe(|| reopened.remove(&0))).is_err());
+    assert_eq!(memory.writes.get(), writes);
+}
+
+#[test]
+fn removal_reuses_nodes_and_missing_repeated_removal_stays_read_only() {
+    let memory = TestMemory::default();
+    let mut map = OrderedMap::<u64, u64, _>::new(memory.clone());
+    memory.growth_limit.set(Some(memory.size()));
+    for _ in 0..32 {
+        for key in [2, 1, 3, 0] {
+            assert_eq!(map.insert(key, key + 10), None);
+        }
+        // Delete a two-child node, then reuse its detached successor's block.
+        assert_eq!(map.remove(&2), Some(12));
+        let writes = memory.writes.get();
+        assert_eq!(map.remove(&2), None);
+        assert_eq!(memory.writes.get(), writes);
+        assert_eq!(map.insert(4, 14), None);
+        for key in [1, 3, 4, 0] {
+            assert_eq!(map.remove(&key), Some(key + 10));
+        }
+        assert!(map.is_empty());
+        map = OrderedMap::load(memory.clone()).unwrap();
+    }
+}
+
+mod allocation_order;

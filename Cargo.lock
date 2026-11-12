@@ -195,9 +195,9 @@ checksum = "00d174d5400e5e8fd687ad1049e2f578285fa914201b1af7e8b112a4546bd826"
 
 [[package]]
 name = "errno"
-version = "0.3.14"
+version = "0.3.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
+checksum = "e35d6e78f4cebb90e51d543db8fe41528851d6deeef6ef21ebd4bfdc1e784776"
 dependencies = [
  "libc",
  "windows-sys",
@@ -261,18 +261,18 @@ dependencies = [
 
 [[package]]
 name = "ic-host-artifacts"
-version = "0.76.4"
+version = "0.76.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bde091f8e5f24a0514193582381850e5e16c709c51224b789e265479c9d20259"
+checksum = "6cfd133e394181238395c0915ad49fcb6802fdd5a59e0c45fbbe92e34788c3aa"
 dependencies = [
  "sha2",
 ]
 
 [[package]]
 name = "ic-host-fs"
-version = "0.76.4"
+version = "0.76.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a20b52c6f4169fca167cad2965497fd5ba16a6413e2cadb611dd7ccfbc95f062"
+checksum = "0330f9b41558f5e55db2c9a814fd83fbc638f116b5fcba8d3d9d9cedd9be4080"
 dependencies = [
  "ic-host-artifacts",
  "rustix",
@@ -281,9 +281,9 @@ dependencies = [
 
 [[package]]
 name = "ic-host-process"
-version = "0.76.4"
+version = "0.76.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "900b01d0100f238227d7f2eef6c62b55e4f186127afcbfe6a0581cbb4279b1cf"
+checksum = "34c3bb46d6e871f8c0a26841f9fe39de5755a726baf01e4bc6da9904d3743d65"
 dependencies = [
  "command-fds",
  "ic-host-artifacts",
@@ -330,9 +330,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform-runtime"
-version = "0.21.1"
+version = "0.21.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3f3f3b871dd64d2b5e01696dbed3951cdc4a6a8aa640b1e5d43774b22ec3d0e"
+checksum = "30b250e59766678bc54f25f3d1591e2df4671a7e6a66cfa9f9d6945650bb1bc8"
 dependencies = [
  "ic0",
 ]
@@ -358,9 +358,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire"
-version = "0.21.2"
+version = "0.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a99f609a6ea85187a0699e9a7ff2a7f9c32baecc5f688235b9affe70fd8d78a"
+checksum = "cbb0db960c84649d3b3d5159df724839da9c055caa8ca333e075b62c1f58a624"
 dependencies = [
  "bytemuck",
  "postcard",
@@ -594,9 +594,9 @@ dependencies = [
 
 [[package]]
 name = "toko-tooling"
-version = "0.39.12"
+version = "0.39.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "acb1fd3f459a63940669e925d427fd6821abf02a7525bf9ef38d323dc778a8d2"
+checksum = "aaeab49adb84ea0d66cf86ecc48d826125f9c3ac6eafaf2a362bccfeba7acbfd"
 
 [[package]]
 name = "toml"

@@ -1,7 +1,7 @@
 # Byte and Boolean codec experiment
 
 Keep borrowed `u8` and `bool` encodings in Storage's
-[codec implementation](../../../crates/ic-storage/src/storable.rs). Published
+[codec implementation](../../../crates/ic-storage/src/storable/mod.rs). Published
 **ic-stable-structures 0.7.2** allocates a vector for these borrowed encodings;
 that is the ICSS reference here, not an older Storage release. The baseline is
 deployed Storage 0.68.7. Public APIs, encoded bytes, decoders, collection images

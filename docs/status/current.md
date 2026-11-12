@@ -1,4 +1,55 @@
-# Current handoff — 2026-11-11
+# Current handoff — 2026-11-12
+
+## Current supplier adoption and Git delivery scope
+
+Toko Tooling 0.39.17 is installed with all 40 entrypoints and 104 files. The
+catalogs select Host 0.76.5, Wire 0.21.4, Platform 0.31.3 and Runtime 0.21.3;
+qualification also uses Types 0.19.5 and macros/guard 0.21.3. Testkit 0.101.0
+and PocketIC 16.1.0 are unchanged. See [the adoption record](../adoption/storage-tooling.md#current-supplier-and-toko-03917-adoption).
+The requested module rule is satisfied by 28 exact-content moves to directory
+roots. Source links, helper fixtures and private Logging CI selection follow
+those paths. Both catalogs/locks match the authenticated snapshot.
+
+Focused proof passes: supplier graph/pins/tools, native/Wasm Clippy, 178 product
+unit tests, 88 helper tests and 49 benchmark/runtime tests. Installed original/
+O3/Os/Oz IO, corruption, custody, upgrades and rollback pass at
+`target/qualification/runtime/attempt.exkRp9`. Make-adapter substitutes also
+pass after fixing the dependency-update include's fixture closure. Evidence:
+`target/evidence/supplier-refresh-20261112/`; layout proof is under
+`target/module-layout/`. No new performance or macOS result is claimed.
+
+Delivery scope is Git only for this repository, including the reviewed pending
+module, qualification and measurement work. No new product versions, tags or
+crates.io publication are selected; the published identities below remain current.
+The node-first study remains unresolved as an Auth optimization, as described
+below. Earlier adoption evidence remains linked from the canonical record.
+
+## Pending performance experiments
+
+The [small-read study](../measurements/storage-scalar-scans-2026-11-11.md#small-read-experiments--2026-11-12)
+retains removal-admission reuse (62 total / 53 code Wasm bytes, selected removal
+gains of 0.5–1.5%). Vector combined reads and Cell stack decoding were rejected;
+their production/test trials are removed. Broader Cell benchmark coverage remains.
+
+The [identity study](../measurements/storage-identity-lookups-2026-11-12.md) adds
+full Principal/composite-key 1k/10k/100k comparisons. Node-first allocation leaves
+initial cold hits unchanged and fails Auth's <1M target. Preserve this earlier
+pending edit and its immediate-NODE-reservation corruption fix for review, not
+as an accepted lookup optimization. Focused native/installed/size proofs and the
+198-row comparison are in the study; siblings remain unchanged.
+
+The [batch-placement follow-up](../measurements/storage-identity-lookups-2026-11-12.md#small-allocation-batches--rejected)
+rejects both 4 KiB and population-scaled 4–64 KiB small-class refills. Their code
+and exclusive tests are removed, restoring pre-trial files byte-for-byte. Ramp
+improves 81/198 identity medians but regresses 64; Auth 100k remains ~1.224M and
+its second same-execution read rises ~85k → 965k. Mutation/refill regressions
+outweigh the selected cold-hit gains; application Wasm grows only ~0.55 KB.
+Both locks and sibling sources are preserved. Raw evidence:
+`target/evidence/routing-batches-20261112/`. The runner retains a qualified
+`--storage-only --storage-install-wasm` earlier-image upgrade/mutation proof.
+Next measure first/second/third reads independently before another placement
+trial; node/key pairing and short-key scratch remain hypotheses. Larger inline
+keys require a new-format decision; Auth cannot authorize retiring other records.
 
 ## Published state
 
@@ -46,25 +97,12 @@ Evidence: `target/evidence/cursor-experiment-20261111/` and
 `target/evidence/ordered-followup-20261111/`. APIs and stored formats are unchanged.
 No alternate experiment implementation remains.
 
-Both catalogs/locks and the authenticated snapshot select Toko **0.39.12**.
-Qualification and the prepared CLI use Testkit **0.100.2** with PocketIC **16.1.0**.
-The async client migration uses polling budgets and awaited best-effort deletion;
-the managed CLI bounds server lifetime. Native Clippy and 46 tests, installed
-original/O3/Os/Oz IO/upgrade/rollback, five-collection benchmark/refusal probes,
-admission drivers and size consumers passed on Linux. See the
-[adoption record](../adoption/storage-tooling.md#current-toko-03912-and-testkit-01002-adoption)
-and `target/evidence/toko-testkit-adoption-20261111/`.
-
 ## Suppliers and remaining work
 
-The pre-freeze crates.io review confirms Build 0.83.0, Host 0.76.4,
-Metrics 0.29.11, Runtime 0.21.1, Testkit 0.100.2 and Toko 0.39.12 are current.
-Root Logging 0.24.16 and Wire 0.21.2 are current. Qualification retains Logging
-0.24.6, Wire 0.21.1 and Platform 0.29.3 versus published 0.24.16, 0.21.2 and
-0.31.1. Those optional updates remain deferred to the next requested repository-wide
-supplier refresh, including Platform compatibility qualification. The release
-preserves the measured graphs and Rust 1.99.1. Registry evidence:
-`target/evidence/deploy-storage-0734/freshness.json`.
+Current pending supplier selections are recorded above. The performance study
+also preserves the completed concurrent Wire 0.21.3 and errno 0.3.15 lock updates
+and Rust 1.99.1. The prior publication's registry review remains at
+`target/evidence/deploy-storage-0734/freshness.json`; it is not a current registry audit.
 
 The [previous lease/Vector experiments](../measurements/storage-scalar-scans-2026-11-11.md#lease-and-vector-experiments--2026-11-11)
 shipped in Storage 0.73.3. [#157](https://github.com/dragginzgame/ic-storage/issues/157)
@@ -99,7 +137,9 @@ Keep preservation stash `f652e8c7400f56f0cab6ad968d05c4c0aee6479d`.
 No artifact cleanup is authorized by this handoff trim. Explicit cargo clean
 can remove target evidence; durable decisions and recipes remain in the docs.
 
-Canic/Auth whole-endpoint costs remain outside Storage qualification.
+Canic whole-endpoint costs remain outside Storage qualification. The selected
+Auth authentication regression is measured in the identity study, not a full
+qualification or release of Auth.
 Canic/IcyDB have unrelated pending work. Preserve authorized IcyDB preparation
 at `/tmp/icydb-control-layout`, branch `storage/control-allocation`,
 base `03c5713e`: native checks passed, installed composition is unqualified,

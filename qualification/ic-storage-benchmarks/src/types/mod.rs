@@ -1,7 +1,7 @@
 //! Concrete benchmark types; case metadata comes from the shared catalogue.
 use serde::{Deserialize, Serialize};
 mod breadth;
-pub use breadth::{BoundedBytes, OptionalU64, TupleKey};
+pub use breadth::{BoundedBytes, IdentityKey, OptionalU64, TupleKey};
 
 /// Concrete collection and key/value types selected for one fresh canister.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
@@ -103,8 +103,8 @@ impl Case {
         self.payloads().contains(&payload)
             || matches!(self.value, crate::DataType::Bytes | crate::DataType::Chunk)
                 && [
-                    44, 45, 80, 108, 109, 132, 235, 236, 237, 256, 4075, 4076, 4077, 65_515,
-                    65_516, 65_517, 65_536, 1_048_576,
+                    44, 45, 63, 64, 65, 80, 108, 109, 132, 235, 236, 237, 256, 4075, 4076, 4077,
+                    65_515, 65_516, 65_517, 65_536, 1_048_576,
                 ]
                 .contains(&payload)
     }

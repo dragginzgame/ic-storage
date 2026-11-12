@@ -17,7 +17,7 @@ make benchmark-storage BENCH_ROWS=64 BENCH_SAMPLES=1 # quick complete smoke matr
 
 Rows accept 1–1,000,000, samples 1–20. Cell always has one value, regardless of the
 selected population. Builds are locked/offline on Rust 1.99.1; the command never
-installs tools or changes locks. Testkit 0.100.2 re-exports the async
+installs tools or changes locks. Testkit 0.101.0 re-exports the async
 client and manages the prepared PocketIC 16.1.0 server. Native drivers own a
 current-thread Tokio runtime, five-minute polling budgets and awaited best-effort
 instance deletion. Polling budgets are not absolute HTTP deadlines. Each
@@ -100,7 +100,7 @@ one initialized eight-byte payload, not fully populated business collections.
 BENCH_WORKLOAD=types make benchmark-storage
 ```
 
-One catalogue owns **73 concrete types** from the published ICSS test suite and
+One catalogue owns **75 concrete types** from the published ICSS test suite and
 Storage's additional comparisons. It generates every type on Map, Set, Vector,
 Cell and map regions for both backends. Maps and regions cover each type as a
 value with u64 keys, and as an ordered key with u64 values. They additionally run
@@ -112,8 +112,9 @@ bounded Blobs; ICSS's eight-byte `UnfixedU64` with 255/65,000/68,000 maxima;
 fixed/variable/unbounded pairs and triples; all eight fixed/Blob8 triple-bound
 arrangements and seven Blob8/String arrangements; optional scalars/strings/tuples;
 actual Principal values; and Storage's signed scalar, Wire/session records,
-chunk/bounded bytes and application tuple/optional codecs. See
-[`catalogue.rs`](src/catalogue.rs) for exact types, origins, bounds and payloads.
+chunk/bounded bytes, complete tagged/composite Principal keys and application
+tuple/optional codecs. See
+[`catalogue/mod.rs`](src/catalogue/mod.rs) for exact types, origins, bounds and payloads.
 
 Every case is a real generic instantiation. Composite/Principal types that do
 not implement Storage's trait use a local `ReferenceValue<T>` codec bridge to
@@ -536,10 +537,40 @@ engines equal cache budgets; that release has no selectable node cache.
 
 ## Consumer workloads
 
+### Full identity lookup scaling
+
+```sh
+BENCH_WORKLOAD=identity-lookups BENCH_SAMPLES=1 \
+  BENCH_UPSTREAM_BUCKET_PAGES=128 make benchmark-storage
+```
+
+This profile owns full 29-byte Principal, 31-byte tagged Principal and 62-byte
+composite Principal keys, with 256/1,024-byte values and shuffled populations of
+1k/10k/100k records. Three rounds measure one cold hit, repeated hit, above-range
+miss, replacement, removal, removed-key miss, reinsertion, hit after churn,
+insertion and removal of the new key, plus Control. Each phase is a separate
+update. Results and final population are checked against the independent model.
+There are only three sampled key paths per case; this is not tail qualification
+or an exact Auth record codec. `RepeatedGet` does two complete pre-reads outside
+the timer in that execution, then measures the third lookup. Other Map profiles
+also expose `WarmGet`; this changes their operation roster, so compare both
+engines using the same driver rather than mixing old reports.
+
+The existing diagnostic injector/driver admit this profile. Use `--batch-reads`
+on frozen modules after proving plain WAT round trips; `--trace-stable-reads`
+captures Get-based cold hits, removed-key misses and hits after churn, not every
+phase. Totals cover all reads/bytes in those calls; recorded addresses are only
+the costly subset, not a complete page trace. Keep ordinary timings separate
+from diagnostic overhead. See [the matched study and actual Auth regression](../../docs/measurements/storage-identity-lookups-2026-11-12.md).
+
+### Cell opening
+
 `BENCH_WORKLOAD=cell-open BENCH_SAMPLES=1 make benchmark-storage` measures Cell
 lease acquisition, read-only admission, payload decode, the requested operation
-and drop with the allocation owner retained. It covers u64 and byte values of
-0, 32, 4096, 65536 and 1048576 bytes. Every round restores the declared payload
+and drop with the allocation owner retained. It covers u64, fixed 32/64-byte
+arrays, strings and byte values of 0, 32, 63, 64, 65, 4096, 65536 and 1048576
+bytes. These distinguish scalar decoding from owned payloads and include the
+small-read threshold and large-value controls. Every round restores the declared payload
 before `OpenControl` and `Get`, then checks growth and shrinkage with reads after
 each mutation. ICSS's required unused default is constructed outside timing.
 These are reopened-Cell costs; ordinary Cell workloads retain cached handles.
@@ -575,7 +606,7 @@ and u64 map regions. Cell has one value at either population. The preset uses
 shuffled population, uniform/hot-16 access, batches 1/32 and three stateful rounds;
 the default three samples use independent seeds and alternate backend order.
 All ordinary operations remain, including insertion/removal/reinsertion and
-variable-map growth/shrink. It supplements the 73-type catalogue rather than
+variable-map growth/shrink. It supplements the 75-type catalogue rather than
 repeating its shallow population. Per-population reports and an aggregate matrix
 retain every phase, instruction median and stable-memory capacity. Aggregate CSV
 and raw JSONL include `population_context_rows` separately from actual collection

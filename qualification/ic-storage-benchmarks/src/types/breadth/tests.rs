@@ -3,6 +3,31 @@ use super::*;
 use crate::workloads::Workload;
 use std::{borrow::Cow, collections::BTreeSet};
 
+#[test]
+fn identity_keys_keep_complete_principals_and_composite_order() {
+    for id in [0, 1, 1000, 10_000, 100_000, u64::MAX] {
+        let principal = <crate::BenchmarkPrincipal as BenchKey>::from_id(id);
+        let single = IdentityKey::<false>::from_id(id);
+        let composite = IdentityKey::<true>::from_id(id);
+        assert_eq!(single.0.len(), 31);
+        assert_eq!(composite.0.len(), 62);
+        assert_eq!(&single.0[2..], principal.as_slice());
+        assert_eq!(&composite.0[32..61], principal.as_slice());
+        assert_eq!(single.id(), id);
+        assert_eq!(composite.id(), id);
+        checked_roundtrip(single);
+        checked_roundtrip(composite);
+    }
+    let first = IdentityKey::<true>::from_id(1);
+    let second = IdentityKey::<true>::from_id(2);
+    assert_eq!(&first.0[..32], &second.0[..32]);
+    assert!(first < second);
+    for size in [0, 16, 30, 32, 61, 63, 128] {
+        assert!(IdentityKey::<false>::decode(Cow::Owned(vec![0; size])).is_err());
+        assert!(IdentityKey::<true>::decode(Cow::Owned(vec![0; size])).is_err());
+    }
+}
+
 fn checked_roundtrip<T: Encoding + Clone + Eq + std::fmt::Debug>(value: T) {
     let bytes = value.encode();
     if T::FIXED {

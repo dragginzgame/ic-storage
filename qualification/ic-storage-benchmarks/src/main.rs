@@ -1,7 +1,7 @@
 //! Installed, matched map comparison. Testkit owns the explicitly prepared server.
 use clap::Parser;
 use ic_storage_benchmarks::workloads::{
-    DEPTH_POPULATIONS, LOOKUP_POPULATIONS, Workload, transfer_rows,
+    DEPTH_POPULATIONS, IDENTITY_POPULATIONS, LOOKUP_POPULATIONS, Workload, transfer_rows,
 };
 use ic_storage_benchmarks::*;
 use ic_testkit::pocket_ic::{CanisterId, PocketIcBuilder};
@@ -75,6 +75,24 @@ struct Measurement {
 }
 type Samples = BTreeMap<(Case, u32, u32, Pattern, String, String), Vec<Measurement>>;
 fn phases(case: Case, growth_cycles: bool, workload: Option<Workload>) -> Vec<(String, Operation)> {
+    if matches!(workload, Some(Workload::IdentityLookups)) {
+        return [
+            ("Control", Operation::Control),
+            ("ColdGet", Operation::Get),
+            ("RepeatedGet", Operation::WarmGet),
+            ("ColdMissAbove", Operation::MissAbove),
+            ("Replace", Operation::Replace),
+            ("Remove", Operation::Remove),
+            ("ColdRemovedGet", Operation::Get),
+            ("Reinsert", Operation::Reinsert),
+            ("ColdGetAfterChurn", Operation::Get),
+            ("Insert", Operation::Insert),
+            ("RemoveInserted", Operation::RemoveInserted),
+        ]
+        .into_iter()
+        .map(|(name, operation)| (name.into(), operation))
+        .collect();
+    }
     if matches!(workload, Some(Workload::CellOpen)) {
         let mut phases = vec![
             ("Replace".into(), Operation::Replace),
@@ -231,7 +249,10 @@ fn decode_trace_rows(bytes: &[u8], capacity: usize) -> Result<Vec<[u64; 4]>, &'s
 }
 
 fn validate_diagnostics(args: &Arguments) -> Result<(), &'static str> {
-    if !matches!(args.workload, Some(Workload::VectorReads | Workload::Depth)) {
+    if !matches!(
+        args.workload,
+        Some(Workload::VectorReads | Workload::Depth | Workload::IdentityLookups)
+    ) {
         if args.trace_stable_reads
             && !(matches!(args.workload, Some(Workload::Bulk))
                 && matches!(args.collection, Some(Collection::Vector)))
@@ -271,11 +292,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     if matches!(
         args.workload,
-        Some(Workload::AuthLookups | Workload::Depth | Workload::VectorOpen)
+        Some(
+            Workload::AuthLookups
+                | Workload::Depth
+                | Workload::VectorOpen
+                | Workload::IdentityLookups
+        )
     ) {
         let auth = matches!(args.workload, Some(Workload::AuthLookups));
         let populations: &[u32] = if auth {
             &LOOKUP_POPULATIONS
+        } else if matches!(args.workload, Some(Workload::IdentityLookups)) {
+            &IDENTITY_POPULATIONS
         } else {
             &DEPTH_POPULATIONS
         };
@@ -366,7 +394,10 @@ async fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
     if let Some(workload) = args.workload {
         if !matches!(
             workload,
-            Workload::AuthLookups | Workload::Depth | Workload::VectorOpen
+            Workload::AuthLookups
+                | Workload::Depth
+                | Workload::VectorOpen
+                | Workload::IdentityLookups
         ) {
             args.rows = workload.rows();
         }
@@ -379,6 +410,7 @@ async fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
                 | Workload::Ordered
                 | Workload::Types
                 | Workload::Depth
+                | Workload::IdentityLookups
         );
         args.rounds = workload.rounds();
     }
@@ -1093,6 +1125,16 @@ fn expected_phase(
     request: Request,
     phase: &str,
 ) -> Vec<(u64, Option<Vec<u8>>)> {
+    if phase == "ColdRemovedGet" {
+        assert_eq!(request.operation, Operation::Get);
+        return keys(request)
+            .into_iter()
+            .map(|key| {
+                assert!(!model.contains_key(&key), "removed key must remain absent");
+                (key, None)
+            })
+            .collect();
+    }
     if phase == "RemoveAgain" {
         assert_eq!(request.operation, Operation::Remove);
         return keys(request)

@@ -146,6 +146,15 @@ pub(super) fn new(settings: Initialization) -> Box<dyn Benchmark> {
         ic_storage_benchmarks::case!(Cell, U64, Bytes) => {
             Box::new(ReopenedCell::<Vec<u8>>::new(settings))
         }
+        ic_storage_benchmarks::case!(Cell, U64, Array32) => {
+            Box::new(ReopenedCell::<[u8; 32]>::new(settings))
+        }
+        ic_storage_benchmarks::case!(Cell, U64, Array64) => {
+            Box::new(ReopenedCell::<[u8; 64]>::new(settings))
+        }
+        ic_storage_benchmarks::case!(Cell, U64, String) => {
+            Box::new(ReopenedCell::<String>::new(settings))
+        }
         ic_storage_benchmarks::case!(Vector, U64, U64) => {
             Box::new(ReopenedVector::<u64>::new(settings))
         }
