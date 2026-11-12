@@ -10,7 +10,9 @@ Discard skips old payload reads and decoding, not stored codec lengths, allocati
 identity/class/extent, key comparison or reclamation checks. Callers retain any
 required old-envelope or business-state validation. Metrics and Logging use the
 operations only after their existing admission; unchanged checkpoints remain
-write-free. These changes are local and unpublished.
+write-free. These measurements preceded publication in Storage 0.73.6,
+Metrics Storage 0.76.3 and Logging Storage 0.72.3; see the
+[delivery handoff](../status/current.md) for release evidence.
 
 ## Reproduction and controls
 

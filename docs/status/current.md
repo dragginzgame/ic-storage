@@ -1,21 +1,18 @@
 # Current handoff — 2026-11-12
 
-## Active work
+## Published work
 
-The maintainer authorized implementing the consumer audit findings and filing
-sibling adoption issues. Storage's local, unpublished changes add
+The maintainer authorized implementing the consumer audit findings and then
+deploying this repository. Storage 0.73.6 adds
 `insert_discard`/`remove_discard` on Map and regions, returning prior presence
 without fetching or decoding the old payload. Returning operations share the
 same engine and preserve their behavior. Length/block/key checks, governance,
 native poison guards and installed rollback remain. No image format changed.
 Metrics and Logging adopt these APIs after their existing validations.
 
-Pending notes select Storage 0.73.6, Metrics Storage 0.76.3 and Logging Storage
-0.72.3. Package manifests remain at published versions. Before publishing the
-adapters, align their Storage minimum with the release containing these methods;
-qualify and publish the supplier first. No release, commit or deployment was
-performed for this work. Both locks subsequently advanced to Metrics 0.29.12 and
-Logging 0.24.17 in separate work; those edits are preserved. Qualification also
+Storage 0.73.6, Metrics Storage 0.76.3 and Logging Storage 0.72.3 are published
+on crates.io and tagged on GitHub. Both published adapters require Storage
+0.73.6. Both locks retain Metrics 0.29.12 and Logging 0.24.17; qualification
 includes the local Metrics adapter for its optional checkpoint benchmark.
 
 [The discard study](../measurements/storage-discard-mutations-2026-11-12.md)
@@ -25,8 +22,8 @@ controls; 87 beat ICSS and nine 256-byte cases lose. This is not a whole-consume
 performance claim. Focused native tests/Clippy, installed Storage old-image upgrade
 and rollback, Logging lifecycle tests, and both size modes pass. Each size mode
 qualifies 16 modules, 131 calls and two upgrades per module. Returning application
-Wasm grows 135 bytes for Map / 198 for all collections. No full release validation
-or fresh macOS proof was run for this change.
+Wasm grows 135 bytes for Map / 198 for all collections. All 12 release stages
+passed for each group; no fresh hosted/macOS result is asserted here.
 
 The [histogram comparison study](../measurements/metrics-histogram-comparisons-2026-11-12.md)
 retains full-width numeric equality in Metrics Storage. A fresh 0.29.12 baseline
@@ -46,7 +43,7 @@ are separate remaining costs, with no sibling changes or issue writes.
 - [IcyDB #635](https://github.com/dragginzgame/icydb/issues/635) owns key-only scans
   and bounded region existence probes using already published APIs.
 - [Blob #129](https://github.com/dragginzgame/ic-blob-storage/issues/129) owns
-  discard-mutation adoption after the supplier is released.
+  discard-mutation adoption; the supplier is now published.
 - [Relay #24](https://github.com/dragginzgame/ic-relay/issues/24) owns measurement
   of bounded record rewrites before any state-layout redesign.
 - Existing [Auth #132](https://github.com/dragginzgame/ic-auth/issues/132) and
@@ -58,21 +55,31 @@ are separate remaining costs, with no sibling changes or issue writes.
   routing-key locality/blob density experiments and any explicit format decision.
 
 The maintainer now owns issue follow-up; no issues/comments changed in the
-continuation. Sibling source remains read-only. Publication or
-consumer deployment needs its own request. No current cold-authentication speedup
+continuation or deployment. Sibling source remains read-only and consumer
+deployment needs its own request. No current cold-authentication speedup
 has been established by the discard work.
 
 ## Current published baseline and suppliers
 
-Storage 0.73.5, Metrics Storage 0.76.2 and Logging Storage 0.72.2 were published
-on 2026-11-12 through `batch-lzNupEJ_`, all 12 stages and archive qualification
-passed, and the batch was reconciled into main. The current local work starts
-from `ca0c1e478bc7cc114f6fa3142c74d47d1d32dfc6`.
-[The prior handoff](https://github.com/dragginzgame/ic-storage/blob/ca0c1e478bc7cc114f6fa3142c74d47d1d32dfc6/docs/status/current.md)
-retains release commits, hashes and completed historical narratives. Evidence:
-`target/evidence/deploy-storage-0735/`, `target/release-frozen/batch-lzNupEJ_/`
-and `.git/release-state/frozen/batch-lzNupEJ_/`. Release CI was asynchronous at
-that handoff; no fresh hosted/macOS result is asserted here.
+The 2026-11-12 delivery captured source `a2552c509975a08b668614c0bc8d19acb3ee50ef`
+in `batch-fgFa7wx8`, published supplier first, then reconciled the clean normal
+checkout to `4668fee8bac275d55bb0d5ef4c6b71725573e708`. GitHub main and annotated
+tags were verified. Downloaded crates.io archives match registry and final-receipt
+SHA-256 values; neither adapter retains the previous Storage minimum.
+
+| Package | Version | Release commit | Archive SHA-256 |
+| --- | --- | --- | --- |
+| Storage | 0.73.6 | `0ab2afdc7e482c3d0f352c44d533bab0d2a2cc09` | `99884d9c4cde4747cf7ccff910789033f3ee07c05b9d69ed77288df9fcdaeaee` |
+| Metrics Storage | 0.76.3 | `39efb2b9f8424af1292d4bf948c20a6de255ba22` | `996a99e738f09792e2ac60a2e2a8e222a935d5be730a9fe101cd360028870c9b` |
+| Logging Storage | 0.72.3 | `4668fee8bac275d55bb0d5ef4c6b71725573e708` | `ddf42f5459b78c0d7da24ab528e23c317615fca06341d85da1d54b82ebb094ab` |
+
+Evidence: `target/evidence/deploy-storage-0736/verification.json`,
+`target/deploy-0736-batch.log`, `target/release-frozen/batch-fgFa7wx8/` and
+`.git/release-state/frozen/batch-fgFa7wx8/`. Installed Logging qualification was
+refreshed against Logging 0.24.17: `target/qualification/runtime/attempt.Ge7c1K`
+passes lifecycle, query non-persistence, update/upgrade rollback and reopen.
+[The pre-release handoff](https://github.com/dragginzgame/ic-storage/blob/a2552c509975a08b668614c0bc8d19acb3ee50ef/docs/status/current.md)
+retains earlier delivery evidence and the implementation narrative.
 
 Toko 0.39.17, Rust 1.99.1, Host 0.76.5, Wire 0.21.4, Platform 0.31.3,
 Runtime 0.21.3, Testkit 0.101.0 and PocketIC 16.1.0 remain selected.
