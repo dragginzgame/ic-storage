@@ -90,12 +90,28 @@ impl<E: Execute> Repository<E> {
         self.version_parts(previous)?;
         self.version_parts(version)?;
         let manifest: toml::Value = toml::from_str(text)?;
-        let aliases = group
-            .dependencies
+        let aliases = manifest["workspace"]["dependencies"]
+            .as_table()
+            .ok_or("missing dependency catalog")?
             .iter()
-            .map(|alias| {
-                let requirement = manifest["workspace"]["dependencies"][alias]["version"]
-                    .as_str()
+            .filter(|(alias, dependency)| {
+                let package = dependency
+                    .get("package")
+                    .and_then(toml::Value::as_str)
+                    .unwrap_or(alias);
+                group.members.iter().any(|member| member == package)
+            })
+            .map(|(alias, dependency)| {
+                require(
+                    dependency
+                        .get("path")
+                        .and_then(toml::Value::as_str)
+                        .is_some(),
+                    "local requirement must select a workspace path",
+                )?;
+                let requirement = dependency
+                    .get("version")
+                    .and_then(toml::Value::as_str)
                     .ok_or("missing local requirement")?;
                 let operator = usize::from(requirement.starts_with(['=', '^', '~']));
                 let literal = requirement[operator..].trim_start_matches([' ', '\t']);

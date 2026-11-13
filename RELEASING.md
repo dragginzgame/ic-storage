@@ -13,6 +13,11 @@ before standard releases and consumer publication, qualification, preparation,
 batch resume and empty-directory cleanup. Change the exact root pins, resolve
 both Cargo lockfiles, then run `make toko-tooling-update`; Cargo never installs
 tooling implicitly. Existing product qualification remains required.
+Shared executables and Make modules live under `vendor/toko-tooling/`; release
+and publication modules are explicitly selected in the snapshot. Product policy,
+release adapters and the root compiler pin remain consumer-owned. The validation
+runner receives the consumer root explicitly. No old-path forwarding wrappers
+participate in release admission.
 
 ## Release groups
 
@@ -38,7 +43,8 @@ schema-1 batch conversion exist. Historical releases retain their original tooli
 
 All three crates remain in one development workspace and one dependency catalog.
 The approved [group policy](ci/cargo-release-groups.json) is the executable owner;
-root `Cargo.toml` lists each group once beside its member declarations and ledger.
+Root `Cargo.toml` owns workspace membership; the policy owns group and ledger
+selection. Use `make deps-list` to inspect package versions and release groups.
 
 | Group | Packages | Version source | Canonical ledger |
 | --- | --- | --- | --- |
@@ -59,8 +65,9 @@ one numbered pending entry in its canonical ledger. New detailed notes live at
 file as metadata. Update it during source work when the group's next minor line
 changes. An old crate-local changelog is only a navigation pointer.
 The unpublished independent runtime workspace keeps its own package versions
-and dependency selection. Its benchmark and fixtures consume local Storage and Logging Storage packages.
-Both groups declare that workspace's catalog and lockfile as release metadata.
+and dependency selection. Its benchmark and fixtures consume all three local
+packages. All three groups declare that workspace's catalog and lockfile as
+release metadata.
 Each transaction advances only its own requirement and local lock identity there;
 independent registry selections and unrelated groups remain unchanged. Benchmark execution is not a release gate.
 
@@ -84,11 +91,12 @@ These are maintainer commands, not adoption checks. `release-patch` and
 require a minor; compatible work uses a patch. Select the release kind matching
 the owning pending notes. Wire 0.14 codec-error identities require minor releases.
 
-Groups are release identities, not independent dependency graphs. Versioned
-root path requirements display each member’s full current version. Every member
-and unused catalog alias belongs to its owning group’s dependency roster. Every core
-release updates those shared declarations, preserving their existing operators
-without changing adapter versions.
+Groups are release identities, not independent dependency graphs. `make deps-list`
+lists every product and qualification package with its version and owning group.
+Root dependency declarations exist only for actual usage. Group `members` rosters
+retain every package; `dependencies` rosters name only existing root aliases.
+Every core release updates its used shared declarations, preserving their existing
+operators without changing adapter versions.
 The adapter then needs its own release to publish its changed requirement.
 The owned-engine hard cut changes Storage and adapter type identities:
 release the compatible core supplier first and then its adapters. Do not publish
@@ -130,6 +138,22 @@ owns its published selection. Build 0.73 supplies the group-aware renderer.
 Toolchain/formatter and installed server preparation retain their separate owners.
 
 ### Deployment sequencing and recovery
+
+Toko 0.41's dependency-isolation rule admits the actual product and required
+qualification graphs, rather than requiring one dependency generation across
+them. Storage's native Testkit runner may retain its supplier-owned Host and
+Platform types while the independent composition fixture and product use newer
+selections. The runner exchanges opaque Wasm and Wire protocols, not those Rust
+types, with canisters. Production graph checks still exclude native test tools
+and retain the selected Runtime singleton/feature constraints.
+
+A failed optional Testkit or test-dependency upgrade does not block deployment
+of the existing qualified selection. Record a bounded deferral at dependency
+maintenance; preserve required integration tests and real compatibility/security
+refusals. Storage's Host/Build `OutputLimits` boundary is a real shared-type
+constraint, so the pending Host 0.77 adoption requires Build 0.84. Do not force
+Testkit's transitive requirements forward merely to remove lockfile duplicates.
+This policy does not remove a release stage or qualify new receipt reuse.
 
 Apply the [0.40.1 deployment rule](https://github.com/dragginzgame/toko-tooling/blob/dcc51b5cab3d9993f0668bc0902252364d7dc316/docs/releases/releases.md#plan-once-recover-the-failed-phase)
 before starting or restarting an authorized delivery. Inspect the selected groups,

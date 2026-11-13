@@ -14,7 +14,7 @@ repository_root="$fixture/repository"
 # The oracle stays outside the upload selection. Reject different archive bytes
 # before extraction, then assert the consumer's original payload and metadata.
 read -r digest < "$fixture/archive.sha256"
-bash "$ROOT/scripts/ci/verify-file-checksum.sh" sha256 "$digest" "$2"
+bash "$ROOT/vendor/toko-tooling/scripts/ci/verify-file-checksum.sh" sha256 "$digest" "$2"
 unpacked="$(mktemp -d "$fixture/unpacked.XXXXXX")"
 tar -xzf "$2" -C "$unpacked"
 read -r retained < "$fixture/installer-retained-path"
@@ -32,10 +32,10 @@ cmp "$repository_root/target/qualification/"$'line\nbreak:payload' "$unpacked/ta
 cmp "$repository_root/.tools/host-set.test/bin/tool" "$unpacked/.tools/host-set.test/bin/tool"
 cmp "$repository_root/.tools/ic-set.test/receipt" "$unpacked/.tools/ic-set.test/receipt"
 export TOKO_TOOLING_STORE="$fixture/shared-store"
-shared_bundle="$(source "$ROOT/scripts/dev/tool-store.sh"; tool_store_init host evidence; printf '%s/set.evidence\n' "$store_slot")"
+shared_bundle="$(source "$ROOT/vendor/toko-tooling/scripts/dev/tool-store.sh"; tool_store_init host evidence; printf '%s/set.evidence\n' "$store_slot")"
 shared_path="${shared_bundle#"$TOKO_TOOLING_STORE/"}"
 cmp "$shared_bundle/bin/tool" "$unpacked/$shared_path/bin/tool"
-rust_bundle="$(source "$ROOT/scripts/dev/tool-store.sh"; tool_store_init rust evidence; printf '%s/set.evidence\n' "$store_slot")"
+rust_bundle="$(source "$ROOT/vendor/toko-tooling/scripts/dev/tool-store.sh"; tool_store_init rust evidence; printf '%s/set.evidence\n' "$store_slot")"
 rust_path="${rust_bundle#"$TOKO_TOOLING_STORE/"}"
 tar -tzf "$2" > "$unpacked/archive-members"
 for path in build/install.log inputs.json native-environment.txt \

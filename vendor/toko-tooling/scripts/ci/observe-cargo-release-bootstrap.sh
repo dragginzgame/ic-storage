@@ -82,8 +82,7 @@ jq -n -e -L "$script_dir" --slurpfile policies "$temporary/policy.json" --slurpf
      any($local[]; (.version | stable | not))
   then error("invalid bootstrap local lock identities") else . end |
   member_catalog($catalog; $owned) as $dependencies |
-  if ($dependencies | map(.package) | unique | sort) != ($owned | map(.name) | sort) or
-     any($dependencies[]; (.value.path | type) != "string" or (.value.path | length) == 0 or
+  if any($dependencies[]; (.value.path | type) != "string" or (.value.path | length) == 0 or
        (.value.path | test("[\\r\\n\\t]")) or (.value.version | type) != "string" or
        (.value.version | sub("^[~^=]?[ \t]*"; "") | stable | not)) or
      any($policy.groups[]; . as $g |

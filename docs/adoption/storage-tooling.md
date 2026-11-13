@@ -7,6 +7,239 @@ revision, selected roots, payload hashes and executable modes. The former
 live-policy exception is retired: dirty sibling rules never override the reviewed
 local baseline. Future policy changes require reviewed snapshot adoption.
 
+## Toko 0.42.6 adoption
+
+Both workspace catalogs and locks select published Toko Tooling 0.42.6, checksum
+`facc27e9231428a49c86453868b505ade262a7032bfba56c4185982bf56d5537`.
+This release changes producer release-delivery tests. Every installed payload
+file, including the baseline and retention helper, is byte-identical to 0.42.5.
+Keep the existing 40-entrypoint, 100-file selection; no producer tests are added
+to the consumer snapshot. Only Toko's version/checksum change in either lockfile.
+Pending product and supplier changes remain intact.
+
+The passing 0.42.5 retention proof remains applicable; #381 stays unblocked.
+Authenticated installation, tool setup/admission, snapshot/member checks,
+dependency pins, both-workspace formatting and documentation links pass.
+Unchanged release and product tests are not repeated for this receipt/pin update.
+Evidence: `target/evidence/toko-0426-adoption-20261113/`, including the empty
+installed-payload diff. No sibling changes, release or publication are included.
+
+## Toko 0.42.5 adoption
+
+Both workspace catalogs and locks select published Toko Tooling 0.42.5, checksum
+`071631f382cbdb682ab04242bb8022bea9f1fa237eaa273456433b95ad6f2aec`.
+The registry installer retains the 40 entrypoints and 100-file vendor snapshot.
+Only Toko's version and checksum change in either lockfile; pending product and
+supplier edits remain intact.
+
+The sole installed payload change addresses
+[Toko #381](https://github.com/dragginzgame/toko-tooling/issues/381): retention
+probes resolve helper files from their installed directory while keeping the
+consumer root for generated probes. The consumer test and its assertions are
+unchanged. No old-path wrappers or managed-file patches are introduced.
+The unchanged consumer retention suite now passes: release-adapter,
+failure-evidence and hook completion/failure probes, cleanup refusal, contradictory
+status rejection and the aliased-path archive round trip. This clears Storage's
+previous #381 blocker without dropping coverage. Snapshot/member admission,
+dependency pins, tool setup/admission and both-workspace formatting pass.
+Unchanged release/native checks retain their preceding evidence.
+Evidence: `target/evidence/toko-0425-adoption-20261113/`. This is local adoption,
+not product release, publication or installed-runtime qualification.
+
+## Toko 0.42.4 adoption
+
+Both workspace catalogs and locks select published Toko Tooling 0.42.4, checksum
+`697efc1801f8c8c3f563364984efff1b941e84eef2cfaade40aece5e09bced2b`.
+Only Toko's version and checksum change in either lockfile; pending product and
+supplier changes remain intact. The retained entrypoint selection and vendor
+layout stay unchanged.
+
+The updated Cargo-tool installer distinguishes activation from later maintenance
+failure and retries retained scratch cleanup without rebuilding an admitted tool.
+The new baseline also clarifies library ownership of domain operations and
+retained-data codecs versus host ownership of endpoint mounting and guards.
+Storage's core remains Wire-free in production; the two adapters retain their
+internal Wire checkpoint codecs. No API or dependency-boundary change is needed.
+The fixed producer release-command fixture is not reintroduced: Storage already
+qualifies its actual dispatch through its consumer-owned fixture.
+
+Snapshot/member admission, dependency pins, tool setup/admission, formatting and
+documentation links pass. Storage's offline reuse fixture passes with the updated
+installer: host/IC downloads are refused by a substitute downloader, Cargo stays
+offline, and executable identities match the prepared generations. Producer
+maintenance fault-injection tests remain upstream; this is actual consumer reuse
+qualification, not a fresh product or installed-runtime test.
+
+The retention probe is unchanged from 0.42.2, including its old root-relative
+helper copies. Re-running the consumer gate reproduces the missing
+`scripts/ci/fixture-lifecycle.sh` failure. The gate remains enabled; this patch
+does not resolve the blocker recorded below. No sibling changes or deployment are included.
+Evidence: `target/evidence/toko-0424-adoption-20261113/`.
+
+## Toko 0.42.2 adoption
+
+Both workspace catalogs and locks select published Toko Tooling 0.42.2, checksum
+`e87d8595b7ef9347392756c567467a1bb0b71d54f436bd65de05ca3c37fcd0cc`.
+`make toko-tooling-update` authenticates and installs the release while preserving
+the 40 entrypoints and 100-file vendor snapshot. Only Toko's version and checksum
+change in either lockfile. Existing pending product and supplier edits remain.
+
+The sole installed payload change fixes the canonical root-file lookup in
+`check-license.pl` for the vendor layout. The actual `make check-license` caller
+passes. Snapshot/member admission, dependency pins, tool setup/admission and
+both-workspace formatting also pass. Unchanged release, CI and native helper
+checks retain the preceding adoption's evidence; no product compilation or
+installed-runtime proof is claimed for this patch.
+
+The retention helper is byte-for-byte unchanged from 0.42.1. Re-running
+`scripts/ci/test-consumer-fixture-retention.sh` still fails trying to copy
+`scripts/ci/fixture-lifecycle.sh` from the consumer root. The blocker described
+below remains, and its gate stays enabled. No sibling edits, commits, release or
+publication are included. Evidence: `target/evidence/toko-0422-adoption-20261113/`.
+
+## Toko 0.42.1 adoption
+
+Both workspace catalogs and locks select published Toko Tooling 0.42.1, checksum
+`697b19c709eccb5f25c0abb0156766ded116abd8bde1552b20022b8af6f51dce`.
+Only Toko's version and checksum changed relative to the incoming lockfiles.
+The registry installer selects 40 entrypoints and 100 payload files. It owns the
+migration from root-installed executable helpers to `vendor/toko-tooling/`,
+including retirement of the authenticated predecessors.
+No snapshot-owned file is edited locally, and no sibling checkout supplies payload
+bytes. Root `TOKO-TOOLING.md`, `LICENSE.md` and `CONTRIBUTING.md` remain canonical.
+
+Consumer Make, CI actions, cache inputs, release-helper calls and disposable
+fixtures use the vendor paths. Release and publication Make modules are explicitly
+selected. Validation callers pass the physical consumer root to the shared runner;
+the installed helper's directory is not the repository root. Root
+`rust-toolchain.toml` remains the consumer-owned Rust 1.100.0 selection after its
+old incidental fixture ownership is retired. Hook setup now selects
+`vendor/toko-tooling/.githooks`; there are no old-path wrappers or aliases.
+
+The producer-only validation-evidence suite and root-layout release-command
+fixture are no longer selected. Storage retains its actual Make dispatch,
+pre-effect admission, native receipt, publication and recovery checks. Product
+release groups and gates are unchanged. Subsequent updates use
+`make toko-tooling-update`; separately changed Cargo selection is installed with
+`make toko-tooling-install`.
+
+Evidence: `target/evidence/toko-0421-adoption-20261113/`. The installed snapshot,
+tool admission, hook caller, Make release dispatch, bootstrap launcher, CI
+selection, dependency-admission caller and failure-evidence round trip pass on
+Linux. Native helper tests pass after qualifying the runner's explicit consumer
+root (89 initial passes and the corrected runner test passing separately).
+All three groups' real offline lock-first/manifest-first bootstrap recovery passes.
+The ShellCheck stage executes once and reuses the same admitted proof for the
+other two groups. CI tests execute both jobs' actual compiler-selection scripts
+against the root pin. Formatting, shell/workflow lint and documentation links pass.
+
+The remaining supplier blocker is
+`vendor/toko-tooling/scripts/ci/fixture-retention-probes.sh:72`: `fixture_probe_exit`
+copies helpers from `$source_root/scripts/ci/`, although the consumer's installed
+helpers now live under `vendor/toko-tooling/`. The consumer retention matrix
+fails with `cp: cannot stat .../scripts/ci/fixture-lifecycle.sh` before exercising
+its cases. Keep that check enabled and preserve
+`test-consumer-fixture-retention.log`; do not substitute root aliases or weaken
+retention assertions. The maintainer explicitly kept this task in Storage;
+producer edits and publication are not authorized. Toko needs to distinguish its
+installed helper root from the consumer root supplied to the generated probe.
+This adoption is not a release, publication or installed-runtime qualification.
+
+## Toko 0.41.1 adoption
+
+Both workspace catalogs and locks select published Toko Tooling 0.41.1, checksum
+`93c16a4886a3f48275cf6518a99d98f3f189ae493ed8bf2af21344820c4ab2a0`.
+The released registry package's installer retains all 40 entrypoints and 104
+payload files. Only Toko's version/checksum changes relative to the incoming
+lockfiles; pending supplier and product edits remain intact. No managed file was
+hand-edited, and no sibling checkout supplied payload bytes.
+
+Move the binary-only runtime qualifier's tooling marker to the released
+`target.'cfg(any())'.dev-dependencies` form. Its exact inherited selection,
+lock entry and cargo-machete exemption remain. Other packages keep their existing
+dev-dependencies. No dummy import, library target or lint suppression is added.
+The producer's bootstrap correction admits the existing complete release-member
+rosters without unused root dependency aliases. All three product release gates
+and the dependency-isolation rules below remain unchanged.
+
+Snapshot/member admission, dependency pins, existing tool admission, offline
+`deps-list` and formatting pass. All five runtime runner unit tests pass; two
+explicitly installed tests remain ignored in that invocation, with their separate
+installed evidence retained in the current handoff. The bootstrap-only launcher
+fixture passes cache/refusal/input-change controls after removing stale unused
+aliases from its generated manifests. The real Cargo/Build-editor fixture passes
+lock-first and manifest-first recovery for all three release groups, preserving
+source bytes and unrelated package identities. Its coherent projected catalogs
+resolve offline and compile the Storage library. These checks have no Git or
+publication effects. Documentation links and the changed fixture's ShellCheck
+also pass on Linux.
+
+Evidence: `target/evidence/toko-0411-adoption-20261113/`. Source adoption is separate
+from release, publication and hosted qualification. The two known 0.41.0 blockers
+are cleared; this is not a fresh full-release or macOS proof.
+
+## Toko 0.41.0 adoption
+
+Both workspace catalogs and locks select published Toko Tooling 0.41.0, checksum
+`4aaafc699324611501e051132e971288c16392a3ece605e9909e88e0c7e80a2f`.
+The authenticated packaged installer previewed and retained all 40 entrypoints
+and 104 payload files. The existing Cargo-dependency Make include now supplies
+offline `make deps-list`; it reports all three product and seven qualification
+packages, with product release ownership from the existing JSON policy.
+No snapshot-owned file was hand-edited. The installer recipe changed to Cargo
+1.100's packaged-lock default; tools were explicitly prepared under the new
+selection identity while earlier caches remain intact.
+
+Both workspace lint tables deny the five common Cargo lints and Rustdoc's
+`invalid_markdown_table`. Remove unused adapter display aliases and their group
+dependency-roster entries, retaining both packages as release members. Remove
+unused shared description/readme fields and redundant homepage metadata.
+The benchmark's Metrics dependencies belong in dev-dependencies because only
+its examples use them. Its existing feature still selects the checkpoint examples.
+The composition fixture now checks actual Platform/Runtime Principal type exchange
+before storing those bytes; the Runtime selection is no longer unused.
+Consumer release projection now selects local catalog dependencies by package
+ownership, including renamed dependencies, rather than applying the root's alias
+roster to every catalog. Qualification catalog/lock projection includes Metrics
+Storage as well as Storage and Logging Storage; this prevents the previously
+missed Metrics version from recurring after an adapter release. Regression tests
+cover absent root aliases, independent aliases, all three groups and rollback.
+
+The [deployment guide](../../RELEASING.md#deployment-sequencing-and-recovery)
+records the new dependency-isolation rule. Testkit's isolated native supplier
+generations may coexist with newer product/composition graphs. Failed optional
+upgrades do not block the qualified existing release selection, but real typed
+boundaries, runtime singletons, required integration tests and security/correctness
+failures still block. Storage's Host/Build `OutputLimits` exchange requires the
+already pending Host 0.77/Build 0.84 pair. No product gate or receipt is weakened.
+
+Product native/default/test-support and Wasm Clippy, the independent native/Wasm
+backend and size-consumer matrix, and both workspaces' strict Rustdoc pass.
+Private protocol debt remains bounded at 185 native and 165 Wasm diagnostics.
+Existing compiler-level warning denial and structured-JSON rejection remain;
+this adoption does not replace them with an unqualified Cargo warning mode.
+Selected checks additionally ran with `CARGO_BUILD_WARNINGS=deny`.
+The inherited-lint negative fixtures and the composition fixture's native
+roundtrip pass. Tool selection, authenticated snapshot, pins, formatting and
+documentation-link checks pass. Relative to the saved incoming lockfiles,
+only the Toko package version/checksum changed in either workspace.
+All three native release-file plans match the shared plans without changing
+source inputs. All 90 native release-helper tests and final helper Clippy pass,
+including package-owned catalog projection, all-group rollback and publication
+recovery with substituted effects. Deployment remains blocked by a producer inconsistency:
+`scripts/ci/observe-cargo-release-bootstrap.sh:85` requires every release member
+to have a root dependency alias, although 0.41.0 prohibits unused aliases and
+the updated group planner accepts their absence. The real offline bootstrap
+fixture fails with `invalid bootstrap member dependency catalog` before testing
+interrupted states. Retain the required membership, path and group-roster
+validation when the producer removes that all-members-have-aliases requirement.
+Do not restore unused aliases or patch the managed observer locally. Adopt a
+published producer correction and rerun all three groups' interrupted-state
+fixture before deployment. This failure is unrelated to Testkit versions.
+Evidence: `target/evidence/toko-0410-adoption-20261113/`. Prior supplier adoption
+and the incoming Metrics 0.30.1 locks are preserved. Product versions, stored
+formats and deployment authority are unchanged by this local adoption.
+
 ## Toko 0.40.1 adoption
 
 Both catalogs and locks select published Toko Tooling 0.40.1, checksum

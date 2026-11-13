@@ -6,7 +6,7 @@ root="$(pwd -P)"
 pin="$(sed -n 's/^channel = "\([^"]*\)"$/\1/p' rust-toolchain.toml)"
 # shellcheck source=ci/release-tools.env
 source ci/release-tools.env
-editor="$(RUSTUP_TOOLCHAIN="$pin" bash scripts/dev/install-rust-tools.sh --consumer "$root" \
+editor="$(RUSTUP_TOOLCHAIN="$pin" bash vendor/toko-tooling/scripts/dev/install-rust-tools.sh --consumer "$root" \
     --package ic-build --version "$IC_BUILD_RELEASE_METADATA_VERSION" --bin ic-build-release-metadata --profile debug --features cli --check)"
 mkdir -p "$root/target/fixtures"
 fixture="$(mktemp -d "$root/target/fixtures/ic-storage-group-bootstrap.XXXXXX")"
@@ -24,10 +24,14 @@ while IFS= read -r path; do
 done < <(jq -r '.groups[].metadata_files[]?, .shared_metadata_files[]?' ci/cargo-release-groups.json)
 mkdir -p "$fixture/scripts/dev" "$fixture/scripts/ci" "$fixture/ci"
 cp scripts/dev/run-repo-tool.sh "$fixture/scripts/dev/"
-bash scripts/ci/prepare-script-fixture.sh "$root" "$fixture" scripts/ci/observe-cargo-release-bootstrap.sh
-cp scripts/ci/read-storage-packages.sh scripts/ci/read-cargo-workspace-version.sh scripts/ci/validate-release-inputs.pl scripts/ci/StableVersion.pm "$fixture/scripts/ci/"
+bash vendor/toko-tooling/scripts/ci/prepare-script-fixture.sh "$root" "$fixture" vendor/toko-tooling/scripts/ci/observe-cargo-release-bootstrap.sh
+cp scripts/ci/read-storage-packages.sh "$fixture/scripts/ci/"
+bash vendor/toko-tooling/scripts/ci/prepare-script-fixture.sh "$root" "$fixture" \
+    vendor/toko-tooling/scripts/ci/read-cargo-workspace-version.sh \
+    vendor/toko-tooling/scripts/ci/validate-release-inputs.pl
+mkdir -p "$fixture/vendor/toko-tooling/scripts/dev"
 cp ci/release-tools.env ci/cargo-release-groups.json "$fixture/ci/"
-cat > "$fixture/scripts/dev/install-rust-tools.sh" <<'STUB'
+cat > "$fixture/vendor/toko-tooling/scripts/dev/install-rust-tools.sh" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
 [[ "${*: -1}" == --check ]] || exit 1
@@ -45,8 +49,8 @@ while IFS= read -r group; do
     cp original.toml Cargo.toml
     cp original.lock Cargo.lock
     previous="$(bash scripts/dev/run-repo-tool.sh "$pin" version)"
-    next="$(bash "$root/scripts/ci/next-release-version.sh" "$previous" minor)"
-    RELEASE_VERSION="$next" RUSTUP_TOOLCHAIN="$pin" bash "$root/scripts/ci/cargo-release-group.sh" plan "$group" > "$group.plan.json"
+    next="$(bash "$root/vendor/toko-tooling/scripts/ci/next-release-version.sh" "$previous" minor)"
+    RELEASE_VERSION="$next" RUSTUP_TOOLCHAIN="$pin" bash "$root/vendor/toko-tooling/scripts/ci/cargo-release-group.sh" plan "$group" > "$group.plan.json"
     cp Cargo.lock "$group.lock"
     while IFS= read -r package; do
         "$editor" --max-input-bytes "$CARGO_RELEASE_METADATA_MAX_BYTES" lock "$group.lock" "$previous" "$next" "$package" > next.lock

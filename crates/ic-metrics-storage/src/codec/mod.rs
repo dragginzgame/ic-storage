@@ -37,7 +37,7 @@ struct Record<'a> {
 const fn error(error: ic_wire::Error) -> StoreError {
     match error {
         ic_wire::Error::Malformed | ic_wire::Error::Trailing => StoreError::MalformedRecord,
-        other => StoreError::Codec(other),
+        _ => StoreError::Codec,
     }
 }
 
@@ -80,7 +80,7 @@ pub fn encode<T: StoredMetric>(
         kind: T::KIND as u8,
         unit: &identity.unit,
         epoch: identity.epoch,
-        state: BytesRef::new(&state)?,
+        state: BytesRef::new(&state).map_err(|_| StoreError::Codec)?,
     };
     let payload = native::encode(&record, LIMITS).map_err(|err| match err {
         ic_wire::Error::Limit => StoreError::RecordTooLarge,

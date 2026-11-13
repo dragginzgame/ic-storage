@@ -4,7 +4,7 @@ set -euo pipefail
 [[ $# == 0 ]] || exit 2
 # Check prepared selections first: missing tools must not turn this probe into setup.
 make --no-print-directory host-tools-check ic-tools-check rust-tools-check
-source scripts/ci/fixture-lifecycle.sh
+source vendor/toko-tooling/scripts/ci/fixture-lifecycle.sh
 mkdir -p "$PWD/target/fixtures"
 sharing="$(fixture_create "$PWD/target/fixtures/ic-storage-tool-reuse.XXXXXX")"
 echo "Retained offline tool-reuse qualification: $sharing"
@@ -16,7 +16,7 @@ for kind in host ic; do
     options=()
     if [[ "$kind" == ic ]]; then options+=(--tool wasm-opt); fi
     if [[ "$mode" == check ]]; then options+=(--check); fi
-    PATH="$sharing/bin:$PATH" bash "scripts/dev/install-$kind-tools.sh" \
+    PATH="$sharing/bin:$PATH" bash "vendor/toko-tooling/scripts/dev/install-$kind-tools.sh" \
       --consumer "$sharing/consumer" ${options[@]+"${options[@]}"} \
       > "$sharing/$kind-$mode.log" 2>&1
   done
@@ -27,7 +27,7 @@ for mode in install check; do
   options=()
   if [[ "$mode" == check ]]; then options=(--check); fi
   CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0 \
-    bash scripts/dev/install-rust-tools.sh --consumer "$sharing/consumer" \
+    bash vendor/toko-tooling/scripts/dev/install-rust-tools.sh --consumer "$sharing/consumer" \
     ${options[@]+"${options[@]}"} \
     > "$sharing/rust-$mode.log" 2>&1
 done

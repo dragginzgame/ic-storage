@@ -131,7 +131,7 @@ impl<E: Execute> Repository<E> {
                 &[
                     &format!("RUSTUP_TOOLCHAIN={}", self.toolchain()?),
                     "bash",
-                    "scripts/ci/run-cargo-publication.sh",
+                    "vendor/toko-tooling/scripts/ci/run-cargo-publication.sh",
                     if dry_run { "check" } else { "publish" },
                     attempt.to_str().ok_or("non-UTF-8 publication path")?,
                     head,

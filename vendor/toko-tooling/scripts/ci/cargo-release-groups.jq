@@ -42,7 +42,7 @@ def release_policy:
      any(.groups[]; .changelog as $path | $extra | index($path))
   then error("overlapping or reserved release-group metadata files") else . end;
 
-# Root declarations are a complete catalog, including aliases not inherited by
+# Root declarations form the dependency catalog, including aliases not inherited by
 # any member. Cargo itself does not resolve or validate those unused entries.
 def member_catalog($root; $owned):
   [($root.workspace.dependencies // {} | to_entries[]) |
@@ -80,12 +80,10 @@ def admit_groups($config; $root; $manifests; $lock; $selected):
      ([$metadata.packages[] | select(.source == null) | {name,version}] | sort_by(.name))
   then error("stale or foreign local lock records") else . end |
   # Cargo permits a compatible lower bound to lag a path package. The root
-  # catalog also serves as the visible version map, so require its full current
+  # catalog contains real dependency requirements, so require its full current
   # version for publishable members, including unused aliases and other groups.
   # Private path-only entries keep dev helpers out of published Cargo manifests.
   member_catalog($root; $owned) as $catalog |
-  if ($catalog | map(.package) | unique | sort) != ($owned | map(.name) | sort)
-  then error("root dependency catalog must include every workspace member") else . end |
   reduce $catalog[] as $d
     (. ;
       ($owned | map(select(.name == $d.package))) as $packages |

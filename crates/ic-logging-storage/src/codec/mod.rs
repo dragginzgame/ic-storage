@@ -93,7 +93,7 @@ impl Serialize for StoredEntries<'_> {
 
 pub fn encode(identity: LogIdentity, state: LogCheckpoint<'_>) -> Result<Vec<u8>, StoreError> {
     if state.entries().len() > MAX_ENTRIES {
-        return Err(ic_wire::Error::Limit.into());
+        return Err(StoreError::Codec);
     }
     encode_checkpoint(&Checkpoint {
         epoch: identity.epoch,
@@ -107,7 +107,7 @@ pub fn encode(identity: LogIdentity, state: LogCheckpoint<'_>) -> Result<Vec<u8>
 fn encode_checkpoint(checkpoint: &Checkpoint<impl Serialize>) -> Result<Vec<u8>, StoreError> {
     let payload = native::encode(checkpoint, CODEC_LIMITS).map_err(|error| match error {
         ic_wire::Error::Limit => StoreError::RecordTooLarge,
-        other => StoreError::Codec(other),
+        _ => StoreError::Codec,
     })?;
     let mut bytes = Vec::with_capacity(MAGIC.len() + payload.len());
     bytes.extend_from_slice(MAGIC);
@@ -130,7 +130,7 @@ pub fn decode(bytes: &[u8], identity: LogIdentity, limits: Limits) -> Result<Log
     let checkpoint: Checkpoint<List<StoredEntry<'_>, MAX_ENTRIES>> =
         native::decode(payload, CODEC_LIMITS).map_err(|error| match error {
             ic_wire::Error::Malformed | ic_wire::Error::Trailing => StoreError::MalformedRecord,
-            other => StoreError::Codec(other),
+            _ => StoreError::Codec,
         })?;
     if checkpoint.epoch != identity.epoch {
         return Err(StoreError::IdentityMismatch);

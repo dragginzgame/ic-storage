@@ -14,9 +14,9 @@ printf 'Retained ShellCheck admission: %s\n' "$record"
 base="$(git rev-parse HEAD)"
 git diff --cached --quiet
 git ls-files --stage -z | shasum -a 256 > "$record/index.before"
-bash scripts/ci/cargo-release-group.sh plan "$RELEASE_GROUP" > "$record/group.json"
+bash vendor/toko-tooling/scripts/ci/cargo-release-group.sh plan "$RELEASE_GROUP" > "$record/group.json"
 inputs=(Cargo.toml Cargo.lock ci/cargo-release-groups.json crates/*/Cargo.toml)
-perl scripts/ci/validation-input-checkpoint.pl "$root" '' "$record/inputs.json" scripts/ci/verify-file-checksum.sh "${inputs[@]}"
+perl vendor/toko-tooling/scripts/ci/validation-input-checkpoint.pl "$root" '' "$record/inputs.json" vendor/toko-tooling/scripts/ci/verify-file-checksum.sh "${inputs[@]}"
 source_id="$(printf '%s\n' "$base"; cat "$record/index.before" "$record/inputs.json")"
 source_id="$(printf '%s' "$source_id" | shasum -a 256)"
 source_id="${source_id%% *}"
@@ -25,11 +25,11 @@ jq -cnS --arg path "$PATH" --arg home "$HOME" --arg shellcheck "$shellcheck_bin"
     '{PATH:$path,HOME:$home,LC_ALL:"C",SHELLCHECK_BIN:$shellcheck}' > "$record/environment.json"
 # ShellCheck 0.11.0's native macOS payloads exceed 32 MiB (ARM64: 61,551,911
 # bytes; Intel: 35,176,792). Admit their complete bytes within a fixed 64 MiB cap.
-perl scripts/ci/run-validation-stage.pl --state "$VALIDATION_STAGE_STATE" --stage shellcheck \
+perl vendor/toko-tooling/scripts/ci/run-validation-stage.pl --state "$VALIDATION_STAGE_STATE" --stage shellcheck \
     --contract storage-shellcheck/1 --source "$source_id" --group "$RELEASE_GROUP" \
     --observe scripts/ci/observe-shellcheck-stage.sh --environment "$record/environment.json" --max-bytes 67108864 \
     -- bash scripts/ci/qualify-shellcheck-stage.sh
-perl scripts/ci/validation-input-checkpoint.pl "$root" "$record/inputs.json" "$record/after.json" scripts/ci/verify-file-checksum.sh
+perl vendor/toko-tooling/scripts/ci/validation-input-checkpoint.pl "$root" "$record/inputs.json" "$record/after.json" vendor/toko-tooling/scripts/ci/verify-file-checksum.sh
 git ls-files --stage -z | shasum -a 256 > "$record/index.after"
 cmp "$record/index.before" "$record/index.after"
 [[ "$(git rev-parse HEAD)" == "$base" ]]

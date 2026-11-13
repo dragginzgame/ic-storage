@@ -9,10 +9,10 @@ mkdir -p "$ROOT/target/fixtures"
 fixture="$(mktemp -d "$ROOT/target/fixtures/memory-fixture-retention.XXXXXX")"
 fixture="$(CDPATH="" cd -P -- "$fixture" && printf '%s/.' "$PWD")"
 fixture="${fixture%/.}"
-# shellcheck source=scripts/ci/fixture-lifecycle.sh
-source "$ROOT/scripts/ci/fixture-lifecycle.sh"
-# shellcheck source=scripts/ci/fixture-retention-probes.sh
-source "$ROOT/scripts/ci/fixture-retention-probes.sh"
+# shellcheck source=vendor/toko-tooling/scripts/ci/fixture-lifecycle.sh
+source "$ROOT/vendor/toko-tooling/scripts/ci/fixture-lifecycle.sh"
+# shellcheck source=vendor/toko-tooling/scripts/ci/fixture-retention-probes.sh
+source "$ROOT/vendor/toko-tooling/scripts/ci/fixture-retention-probes.sh"
 fixture_complete=false
 trap 'fixture_finish "$?" "$fixture" "Consumer retention probes retained"' EXIT
 for name in release-adapters failure-evidence git-hooks; do
@@ -32,8 +32,9 @@ FIXTURE_PROBE_TEMPORARY_ROOT="$ROOT/target/fixtures" FIXTURE_PROBE_ROOT_VARIABLE
 assertion_root="$fixture/assertion-source"
 mkdir -p "$assertion_root/scripts/ci"
 cp "$ROOT/scripts/ci/test-consumer-fixture-retention.sh" "$assertion_root/scripts/ci/"
-cp "$ROOT/scripts/ci/fixture-lifecycle.sh" "$assertion_root/scripts/ci/"
-cp "$ROOT/scripts/ci/fixture-retention-probes.sh" "$assertion_root/scripts/ci/"
+bash "$ROOT/vendor/toko-tooling/scripts/ci/prepare-script-fixture.sh" "$ROOT" "$assertion_root" \
+    vendor/toko-tooling/scripts/ci/fixture-lifecycle.sh \
+    vendor/toko-tooling/scripts/ci/fixture-retention-probes.sh
 for name in release-adapters failure-evidence git-hooks; do
     cat > "$assertion_root/scripts/ci/test-$name.sh" <<'PROBE'
 #!/usr/bin/env bash

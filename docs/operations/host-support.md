@@ -54,11 +54,11 @@ current native macOS acceptance remains separate from local Linux evidence.
   regenerate them to make a check pass.
 - The common jq/yq/ripgrep/cloc set under `.tools/host/bin` for host checks and
   reports; jq/yq support `make check-pins`
-  with the actual workspace and exception catalog. The reviewed snapshot owns `ci/tool-versions.env`.
+  with the actual workspace and exception catalog. The reviewed snapshot owns `vendor/toko-tooling/ci/tool-versions.env`.
   Interrupted manifest/lockfile recovery also uses yq to locate Cargo's selected
   target directory. Checks are offline and never install prerequisites.
 - Actionlint and ShellCheck for `make lint-tooling`. CI installs exact
-  snapshot versions and hashes from `ci/tool-versions.env` using the
+  snapshot versions and hashes from `vendor/toko-tooling/ci/tool-versions.env` using the
   reviewed shared installers. Local installation is a separate network step.
 - Hosted evidence readback uses `gh` and `unzip` from the declared runner images.
   The command requires an explicit token with `actions:read`; local portable
@@ -75,7 +75,7 @@ toolchain, then activate the reviewed hook once per clone:
 make install-tools
 make tools-check
 make install-hooks
-git config --get core.hooksPath # .githooks
+git config --get core.hooksPath # vendor/toko-tooling/.githooks
 make fmt-check
 ```
 
@@ -106,8 +106,8 @@ bundle performs its own platform/catalog admission after common setup.
 Prepare a supported host and the declared toolchain before retrying a refusal.
 Offline host checks identify the failing tool, expected version, selected path
 and repair command; they still authenticate payloads before execution.
-The reviewed `make/consumer.mk` selects the common modules for setup, checks,
-formatting, hooks and releases; `make/tools.mk` owns installation, offline checks
+The reviewed `vendor/toko-tooling/make/consumer.mk` selects the common modules for setup, checks,
+formatting, hooks and releases; `vendor/toko-tooling/make/tools.mk` owns installation, offline checks
 and LOC targets. Memory supplies both-workspace formatter commands and its pinned
 compiler. Use `make toko-tooling-check` for snapshot integrity and
 `make format-tools-check` for prepared formatter admission.
@@ -130,7 +130,7 @@ already tracked by Git. Adopt new locks through an explicitly authorized commit
 or PR before the real-checkout declaration/release gate can pass; qualification
 alone does not authorize staging them.
 
-Installed runtime qualification uses the published `ic-testkit` 0.101.0 server CLI
+Installed runtime qualification uses the published `ic-testkit` 0.102.0 server CLI
 selected in `ci/runtime-tools.env`, installed through Shared Tooling's exact Cargo
 binary installer. It has a separate locked registry tool graph, outside both
 workspace lockfiles. Prepare it and Testkit's authenticated server selection explicitly:
@@ -152,7 +152,7 @@ Wasm, input hashes and all optimizer/server/runtime logs remain under
 `target/qualification/runtime/`, including failures. Normal library builds and
 their Wasm budgets remain unoptimized. The runner consumes
 `IC_TESTKIT_POCKET_IC_URL`; it never downloads or
-spawns a server. Testkit 0.101.0 re-exports PocketIC's async client and
+spawns a server. Testkit 0.102.0 re-exports PocketIC's async client and
 selects server 16.1.0. Drivers own a current-thread Tokio runtime, explicit
 five-minute polling budgets and awaited best-effort instance deletion. The
 managed CLI bounds server lifetime; polling budgets are not absolute HTTP
@@ -212,8 +212,8 @@ replaying Memory's IO suite or the release optimizer matrix:
 cargo +1.100.0 build --manifest-path qualification/Cargo.toml \
   --target-dir target -p ic-storage-test-fixtures --locked --offline --profile wasm-size \
   --target wasm32-unknown-unknown --example wasm-storage-qualification
-testkit_cli="$(RUSTUP_TOOLCHAIN=1.100.0 bash scripts/dev/install-rust-tools.sh \
-  --consumer "$PWD" --package ic-testkit --version 0.101.0 \
+testkit_cli="$(RUSTUP_TOOLCHAIN=1.100.0 bash vendor/toko-tooling/scripts/dev/install-rust-tools.sh \
+  --consumer "$PWD" --package ic-testkit --version 0.102.0 \
   --bin ic-testkit-server --profile release --features cli --check)"
 IC_STORAGE_QUALIFICATION_WASM="$PWD/target/wasm32-unknown-unknown/wasm-size/examples/wasm_storage_qualification.wasm" \
   "$testkit_cli" run --directory "$PWD/.tools/ic-testkit-server" --ttl 900 -- \
@@ -273,7 +273,7 @@ explicit setup retries; they do not establish readiness of the complete set.
 `ci/runtime-tools.env` owns the separately prepared Testkit CLI version. Runtime
 CI caches bind that pin and the IC catalog to Shared Tooling's compiler, native
 environment and installer identity; tool admission still checks restored bytes before qualification.
-The snapshot's `ci/tool-versions.env` owns the common pins. Host, IC and Cargo
+The snapshot's `vendor/toko-tooling/ci/tool-versions.env` owns the common pins. Host, IC and Cargo
 setup use independent snapshot defaults; Memory has no exception catalog.
 Shared Tooling 0.6.1 stores Cargo
 builds and receipts in its per-user store, selected through checkout-local
@@ -442,7 +442,7 @@ never follows the link to collect outside payloads.
 For interactive CI inspection, use the unchanged shared helper:
 
 ```sh
-GH_REPO=dragginzgame/ic-storage bash scripts/dev/gh-ci.sh --commit HEAD --all-workflows --limit 100
+GH_REPO=dragginzgame/ic-storage bash vendor/toko-tooling/scripts/dev/gh-ci.sh --commit HEAD --all-workflows --limit 100
 ```
 
 When `--logs` cannot retrieve failed-step evidence, the helper reports the gap

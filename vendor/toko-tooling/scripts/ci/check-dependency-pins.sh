@@ -10,6 +10,7 @@ SCRIPT_DIR="$(cd -P "${SCRIPT_DIR%/*}" && printf '%s/.' "$PWD")"
 SCRIPT_DIR="${SCRIPT_DIR%/.}"
 ROOT="$(cd -P "$SCRIPT_DIR/../.." && printf '%s/.' "$PWD")"
 ROOT="${ROOT%/.}"
+if [[ "$ROOT" == */vendor/toko-tooling ]]; then ROOT="${ROOT%/vendor/toko-tooling}"; fi
 YQ="${YQ:-yq}"
 inheritance=false
 npm_root='' node_version='' npm_version=''

@@ -10,7 +10,7 @@ if [[ -n "$plan" ]]; then
         exit 1
     }
     expected="$(jq -er --arg path "$plan" '.[$path] | strings' "$VALIDATION_INPUT_BASELINE")"
-    actual="$(bash scripts/ci/verify-file-checksum.sh --print sha256 "$plan")"
+    actual="$(bash vendor/toko-tooling/scripts/ci/verify-file-checksum.sh --print sha256 "$plan")"
     [[ "$actual" == "$expected" ]] || {
         echo 'Cargo validation plan differs from its admitted checkpoint' >&2
         exit 1

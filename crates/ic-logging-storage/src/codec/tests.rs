@@ -12,7 +12,7 @@ pub fn encode_snapshot(
         }
     }
     if state.entries.len() > MAX_ENTRIES {
-        return Err(ic_wire::Error::Limit.into());
+        return Err(StoreError::Codec);
     }
     encode_checkpoint(&Checkpoint {
         epoch: identity.epoch,

@@ -3,6 +3,15 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/metrics-stable/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.78.0] - Unreleased
+
+### 💥 Breaking
+
+- Replace the public Wire error payload with adapter-owned `StoreError::Codec`;
+  remove the Wire conversion/source and keep Wire 0.22.0 internal. Existing `ICMW`
+  checkpoints remain readable without migration or reset.
+  See [the detailed notes](0.78.md#0780---unreleased).
+
 ## [0.77.0] - 2026-11-13
 
 ### 💥 Breaking

@@ -75,6 +75,29 @@ This supersedes the 0.39.3–0.39.4 managed-document namespace plan and older li
 instructions to vendor governance guides. It does not trigger unsolicited sibling
 refreshes or change the offline verification of installed executable bytes.
 
+## Installed tooling ownership
+
+From 0.42, keep installed executable tooling and its operational inputs under
+`vendor/toko-tooling/`, preserving their upstream relative paths inside that
+directory. Only `TOKO-TOOLING.md`, `LICENSE.md` and `CONTRIBUTING.md` are installed
+at root; `.toko-tooling.snapshot` remains the root ownership receipt. Do not put
+consumer edits in the vendor tree. Product scripts, Makefiles, CI workflows,
+release policies and `AGENTS.md` remain consumer-owned outside it.
+
+Select only used executable entrypoints. Release and publication are explicit
+selections, not companions of the default Make interface. Reference documentation
+stays online, and producer regression suites stay upstream; qualify actual local
+caller wiring instead of installing generic test scripts. Shared composite actions
+may live inside the vendor tree and be called by consumer-owned workflows.
+
+Migrate with the exporter and a complete retained entrypoint list. It must prove
+old bytes against their source before retiring them and refuse differing existing
+destinations without ownership proof, even when Git considers them clean. Review
+preview, update local paths and hook configuration, then qualify the installed
+callers. Do not manually move managed files or edit receipts. This replaces the
+previous same-path installation rule without relocating reference documentation
+or authorizing unsolicited sibling changes.
+
 ## Scope and authorization
 
 The [contribution rules](https://github.com/dragginzgame/toko-tooling/blob/626da7cd9626cc2e152594862a2d82ea82ef51da/rules/contributions.md) own detailed action authority;
@@ -186,7 +209,11 @@ when changing interfaces, persistence or installation/recovery behavior.
   suite. Name the changed behavior each selected check proves. Keep unchanged
   generic regression matrices with their producer.
 - Repository tooling uses one exact root Cargo dependency pin inherited as a
-  dev-dependency by every real workspace package. `cargo update -v` reports newer
+  dev-dependency by every real workspace package. The exact
+  `target.'cfg(any())'.dev-dependencies` form is also permitted for this
+  source-bundle marker: it preserves Cargo selection without compiling an unused
+  crate into binary tests. Other target selectors, dummy imports and lint
+  suppressions are not substitutes. `cargo update -v` reports newer
   releases; after changing the pin and Cargo.lock, run `make toko-tooling-update`.
   Offline admission checks every member, Cargo.lock and installed bytes together.
   See the
@@ -307,6 +334,13 @@ guidance, including permission for new licence-adoption changelog notices.
 
 ## Current dependencies and upstream independence
 
+**One rule for every repository:** qualify the selected product and required
+qualification graphs, not a fleet-wide dependency generation. An older native
+test supplier may coexist with newer product dependencies when their actual
+type, protocol and executor boundaries remain valid. A failed optional upgrade
+probe blocks that upgrade, not release of an otherwise qualified existing
+selection. Preserve real incompatibility refusals and required integration tests.
+
 - Freshness review is separate from pin consistency and passing tests. During
   dependency maintenance, review every direct supplier in the selected scope,
   including native tools, dev/build dependencies and independent qualification
@@ -350,6 +384,16 @@ guidance, including permission for new licence-adoption changelog notices.
   effort is not sufficient. An upstream-only older transitive selection needs
   no freshness exception for our independent direct dependency; security
   findings still require remediation.
+
+An unchanged release selection is not a new dependency adoption. The freshness
+review above may defer an optional upgrade to the next dependency-maintenance
+batch without a new approval round; this is not a permanent hold or permission to
+ignore a security or correctness blocker. For a claimed dependency blocker, name
+the selected package, target/features, conflicting identities and introducing
+paths, and distinguish failed upgrade experiments from the active release graph.
+Compare native qualification and deployed graphs separately; duplicate names in
+a whole lockfile alone do not establish a conflict. Do not force a transitive
+package outside its supplier's supported range merely to remove a duplicate.
 - Reduce DFINITY coupling incrementally at the existing capability owner as
   affected work permits. Preserve reviewed cryptographic implementations,
   external behavior and provenance; do not bypass the Platform boundary or
@@ -386,6 +430,14 @@ Read the
 when adding, changing or reviewing metrics and logging.
 
 ## IC application encoding
+
+Reusable libraries own domain operations, data contracts and retained-data codecs.
+Adapters or applications own public canister endpoint registration, caller guards,
+framework lifecycle composition and deployment policy. Canic owns those bindings
+for Canic-managed applications; independent services retain their own host adapter.
+Wire encoding, bounded types or schema generation alone do not make a dependency
+an endpoint-ownership violation. Keep native domain use independent of mounting
+an endpoint; do not move domain engines into Canic to remove a codec dependency.
 
 Hashing choices follow the [shared algorithm/purpose inventory](https://github.com/dragginzgame/toko-tooling/blob/626da7cd9626cc2e152594862a2d82ea82ef51da/rules/hashing.md).
 Review new algorithms and direct hashing packages explicitly; pure hashing may
@@ -540,6 +592,13 @@ document necessary package exceptions and keep their common checks equivalent.
 Use this common minimum in each workspace root:
 
 ```toml
+[workspace.lints.cargo]
+unused_dependencies = "deny"
+unused_workspace_dependencies = "deny"
+unused_workspace_package_fields = "deny"
+missing_lints_inheritance = "deny"
+unknown_lints = "deny"
+
 [workspace.lints.rust]
 dead_code = "deny"
 unused_must_use = "deny"
@@ -550,6 +609,7 @@ missing_docs = "warn"
 
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "deny"
+invalid_markdown_table = "deny"
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -2 }
@@ -568,6 +628,20 @@ do not weaken existing safe-package prohibitions. Missing-docs debt may retain
 an explicit no-growth baseline and scoped exceptions during adoption; do not
 invent boilerplate to claim the API is documented. Run the required Rustdoc
 checks as well as Clippy: configuring a tool's lints does not execute that tool.
+
+Run Cargo's dependency lints through the existing selected package/target checks;
+they do not cover development dependencies or prove every optional/target-specific
+use. Retain complementary checks for those gaps. Remove unused declarations and
+workspace metadata rather than adding dummy imports or blanket lint allowances.
+The missing-inheritance lint can detect an absent member lint table but an explicit
+empty table still needs our inheritance review. Cargo, Rust, Clippy and Rustdoc
+remain distinct lint namespaces; do not substitute one for another.
+
+For Rust 1.100, qualify warning enforcement on fresh and warm
+outputs, consume Cargo artifact records rather than internal build-directory
+layouts, and keep dependency cooldowns opt-in. Standard-library simplifications
+must preserve resource ownership and show a concrete reduction in complexity
+or measured cost; compiler adoption does not require broad API rewrites.
 
 Do not enable the entire `nursery` or `restriction` group. Select justified
 individual lints. Existing `pedantic` policy may remain after reviewing its
@@ -644,11 +718,16 @@ versions within explicit release groups where contracts need independent
 releases. Independent product groups all use explicit package versions and
 `releases/<group>/CHANGELOG.md`; the root has no shared version and its changelog
 is an index. Require explicit group selection for releases and publication.
-Show every product member's path and every publishable member's version in root
-`Cargo.toml` dependency declarations. Private product members may use path-only
-catalog entries; qualification members have their own workspace catalog.
-Group them once at the top of `[workspace.dependencies]`, before all external
-dependencies, with short titles and separate changelog comments, under the
+Use `make deps-list` to view every local package's version and release group,
+including the separate qualification workspace. Keep root `Cargo.toml` dependency
+declarations for actual member usage, not display-only package entries. Remove an
+unused alias from its group's dependency roster when removing its declaration;
+retain the package in the group's member roster. Private product dependencies
+may use path-only entries; qualification owns its own workspace catalog.
+Remove unused workspace dependencies and their obsolete aliases; do not allow
+the unused-dependency lint merely to preserve a display catalog. Cargo.toml needs
+no release-group blocks, role sections or changelog comments. Keep group ownership
+in the existing JSON policy under the
 [workspace versioning rules](https://github.com/dragginzgame/toko-tooling/blob/626da7cd9626cc2e152594862a2d82ea82ef51da/rules/rust-workspaces.md#coordinated-versions-and-workspace-boundaries).
 Dependency adoption must distinguish required compatibility/security changes from
 optional refreshes and check the destination graph before planning downstream

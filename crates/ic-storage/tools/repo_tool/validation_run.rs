@@ -183,7 +183,7 @@ impl<E: Execute> Repository<E> {
             let raw = self.output(
                 "perl",
                 &[
-                    "scripts/ci/validation-evidence.pl",
+                    "vendor/toko-tooling/scripts/ci/validation-evidence.pl",
                     "verify",
                     self.root.to_str().ok_or("non-UTF8 source root")?,
                     &record.plan_path,

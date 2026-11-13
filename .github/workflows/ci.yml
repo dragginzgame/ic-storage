@@ -34,7 +34,7 @@ jobs:
           CHANGE_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           CHANGE_HEAD: ${{ github.sha }}
         run: |
-          if ! scope="$(perl scripts/ci/classify-ci-change.pl --event "$CHANGE_EVENT" --ref "$CHANGE_REF" \
+          if ! scope="$(perl vendor/toko-tooling/scripts/ci/classify-ci-change.pl --event "$CHANGE_EVENT" --ref "$CHANGE_REF" \
             --base "$CHANGE_BASE" --head "$CHANGE_HEAD" --policy ci/docs-only-paths.txt)"; then
             scope=full
           fi
@@ -64,20 +64,20 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
       - run: make toko-tooling-check
-      - uses: ./.github/actions/cache-tool-downloads
+      - uses: ./vendor/toko-tooling/.github/actions/cache-tool-downloads
       - name: Install exact validation tools
         shell: bash
         run: |
           tool_dir="$RUNNER_TEMP/ic-storage-tools"
-          actionlint_bin="$(bash scripts/ci/install-ci-tool.sh actionlint --install-dir "$tool_dir")"
-          shellcheck_bin="$(bash scripts/ci/install-ci-tool.sh shellcheck --install-dir "$tool_dir")"
-          gitleaks_bin="$(bash scripts/ci/install-ci-tool.sh gitleaks --install-dir "$tool_dir")"
+          actionlint_bin="$(bash vendor/toko-tooling/scripts/ci/install-ci-tool.sh actionlint --install-dir "$tool_dir")"
+          shellcheck_bin="$(bash vendor/toko-tooling/scripts/ci/install-ci-tool.sh shellcheck --install-dir "$tool_dir")"
+          gitleaks_bin="$(bash vendor/toko-tooling/scripts/ci/install-ci-tool.sh gitleaks --install-dir "$tool_dir")"
           {
             echo "GITLEAKS_BIN=$gitleaks_bin"
             echo "ACTIONLINT_BIN=$actionlint_bin"
             echo "SHELLCHECK_BIN=$shellcheck_bin"
           } >> "$GITHUB_ENV"
-      - uses: ./.github/actions/cache-tool-downloads
+      - uses: ./vendor/toko-tooling/.github/actions/cache-tool-downloads
         with:
           mode: save
       - name: Scan complete repository history
@@ -132,7 +132,7 @@ jobs:
           targets: wasm32-unknown-unknown
       - run: make toko-tooling-check
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
-      - uses: ./.github/actions/cache-tool-downloads
+      - uses: ./vendor/toko-tooling/.github/actions/cache-tool-downloads
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
       - name: Prepare host tools and identify common Cargo tool cache
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
@@ -142,7 +142,7 @@ jobs:
           make install-host-tools 2>&1 | tee "$RUNNER_TEMP/native-host-setup.log"
           make host-tools-check 2>&1 | tee "$RUNNER_TEMP/native-host-check.log"
           export PATH="$GITHUB_WORKSPACE/.tools/host/bin:$PATH"
-          bash scripts/ci/cargo-tool-cache-key.sh ci/tool-versions.env >> "$GITHUB_OUTPUT"
+          bash vendor/toko-tooling/scripts/ci/cargo-tool-cache-key.sh vendor/toko-tooling/ci/tool-versions.env >> "$GITHUB_OUTPUT"
       - name: Restore common Cargo tool builds
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
         id: common-tool-cache
@@ -188,9 +188,9 @@ jobs:
             Darwin:x86_64) checksum=3c89db4edcab7cf1c27bff178882e0f6f27f7afdf54e859fa041fca10febe4c6 ;;
             *) echo 'Unsupported native ShellCheck qualification host' >&2; exit 1 ;;
           esac
-          SHELLCHECK_BIN="$(bash scripts/ci/install-ci-tool.sh shellcheck --version 0.11.0 --sha256 "$checksum" --install-dir "$RUNNER_TEMP/ic-storage-tools")"
+          SHELLCHECK_BIN="$(bash vendor/toko-tooling/scripts/ci/install-ci-tool.sh shellcheck --version 0.11.0 --sha256 "$checksum" --install-dir "$RUNNER_TEMP/ic-storage-tools")"
           echo "SHELLCHECK_BIN=$SHELLCHECK_BIN" >> "$GITHUB_ENV"
-      - uses: ./.github/actions/cache-tool-downloads
+      - uses: ./vendor/toko-tooling/.github/actions/cache-tool-downloads
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
         with:
           mode: save
@@ -248,7 +248,7 @@ jobs:
           EVIDENCE_RUN: ${{ github.run_id }}
           EVIDENCE_ARTIFACT: ${{ steps.evidence-upload.outputs.artifact-id }}
           EVIDENCE_DIGEST: ${{ steps.evidence-upload.outputs.artifact-digest }}
-        run: bash scripts/ci/download-evidence.sh "$EVIDENCE_REPOSITORY" "$EVIDENCE_RUN" "$EVIDENCE_ARTIFACT" "$EVIDENCE_DIGEST" "$RUNNER_TEMP/ic-storage-evidence-downloaded"
+        run: bash vendor/toko-tooling/scripts/ci/download-evidence.sh "$EVIDENCE_REPOSITORY" "$EVIDENCE_RUN" "$EVIDENCE_ARTIFACT" "$EVIDENCE_DIGEST" "$RUNNER_TEMP/ic-storage-evidence-downloaded"
       - name: Verify downloaded native failure evidence
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
         shell: bash
@@ -323,7 +323,7 @@ jobs:
           targets: wasm32-unknown-unknown
       - run: make toko-tooling-check
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
-      - uses: ./.github/actions/cache-tool-downloads
+      - uses: ./vendor/toko-tooling/.github/actions/cache-tool-downloads
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
       - name: Prepare host tools and identify runtime tool cache
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
@@ -333,7 +333,7 @@ jobs:
           make install-host-tools 2>&1 | tee "$RUNNER_TEMP/runtime-host-setup.log"
           make host-tools-check 2>&1 | tee "$RUNNER_TEMP/runtime-host-check.log"
           export PATH="$GITHUB_WORKSPACE/.tools/host/bin:$PATH"
-          bash scripts/ci/cargo-tool-cache-key.sh ci/tool-versions.env >> "$GITHUB_OUTPUT"
+          bash vendor/toko-tooling/scripts/ci/cargo-tool-cache-key.sh vendor/toko-tooling/ci/tool-versions.env >> "$GITHUB_OUTPUT"
       - name: Restore runtime tool builds
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
         id: runtime-tool-cache
@@ -348,7 +348,7 @@ jobs:
             ${{ steps.runtime-tool-cache-key.outputs.root }}/rust-*
             .tools/ic-testkit-server
           # Consumer pins select the CLI; shared installer identity owns build admission.
-          key: runtime-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.runtime-tool-cache-key.outputs.key }}-${{ hashFiles('ci/runtime-tools.env', 'ci/ic-tools.tsv') }}
+          key: runtime-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.runtime-tool-cache-key.outputs.key }}-${{ hashFiles('ci/runtime-tools.env', 'vendor/toko-tooling/ci/ic-tools.tsv') }}
       - name: Prepare and verify selected CLI and Testkit server
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
         shell: bash
@@ -367,8 +367,8 @@ jobs:
             ${{ steps.runtime-tool-cache-key.outputs.root }}/cargo-cache
             ${{ steps.runtime-tool-cache-key.outputs.root }}/rust-*
             .tools/ic-testkit-server
-          key: runtime-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.runtime-tool-cache-key.outputs.key }}-${{ hashFiles('ci/runtime-tools.env', 'ci/ic-tools.tsv') }}
-      - uses: ./.github/actions/cache-tool-downloads
+          key: runtime-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.runtime-tool-cache-key.outputs.key }}-${{ hashFiles('ci/runtime-tools.env', 'vendor/toko-tooling/ci/ic-tools.tsv') }}
+      - uses: ./vendor/toko-tooling/.github/actions/cache-tool-downloads
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
         with:
           mode: save

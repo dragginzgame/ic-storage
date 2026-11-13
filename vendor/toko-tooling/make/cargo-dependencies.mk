@@ -8,7 +8,12 @@ DEPENDENCY_PRECISE ?=
 DEPENDENCY_MANIFEST ?=
 _dependency_quote = '$(subst ','"'"',$(1))'
 
-.PHONY: deps-update
+.PHONY: deps-update deps-list
+deps-list:
+	@perl $(call _dependency_quote,$(TOKO_TOOLING_ROOT)/scripts/dev/cargo-dependencies.pl) list \
+	  --consumer $(call _dependency_quote,$(DEPENDENCY_CONSUMER)) \
+	  $(if $(strip $(DEPENDENCY_MANIFEST)),--manifest $(call _dependency_quote,$(DEPENDENCY_MANIFEST)))
+
 deps-update: | toko-execution-check
 deps-update:
 	@perl $(call _dependency_quote,$(TOKO_TOOLING_ROOT)/scripts/dev/cargo-dependencies.pl) update \

@@ -1,7 +1,9 @@
 # Standard entrypoints only; consumer metadata, validation and delivery policy stay local.
 # Shared companions: scripts/ci/run-release.sh scripts/ci/run-release-batch.pl scripts/ci/check-release-delivery.sh make/execution.mk scripts/dev/clean-empty-source-dirs.pl
 _shared_release_default_goal := $(.DEFAULT_GOAL)
-TOKO_TOOLING_ROOT ?= $(CURDIR)
+ifndef TOKO_TOOLING_ROOT
+TOKO_TOOLING_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))..)
+endif
 _shared_release_delivery_check := $(dir $(lastword $(MAKEFILE_LIST)))../scripts/ci/check-release-delivery.sh
 include $(dir $(lastword $(MAKEFILE_LIST)))execution.mk
 release-patch release-minor release-major release-resume release-preflight clean-empty-source-dirs release-batch-resume release-batch-reconcile release-batch-retire: | toko-execution-check

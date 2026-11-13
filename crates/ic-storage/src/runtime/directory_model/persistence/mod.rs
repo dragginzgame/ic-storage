@@ -585,19 +585,11 @@ impl<M: Memory> Store<M> {
 
     fn io<T>(&self, operation: impl FnOnce(&M) -> T) -> T {
         #[cfg(not(target_arch = "wasm32"))]
-        let _guard = PanicPoison(&self.poisoned);
+        let _guard = std::mem::DropGuard::new(&self.poisoned, |poisoned| {
+            if std::thread::panicking() {
+                poisoned.set(true);
+            }
+        });
         operation(&self.memory)
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-struct PanicPoison<'a>(&'a Cell<bool>);
-
-#[cfg(not(target_arch = "wasm32"))]
-impl Drop for PanicPoison<'_> {
-    fn drop(&mut self) {
-        if std::thread::panicking() {
-            self.0.set(true);
-        }
     }
 }

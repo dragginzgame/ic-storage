@@ -26,7 +26,7 @@ owns its independent `metrics-storage` release group; hosts select compatible co
 requirements declared by its package metadata. Hosts exchanging arithmetic values
 also select `ic-metrics = "0.30"` so Rust type identities agree. The adapter
 selects Metrics 0.30, which exposes canonical restoration through `ic_metrics::persistence`, and owns its stored
-Wire 0.21 codec. Services own frontend/report DTOs and their Wire schemas; this
+Wire codec internally. Services own frontend/report DTOs and their Wire schemas; this
 package does not require or supply Wire implementations for Metrics types.
 See [Storage #154](https://github.com/dragginzgame/ic-storage/issues/154) and the adapter's
 [release ledger](../../releases/metrics-storage/CHANGELOG.md) and [group commands](../../RELEASING.md#release-groups).
@@ -42,9 +42,12 @@ hooks.
 
 ## Upgrade disposition
 
-Metrics 0.30 and Wire 0.21 change public Rust type identities; align direct
-dependencies when exchanging those types. Existing Storage-owned backing and
-metric rows require no reset or migration for this adoption.
+Align direct Metrics dependencies to 0.30 when exchanging arithmetic types.
+Codec failures use the adapter-owned unit variant `StoreError::Codec`; callers
+no longer match a nested Wire error or convert Wire errors into store errors.
+No direct Wire dependency is needed to use this adapter. Its internal Wire codec
+still reads and writes the same checkpoint schema. Existing Storage-owned backing
+and metric rows require no reset or migration for this adoption.
 
 Upgrading from the retired manager/collection implementation to Storage's owned
 allocator and ordered maps still requires fresh/reset whole backing. The previous manager and collection images have no reader. Do not clear

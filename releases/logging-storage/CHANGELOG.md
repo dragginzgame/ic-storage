@@ -3,6 +3,20 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/logging-stable/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.74.0] - Unreleased
+
+### 💥 Breaking
+
+- Replace the public Wire error payload with adapter-owned `StoreError::Codec`;
+  remove the Wire conversion/source and keep Wire 0.22.0 internal. Existing
+  discriminator-3 checkpoints remain readable without migration or reset.
+
+### 📦 Dependencies
+
+- Select published Logging 0.25.1 in both catalogs and locks. Its production
+  source and the adapter's checkpoint contract are unchanged.
+  See [the detailed notes](0.74.md#0740---unreleased).
+
 ## [0.73.0] - 2026-11-13
 
 ### 💥 Breaking

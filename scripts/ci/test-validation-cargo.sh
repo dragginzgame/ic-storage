@@ -43,7 +43,7 @@ for group in workspace storage metrics-storage logging-storage; do
         if [[ "$group" != storage ]]; then scope=group; expected="--package ic-$group"; fi
         jq -cnS --arg source "$source_id" --arg group "$owner" --arg scope "$scope" \
             '{schema:1,source:$source,group:$group,scope:$scope,policy:"ci/release-validation.json"}' > "$plan"
-        hash="$(bash scripts/ci/verify-file-checksum.sh --print sha256 "$plan")"
+        hash="$(bash vendor/toko-tooling/scripts/ci/verify-file-checksum.sh --print sha256 "$plan")"
         jq -cnS --arg path "$plan" --arg hash "$hash" '{($path):$hash}' > "$VALIDATION_INPUT_BASELINE"
         set -- "VALIDATION_PLAN=$plan" "RELEASE_SOURCE=$source_id" "RELEASE_GROUP=$owner"
     fi

@@ -1,7 +1,8 @@
 # Common consumer entrypoint; set local inputs before including this snapshot.
-# Shared companions: scripts/dev/toko-tooling.sh make/tools.mk make/release.mk make/rust-format.mk make/cargo-publication.mk scripts/dev/install-git-hooks.sh scripts/ci/verify-toko-tooling-snapshot.sh
+# Shared companions: scripts/dev/toko-tooling.sh make/tools.mk make/rust-format.mk scripts/dev/install-git-hooks.sh scripts/ci/verify-toko-tooling-snapshot.sh
 _shared_consumer_default_goal := $(.DEFAULT_GOAL)
 _shared_consumer_make_dir := $(dir $(lastword $(MAKEFILE_LIST)))
+TOKO_TOOLING_ROOT ?= $(abspath $(_shared_consumer_make_dir)..)
 
 # Non-Rust repositories still prepare the complete common executable set.
 TOKO_TOOLING_RUST ?= 1

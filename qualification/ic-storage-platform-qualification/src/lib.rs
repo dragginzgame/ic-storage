@@ -13,7 +13,9 @@ pub fn composed_backing_roundtrip() {
 }
 
 fn roundtrip<M: MemoryBacking + Clone>(backing: &M) {
-    let expected = ic_platform::Principal::anonymous().as_slice().to_vec();
+    // The facade and Runtime must exchange the same public Principal identity.
+    let identity: ic_platform_runtime::Principal = ic_platform::Principal::anonymous();
+    let expected = identity.as_slice().to_vec();
     for create in [true, false] {
         let mut host = MemoryRuntime::new(backing.clone()).unwrap();
         let requests = SealedDeclarationSnapshot::new(vec![

@@ -7,6 +7,7 @@
     )
 )]
 use super::*;
+use ic_build::cargo::environment::CompilerOverride;
 
 /// Which source-derived metadata states may be observed during preparation.
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -70,8 +71,12 @@ impl<E: Execute> Repository<E> {
                 .collect();
         for file in observe_configurations(&roots, CONFIGURATION_LIMITS)? {
             if let Some(field) = file.compiler_overrides.first() {
+                let (section, field) = match field {
+                    CompilerOverride::Build(field) => ("build", field),
+                    CompilerOverride::Environment(name) => ("env", name),
+                };
                 return Err(format!(
-                    "remove build.{field} from {} before release qualification; use the declared toolchains",
+                    "remove {section}.{field} from {} before release qualification; use the declared toolchains",
                     file.path.display()
                 ).into());
             }
@@ -101,7 +106,7 @@ impl<E: Execute> Repository<E> {
             self.output(
                 "bash",
                 &[
-                    "scripts/ci/next-release-version.sh",
+                    "vendor/toko-tooling/scripts/ci/next-release-version.sh",
                     &selection.previous,
                     &selection.kind,
                 ],

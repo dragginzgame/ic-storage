@@ -20,10 +20,10 @@ license-file = "../LICENSE.md"
 
 [workspace.dependencies]
 clap = { version = "4.6", default-features = false, features = ["derive", "std", "help", "usage", "error-context"] }
-ic-logging = { version = "0.25.0", default-features = false }
+ic-logging = { version = "0.25.1", default-features = false }
 ic-logging-storage = { path = "../crates/ic-logging-storage", version = "0.73.0" }
 ic-metrics = { version = "0.30.0", default-features = false }
-ic-metrics-storage = { path = "../crates/ic-metrics-storage", version = "0.76.2" }
+ic-metrics-storage = { path = "../crates/ic-metrics-storage", version = "0.77.0" }
 # Platform supplies the composition fixture identity; Testkit owns the native client.
 ic-platform = { version = "0.32.0", default-features = false }
 ic-platform-runtime = { version = "0.22.0", default-features = false }
@@ -34,14 +34,21 @@ ic-stable-structures = "0.7.2"
 ic-stable-structures-head = { package = "ic-stable-structures", git = "https://github.com/dfinity/stable-structures", rev = "b5d1650463f477affb3d358e86b1113953fc9937" }
 ic-storage = { path = "../crates/ic-storage", version = "0.74.0" }
 ic-storage-test-fixtures = { path = "ic-storage-test-fixtures" }
-ic-testkit = { version = "0.101.0", default-features = false }
-ic-wire = "0.21.4"
+ic-testkit = { version = "0.102.0", default-features = false }
+ic-wire = "0.22.0"
 ic_principal = { version = "0.1", default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 serde_bytes = "0.11"
 serde_json = "1.0"
 tokio = { version = "1.54.1", default-features = false, features = ["macros", "rt"] }
-toko-tooling = "=0.40.1"
+toko-tooling = "=0.42.6"
+
+[workspace.lints.cargo]
+unused_dependencies = "deny"
+unused_workspace_dependencies = "deny"
+unused_workspace_package_fields = "deny"
+missing_lints_inheritance = "deny"
+unknown_lints = "deny"
 
 [workspace.lints.rust]
 dead_code = "deny"
@@ -53,6 +60,7 @@ missing_docs = "warn"
 
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "deny"
+invalid_markdown_table = "deny"
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -2 }

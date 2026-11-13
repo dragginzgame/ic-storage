@@ -91,7 +91,11 @@ depth and allocation-traversal allowances. The payload allowance excludes the
 four-byte format marker. The 4 MiB traversal allowance is conservative accounting,
 not measured heap use; node/depth allowances are 65,600 and 16. Decoded text
 borrows the input until configured label/message and combined-text limits pass, before constructing
-owned entries for canonical `Log::restore`. Codec resource failures are typed.
+owned entries for canonical `Log::restore`. Codec resource failures return the
+adapter-owned unit variant `StoreError::Codec`, without a nested Wire error or
+Wire error conversion. Callers need no direct Wire dependency to use the adapter;
+Wire remains its internal checkpoint codec. Malformed-record and record-size
+refusals retain their distinct error variants.
 Unknown formats never select another reader or a reset fallback.
 
 ## Upgrade disposition

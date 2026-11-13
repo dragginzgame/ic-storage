@@ -35,7 +35,7 @@ case "$1" in
         ;;
 esac
 # Shared observes every group before bootstrap/cache effects.
-observer=scripts/ci/observe-cargo-release-bootstrap.sh
+observer=vendor/toko-tooling/scripts/ci/observe-cargo-release-bootstrap.sh
 observe_bootstrap() { RUSTUP_TOOLCHAIN="$toolchain" bash "$observer" observe; }
 observation="$(observe_bootstrap)"
 check_observation() {
@@ -62,7 +62,7 @@ cp ci/cargo-release-groups.json "$scratch/ci/"
 source ci/release-tools.env
 editor_admission=(--check)
 if [[ "${RELEASE_CACHE_PREPARE:-0}" == 1 ]]; then editor_admission=(); fi
-editor="$(RUSTUP_TOOLCHAIN="$toolchain" bash scripts/dev/install-rust-tools.sh \
+editor="$(RUSTUP_TOOLCHAIN="$toolchain" bash vendor/toko-tooling/scripts/dev/install-rust-tools.sh \
     --consumer "$PWD" --package ic-build --version "$IC_BUILD_RELEASE_METADATA_VERSION" \
     --bin ic-build-release-metadata --profile debug --features cli ${editor_admission[@]+"${editor_admission[@]}"})"
 check_observation

@@ -2,6 +2,13 @@
 # Shared companions: scripts/ci/fixture-lifecycle.sh
 # Sourced qualification helpers. Callers own fixture rosters and round trips.
 
+# Capture the helper owner while sourcing, before a caller changes directory.
+# RETENTION_SOURCE_ROOT remains the consumer root used by generated probes.
+_fixture_retention_helper_dir="${BASH_SOURCE[0]}"
+[[ "$_fixture_retention_helper_dir" == /* ]] || _fixture_retention_helper_dir="$PWD/$_fixture_retention_helper_dir"
+_fixture_retention_helper_dir="$(CDPATH='' cd -P -- "${_fixture_retention_helper_dir%/*}" && printf '%s/.' "$PWD")"
+_fixture_retention_helper_dir="${_fixture_retention_helper_dir%/.}"
+
 # Render only the actual initialization/EXIT boundary. Explicit variable names
 # avoid guessing a consumer's directory or repository ownership. The child must
 # receive RETENTION_SOURCE_ROOT and RETENTION_EXIT_PATH from its caller.
@@ -69,8 +76,8 @@ fixture_probe_exit() {
     local directory="$probe_root/exit-source/scripts/ci"
     local exit_path="$probe_root/$name-$failure.exit"
     mkdir -p "$directory" || return
-    cp "$source_root/scripts/ci/fixture-lifecycle.sh" "$directory/" || return
-    cp "$source_root/scripts/ci/fixture-retention-probes.sh" "$directory/" || return
+    cp "$_fixture_retention_helper_dir/fixture-lifecycle.sh" "$directory/" || return
+    cp "$_fixture_retention_helper_dir/fixture-retention-probes.sh" "$directory/" || return
     fixture_probe_prefix "$source" "$directory/probe.sh" \
         "${FIXTURE_PROBE_ROOT_VARIABLE:-ROOT}" "${FIXTURE_PROBE_DIRECTORY_VARIABLE:-fixture}" \
         "$injection" || return

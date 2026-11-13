@@ -52,7 +52,7 @@ impl BuildEffects {
             {
                 self.package(root, git)
             }
-            "bash" if args == ["scripts/ci/check-make-execution.sh"] => {
+            "bash" if args == ["vendor/toko-tooling/scripts/ci/check-make-execution.sh"] => {
                 self.gate(BuildFault::MakeExecution, "fixture Make execution refusal")
             }
             "make" if args == ["--no-print-directory", "install-tools"] => {

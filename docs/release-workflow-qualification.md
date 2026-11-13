@@ -488,7 +488,7 @@ snapshot selects `47cd2ccaf0e8b428f06e6db0262df76cfc1581de`. Every exported byte
 digest and executable state was compared with that committed source. The active
 code-hygiene method is unchanged; its local source reference was refreshed.
 
-The [shared checker](../scripts/ci/check-release-commands.sh) now owns generic
+The [shared checker](https://github.com/dragginzgame/toko-tooling/blob/47cd2ccaf0e8b428f06e6db0262df76cfc1581de/scripts/ci/check-release-commands.sh) owned generic
 Make dispatch. The consumer passes only its reviewed parse-time inputs,
 `rust-toolchain.toml` and `ci/tool-versions.env`. Local fixtures retain selection
 forwarding, gate-attempt retention and locked launcher/publication-environment

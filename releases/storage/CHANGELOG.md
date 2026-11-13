@@ -3,6 +3,39 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/persistence/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.74.1] - Unreleased
+
+### 🧹 Cleanup
+
+- Simplify native backing IO cleanup using Rust 1.100's standard scope guard,
+  preserving unwinding-only poisoning.
+
+### 🧰 Tooling
+
+- Adopt IC Wire 0.22.0 for tests, diagnostic probes and independent qualification;
+  keep core Storage's production graph free of Wire.
+- Adopt Testkit 0.102.0 for the independent runner and server CLI, retaining
+  PocketIC 16.1.0 and caller-owned lifecycle. Remove older duplicate
+  Platform/Types selections through the supplier's published requirements.
+- Adopt Toko Tooling 0.42.6, offline `make deps-list`, the common Cargo lint
+  minimum and strict Rustdoc tables. Remove unused catalog/metadata declarations;
+  preserve all release members and document native test-dependency isolation.
+- Adopt the bootstrap alias correction and source-only tooling marker for
+  binary-only tests, preserving dependency linting and release safeguards.
+- Migrate shared executables, Make/CI callers and hooks to `vendor/toko-tooling/`,
+  retaining explicit release/publication selection and the root compiler pin.
+- Adopt the vendor-aware retention probe from [Toko #381](https://github.com/dragginzgame/toko-tooling/issues/381) without weakening
+  consumer failure/completion checks.
+- Update qualification catalog/lock versions for all three groups by package
+  ownership, including dependencies absent from the product root catalog.
+- Adopt Host Artifacts/FS/Process 0.77.0 and the required Build 0.84.0 helper
+  and release editor. Preserve native-only tooling and existing IO budgets.
+- Handle Build's typed compiler-override observations, refusing both `[build]`
+  and `[env]` overrides before effects without exposing configured values.
+- Correct the independent qualification catalog's stale Metrics Storage
+  requirement to 0.77.0 so it resolves against the published local package.
+  See [the detailed notes](0.74.md#0741---unreleased).
+
 ## [0.74.0] - 2026-11-13
 
 ### 💥 Breaking

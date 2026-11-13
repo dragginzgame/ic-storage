@@ -16,6 +16,7 @@ fn store_error_retains_the_arithmetic_source() {
         Some(&state)
     );
     assert!(StoreError::StateRegression.source().is_none());
+    assert!(StoreError::Codec.source().is_none());
 }
 
 #[test]

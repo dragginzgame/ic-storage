@@ -15,7 +15,7 @@ stable-structures dependency.
 | Typed collections | `ic_storage::adapter`: Cell, Map, Set, Vector and map regions |
 | Primitive codecs and backing IO | Storage's owned `Storable` and `Memory` traits |
 | Wasm system calls | IC Platform stable-memory API |
-| Bounded record encoding | IC Wire; Storage owns format framing and invariants |
+| Metrics/logging checkpoint encoding | IC Wire; the two persistence adapters own framing and invariants |
 | Metrics/logging semantics | External IC Metrics and IC Logging |
 | Stable adapter records | Metrics Storage and Logging Storage over governed Storage maps |
 | Lifecycle, schemas, clocks, cadence and reset decisions | Integrating hosts |
@@ -26,6 +26,13 @@ Lease opening, growth and ordinary IO trust the admitted owner and exclusive
 custody. Public passive diagnostics cannot grant
 open authority. See [safety](../../SAFETY.md), [allocation](../../crates/ic-storage/ALLOCATION.md)
 and [the composed host](../../crates/ic-storage/examples/composed_host.rs).
+
+Core Storage has no production IC Wire dependency. Applications own their record
+codecs and endpoint adapters; choosing Wire in a host does not change the
+collection engine. The Metrics and Logging persistence adapters serialize their
+own reusable checkpoint schemas independently of any host framework.
+Their codec errors are adapter-owned values; no Wire error type or conversion
+is exposed through either adapter's public API.
 
 The owned engine replaces all retained manager and collection formats by hard
 cut. Current formats cannot read old images. Both stable adapters require fresh

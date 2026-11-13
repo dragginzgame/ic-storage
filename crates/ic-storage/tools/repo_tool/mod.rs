@@ -150,9 +150,9 @@ enum ToolCommand {
     },
 }
 
-const CHANGELOG_FINALIZER: &str = "scripts/ci/finalize-release-changelog.awk";
-const RELEASE_INPUT_ADMISSION: &str = "scripts/ci/validate-release-inputs.pl";
-const TAG_CHECKER: &str = "scripts/ci/check-release-tag.sh";
+const CHANGELOG_FINALIZER: &str = "vendor/toko-tooling/scripts/ci/finalize-release-changelog.awk";
+const RELEASE_INPUT_ADMISSION: &str = "vendor/toko-tooling/scripts/ci/validate-release-inputs.pl";
+const TAG_CHECKER: &str = "vendor/toko-tooling/scripts/ci/check-release-tag.sh";
 const REPLACE_FILE_OPTIONS: WriteOptions = WriteOptions {
     mode: PublicationMode::Replace,
     permissions: 0o666,

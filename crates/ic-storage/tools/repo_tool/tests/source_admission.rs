@@ -14,7 +14,10 @@ fn validation_refuses_make_modes_before_gates_and_preserves_evidence() {
     assert_eq!(fs::read(&receipt).unwrap(), previous);
     assert_eq!(
         fixture.repo.exec.state.borrow().calls,
-        vec![vec!["bash", "scripts/ci/check-make-execution.sh"]]
+        vec![vec![
+            "bash",
+            "vendor/toko-tooling/scripts/ci/check-make-execution.sh"
+        ]]
     );
     assert!(!receipt.parent().unwrap().join("attempts").exists());
     fixture.assert_original();
@@ -186,9 +189,9 @@ fn release_admission_rejects_whitespace_only_paths() {
     };
     fs::create_dir_all(repo.root.join("scripts/ci")).unwrap();
     for path in [
-        "scripts/ci/next-release-version.sh",
-        "scripts/ci/validate-release-inputs.pl",
-        "scripts/ci/StableVersion.pm",
+        "vendor/toko-tooling/scripts/ci/next-release-version.sh",
+        "vendor/toko-tooling/scripts/ci/validate-release-inputs.pl",
+        "vendor/toko-tooling/scripts/ci/StableVersion.pm",
     ] {
         fs::copy(
             Path::new(env!("CARGO_MANIFEST_DIR"))

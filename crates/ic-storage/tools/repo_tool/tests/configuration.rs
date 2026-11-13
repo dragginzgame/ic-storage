@@ -176,6 +176,42 @@ fn compiler_configuration_overrides_refuse_preparation() {
 }
 
 #[test]
+fn configured_compiler_environment_refuses_before_effects_without_exposing_values() {
+    for included in [false, true] {
+        for (name, value) in [
+            ("RUSTC_WRAPPER", "''"),
+            ("RUSTC_WRAPPER", "'private-wrapper-path'"),
+            (
+                "CARGO_BUILD_RUSTDOC",
+                "{ value = 'private-wrapper-path', force = true, relative = true }",
+            ),
+        ] {
+            let fixture = Fixture::new();
+            let directory = fixture.repo.root.join(".cargo");
+            fs::create_dir(&directory).unwrap();
+            let root = directory.join("config.toml");
+            let path = if included {
+                fs::write(&root, "include = 'compiler.toml'\n").unwrap();
+                directory.join("compiler.toml")
+            } else {
+                root
+            };
+            let text = format!("[env]\n{name} = {value}\n");
+            fs::write(&path, &text).unwrap();
+            let error = fixture.prepare().unwrap_err().to_string();
+            assert!(error.contains(&format!("env.{name}")), "{error}");
+            assert!(error.contains(&path.display().to_string()), "{error}");
+            assert!(!error.contains("private-wrapper-path"));
+            fixture.assert_original();
+            assert_eq!(fs::read_to_string(path).unwrap(), text);
+            assert!(!fixture.repo.exec.state.borrow().has_call(|call| {
+                call[0] == "make" || is_cargo_call(call, "fetch") || is_package_call(call)
+            }));
+        }
+    }
+}
+
+#[test]
 fn configuration_budgets_refuse_before_gates_or_metadata_mutation() {
     for budget in ["file", "total", "files", "depth"] {
         let fixture = Fixture::new();

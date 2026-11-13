@@ -31,7 +31,7 @@ the installed fixtures without retained mutation. Rebuild fixtures and runner
 together: the earlier raw packet protocol has been retired. These schemas add
 no public library endpoint and change no durable ledger or collection format.
 
-Testkit 0.101.0 re-exports the async PocketIC client and selects server 16.1.0.
+Testkit 0.102.0 re-exports the async PocketIC client and selects server 16.1.0.
 Drivers own a current-thread Tokio runtime, five-minute polling budgets and
 awaited best-effort instance deletion. The managed CLI bounds server lifetime;
 the polling budget is not an absolute HTTP deadline. The composition fixture
@@ -54,6 +54,11 @@ For the focused Logging proof, run `make test-runtime-logging` after preparing
 the server and both dependency caches. It builds and installs only the original
 Logging Wasm; it requires no optimizer and skips the allocation/collection runtime suites.
 The full `make test-runtime` includes Logging in each optimization variant.
+
+The binary-only runtime qualifier inherits Toko through
+`target.'cfg(any())'.dev-dependencies`: this keeps source-tooling selection in
+Cargo metadata and the lockfile without compiling an unused marker in unit tests.
+The exact workspace pin and cargo-machete exemption remain required.
 
 Use the [current handoff](../docs/status/current.md) for the owned-engine
 qualification and limitations. The [earlier record](../docs/runtime-io-qualification.md)

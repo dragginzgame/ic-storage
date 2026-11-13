@@ -54,9 +54,9 @@ pub enum StoreError {
     /// The record has an unknown format discriminator; it is never reinterpreted.
     #[error("unsupported metric record format")]
     UnsupportedFormat,
-    /// IC Wire refused serialization or resource traversal.
-    #[error("metric codec: {0}")]
-    Codec(#[from] ic_wire::Error),
+    /// Checkpoint serialization or codec resource admission failed.
+    #[error("metric checkpoint codec failed")]
+    Codec,
     /// The stored metric uses a different arithmetic kind.
     #[error("metric kind differs")]
     KindMismatch,

@@ -21,7 +21,12 @@ sub read_file {
     return $text;
 }
 
-my $canonical_path = "$FindBin::Bin/../../LICENSE.md";
+# Executables move under vendor/toko-tooling; canonical documents stay at root.
+# Select by layout, never by file existence: a missing root must not fall back
+# to a stale document in the vendor tree.
+my $root = "$FindBin::Bin/../..";
+$root .= '/../..' if $FindBin::Bin =~ m{/vendor/toko-tooling/scripts/ci\z};
+my $canonical_path = "$root/LICENSE.md";
 my $expected = read_file($canonical_path);
 $expected =~ /\A# TOKO STUDIOS NETWORK LICENCE\n## Version 1\.0\n/
     or die "canonical licence has an unexpected title or version\n";

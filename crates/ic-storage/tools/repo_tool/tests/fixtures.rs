@@ -156,7 +156,7 @@ impl Fixture {
             validation_plan::POLICY,
             CHANGELOG_FINALIZER,
             RELEASE_INPUT_ADMISSION,
-            "scripts/ci/StableVersion.pm",
+            "vendor/toko-tooling/scripts/ci/StableVersion.pm",
         ] {
             source.insert(
                 helper.to_owned(),
@@ -498,12 +498,15 @@ impl Execute for Substitute {
             "bash" if args.first() == Some(&TAG_CHECKER) => git.check_tag(args),
             "curl" => registry.observe(root, args),
             "cargo" if args.get(1) == Some(&"publish") => registry.publish(root, args, git),
-            "perl" if args.first() == Some(&"scripts/ci/validation-evidence.pl") => {
+            "perl"
+                if args.first()
+                    == Some(&"vendor/toko-tooling/scripts/ci/validation-evidence.pl") =>
+            {
                 validation::shared_proof(root, args, git)
             }
             "perl" | "awk" => Processes.capture(root, program, args),
             "bash"
-                if args == ["scripts/ci/check-make-execution.sh"]
+                if args == ["vendor/toko-tooling/scripts/ci/check-make-execution.sh"]
                     && build.fail == Some(BuildFault::MakeExecution) =>
             {
                 build.capture(root, program, args, git)
@@ -525,7 +528,7 @@ impl Substitute {
             args.len() == 10
                 && args[0] == format!("RUSTUP_TOOLCHAIN={}", fixture_toolchain())
                 && args[1] == "bash"
-                && args[2] == "scripts/ci/run-cargo-publication.sh"
+                && args[2] == "vendor/toko-tooling/scripts/ci/run-cargo-publication.sh"
                 && matches!(args[3], "check" | "publish")
                 && args[5] == "release"
                 && args[6] == "crates-io"

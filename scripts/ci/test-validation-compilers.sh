@@ -3,8 +3,8 @@
 set -euo pipefail
 root="$(pwd -P)"
 pin="$(sed -n 's/^channel = "\([^"]*\)"$/\1/p' rust-toolchain.toml)"
-# shellcheck source=scripts/ci/fixture-lifecycle.sh
-source "$root/scripts/ci/fixture-lifecycle.sh"
+# shellcheck source=vendor/toko-tooling/scripts/ci/fixture-lifecycle.sh
+source "$root/vendor/toko-tooling/scripts/ci/fixture-lifecycle.sh"
 mkdir -p "$root/target/fixtures"
 fixture="$(fixture_create "$root/target/fixtures/storage-compilers.XXXXXX")"
 fixture_complete=false

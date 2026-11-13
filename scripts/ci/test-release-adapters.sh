@@ -20,15 +20,14 @@ ROOT="${ROOT%/.}"
 FIXTURE_TOOLCHAIN="$(sed -n 's/^channel = "\([^"]*\)"$/\1/p' "$ROOT/rust-toolchain.toml")"
 [[ "$FIXTURE_TOOLCHAIN" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
 export FIXTURE_TOOLCHAIN
-RELEASE_BATCH_ACTIVE=1 bash "$ROOT/scripts/ci/check-release-commands.sh" "$ROOT" rust-toolchain.toml ci/release-tools.env ci/runtime-tools.env ci/tool-versions.env make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk make/execution.mk scripts/ci/check-make-execution.sh scripts/ci/check-release-delivery.sh
 mkdir -p "$ROOT/target/fixtures"
 FIXTURE="$(mktemp -d "$ROOT/target/fixtures/ic-storage-release-adapters.XXXXXX")"
 FIXTURE="$(CDPATH="" cd -P -- "$FIXTURE" && printf '%s/.' "$PWD")"
 FIXTURE="${FIXTURE%/.}"
-# shellcheck source=scripts/ci/fixture-lifecycle.sh
-source "$ROOT/scripts/ci/fixture-lifecycle.sh"
-# shellcheck source=scripts/ci/make-adapter-probes.sh
-source "$ROOT/scripts/ci/make-adapter-probes.sh"
+# shellcheck source=vendor/toko-tooling/scripts/ci/fixture-lifecycle.sh
+source "$ROOT/vendor/toko-tooling/scripts/ci/fixture-lifecycle.sh"
+# shellcheck source=vendor/toko-tooling/scripts/ci/make-adapter-probes.sh
+source "$ROOT/vendor/toko-tooling/scripts/ci/make-adapter-probes.sh"
 fixture_complete=false
 finish_fixture() {
     local status="$1" command="$2" path
@@ -49,26 +48,27 @@ readonly suite_root="$FIXTURE"
 
 prepare_make_fixture() {
     local directory="$1"
-mkdir -p "$directory/ci" "$directory/make"
-cp "$ROOT/Makefile" "$ROOT/rust-toolchain.toml" "$directory/"
-cp "$ROOT/ci/release-tools.env" "$ROOT/ci/runtime-tools.env" "$ROOT/ci/tool-versions.env" "$directory/ci/"
-cp "$ROOT/make/consumer.mk" "$ROOT/make/tools.mk" "$ROOT/make/release.mk" "$ROOT/make/rust-format.mk" "$ROOT/make/execution.mk" "$directory/make/"
-bash "$ROOT/scripts/ci/prepare-script-fixture.sh" "$ROOT" "$directory" make/cargo-dependencies.mk
+mkdir -p "$directory/ci"
+bash "$ROOT/vendor/toko-tooling/scripts/ci/prepare-script-fixture.sh" "$ROOT" "$directory" \
+    Makefile rust-toolchain.toml ci/release-tools.env ci/runtime-tools.env \
+    vendor/toko-tooling/make/consumer.mk vendor/toko-tooling/make/release.mk \
+    vendor/toko-tooling/make/cargo-publication.mk \
+    vendor/toko-tooling/scripts/ci/validation-evidence.pl \
+    vendor/toko-tooling/scripts/ci/run-validation-targets.sh
 cp "$ROOT/ci/release-validation.json" "$ROOT/ci/cargo-release-groups.json" "$directory/ci/"
 mkdir -p "$directory/scripts/ci" "$directory/scripts/dev"
-cat > "$directory/scripts/dev/toko-tooling.sh" <<'STUB'
+cat > "$directory/vendor/toko-tooling/scripts/dev/toko-tooling.sh" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
 [[ "$*" == "check --consumer $PWD --manifest .toko-tooling.snapshot" ]] || exit 1
 exit "${TOOLING_CHECK_STATUS:-0}"
 STUB
-cat > "$directory/scripts/dev/clean-empty-source-dirs.pl" <<'STUB'
+cat > "$directory/vendor/toko-tooling/scripts/dev/clean-empty-source-dirs.pl" <<'STUB'
 open my $out, '>>', 'cleanup-events' or die $!;
 print {$out} "cleanup substituted\n";
 close $out or die $!;
 STUB
-cp "$ROOT/scripts/ci/check-make-execution.sh" "$ROOT/scripts/ci/check-release-delivery.sh" "$directory/scripts/ci/"
-cp "$ROOT/scripts/ci/validation-cargo.sh" "$ROOT/scripts/ci/validate-storage-workspace.sh" "$ROOT/scripts/ci/validation-evidence.pl" "$ROOT/scripts/ci/run-validation-targets.sh" "$ROOT/scripts/ci/verify-file-checksum.sh" "$ROOT/scripts/ci/validation-input-checkpoint.pl" "$ROOT/scripts/ci/release-validation-plan.pl" "$ROOT/scripts/ci/ValidationPlan.pm" "$directory/scripts/ci/"
+cp "$ROOT/scripts/ci/validation-cargo.sh" "$ROOT/scripts/ci/validate-storage-workspace.sh" "$directory/scripts/ci/"
 }
 
 test_make_admission() (
@@ -78,7 +78,7 @@ test_make_admission() (
     export RELEASE_BATCH_ACTIVE=1
     local FIXTURE="$suite_root/make"
     prepare_make_fixture "$FIXTURE"
-cat > "$FIXTURE/scripts/ci/run-release.sh" <<'STUB'
+cat > "$FIXTURE/vendor/toko-tooling/scripts/ci/run-release.sh" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
 [[ "$RELEASE_DELIVERY" == direct ]] || exit 1
@@ -153,24 +153,24 @@ done
 # Substitute effects where the recursive production recipes actually dispatch.
 # Replacing recipes only in the parent would leave the child using missing scripts.
 mkdir -p "$FIXTURE/scripts/dev"
-cat > "$FIXTURE/scripts/ci/verify-toko-tooling-snapshot.sh" <<'STUB'
+cat > "$FIXTURE/vendor/toko-tooling/scripts/ci/verify-toko-tooling-snapshot.sh" <<'STUB'
 #!/usr/bin/env bash
 root="$(pwd -P)"
 [[ "$#" == 4 && "$*" == "--consumer $root --manifest .toko-tooling.snapshot" ]] || exit 1
 STUB
-cat > "$FIXTURE/scripts/ci/check-format-tools.sh" <<'STUB'
+cat > "$FIXTURE/vendor/toko-tooling/scripts/ci/check-format-tools.sh" <<'STUB'
 #!/usr/bin/env bash
 [[ "$#" == 2 && "$*" == '2.1.4 cargo' && "$RUSTUP_TOOLCHAIN" == "$FIXTURE_TOOLCHAIN" ]] || exit 1
 STUB
-cat > "$FIXTURE/scripts/dev/install-host-tools.sh" <<'STUB'
+cat > "$FIXTURE/vendor/toko-tooling/scripts/dev/install-host-tools.sh" <<'STUB'
 #!/usr/bin/env bash
 root="$(pwd -P)"
-[[ "$#" == 5 && "$*" == "--consumer $root --versions $root/ci/tool-versions.env --check" ]] || exit 1
+[[ "$#" == 5 && "$*" == "--consumer $root --versions $root/vendor/toko-tooling/ci/tool-versions.env --check" ]] || exit 1
 printf '%s\n' "$*" > host-admission-events
 echo 'fixture host admission failure' >&2
 exit 23
 STUB
-cat > "$FIXTURE/scripts/ci/check-dependency-pins.sh" <<'STUB'
+cat > "$FIXTURE/vendor/toko-tooling/scripts/ci/check-dependency-pins.sh" <<'STUB'
 #!/usr/bin/env bash
 printf 'reached\n' > build-events
 exit 23
@@ -179,13 +179,13 @@ status=0
 (cd "$FIXTURE"; make -j2 --no-print-directory validate-toolchain) \
     > "$FIXTURE/tool-ordering.log" 2>&1 || status=$?
 [[ "$status" == 2 && ! -e "$FIXTURE/build-events" ]] || exit 1
-(cd -P "$FIXTURE"; [[ "$(cat host-admission-events)" == "--consumer $PWD --versions $PWD/ci/tool-versions.env --check" ]]) || exit 1
+(cd -P "$FIXTURE"; [[ "$(cat host-admission-events)" == "--consumer $PWD --versions $PWD/vendor/toko-tooling/ci/tool-versions.env --check" ]]) || exit 1
 grep -F 'fixture host admission failure' "$FIXTURE/tool-ordering.log"
 grep -E 'host-tools-check.*Error 23' "$FIXTURE/tool-ordering.log"
 # Memory explicitly selects IC tools after the common sets. Exercise the actual
 # aggregate with substitute leaves, including its product failure propagation.
 for kind in host rust ic; do
-    cat > "$FIXTURE/scripts/dev/install-$kind-tools.sh" <<'STUB'
+    cat > "$FIXTURE/vendor/toko-tooling/scripts/dev/install-$kind-tools.sh" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
 kind="${0##*/install-}"
@@ -198,9 +198,9 @@ if [[ "$kind" == rust && "$3" == --package ]]; then
     exit 0
 fi
 case "$kind" in
-    host|rust) [[ "$3" == --versions && "$4" == "$PWD/ci/tool-versions.env" ]] || exit 1 ;;
+    host|rust) [[ "$3" == --versions && "$4" == "$PWD/vendor/toko-tooling/ci/tool-versions.env" ]] || exit 1 ;;
     ic)
-        [[ "$3" == --pins && "$4" == "$PWD/ci/ic-tools.tsv" &&
+        [[ "$3" == --pins && "$4" == "$PWD/vendor/toko-tooling/ci/ic-tools.tsv" &&
             "$5" == --tool && "$6" == wasm-opt ]] || exit 1
         shift 2 ;;
 esac
@@ -367,13 +367,13 @@ done
 # Memory's standard release entrypoints always select this checkout's runner.
 # An external substitute makes a redirected dispatch harmless and observable.
 external_root="$FIXTURE/external runner"
-mkdir -p "$external_root/scripts/ci"
-cat > "$external_root/scripts/ci/check-make-execution.sh" <<'STUB'
+mkdir -p "$external_root/vendor/toko-tooling/scripts/ci"
+cat > "$external_root/vendor/toko-tooling/scripts/ci/check-make-execution.sh" <<'STUB'
 #!/usr/bin/env bash
 echo escaped >> external-probe-events
 exit 23
 STUB
-cat > "$external_root/scripts/ci/run-release.sh" <<'STUB'
+cat > "$external_root/vendor/toko-tooling/scripts/ci/run-release.sh" <<'STUB'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> external-runner-events
 exit 23
@@ -414,10 +414,10 @@ test_jobserver_handoff() (
 jobserver="$FIXTURE"
 mkdir -p "$jobserver/bin"
 # Follow the formatter's declared closure, including catalog admission helpers.
-bash "$ROOT/scripts/ci/prepare-script-fixture.sh" "$ROOT" "$jobserver" \
-    make/rust-format.mk scripts/ci/check-release-delivery.sh
-cmp "$ROOT/scripts/ci/run-rust-formatting.pl" "$jobserver/scripts/ci/run-rust-formatting.pl"
-cmp "$ROOT/scripts/ci/RustSource.pm" "$jobserver/scripts/ci/RustSource.pm"
+bash "$ROOT/vendor/toko-tooling/scripts/ci/prepare-script-fixture.sh" "$ROOT" "$jobserver" \
+    vendor/toko-tooling/make/rust-format.mk vendor/toko-tooling/scripts/ci/check-release-delivery.sh
+cmp "$ROOT/vendor/toko-tooling/scripts/ci/run-rust-formatting.pl" "$jobserver/vendor/toko-tooling/scripts/ci/run-rust-formatting.pl"
+cmp "$ROOT/vendor/toko-tooling/scripts/ci/RustSource.pm" "$jobserver/vendor/toko-tooling/scripts/ci/RustSource.pm"
 mkdir -p "$jobserver/qualification" "$jobserver/testing"
 cp "$ROOT/testing/package-consumer.rs" "$jobserver/testing/"
 cat > "$jobserver/scripts/ci/package-workspace.sh" <<'STUB'
@@ -610,19 +610,20 @@ test_bootstrap_recovery() (
 # prepared. Cargo/parser substitutes prove isolation and argument propagation.
 mkdir -p "$FIXTURE/scripts/dev" "$FIXTURE/bin" \
     "$FIXTURE/crates/ic-storage/src" "$FIXTURE/crates/ic-storage/examples" "$FIXTURE/ci" "$FIXTURE/make"
-cp "$ROOT/scripts/ci/read-cargo-workspace-version.sh" \
-    "$ROOT/scripts/ci/validate-release-inputs.pl" "$ROOT/scripts/ci/StableVersion.pm" "$FIXTURE/scripts/ci/"
+bash "$ROOT/vendor/toko-tooling/scripts/ci/prepare-script-fixture.sh" "$ROOT" "$FIXTURE" \
+    vendor/toko-tooling/scripts/ci/read-cargo-workspace-version.sh \
+    vendor/toko-tooling/scripts/ci/validate-release-inputs.pl
 cp "$ROOT/scripts/dev/run-repo-tool.sh" "$FIXTURE/scripts/dev/"
-bash "$ROOT/scripts/ci/prepare-script-fixture.sh" "$ROOT" "$FIXTURE" scripts/ci/observe-cargo-release-bootstrap.sh
+bash "$ROOT/vendor/toko-tooling/scripts/ci/prepare-script-fixture.sh" "$ROOT" "$FIXTURE" vendor/toko-tooling/scripts/ci/observe-cargo-release-bootstrap.sh
 cp "$ROOT/scripts/ci/read-storage-packages.sh" "$FIXTURE/scripts/ci/"
 mkdir -p "$FIXTURE/crates/ic-storage/tools/repo_tool"
 cp "$ROOT/ci/cargo-release-groups.json" "$FIXTURE/ci/"
 # Exercise the real published renderer; substitute only tool-store selection.
-fixture_editor="$(RUSTUP_TOOLCHAIN="$FIXTURE_TOOLCHAIN" bash "$ROOT/scripts/dev/install-rust-tools.sh" \
+fixture_editor="$(RUSTUP_TOOLCHAIN="$FIXTURE_TOOLCHAIN" bash "$ROOT/vendor/toko-tooling/scripts/dev/install-rust-tools.sh" \
     --consumer "$ROOT" --package ic-build --version "$IC_BUILD_RELEASE_METADATA_VERSION" \
     --bin ic-build-release-metadata --profile debug --features cli --check)"
 export FIXTURE_RELEASE_EDITOR="$fixture_editor"
-cat > "$FIXTURE/scripts/dev/install-rust-tools.sh" <<'STUB'
+cat > "$FIXTURE/vendor/toko-tooling/scripts/dev/install-rust-tools.sh" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
 [[ "$*" == "--consumer $PWD --package ic-build --version $IC_BUILD_RELEASE_METADATA_VERSION --bin ic-build-release-metadata --profile debug --features cli" ||
@@ -641,8 +642,6 @@ members = ["crates/ic-storage", "crates/ic-metrics-storage", "crates/ic-logging-
 rust-version = "1.100.0"
 [workspace.dependencies]
 ic-storage = { path = "crates/ic-storage", version = "0.12.3" }
-ic-metrics-storage = { path = "crates/ic-metrics-storage", version = "0.12.3" }
-ic-logging-storage = { path = "crates/ic-logging-storage", version = "0.12.3" }
 other = "0.12.3"
 MANIFEST
 cat > Cargo.lock <<'LOCK'
@@ -851,8 +850,6 @@ members = ["crates/ic-storage", "crates/ic-metrics-storage", "crates/ic-logging-
 rust-version = "1.100.0"
 [workspace.dependencies]
 ic-storage = { path = "crates/ic-storage", version = "0.13.0" }
-ic-metrics-storage = { path = "crates/ic-metrics-storage", version = "0.13.0" }
-ic-logging-storage = { path = "crates/ic-logging-storage", version = "0.13.0" }
 other = "0.12.3"
 MANIFEST
 "$FIXTURE_RELEASE_EDITOR" --max-input-bytes "$CARGO_RELEASE_METADATA_MAX_BYTES" lock Cargo.lock 0.12.3 0.13.0 ic-storage > split-lock
@@ -924,8 +921,6 @@ members = ["crates/ic-storage", "crates/ic-metrics-storage", "crates/ic-logging-
   rust-version   = "1.100.0" # keep this comment
 [workspace.dependencies]
 ic-storage = { path = "crates/ic-storage", version = "0.12.3" }
-ic-metrics-storage = { path = "crates/ic-metrics-storage", version = "0.12.3" }
-ic-logging-storage = { path = "crates/ic-logging-storage", version = "0.12.3" }
 other = "0.12.3"
 MANIFEST
 cp Cargo.toml formatted-manifest
@@ -936,8 +931,6 @@ members = ["crates/ic-storage", "crates/ic-metrics-storage", "crates/ic-logging-
   rust-version   = "1.100.0" # keep this comment
 [workspace.dependencies]
 ic-storage = { path = "crates/ic-storage", version = "0.13.0" }
-ic-metrics-storage = { path = "crates/ic-metrics-storage", version = "0.13.0" }
-ic-logging-storage = { path = "crates/ic-logging-storage", version = "0.13.0" }
 other = "0.12.3"
 MANIFEST
 [[ "$(make --no-print-directory -s release-version 2> formatted.log)" == 0.12.3 ]] || exit 1
@@ -1039,7 +1032,7 @@ test_release_batch_adoption() (
     trap - EXIT
     local FIXTURE="$suite_root/batch"
     prepare_make_fixture "$FIXTURE"
-    cat > "$FIXTURE/scripts/ci/run-release-batch.pl" <<'STUB'
+    cat > "$FIXTURE/vendor/toko-tooling/scripts/ci/run-release-batch.pl" <<'STUB'
 use strict;
 use warnings;
 open my $out, '>', 'batch-argv' or die $!;

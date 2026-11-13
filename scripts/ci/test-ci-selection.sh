@@ -43,6 +43,10 @@ jq -e '
 # Required matrix checks must fail, not disappear as successful skips, when a
 # prerequisite job fails. Execute each actual admission script for both outcomes.
 for job in test runtime; do
+    jq -r --arg job "$job" '.jobs[$job].steps[] | select(.id == "pin") | .run' \
+        "$fixture/workflow.json" > "$fixture/$job-pin.sh"
+    GITHUB_OUTPUT="$fixture/$job-pin.output" bash -e -o pipefail "$fixture/$job-pin.sh"
+    [[ "$(cat "$fixture/$job-pin.output")" == "channel=$(sed -n 's/^channel = "\([^"]*\)"$/\1/p' rust-toolchain.toml)" ]] || exit 1
     jq -r --arg job "$job" '.jobs[$job].steps[0].run' "$fixture/workflow.json" > "$fixture/$job-admission.sh"
     CHANGE_RESULT=success DOCS_RESULT=success bash -e -o pipefail "$fixture/$job-admission.sh"
     for outcome in failure skipped cancelled; do

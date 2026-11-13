@@ -234,7 +234,7 @@ impl<E: Execute> Repository<E> {
         let observation: serde_json::Value = serde_json::from_str(&self.output(
             "perl",
             &[
-                "scripts/ci/validation-evidence.pl",
+                "vendor/toko-tooling/scripts/ci/validation-evidence.pl",
                 "baseline",
                 self.root.to_str().ok_or("non-UTF8 source root")?,
                 &selection.source,

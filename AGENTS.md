@@ -105,7 +105,7 @@ Follow the reviewed [Git hook rules](https://github.com/dragginzgame/toko-toolin
 The reviewed hook and installer are vendored unchanged. `make fmt` and
 `make fmt-check` cover the library, `qualification` and the
 standalone `testing/package-consumer.rs` source,
-using the [selected catalog](ci/tool-versions.env) before the pinned Rust formatter.
+using the [selected catalog](vendor/toko-tooling/ci/tool-versions.env) before the pinned Rust formatter.
 Setup is explicit in [host support](docs/operations/host-support.md); formatting never installs tools,
 builds, fetches dependencies or changes selected lockfiles. The shared formatter
 prerequisite checker owns exact cargo-sort and rustfmt admission; this consumer
@@ -187,7 +187,7 @@ operations return successful values directly and codec/engine failures trap.
 Changes require native corruption, growth, custody and installed IO/upgrade
 qualification. Keep the single owned engine and direct public codec integration.
 
-The independent qualification workspace consumes Testkit 0.101.0's re-exported
+The independent qualification workspace consumes Testkit 0.102.0's re-exported
 PocketIC async client, with caller-owned Tokio execution, explicit five-minute
 polling budgets and awaited best-effort instance deletion. The managed CLI bounds
 server lifetime; the client budget is not an absolute HTTP deadline. Testkit owns
@@ -207,8 +207,9 @@ See [Rust code hygiene](https://github.com/dragginzgame/toko-tooling/blob/12459b
 ## Independent release identities
 
 `ci/cargo-release-groups.json` owns the `storage` (Storage only), `metrics-storage` and
-`logging-storage` groups and their version authorities. Root `Cargo.toml` catalogs
-every member; group ledgers live under `releases/`. Adapter-only changes do not
+`logging-storage` groups and their version authorities. Root `Cargo.toml` declares
+used dependencies; `make deps-list` inventories every local package and group.
+Group ledgers live under `releases/`. Adapter-only changes do not
 advance Storage or the other adapter. Explicit `RELEASE_GROUP` selects
 release, resume and publication; whole-workspace archive integration and shared
 lockfile/public-type qualification remain required. See

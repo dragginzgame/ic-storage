@@ -14,6 +14,8 @@ registry_version=""
 previous_archive=""
 previous_source=""
 previous_package=""
+vendor_layout=false
+previous_layout=''
 registry_source='https://crates.io/crates/toko-tooling'
 EXECUTION_DIR=""
 CONSUMER_ROOT=""
@@ -37,6 +39,9 @@ usage: refresh-consumer.sh [--preview | --impact] [--source <toko-tooling-checko
        refresh-consumer.sh --crate ARCHIVE --checksum SHA256 --package-version X.Y.Z [--previous-crate ARCHIVE | --previous-source OLD-GIT-CHECKOUT] --consumer REPOSITORY [--entrypoint PATH]...
 
 Use --entrypoint to select the complete set of roots, initially or on refresh.
+Use upstream paths: 0.42+ installs executable payloads in vendor/toko-tooling/.
+Only TOKO-TOOLING.md, LICENSE.md and CONTRIBUTING.md remain at root. Select
+make/release.mk and make/cargo-publication.mk explicitly when needed.
 Otherwise refresh reuses the manifest's recorded entrypoints. --add-entrypoint
 extends that selection. Required companions and integrity tools are derived.
 --preview leaves the consumer untouched and reports additions, updates and
@@ -55,6 +60,14 @@ USAGE
 fail() {
     echo "toko-tooling refresh failed: $1" >&2
     exit 1
+}
+
+# The three canonical root documents are the only installed root exceptions.
+destination_path() {
+    case "$1" in
+        TOKO-TOOLING.md|LICENSE.md|CONTRIBUTING.md) printf '%s\n' "$1" ;;
+        *) if [[ "$vendor_layout" == true ]]; then printf 'vendor/toko-tooling/%s\n' "$1"; else printf '%s\n' "$1"; fi ;;
+    esac
 }
 
 cleanup() {
@@ -387,6 +400,8 @@ else
     source_version="${source_version%$'\n'}"
 fi
 [[ "$source_version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || fail "source version must be canonical stable SemVer"
+IFS=. read -r source_major source_minor _ <<< "$source_version"
+if [[ "$source_major" != 0 || "$source_minor" -ge 42 ]]; then vendor_layout=true; fi
 if [[ -n "$registry_archive" ]]; then source_remote="$registry_source";
 else source_remote="$(git -C "$SOURCE_ROOT" remote get-url origin)" || fail "source checkout has no origin remote"; fi
 [[ -n "$source_remote" ]] || fail "source origin remote is empty"
@@ -430,6 +445,7 @@ if [[ -e "$manifest" ]]; then
         fail "existing manifest is malformed"
     while IFS=$'\t' read -r record first second third; do
         case "$record" in
+            '# layout') previous_layout="$first" ;;
             '# version') manifest_version="$first" ;;
             '# entrypoint') entrypoints+=("$first") ;;
             source) manifest_source="$first" ;;
@@ -439,10 +455,14 @@ if [[ -e "$manifest" ]]; then
                 previous_digests[${#previous_files[@]}]="$first"
                 previous_modes[${#previous_files[@]}]="$second"
                 previous_files+=("$third")
+                if [[ "$previous_layout" == vendor ]]; then third="${third#vendor/toko-tooling/}"; fi
                 previous_sources+=("$third")
                 previous_revisions+=("$manifest_revision") ;;
         esac
     done < "$STAGING_DIR/previous-records"
+    if [[ "$previous_layout" == vendor ]]; then
+        for index in "${!entrypoints[@]}"; do entrypoints[index]="${entrypoints[$index]#vendor/toko-tooling/}"; done
+    fi
     if [[ -n "$registry_archive" ]]; then
         if [[ "$manifest_source" == "$registry_source" ]]; then
             if [[ "$manifest_revision" == "$registry_checksum" ]]; then previous_package="$SOURCE_ROOT";
@@ -497,9 +517,10 @@ for takeover_index in "${!takeover_roots[@]}"; do
     bash "$SCRIPT_ROOT/scripts/ci/verify-toko-tooling-snapshot.sh" \
         --read-manifest "$STAGING_DIR/takeover-$takeover_index" > "$STAGING_DIR/takeover-records" ||
         fail "takeover manifest is malformed"
-    prior_revision='' prior_remote=''
+    prior_revision='' prior_remote='' prior_layout=''
     while IFS=$'\t' read -r record first second third; do
         case "$record" in
+            '# layout') prior_layout="$first" ;;
             source) prior_remote="$first" ;;
             revision) prior_revision="$first" ;;
         esac
@@ -508,6 +529,7 @@ for takeover_index in "${!takeover_roots[@]}"; do
     while IFS=$'\t' read -r record first second third; do
         case "$record" in
             '# entrypoint')
+                if [[ "$prior_layout" == vendor ]]; then first="${first#vendor/toko-tooling/}"; fi
                 selected=false
                 for existing in ${entrypoints[@]+"${entrypoints[@]}"}; do
                     [[ "$existing" != "$first" ]] || selected=true
@@ -518,6 +540,7 @@ for takeover_index in "${!takeover_roots[@]}"; do
                 physical_path="$prefix$third"
                 index=${#previous_files[@]}
                 previous_files+=("$physical_path")
+                if [[ "$prior_layout" == vendor ]]; then third="${third#vendor/toko-tooling/}"; fi
                 previous_sources+=("$third")
                 previous_revisions+=("$prior_revision")
                 previous_digests+=("$first")
@@ -568,11 +591,10 @@ done
 consumer_states=()
 selected_count=${#files[@]}
 for index in "${!files[@]}"; do
-    path="${files[$index]}"
-    validate_relative_path "$path"
-    consumer_states[index]="$(consumer_state "$path")" || fail "cannot inspect consumer input: $path"
-    git -C "$CONSUMER_ROOT" --literal-pathspecs ls-files --stage -z -- "$path" > "$STAGING_DIR/index-$index" ||
-        fail "cannot inspect consumer index: $path"
+    destination="$(destination_path "${files[$index]}")"
+    validate_relative_path "$destination"
+    consumer_states[index]="$(consumer_state "$destination")" || fail "cannot inspect consumer input: $destination"
+    git -C "$CONSUMER_ROOT" --literal-pathspecs ls-files --stage -z -- "$destination" > "$STAGING_DIR/index-$index" || fail "cannot inspect consumer index: $destination"
 done
 
 # Follow the selected revision's explicit companion graph, including cycles,
@@ -585,6 +607,12 @@ cursor=0
 while [[ "$cursor" -lt "${#proposed[@]}" ]]; do
     path="${proposed[$cursor]}"
     validate_relative_path "$path"
+    if [[ "$vendor_layout" == true ]]; then
+        case "$path" in
+            vendor/*|docs/*|rules/*|tasks/*|audits/*|scripts/ci/test-*|.github/workflows/*|AGENTS.md|Makefile)
+                fail "consumer payload excludes reference docs, producer fixtures and consumer-owned entrypoints: $path" ;;
+        esac
+    fi
     # These observations belong to the immutable selected revision. Retain them
     # for export; mutable checkout and consumer admission still run below.
     source_modes[cursor]="$(committed_mode "$source_revision" "$path")" || fail "cannot read committed companion source: $path"
@@ -623,10 +651,11 @@ for index in "${!files[@]}"; do
         *) fail "source file escapes the source checkout: $path" ;;
         esac
     fi
+    destination="$(destination_path "$path")"
+    [[ "$destination" != "$MANIFEST_PATH" ]] || fail "manifest may not include itself"
     if [[ "$index" -ge "$selected_count" ]]; then
-        consumer_states[index]="$(consumer_state "$path")" || fail "cannot inspect consumer input: $path"
-        git -C "$CONSUMER_ROOT" --literal-pathspecs ls-files --stage -z -- "$path" > "$STAGING_DIR/index-$index" ||
-            fail "cannot inspect consumer index: $path"
+        consumer_states[index]="$(consumer_state "$destination")" || fail "cannot inspect consumer input: $destination"
+        git -C "$CONSUMER_ROOT" --literal-pathspecs ls-files --stage -z -- "$destination" > "$STAGING_DIR/index-$index" || fail "cannot inspect consumer index: $path"
     fi
     [[ "$path" != "scripts/ci/verify-file-checksum.sh" ]] || checksum_tool_declared=true
     [[ "$path" != "scripts/ci/verify-toko-tooling-snapshot.sh" ]] || snapshot_verifier_declared=true
@@ -646,9 +675,20 @@ for index in "${!files[@]}"; do
 done
 
 staged_manifest="$STAGING_DIR/manifest"
+for index in "${!files[@]}"; do
+    path="${files[$index]}"
+    destination="$(destination_path "$path")"
+    if [[ "$destination" != "$path" ]]; then
+        mkdir -p "$staged_files/${destination%/*}"
+        mv "$staged_files/$path" "$staged_files/$destination"
+    fi
+    files[index]="$destination"
+done
+for index in "${!entrypoints[@]}"; do entrypoints[index]="$(destination_path "${entrypoints[$index]}")"; done
 {
     echo "# Toko Tooling snapshot v1"
     printf '# version\t%s\n' "$source_version"
+    if [[ "$vendor_layout" == true ]]; then printf '# layout\tvendor\n'; fi
     printf 'format\t1\n'
     printf 'source\t%s\n' "$source_remote"
     printf 'revision\t%s\n' "$source_revision"
@@ -680,7 +720,7 @@ for index in "${!files[@]}"; do
     destination_status="$(git -C "$CONSUMER_ROOT" --literal-pathspecs status \
         --porcelain --untracked-files=all --ignored -- "$path")" ||
         fail "cannot inspect consumer changes: $path"
-    [[ -n "$destination_status" ]] || continue
+    [[ -e "$destination" || -n "$destination_status" ]] || continue
     if [[ "$destination_status" == 'D  '* ]]; then
         fail "consumer destination has a staged deletion: $path; commit the removal first, then refresh. The installer does not replace staged index changes"
     fi
@@ -691,8 +731,10 @@ for index in "${!files[@]}"; do
     for candidate in "${!previous_files[@]}"; do
         [[ "${previous_files[$candidate]}" != "$path" ]] || previous_index="$candidate"
     done
-    [[ "$previous_index" -ge 0 && -f "$destination" ]] ||
-        fail "consumer destination has local changes; preserve or reconcile them before refreshing: $path"
+    if [[ "$previous_index" -lt 0 || ! -f "$destination" ]]; then
+        [[ -z "$destination_status" ]] || fail "consumer destination has local changes; preserve or reconcile them before refreshing: $path"
+        fail "consumer destination is not an unchanged owned snapshot file; preserve or explicitly reconcile it before refreshing: $path"
+    fi
     git -C "$CONSUMER_ROOT" --literal-pathspecs diff --cached --quiet -- "$path" ||
         fail "consumer destination has staged changes; preserve or reconcile them before refreshing: $path"
     export_previous_payload "$previous_index" "$STAGING_DIR/previous-file"
@@ -794,6 +836,7 @@ if [[ "$preview" == true ]]; then
         for entrypoint in "${entrypoints[@]}"; do
             reachable=("$entrypoint")
             for required in scripts/ci/verify-file-checksum.sh scripts/ci/verify-toko-tooling-snapshot.sh; do
+                required="$(destination_path "$required")"
                 [[ "$required" == "$entrypoint" ]] || reachable+=("$required")
             done
             cursor=0
@@ -804,6 +847,7 @@ if [[ "$preview" == true ]]; then
                 done
                 read_shared_companions "$staged_files/$path" "$path"
                 for companion in ${shared_companions[@]+"${shared_companions[@]}"}; do
+                    companion="$(destination_path "$companion")"
                     selected=false
                     for existing in "${reachable[@]}"; do [[ "$existing" != "$companion" ]] || selected=true; done
                     [[ "$selected" == true ]] || reachable+=("$companion")
@@ -812,6 +856,7 @@ if [[ "$preview" == true ]]; then
             done
         done
         history_paths=(${changed_files[@]+"${changed_files[@]}"} ${obsolete[@]+"${obsolete[@]}"})
+        for index in "${!history_paths[@]}"; do history_paths[index]="${history_paths[$index]#vendor/toko-tooling/}"; done
         if [[ -z "${manifest_revision:-}" ]]; then
             printf 'HISTORY\tfirst adoption; no recorded base\n'
         elif [[ "$manifest_revision" == "$source_revision" || ${#history_paths[@]} == 0 ]]; then

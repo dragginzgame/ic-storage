@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-# Shared companions: make/cargo-dependencies.mk
+# Shared companions: vendor/toko-tooling/make/cargo-dependencies.mk
 .PHONY: help test version ensure-clean fetch-dependencies check-pins check-production-graph \
         install-tools tools-check install-host-tools host-tools-check install-ic-tools ic-tools-check test-tools test-failure-evidence test-offline-tool-reuse \
         lint-tooling test-hooks test-tooling test-fixture-cell validate validate-toolchain wasm-size \
@@ -34,7 +34,7 @@ VALIDATION_TOOLCHAIN ?= $(shell sed -n 's/^channel = "\([^"]*\)"$$/\1/p' rust-to
 include ci/release-tools.env
 include ci/runtime-tools.env
 TOOL := bash scripts/dev/run-repo-tool.sh $(VALIDATION_TOOLCHAIN)
-override TOKO_TOOLING_ROOT := $(CURDIR)
+override TOKO_TOOLING_ROOT := $(CURDIR)/vendor/toko-tooling
 # Consumer roster; Shared owns each visible pass, including standalone Rustfmt.
 FORMAT_RUST_ARGS = --extra-workspace qualification \
     --rustfmt-source testing/package-consumer.rs --rustfmt-edition 2024
@@ -44,8 +44,8 @@ LOCAL_TOOL_INSTALL_TARGETS += install-ic-tools install-release-tools
 LOCAL_TOOL_CHECK_TARGETS += ic-tools-check release-tools-check
 RELEASE_SETUP_TARGET := release-candidate-setup
 TOKO_TOOLING_RELEASE := 1
-include make/consumer.mk
-include make/cargo-dependencies.mk
+include vendor/toko-tooling/make/consumer.mk
+include vendor/toko-tooling/make/cargo-dependencies.mk
 export PATH := $(CURDIR)/.tools/ic/bin:$(PATH)
 # GNU Make 3.81 cannot combine target-specific override and export. Reclassify
 # caller values before applying the formatter-only exported compiler policy.
@@ -56,12 +56,12 @@ fmt fmt-check format-tools-check: export RUSTUP_TOOLCHAIN := $(VALIDATION_TOOLCH
 
 # The published Testkit CLI owns PocketIC selection, admission and lifecycle.
 # Keep this tool graph outside both maintained workspace lockfiles.
-TESTKIT_CLI := RUSTUP_TOOLCHAIN=$(VALIDATION_TOOLCHAIN) bash scripts/dev/install-rust-tools.sh --consumer "$(CURDIR)" --package ic-testkit --version $(IC_TESTKIT_VERSION) --bin ic-testkit-server --profile release --features cli
+TESTKIT_CLI := RUSTUP_TOOLCHAIN=$(VALIDATION_TOOLCHAIN) bash vendor/toko-tooling/scripts/dev/install-rust-tools.sh --consumer "$(CURDIR)" --package ic-testkit --version $(IC_TESTKIT_VERSION) --bin ic-testkit-server --profile release --features cli
 TESTKIT_SERVER_DIRECTORY := $(CURDIR)/.tools/ic-testkit-server
 
 help:
 	@echo 'Setup: install-tools (host, IC, Cargo tools), fetch-dependencies, install-hooks; prepare the Rust toolchain first.'
-	@echo 'Dependencies: deps-update (Cargo updates root and qualification sequentially; optional DEPENDENCY_PACKAGE and DEPENDENCY_PRECISE selectors).'
+	@echo 'Dependencies: deps-list (offline package/version/group inventory); deps-update (Cargo updates root and qualification sequentially; optional DEPENDENCY_PACKAGE and DEPENDENCY_PRECISE selectors).'
 	@echo 'Focused checks: toko-tooling-check, tools-check, test-tools, test-failure-evidence, check-pins, check-production-graph, check-storage-boundary, check-candid-boundary, test-tooling, test-fixture-cell, test-release-adapters, test-hooks, fmt-check, lint-tooling.'
 	@echo 'Formatting: fmt. Full release checks: validate, validate-toolchain.'
 	@echo 'Installed runtime: install-runtime-server (explicit Testkit setup), runtime-server-check (offline), test-runtime (prepared server and locked caches).'
@@ -73,10 +73,10 @@ help:
 
 # Explicit preparation; normal checks only admit the selected published editor.
 install-release-tools:
-	+RUSTUP_TOOLCHAIN=$(VALIDATION_TOOLCHAIN) bash scripts/dev/install-rust-tools.sh --consumer "$(CURDIR)" --package ic-build --version $(IC_BUILD_RELEASE_METADATA_VERSION) --bin ic-build-release-metadata --profile debug --features cli
+	+RUSTUP_TOOLCHAIN=$(VALIDATION_TOOLCHAIN) bash vendor/toko-tooling/scripts/dev/install-rust-tools.sh --consumer "$(CURDIR)" --package ic-build --version $(IC_BUILD_RELEASE_METADATA_VERSION) --bin ic-build-release-metadata --profile debug --features cli
 
 release-tools-check:
-	+RUSTUP_TOOLCHAIN=$(VALIDATION_TOOLCHAIN) bash scripts/dev/install-rust-tools.sh --consumer "$(CURDIR)" --package ic-build --version $(IC_BUILD_RELEASE_METADATA_VERSION) --bin ic-build-release-metadata --profile debug --features cli --check
+	+RUSTUP_TOOLCHAIN=$(VALIDATION_TOOLCHAIN) bash vendor/toko-tooling/scripts/dev/install-rust-tools.sh --consumer "$(CURDIR)" --package ic-build --version $(IC_BUILD_RELEASE_METADATA_VERSION) --bin ic-build-release-metadata --profile debug --features cli --check
 
 # Explicit network setup; ordinary tool/library gates never provision a server.
 install-runtime-server: host-tools-check
@@ -142,12 +142,12 @@ fetch-dependencies:
 .PHONY: check-runtime-tooling-selection
 check-pins: check-runtime-tooling-selection
 check-runtime-tooling-selection:
-	@root="$$(perl scripts/dev/tooling-lock.pl "$(CURDIR)")" && \
-	  runtime="$$(perl scripts/dev/tooling-lock.pl "$(CURDIR)/qualification")" && \
+	@root="$$(perl vendor/toko-tooling/scripts/dev/tooling-lock.pl "$(CURDIR)")" && \
+	  runtime="$$(perl vendor/toko-tooling/scripts/dev/tooling-lock.pl "$(CURDIR)/qualification")" && \
 	  test "$$root" = "$$runtime" || { echo 'Workspace tooling selections must agree.' >&2; exit 1; }
 
 check-pins:
-	+RUSTUP_TOOLCHAIN=$(VALIDATION_TOOLCHAIN) RUSTUP_AUTO_INSTALL=0 CARGO_NET_OFFLINE=true bash scripts/ci/check-dependency-pins.sh --cargo-inheritance
+	+RUSTUP_TOOLCHAIN=$(VALIDATION_TOOLCHAIN) RUSTUP_AUTO_INSTALL=0 CARGO_NET_OFFLINE=true bash vendor/toko-tooling/scripts/ci/check-dependency-pins.sh --cargo-inheritance
 
 # Product policy stays here; Shared observes the locked normal/build graph.
 .PHONY: check-dependency-adoption
@@ -155,7 +155,7 @@ check-dependency-adoption:
 	+bash scripts/ci/check-dependency-adoption.sh $(VALIDATION_TOOLCHAIN)
 
 check-production-graph:
-	+RUSTUP_TOOLCHAIN=$(VALIDATION_TOOLCHAIN) RUSTUP_AUTO_INSTALL=0 perl scripts/ci/check-cargo-graph.pl \
+	+RUSTUP_TOOLCHAIN=$(VALIDATION_TOOLCHAIN) RUSTUP_AUTO_INSTALL=0 perl vendor/toko-tooling/scripts/ci/check-cargo-graph.pl \
 		--consumer "$(CURDIR)" --package ic-storage --package ic-metrics-storage --package ic-logging-storage --target wasm32-unknown-unknown \
 		--forbid ic-build --forbid-pattern '^ic-host-' --forbid-pattern '^ic-testkit(?:-|$$)' \
 		--forbid-pattern '^clap(?:_|$$)' \
@@ -165,7 +165,7 @@ check-production-graph:
 		--forbid ic-platform-runtime-guard --forbid ic-platform-types --forbid candid --forbid-pattern '^ic-cdk' \
 		--forbid ic-stable-structures --require ic-storage=1 --forbid ic-platform --require ic-platform-runtime=1 --require ic-metrics=1 --require ic-logging=1 --require ic-wire=1
 
-	+RUSTUP_TOOLCHAIN=$(VALIDATION_TOOLCHAIN) RUSTUP_AUTO_INSTALL=0 perl scripts/ci/check-cargo-graph.pl \
+	+RUSTUP_TOOLCHAIN=$(VALIDATION_TOOLCHAIN) RUSTUP_AUTO_INSTALL=0 perl vendor/toko-tooling/scripts/ci/check-cargo-graph.pl \
 		--consumer "$(CURDIR)" --package ic-storage --package ic-metrics-storage --package ic-logging-storage \
 		--target "$$(rustc +$(VALIDATION_TOOLCHAIN) -vV | sed -n 's/^host: //p')" \
 		--require ic-wire=1 --forbid-feature ic-metrics/native-wire \
@@ -232,7 +232,7 @@ validate-toolchain:
 
 # Only the admitted native release adapter supplies this plan and source identity.
 validate-release-plan:
-	+RELEASE_SOURCE="$(RELEASE_SOURCE)" RELEASE_GROUP="$(RELEASE_GROUP)" VALIDATION_LOG_DIR="$(VALIDATION_LOG_DIR)" bash scripts/ci/run-validation-targets.sh --plan "$(VALIDATION_PLAN)"
+	+VALIDATION_REPOSITORY_ROOT="$(CURDIR)" RELEASE_SOURCE="$(RELEASE_SOURCE)" RELEASE_GROUP="$(RELEASE_GROUP)" VALIDATION_LOG_DIR="$(VALIDATION_LOG_DIR)" bash vendor/toko-tooling/scripts/ci/run-validation-targets.sh --plan "$(VALIDATION_PLAN)"
 
 validate-admission:
 	$(MAKE) --no-print-directory toko-tooling-check tools-check format-tools-check validation-compilers-check
@@ -332,15 +332,15 @@ publish-dry-run:
 
 .PHONY: check-storage-boundary check-candid-boundary check-license check-doc-links
 check-storage-boundary:
-	+RUSTUP_TOOLCHAIN=$(VALIDATION_TOOLCHAIN) RUSTUP_AUTO_INSTALL=0 CARGO_NET_OFFLINE=true bash scripts/ci/check-cargo-dependency-boundaries.sh --consumer "$(CURDIR)" --external-ic
-	+RUSTUP_TOOLCHAIN=$(VALIDATION_TOOLCHAIN) RUSTUP_AUTO_INSTALL=0 CARGO_NET_OFFLINE=true bash scripts/ci/check-cargo-dependency-boundaries.sh --consumer "$(CURDIR)/qualification"
+	+RUSTUP_TOOLCHAIN=$(VALIDATION_TOOLCHAIN) RUSTUP_AUTO_INSTALL=0 CARGO_NET_OFFLINE=true bash vendor/toko-tooling/scripts/ci/check-cargo-dependency-boundaries.sh --consumer "$(CURDIR)" --external-ic
+	+RUSTUP_TOOLCHAIN=$(VALIDATION_TOOLCHAIN) RUSTUP_AUTO_INSTALL=0 CARGO_NET_OFFLINE=true bash vendor/toko-tooling/scripts/ci/check-cargo-dependency-boundaries.sh --consumer "$(CURDIR)/qualification"
 
 # One lexical inventory covers packages, tools, benchmarks and runtime fixtures.
 check-candid-boundary:
-	perl scripts/ci/check-candid-boundary.pl --cbor "$(CURDIR)" ci/candid-boundary.json crates qualification testing
+	perl vendor/toko-tooling/scripts/ci/check-candid-boundary.pl --cbor "$(CURDIR)" ci/candid-boundary.json crates qualification testing
 
 check-license:
-	perl scripts/ci/check-license.pl --file LICENSE.md
+	perl vendor/toko-tooling/scripts/ci/check-license.pl --file LICENSE.md
 
 check-doc-links:
-	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md docs/status/current.md docs/validation/storage-release-validation.md docs/migration/ic-persistence.md docs/migration/ic-metrics-stable.md docs/storage/upstreams.md crates/ic-storage/README.md crates/ic-metrics-storage/README.md crates/ic-logging-storage/README.md docs/archive/private-btree/*.md docs/history/ic-storage/index.md
+	perl vendor/toko-tooling/scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md docs/status/current.md docs/validation/storage-release-validation.md docs/migration/ic-persistence.md docs/migration/ic-metrics-stable.md docs/storage/upstreams.md crates/ic-storage/README.md crates/ic-metrics-storage/README.md crates/ic-logging-storage/README.md docs/archive/private-btree/*.md docs/history/ic-storage/index.md

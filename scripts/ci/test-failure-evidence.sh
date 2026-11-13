@@ -44,7 +44,7 @@ jq -e '
     and ([.steps[] | select((.run // "") | contains("bash scripts/ci/test-failure-evidence.sh"))] | length) == 0
     and ($downloads | length) == 1 and ($downloads[0] |
         .if == "${{ needs.change-scope.outputs.scope != '\''docs'\'' && (!cancelled() && steps.evidence-upload.outputs.artifact-id != '\'''\'') }}"
-        and .run == "bash scripts/ci/download-evidence.sh \"$EVIDENCE_REPOSITORY\" \"$EVIDENCE_RUN\" \"$EVIDENCE_ARTIFACT\" \"$EVIDENCE_DIGEST\" \"$RUNNER_TEMP/ic-storage-evidence-downloaded\""
+        and .run == "bash vendor/toko-tooling/scripts/ci/download-evidence.sh \"$EVIDENCE_REPOSITORY\" \"$EVIDENCE_RUN\" \"$EVIDENCE_ARTIFACT\" \"$EVIDENCE_DIGEST\" \"$RUNNER_TEMP/ic-storage-evidence-downloaded\""
         and .["timeout-minutes"] == 3 and (."continue-on-error" // false) == false
         and .env.GH_TOKEN == "${{ github.token }}"
         and .env.EVIDENCE_REPOSITORY == "${{ github.repository }}"
@@ -68,19 +68,19 @@ echo 'controlled version-probe failure' >&2
 exit 9
 PROBE
 chmod 755 "$installer_fixture/probe"
-rg_records="$(perl "$ROOT/scripts/ci/tool-catalog-records.pl" host "$ROOT/ci/tool-versions.env" RIPGREP)"
+rg_records="$(perl "$ROOT/vendor/toko-tooling/scripts/ci/tool-catalog-records.pl" host "$ROOT/vendor/toko-tooling/ci/tool-versions.env" RIPGREP)"
 IFS=$'\t' read -r _ rg_version _ _ <<< "$rg_records"
 rg_member="ripgrep-$rg_version-x86_64-unknown-linux-musl/rg"
 mkdir -p "$installer_fixture/${rg_member%/*}"
 cp "$installer_fixture/probe" "$installer_fixture/$rg_member"
 tar -czf "$installer_fixture/ripgrep.tar.gz" -C "$installer_fixture" "$rg_member"
-probe_digest="$(bash "$ROOT/scripts/ci/verify-file-checksum.sh" --print sha256 "$installer_fixture/probe")"
-archive_digest="$(bash "$ROOT/scripts/ci/verify-file-checksum.sh" --print sha256 "$installer_fixture/ripgrep.tar.gz")"
+probe_digest="$(bash "$ROOT/vendor/toko-tooling/scripts/ci/verify-file-checksum.sh" --print sha256 "$installer_fixture/probe")"
+archive_digest="$(bash "$ROOT/vendor/toko-tooling/scripts/ci/verify-file-checksum.sh" --print sha256 "$installer_fixture/ripgrep.tar.gz")"
 awk -v probe="$probe_digest" -v archive="$archive_digest" '
     /^export TOKO_TOOLING_(JQ|YQ|CLOC)_SHA256/ { sub(/=.*/, "=" probe) }
     /^export TOKO_TOOLING_RIPGREP_SHA256/ { sub(/=.*/, "=" archive) }
     { print }
-' "$ROOT/ci/tool-versions.env" > "$installer_fixture/pins.env"
+' "$ROOT/vendor/toko-tooling/ci/tool-versions.env" > "$installer_fixture/pins.env"
 cat > "$installer_fixture/bin/uname" <<'UNAME'
 #!/usr/bin/env bash
 case "$1" in -s) echo Linux ;; -m) echo x86_64 ;; *) exit 2 ;; esac
@@ -104,7 +104,7 @@ CURL
 chmod 755 "$installer_fixture/bin/"*
 if INSTALLER_FIXTURE="$installer_fixture" PATH="$installer_fixture/bin:$PATH" \
     TOKO_TOOLING_STORE="$installer_fixture/store" \
-    bash "$ROOT/scripts/dev/install-host-tools.sh" --consumer "$installer_fixture/consumer" \
+    bash "$ROOT/vendor/toko-tooling/scripts/dev/install-host-tools.sh" --consumer "$installer_fixture/consumer" \
         --versions "$installer_fixture/pins.env" > "$temp_root/tools-setup.log" 2>&1; then
     echo 'expected the controlled host-tool failure' >&2; exit 1
 else
@@ -156,21 +156,21 @@ ln -s host-set.test "$repository_root/.tools/host"
 # Select a shared bundle through the canonical reference contract. Duplicate
 # local references retain it once; unrelated store entries and unknown links
 # must never widen this checkout's archive selection.
-shared_bundle="$(source "$ROOT/scripts/dev/tool-store.sh"; tool_store_init host evidence; printf '%s/set.evidence\n' "$store_slot")"
+shared_bundle="$(source "$ROOT/vendor/toko-tooling/scripts/dev/tool-store.sh"; tool_store_init host evidence; printf '%s/set.evidence\n' "$store_slot")"
 (umask 077; mkdir -p "$shared_bundle/bin" "$TOKO_TOOLING_STORE/unrelated")
 printf 'selected shared payload\n' > "$shared_bundle/bin/tool"
 printf 'unrelated store payload\n' > "$TOKO_TOOLING_STORE/unrelated/private"
 ln -s "$shared_bundle" "$repository_root/.tools/host-set.shared"
 ln -s "$shared_bundle" "$repository_root/.tools/host-set.sharedDuplicate"
 ln -s "$TOKO_TOOLING_STORE/unrelated" "$repository_root/.tools/ic-set.unknown"
-rust_bundle="$(source "$ROOT/scripts/dev/tool-store.sh"; tool_store_init rust evidence; printf '%s/set.evidence\n' "$store_slot")"
+rust_bundle="$(source "$ROOT/vendor/toko-tooling/scripts/dev/tool-store.sh"; tool_store_init rust evidence; printf '%s/set.evidence\n' "$store_slot")"
 (umask 077; mkdir -p "$rust_bundle/build")
 printf 'shared Cargo build failure\n' > "$rust_bundle/build/install.log"
 # A build-identity refusal retains both observations without activating a receipt.
 printf 'expected native inventory\n' > "$rust_bundle/native-environment.txt"
 printf 'observed native inventory\n' > "$rust_bundle/native-environment.observed.txt"
-expected_native="$(bash "$ROOT/scripts/ci/verify-file-checksum.sh" --print sha256 "$rust_bundle/native-environment.txt")"
-observed_native="$(bash "$ROOT/scripts/ci/verify-file-checksum.sh" --print sha256 "$rust_bundle/native-environment.observed.txt")"
+expected_native="$(bash "$ROOT/vendor/toko-tooling/scripts/ci/verify-file-checksum.sh" --print sha256 "$rust_bundle/native-environment.txt")"
+observed_native="$(bash "$ROOT/vendor/toko-tooling/scripts/ci/verify-file-checksum.sh" --print sha256 "$rust_bundle/native-environment.observed.txt")"
 printf '{"build":{"native":"%s"}}\n' "$expected_native" > "$rust_bundle/inputs.json"
 printf '{"native":"%s"}\n' "$observed_native" > "$rust_bundle/build-identity.observed.json"
 ln -s "$rust_bundle" "$repository_root/.tools/rust/rust-set.shared"
@@ -181,7 +181,7 @@ ln -s "$TOKO_TOOLING_STORE/unrelated" "$repository_root/.tools/rust/rust-set.unk
 archive="$(cd "$ROOT" && GITHUB_OUTPUT="$fixture/full-output" CDPATH="$ROOT" bash scripts/ci/collect-failure-evidence.sh "$temp_root" "$repository_root")"
 [[ -f "$archive" && "${archive##*/}" == evidence.tar.gz ]] || exit 1
 [[ "$(cat "$fixture/full-output")" == collection-complete=true ]] || exit 1
-bash "$ROOT/scripts/ci/verify-file-checksum.sh" --print sha256 "$archive" > "$fixture/archive.sha256"
+bash "$ROOT/vendor/toko-tooling/scripts/ci/verify-file-checksum.sh" --print sha256 "$archive" > "$fixture/archive.sha256"
 (cd "$ROOT" && CDPATH="$ROOT" bash scripts/ci/verify-failure-evidence.sh "$fixture" "$archive")
 
 # Retries create separate archives and preserve original evidence and gate status.
@@ -194,7 +194,7 @@ cmp "$archive" "$fixture/saved.tar.gz"
 # Compact selection keeps unknown/unverified bundles and the primary failure.
 compact="$(bash "$ROOT/scripts/ci/collect-failure-evidence.sh" "$temp_root" "$repository_root" compact)"
 cp "$fixture/archive.sha256" "$fixture/original.sha256"
-bash "$ROOT/scripts/ci/verify-file-checksum.sh" --print sha256 "$compact" > "$fixture/archive.sha256"
+bash "$ROOT/vendor/toko-tooling/scripts/ci/verify-file-checksum.sh" --print sha256 "$compact" > "$fixture/archive.sha256"
 bash "$ROOT/scripts/ci/verify-failure-evidence.sh" "$fixture" "$compact"
 mv "$fixture/original.sha256" "$fixture/archive.sha256"
 # Matching archive bytes cannot hide a lost or changed refusal observation.
@@ -211,7 +211,7 @@ rm "$rust_bundle/native-environment.observed.txt"
 ln -s "$fixture/linked-observation.txt" "$rust_bundle/native-environment.observed.txt"
 linked_archive="$(bash "$ROOT/scripts/ci/collect-failure-evidence.sh" "$temp_root" "$repository_root")"
 cp "$fixture/archive.sha256" "$fixture/original.sha256"
-bash "$ROOT/scripts/ci/verify-file-checksum.sh" --print sha256 "$linked_archive" > "$fixture/archive.sha256"
+bash "$ROOT/vendor/toko-tooling/scripts/ci/verify-file-checksum.sh" --print sha256 "$linked_archive" > "$fixture/archive.sha256"
 if bash "$ROOT/scripts/ci/verify-failure-evidence.sh" "$fixture" "$linked_archive" > "$fixture/linked-observation.log" 2>&1; then
     echo 'expected linked observation refusal' >&2; exit 1
 fi
@@ -240,7 +240,7 @@ cp "$temp_root/validation.log" "$fixture/original-validation.log"
 printf 'original_status=2\n' > "$temp_root/validation.log"
 contradicted="$(bash "$ROOT/scripts/ci/collect-failure-evidence.sh" "$temp_root" "$repository_root")"
 cp "$fixture/archive.sha256" "$fixture/original.sha256"
-bash "$ROOT/scripts/ci/verify-file-checksum.sh" --print sha256 "$contradicted" > "$fixture/archive.sha256"
+bash "$ROOT/vendor/toko-tooling/scripts/ci/verify-file-checksum.sh" --print sha256 "$contradicted" > "$fixture/archive.sha256"
 if bash "$ROOT/scripts/ci/verify-failure-evidence.sh" "$fixture" "$contradicted" > "$fixture/contradicted-status.log" 2>&1; then
     echo 'expected original failure-status refusal' >&2; exit 1
 fi
@@ -369,14 +369,16 @@ for selection_mode in full compact; do
     partial_root="$fixture/partial-selector-$selection_mode"
     mkdir -p "$partial_root/scripts/ci" "$partial_root/temp" "$partial_root/repository/.tools/host-set.selected" \
         "$partial_root/unpacked" "$partial_root/outside"
-    cp "$ROOT/scripts/ci/collect-failure-evidence.sh" "$ROOT/scripts/ci/collect-tool-evidence.sh" \
-        "$ROOT/scripts/ci/archive-evidence.sh" "$partial_root/scripts/ci/"
-    cat > "$partial_root/scripts/ci/select-tool-evidence.sh" <<'SELECTOR'
+    bash "$ROOT/vendor/toko-tooling/scripts/ci/prepare-script-fixture.sh" "$ROOT" "$partial_root" \
+        vendor/toko-tooling/scripts/ci/collect-tool-evidence.sh \
+        vendor/toko-tooling/scripts/ci/archive-evidence.sh
+    cp "$ROOT/scripts/ci/collect-failure-evidence.sh" "$partial_root/scripts/ci/"
+    cat > "$partial_root/vendor/toko-tooling/scripts/ci/select-tool-evidence.sh" <<'SELECTOR'
 #!/usr/bin/env bash
 if [[ "$1" == compact ]]; then
-    snapshot_root="${0%/scripts/ci/select-tool-evidence.sh}"
-    [[ "$4" == "$snapshot_root/ci/tool-versions.env" &&
-        "$5" == "$snapshot_root/ci/ic-tools.tsv" && "$6" == wasm-opt ]] || exit 18
+    snapshot_root="${0%/vendor/toko-tooling/scripts/ci/select-tool-evidence.sh}"
+    [[ "$4" == "$snapshot_root/vendor/toko-tooling/ci/tool-versions.env" &&
+        "$5" == "$snapshot_root/vendor/toko-tooling/ci/ic-tools.tsv" && "$6" == wasm-opt ]] || exit 18
 fi
 printf '%s\0%s\0%s\0' "${2%/*}/outside" 'secret' "$2"
 printf 'controlled partial selector failure\n' >&2

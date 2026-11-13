@@ -5,7 +5,9 @@
 _toko_tooling_default_goal := $(.DEFAULT_GOAL)
 include $(dir $(lastword $(MAKEFILE_LIST)))execution.mk
 
-TOKO_TOOLING_ROOT ?= $(CURDIR)
+ifndef TOKO_TOOLING_ROOT
+TOKO_TOOLING_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))..)
+endif
 HOST_TOOL_VERSIONS ?= $(TOKO_TOOLING_ROOT)/ci/tool-versions.env
 RUST_TOOL_VERSIONS ?= $(TOKO_TOOLING_ROOT)/ci/tool-versions.env
 IC_TOOL_PINS ?= $(TOKO_TOOLING_ROOT)/ci/ic-tools.tsv

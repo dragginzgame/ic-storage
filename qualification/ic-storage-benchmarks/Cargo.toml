@@ -21,7 +21,7 @@ category = "benchmarks"
 ignored = ["toko-tooling"]
 
 [features]
-metrics-checkpoints = ["owned", "dep:ic-metrics", "dep:ic-metrics-storage"]
+metrics-checkpoints = ["owned"]
 returning-mutations = ["owned"]
 owned = ["dep:ic-storage"]
 dfinity = []
@@ -35,8 +35,6 @@ ic-stable-structures-head = { workspace = true, optional = true }
 ic-storage = { workspace = true, optional = true }
 
 [dependencies]
-ic-metrics = { workspace = true, optional = true }
-ic-metrics-storage = { workspace = true, optional = true }
 ic-stable-structures.workspace = true
 ic-wire.workspace = true
 ic_principal.workspace = true
@@ -44,6 +42,8 @@ serde.workspace = true
 serde_bytes.workspace = true
 
 [dev-dependencies]
+ic-metrics.workspace = true
+ic-metrics-storage.workspace = true
 toko-tooling.workspace = true
 
 [[example]]

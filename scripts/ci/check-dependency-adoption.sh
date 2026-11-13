@@ -3,7 +3,7 @@
 set -euo pipefail
 [[ $# == 1 && -n "$1" ]] || { echo 'usage: check-dependency-adoption.sh TOOLCHAIN' >&2; exit 2; }
 export RUSTUP_TOOLCHAIN="$1" RUSTUP_AUTO_INSTALL=0 CARGO_NET_OFFLINE=true
-shared=scripts/ci
+shared=vendor/toko-tooling/scripts/ci
 mkdir -p "$PWD/target/dependency-adoption"
 evidence="$(mktemp -d "$PWD/target/dependency-adoption/attempt.XXXXXX")"
 printf 'Dependency adoption evidence: %s\n' "$evidence"

@@ -24,11 +24,9 @@
         "ic-metrics-storage"
       ],
       "changelog": "releases/metrics-storage/CHANGELOG.md",
-      "dependencies": [
-        "ic-metrics-storage"
-      ],
+      "dependencies": [],
       "metadata_files": [
-        "releases/metrics-storage/0.77.md"
+        "releases/metrics-storage/0.78.md"
       ]
     },
     {
@@ -39,11 +37,9 @@
         "ic-logging-storage"
       ],
       "changelog": "releases/logging-storage/CHANGELOG.md",
-      "dependencies": [
-        "ic-logging-storage"
-      ],
+      "dependencies": [],
       "metadata_files": [
-        "releases/logging-storage/0.73.md"
+        "releases/logging-storage/0.74.md"
       ]
     }
   ],

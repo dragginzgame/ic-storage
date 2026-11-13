@@ -205,7 +205,7 @@ fn adapter_private_changes_select_only_proven_unaffected_omissions() {
             "Cargo.toml",
             "rust-toolchain.toml",
             "Makefile",
-            "ci/tool-versions.env",
+            "vendor/toko-tooling/ci/tool-versions.env",
             ".github/workflows/ci.yml",
             "unknown",
             "crates/ic-storage/src/lib.rs",
@@ -347,7 +347,7 @@ exec /usr/bin/make "$@"
         "ValidationPlan.pm",
         "validation-evidence.pl",
     ] {
-        let path = format!("scripts/ci/{helper}");
+        let path = format!("vendor/toko-tooling/scripts/ci/{helper}");
         fixture.set_source(&path, &fs::read_to_string(checkout.join(&path)).unwrap());
     }
     let path_env = format!("{}:{}", bin.display(), env::var("PATH").unwrap());
@@ -407,11 +407,12 @@ exec /usr/bin/make "$@"
             )
             .unwrap();
             let output = Command::new("bash")
-                .arg("scripts/ci/run-validation-targets.sh")
+                .arg("vendor/toko-tooling/scripts/ci/run-validation-targets.sh")
                 .args(["--plan", &path])
                 .current_dir(root)
                 .env("PATH", &path_env)
                 .env("FIXTURE_ROOT", root)
+                .env("VALIDATION_REPOSITORY_ROOT", root)
                 .env("RELEASE_SOURCE", source)
                 .env("RELEASE_GROUP", group)
                 .env("VALIDATION_LOG_DIR", format!("{path}.logs"))

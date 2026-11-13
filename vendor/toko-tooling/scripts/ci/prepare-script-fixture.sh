@@ -61,6 +61,9 @@ while [[ "$cursor" -lt "${#payloads[@]}" ]]; do
     fixture_admit_path "$path"
     read_shared_companions "$source_root/$path" "$path"
     for companion in ${shared_companions[@]+"${shared_companions[@]}"}; do
+        if [[ "$path" == vendor/toko-tooling/* ]]; then
+            case "$companion" in TOKO-TOOLING.md|LICENSE.md|CONTRIBUTING.md) ;; *) companion="vendor/toko-tooling/$companion" ;; esac
+        fi
         selected=false
         for existing in "${payloads[@]}"; do [[ "$existing" != "$companion" ]] || selected=true; done
         [[ "$selected" == true ]] || payloads+=("$companion")

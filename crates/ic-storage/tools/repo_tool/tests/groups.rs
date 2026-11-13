@@ -13,8 +13,13 @@ fn qualification_catalog_and_lock_follow_their_owning_group_and_roll_back_togeth
             serde_json::from_str(&fixture.repo.text(GROUP_POLICY, None).unwrap()).unwrap();
         policy["shared_metadata_files"] = serde_json::json!([catalog_path, lock_path]);
         fixture.set_source(GROUP_POLICY, &serde_json::to_string(&policy).unwrap());
-        fixture.set_source(catalog_path, catalog);
-        fixture.set_source(lock_path, lock);
+        let catalog = format!(
+            "{catalog}ic-metrics-storage = {{ path = \"../../crates/ic-metrics-storage\", version = \"0.12.3\" }}\n"
+        );
+        let lock =
+            format!("{lock}[[package]]\nname = \"ic-metrics-storage\"\nversion = \"0.12.3\"\n");
+        fixture.set_source(catalog_path, &catalog);
+        fixture.set_source(lock_path, &lock);
         let original = fixture.repo.exec.state.borrow().git.source.clone();
         let group = fixture.repo.release_group(None).unwrap();
         fixture.fail_files(FileFault::WriteAfter(
@@ -25,9 +30,8 @@ fn qualification_catalog_and_lock_follow_their_owning_group_and_roll_back_togeth
             assert_eq!(fixture.repo.text(&path, None).unwrap(), bytes, "{path}");
         }
         fixture.prepare().unwrap();
-        let selected = matches!(name, "storage" | "logging-storage");
         let package = format!("ic-{name}");
-        let expected_catalog = if selected {
+        let expected_catalog = {
             catalog
                 .lines()
                 .map(|line| {
@@ -40,16 +44,12 @@ fn qualification_catalog_and_lock_follow_their_owning_group_and_roll_back_togeth
                 .collect::<Vec<_>>()
                 .join("\n")
                 + "\n"
-        } else {
-            catalog.to_owned()
         };
-        let expected_lock = if selected {
+        let expected_lock = {
             lock.replace(
                 &format!("name = {package:?}\nversion = \"0.12.3\""),
                 &format!("name = {package:?}\nversion = \"0.13.0\""),
             )
-        } else {
-            lock.to_owned()
         };
         assert_eq!(
             fixture.repo.text(catalog_path, None).unwrap(),
@@ -241,6 +241,38 @@ fn core_releases_align_local_requirements_and_preserve_adapter_identity() {
             );
         }
     }
+}
+
+#[test]
+fn catalogs_project_owned_packages_without_root_display_aliases() {
+    let fixture = Fixture::for_group("metrics-storage");
+    let root = "[workspace.dependencies]\nic-storage = { path = \"crates/ic-storage\", version = \"0.12.3\" }\n";
+    assert_eq!(
+        fixture
+            .repo
+            .project_catalog(root, "0.12.3", "0.13.0")
+            .unwrap(),
+        root
+    );
+    let independent = "[workspace.dependencies]\nmetrics = { package = \"ic-metrics-storage\", path = \"../crates/ic-metrics-storage\", version = \"0.12.3\" }\nother = \"0.12.3\"\n";
+    let projected = fixture
+        .repo
+        .project_catalog(independent, "0.12.3", "0.13.0")
+        .unwrap();
+    assert_eq!(
+        projected,
+        independent.replacen("version = \"0.12.3\"", "version = \"0.13.0\"", 1)
+    );
+    assert!(
+        fixture
+            .repo
+            .project_catalog(
+                &independent.replace("path = \"../crates/ic-metrics-storage\", ", ""),
+                "0.12.3",
+                "0.13.0"
+            )
+            .is_err()
+    );
 }
 
 #[test]

@@ -7,11 +7,12 @@ fixture="$(mktemp -d "$root/target/fixtures/storage-adoption-fixture.XXXXXX")"
 echo "Retained adoption caller fixture: $fixture"
 mkdir -p "$fixture/source/scripts/ci" "$fixture/source/ci" "$fixture/bin"
 cp Makefile rust-toolchain.toml "$fixture/source/"
-cp -R make "$fixture/source/"
+bash vendor/toko-tooling/scripts/ci/prepare-script-fixture.sh "$root" "$fixture/source" \
+    vendor/toko-tooling/make/consumer.mk vendor/toko-tooling/make/cargo-dependencies.mk \
+    vendor/toko-tooling/make/release.mk vendor/toko-tooling/make/cargo-publication.mk
 cp ci/release-tools.env ci/runtime-tools.env "$fixture/source/ci/"
 cp scripts/ci/check-dependency-adoption.sh "$fixture/source/scripts/ci/"
-cp scripts/ci/check-make-execution.sh "$fixture/source/scripts/ci/"
-bash scripts/ci/prepare-script-fixture.sh "$root" "$fixture/source" scripts/ci/check-cargo-graph.pl scripts/ci/validation-input-checkpoint.pl scripts/ci/verify-file-checksum.sh
+bash vendor/toko-tooling/scripts/ci/prepare-script-fixture.sh "$root" "$fixture/source" vendor/toko-tooling/scripts/ci/check-cargo-graph.pl vendor/toko-tooling/scripts/ci/validation-input-checkpoint.pl vendor/toko-tooling/scripts/ci/verify-file-checksum.sh
 for path in Cargo.toml Cargo.lock crates/*/Cargo.toml qualification/Cargo.toml \
     qualification/Cargo.lock qualification/*/Cargo.toml; do
     if [[ "$path" == */* ]]; then mkdir -p "$fixture/source/${path%/*}"; fi

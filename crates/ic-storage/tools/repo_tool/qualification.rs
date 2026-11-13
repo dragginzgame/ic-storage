@@ -154,7 +154,10 @@ impl<E: Execute> Repository<E> {
     }
 
     pub(super) fn verify(&self, selection: &ReleaseSelection) -> Result<()> {
-        self.run("bash", &["scripts/ci/check-make-execution.sh"])?;
+        self.run(
+            "bash",
+            &["vendor/toko-tooling/scripts/ci/check-make-execution.sh"],
+        )?;
         let configuration = self.configuration()?;
         self.check_selection(selection)?;
         self.clean()?;

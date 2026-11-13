@@ -82,9 +82,9 @@ if [[ "$select_tools" == true ]]; then
     collection_status=0
     ic_selection=()
     [[ "$mode" != compact ]] || ic_selection=(wasm-opt)
-    bash "$ROOT/scripts/ci/collect-tool-evidence.sh" "$archive_dir/evidence.tar.gz" \
-        "$repository_root" "$diagnostics" "$mode" "$ROOT/ci/tool-versions.env" \
-        "$ROOT/ci/ic-tools.tsv" ${ic_selection[@]+"${ic_selection[@]}"} \
+    bash "$ROOT/vendor/toko-tooling/scripts/ci/collect-tool-evidence.sh" "$archive_dir/evidence.tar.gz" \
+        "$repository_root" "$diagnostics" "$mode" "$ROOT/vendor/toko-tooling/ci/tool-versions.env" \
+        "$ROOT/vendor/toko-tooling/ci/ic-tools.tsv" ${ic_selection[@]+"${ic_selection[@]}"} \
         ${inputs[@]+"${inputs[@]}"} || collection_status=$?
     case "$collection_status" in
         0) ;;
@@ -93,7 +93,7 @@ if [[ "$select_tools" == true ]]; then
     esac
 elif [[ ${#inputs[@]} != 0 ]]; then
     archive_dir="$(mktemp -d "$temp_root/ic-storage-evidence.XXXXXX")"
-    bash "$ROOT/scripts/ci/archive-evidence.sh" "$archive_dir/evidence.tar.gz" "${inputs[@]}"
+    bash "$ROOT/vendor/toko-tooling/scripts/ci/archive-evidence.sh" "$archive_dir/evidence.tar.gz" "${inputs[@]}"
 fi
 # Publish completeness only after the selected evidence has been archived.
 if [[ -n "${GITHUB_OUTPUT:-}" ]]; then

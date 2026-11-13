@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Shared companions: scripts/ci/check-make-execution.sh
 set -euo pipefail
+tooling_root="$(cd -P "${BASH_SOURCE[0]%/*}/.." && printf '%s/.' "$PWD")"
+tooling_root="${tooling_root%/.}"
 
 # Format the selected index payload, without exposing unrelated working edits.
 # Dependencies: Bash 3.2, Git, GNU Make and consumer-owned fmt prerequisites.
@@ -31,7 +33,7 @@ while IFS= read -r -d '' path; do
     count=$((count + 1))
 done < "$snapshot/selected"
 [[ "$count" -gt 0 ]] || exit 0
-bash "$root/scripts/ci/check-make-execution.sh"
+bash "$tooling_root/scripts/ci/check-make-execution.sh"
 
 # Symlink target bytes are outside the snapshot; submodules remain opaque.
 # Do not let formatting escape into another checkout or the real working tree.

@@ -62,6 +62,7 @@ impl<E: Execute> Repository<E> {
                 identifier(&group.name)
                     && identifier(&group.primary)
                     && group.members.iter().all(|name| identifier(name))
+                    && group.dependencies.iter().all(|name| identifier(name))
                     && group.members.contains(&group.primary)
                     && group.version == "package"
                     && relative(&group.changelog)
@@ -126,16 +127,12 @@ impl ReleaseGroup {
                 .map(|name| (package_manifest(name), SurfaceRole::Member)),
         );
         paths.extend(self.metadata_files.iter().map(|path| {
-            // Independent fixtures consume this checkout's Storage and Logging versions.
+            // Independent fixtures consume all three local package identities.
             // Only explicitly declared catalog/lock inputs share group projection;
             // unrelated metadata, including other Cargo manifests, stays opaque.
-            let role = if matches!(self.name.as_str(), "storage" | "logging-storage")
-                && path == "qualification/Cargo.toml"
-            {
+            let role = if path == "qualification/Cargo.toml" {
                 SurfaceRole::Catalog
-            } else if matches!(self.name.as_str(), "storage" | "logging-storage")
-                && path == "qualification/Cargo.lock"
-            {
+            } else if path == "qualification/Cargo.lock" {
                 SurfaceRole::Lock
             } else if Path::new(path).parent() == Path::new(&self.changelog).parent()
                 && Path::new(path)

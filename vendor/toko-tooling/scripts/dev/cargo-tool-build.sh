@@ -185,9 +185,10 @@ cargo_build() {
     cargo_cache_check || return 1
     (umask 077; mkdir "$candidate/home") || return 1
     # No caller PATH, flags, wrappers, Cargo config or arbitrary environment is
-    # passed to the build. The exact packaged lockfile is required above.
+    # passed to the build. The exact packaged lockfile is required above;
+    # Cargo 1.100 uses it by default (--locked is a no-op for install).
     (umask 077; cd "$candidate/home" && "${build_environment[@]}" "HOME=$candidate/home" "$cargo_bin" install \
-        "$package" --version "=$selected_version" --locked --registry crates-io \
+        "$package" --version "=$selected_version" --registry crates-io \
         "--$kind" "$target" --root "$candidate" --target-dir "$candidate/build" \
         --jobs 2 "$@" ${feature_options[@]+"${feature_options[@]}"} ${offline_args[@]+"${offline_args[@]}"})
 }

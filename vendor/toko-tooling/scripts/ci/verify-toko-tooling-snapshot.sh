@@ -7,6 +7,7 @@ SCRIPT_DIR="$(cd -P "${SCRIPT_DIR%/*}" && printf '%s/.' "$PWD")"
 SCRIPT_DIR="${SCRIPT_DIR%/.}"
 DEFAULT_ROOT="$(cd -P "$SCRIPT_DIR/../.." && printf '%s/.' "$PWD")"
 DEFAULT_ROOT="${DEFAULT_ROOT%/.}"
+if [[ "$DEFAULT_ROOT" == */vendor/toko-tooling ]]; then DEFAULT_ROOT="${DEFAULT_ROOT%/vendor/toko-tooling}"; fi
 CONSUMER_ROOT="$DEFAULT_ROOT"
 MANIFEST_PATH=".toko-tooling.snapshot"
 read_manifest=''
@@ -141,6 +142,7 @@ format_count=0
 source_count=0
 revision_count=0
 version_count=0
+snapshot_layout=''
 snapshot_version=unrecorded
 snapshot_revision=''
 snapshot_source=''
@@ -156,6 +158,10 @@ snapshot_verifier_declared=false
 while IFS= read -r manifest_line || [[ -n "$manifest_line" ]]; do
     IFS=$'\t' read -r record first second third extra <<< "$manifest_line"
     case "$record" in
+    '# layout')
+        [[ -z "$snapshot_layout" && "$first" == vendor && "$manifest_line" == $'# layout\tvendor' && "$file_count" == 0 ]] || fail 'invalid or misplaced snapshot layout'
+        snapshot_layout=vendor
+        ;;
     '# entrypoint')
         [[ -n "$first" && "$manifest_line" == $'# entrypoint\t'"$first" ]] || fail "malformed entrypoint annotation"
         validate_relative_path "$first"
@@ -199,8 +205,18 @@ while IFS= read -r manifest_line || [[ -n "$manifest_line" ]]; do
         declared_files[file_count]="$third"
         declared_digests[file_count]="$first"
         declared_modes[file_count]="$second"
-        [[ "$third" != "scripts/ci/verify-file-checksum.sh" ]] || checksum_tool_declared=true
-        [[ "$third" != "scripts/ci/verify-toko-tooling-snapshot.sh" ]] || snapshot_verifier_declared=true
+        source_path="$third"
+        if [[ "$snapshot_layout" == vendor ]]; then
+            case "$third" in
+                TOKO-TOOLING.md|LICENSE.md|CONTRIBUTING.md) ;;
+                vendor/toko-tooling/TOKO-TOOLING.md|vendor/toko-tooling/LICENSE.md|vendor/toko-tooling/CONTRIBUTING.md) fail "canonical document must remain at root: $third" ;;
+                vendor/toko-tooling/*) source_path="${third#vendor/toko-tooling/}" ;;
+                *) fail "payload outside vendor ownership boundary: $third" ;;
+            esac
+            case "$source_path" in vendor/*|docs/*|rules/*|tasks/*|audits/*|scripts/ci/test-*|.github/workflows/*|AGENTS.md|Makefile) fail "unsupported vendor payload: $third" ;; esac
+        fi
+        [[ "$source_path" != "scripts/ci/verify-file-checksum.sh" ]] || checksum_tool_declared=true
+        [[ "$source_path" != "scripts/ci/verify-toko-tooling-snapshot.sh" ]] || snapshot_verifier_declared=true
         file_count=$((file_count + 1))
         ;;
     *) fail "unknown manifest record: $record" ;;
@@ -279,9 +295,11 @@ for index in "${!declared_files[@]}"; do
     [[ "$checksum_output" =~ $checksum_pattern ]] || fail "malformed checksum output: $path"
     [[ "${BASH_REMATCH[1]}" == "${declared_digests[$index]}" ]] || fail "declared file differs from the snapshot: $path"
     if [[ -n "$source_root" ]]; then
+        source_path="$path"
+        if [[ "$snapshot_layout" == vendor ]]; then source_path="${path#vendor/toko-tooling/}"; fi
         # Literal paths and disabled replacement objects bind this observation
         # to the reviewed tree, not working files or consumer-supplied hashes.
-        source_entry="$(git --no-replace-objects -C "$source_root" --literal-pathspecs ls-tree "$expected_revision" -- "$path")" || fail "cannot inspect reviewed path: $path"
+        source_entry="$(git --no-replace-objects -C "$source_root" --literal-pathspecs ls-tree "$expected_revision" -- "$source_path")" || fail "cannot inspect reviewed path: $path"
         # ls-tree succeeds with no output for a path the commit does not contain.
         [[ -n "$source_entry" ]] || fail "reviewed source is missing: $path"
         source_mode="${source_entry%% *}"
@@ -289,7 +307,7 @@ for index in "${!declared_files[@]}"; do
         [[ "${declared_modes[$index]}" != x ]] || expected_mode=100755
         [[ "$source_mode" == "$expected_mode" ]] || fail "reviewed source mode differs: $path"
         checksum_status=0
-        checksum_output="$(git --no-replace-objects -C "$source_root" show "$expected_revision:$path" | LC_ALL=C "${checksum_command[@]}" | reject_nul)" || checksum_status=$?
+        checksum_output="$(git --no-replace-objects -C "$source_root" show "$expected_revision:$source_path" | LC_ALL=C "${checksum_command[@]}" | reject_nul)" || checksum_status=$?
         [[ "$checksum_status" == 0 ]] || fail "cannot hash reviewed source: $path"
         [[ "$checksum_output" != NUL ]] || fail "source checksum output contains a NUL byte: $path"
         [[ "$checksum_output" =~ $checksum_pattern ]] || fail "malformed source checksum: $path"

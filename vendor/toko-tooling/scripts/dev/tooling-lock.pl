@@ -19,6 +19,15 @@ sub toml {
     -f $path && !-l $path or die "expected regular file: $path\n";
     return command_json('yq','-p','toml','-o','json','.',$path);
 }
+sub tooling_declaration {
+    my ($manifest) = @_;
+    my $direct = $manifest->{'dev-dependencies'}{'toko-tooling'};
+    my $marker = $manifest->{target}{'cfg(any())'}{'dev-dependencies'}{'toko-tooling'};
+    !(defined($direct) && defined($marker))
+        or die "Declare toko-tooling once, directly or under target.'cfg(any())'.dev-dependencies\n";
+    # A source-bundle pin remains in Cargo metadata/lock without being linked.
+    return defined($marker) ? $marker : $direct;
+}
 my $manifest=toml("$root/Cargo.toml");
 my $workspace=exists($manifest->{workspace});
 !exists($manifest->{workspace}{metadata}{'toko-tooling'})
@@ -26,7 +35,7 @@ my $workspace=exists($manifest->{workspace});
     && !-e "$root/toko-tooling.lock" && !-l "$root/toko-tooling.lock"
     or die "Remove the old toko-tooling metadata tables and toko-tooling.lock; select tooling through Cargo dependencies and Cargo.lock.\n";
 my $selection=$workspace ? $manifest->{workspace}{dependencies}{'toko-tooling'}
-    : $manifest->{'dev-dependencies'}{'toko-tooling'};
+    : tooling_declaration($manifest);
 my $requirement;
 if (!ref($selection)) {$requirement=$selection;}
 elsif (ref($selection) eq 'HASH') {
@@ -56,18 +65,18 @@ for my $package (@packages) {
     my $path=$package->{manifest_path};
     my $member=toml($path);
     if ($workspace) {
-        my $dep=$member->{'dev-dependencies'}{'toko-tooling'};
+        my $dep=tooling_declaration($member);
         ref($dep) eq 'HASH' && keys(%$dep)==1 && JSON::PP::is_bool($dep->{workspace}) && $dep->{workspace}
-            or die "$path: every workspace package must declare [dev-dependencies] toko-tooling.workspace = true\n";
+            or die "$path: every workspace package must inherit toko-tooling in dev-dependencies (directly or under target.'cfg(any())')\n";
     } else {
         @packages==1 && $path eq "$root/Cargo.toml"
             or die "A workspace must select toko-tooling in root workspace.dependencies\n";
     }
     my @deps=grep {$_->{name} eq 'toko-tooling'} @{$package->{dependencies}};
-    @deps==1 && ($deps[0]{kind}//'') eq 'dev' && !defined($deps[0]{target})
+    @deps==1 && ($deps[0]{kind}//'') eq 'dev' && (!defined($deps[0]{target}) || $deps[0]{target} eq 'cfg(any())')
         && !defined($deps[0]{rename}) && !defined($deps[0]{path})
         && ($deps[0]{source}//'') eq $registry && $deps[0]{req} eq "=$version" && !$deps[0]{optional}
-        or die "$path: require exactly one unconditional crates.io toko-tooling dev-dependency at =$version\n";
+        or die "$path: require exactly one crates.io toko-tooling dev-dependency at =$version, directly or under target.'cfg(any())'\n";
 }
 my $lock=toml("$root/Cargo.lock");
 my @locked=grep {$_->{name} eq 'toko-tooling'} @{$lock->{package}//[]};
