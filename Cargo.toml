@@ -21,7 +21,7 @@ categories = ["wasm", "data-structures"]
 [workspace.dependencies]
 # storage
 # Changelog : releases/storage/CHANGELOG.md
-ic-storage = { path = "crates/ic-storage", version = "0.73.6" }
+ic-storage = { path = "crates/ic-storage", version = "0.74.0" }
 toko-tooling = "=0.40.1"
 
 # metrics-storage
