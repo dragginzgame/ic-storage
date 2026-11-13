@@ -116,7 +116,7 @@ fn large_changelog_finalization_preserves_complete_history() {
 fn release_tool_setup_and_offline_admission_precede_gates_and_version_mutation() {
     for phase in [BuildFault::ToolSetup, BuildFault::ToolCheck] {
         let fixture = Fixture::new();
-        fixture.fail_build(phase.clone());
+        fixture.fail_build(phase);
         assert!(fixture.prepare().is_err());
         fixture.assert_original();
         assert!(!fixture.repo.exec.state.borrow().has_call(|call| {

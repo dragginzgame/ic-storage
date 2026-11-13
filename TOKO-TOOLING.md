@@ -132,6 +132,18 @@ when changing component boundaries.
 
 ## Complete, reviewable changes
 
+In engineering requests, "nuke this", "nuke and rewrite" or "the nuclear option"
+means whole-subsystem replacement as one coherent deliverable, not deletion alone.
+First establish a coherent responsibility, inputs/outputs and callers; an existing
+directory or collection of tangled concerns is not proof of a subsystem. Separate
+misplaced responsibilities instead of rebuilding the same accidental boundary.
+Define protected behavior and mechanisms to retire, then implement, migrate callers,
+delete superseded paths and verify the result without requiring another prompt
+for every intermediate cleanup. Internal steps may be incremental; preparatory
+refactors are not the deliverable. Observable contracts and recovery guarantees
+remain protected. Resolve scope from context and ask only for material ambiguity;
+frustration alone does not activate this mode or expand delivery authority.
+
 Finish the accepted coherent outcome, including directly required callers,
 fixtures, docs and cleanup. Split independent outcomes, not compiler fallout or
 each proof of the same change. Stop at new independent scope or a release boundary.
@@ -417,6 +429,38 @@ before interface or storage changes.
 
 ## Release commands
 
+Optimise deployment latency from an authorised release request to the required
+GitHub refs being pushed and all selected crates being available in the registry.
+Measure preparation, validation, packaging and delivery separately; hosted CI
+duration is a separate metric unless delivery actually waits for it. Use existing
+attempt evidence, not an extra benchmark gate. Reuse unchanged validation across
+release and publication only through a qualified evidence contract, and reuse
+admitted prepared tools instead of rebuilding them. Keep fresh source, final
+archive and registry admission, required product/native checks and recovery
+boundaries. Missing or changed evidence still requires execution or refusal;
+speed alone never authorises skipping a gate.
+
+Plan deployment as one selected validation pass followed by fresh artifact and
+delivery admission. Inspect the actual nested commands first; do not stack full
+gates under release, version preparation and publication. Keep optional dependency,
+compiler, formatting-policy and tooling upgrades out of an active release unless
+requested or needed to resolve its blocker. Qualify changed release-tool wiring
+with focused fixtures before expensive product tests, using existing evidence
+when unchanged. Use retained stage timings to disclose expensive work and the
+expected scope before starting or restarting; unknown cost stays explicit.
+
+After failure, identify the failed phase and invalidated inputs before retrying.
+A collector, metadata or upload failure does not by itself invalidate completed
+runtime checks. Preserve their original evidence and use qualified stage admission
+or post-processing recovery where available; never rewrite their origin or infer
+passes from log text. Do not silently restart a full gate as a generic repair.
+If recovery is unsupported, explain the concrete missing admission and rerun scope
+before proceeding under the existing authority. A rule alone does not implement
+recovery or waive a required check. Consumers must qualify such recovery when
+improving their release adapters, including evidence-publication failure after
+successful execution. Keep failed/missing/changed stages explicit and freshly
+check source, final archives and remote/registry state before delivery or retry.
+
 `make release-patch`, `make release-minor` and `make release-major` share the
 [release contract](https://github.com/dragginzgame/toko-tooling/blob/626da7cd9626cc2e152594862a2d82ea82ef51da/rules/engineering-details.md#release-commands). Read it and the
 local adapter before authorized release work. Normal releases start fresh;
@@ -483,6 +527,69 @@ Prefer `#[expect(..., reason = "...")]` over `#[allow(...)]` for Rust lint
 suppressions. Repositories must review every `allow` for conversion and retain
 one only with a concrete reason why an expectation cannot work. Follow the
 [lint suppression rule](https://github.com/dragginzgame/toko-tooling/blob/626da7cd9626cc2e152594862a2d82ea82ef51da/docs/principles/rust-code-hygiene.md#lint-suppressions).
+
+### Common Rust lint policy
+
+On adoption, reconcile compiler pins and lint configuration in every product,
+qualification and other maintained workspace; installing the snapshot alone
+does not perform or qualify this migration. Every member inherits its owning
+workspace's lint table with `[lints] workspace = true`. A single-package repository
+uses `[lints.*]` directly. Cargo cannot combine inherited and local lint tables:
+document necessary package exceptions and keep their common checks equivalent.
+
+Use this common minimum in each workspace root:
+
+```toml
+[workspace.lints.rust]
+dead_code = "deny"
+unused_must_use = "deny"
+unfulfilled_lint_expectations = "deny"
+unsafe_code = "deny"
+unsafe_op_in_unsafe_fn = "deny"
+missing_docs = "warn"
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "deny"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -2 }
+correctness = { level = "deny", priority = -1 }
+redundant_clone = "warn"
+needless_pass_by_value = "warn"
+wildcard_imports = "warn"
+missing_panics_doc = "warn"
+must_use_candidate = "warn"
+too_many_lines = "allow"
+```
+
+Use `unsafe_code = "forbid"` for packages requiring no unsafe constructs. Keep
+`deny` with narrow reviewed expectations for FFI and unsafe export attributes;
+do not weaken existing safe-package prohibitions. Missing-docs debt may retain
+an explicit no-growth baseline and scoped exceptions during adoption; do not
+invent boilerplate to claim the API is documented. Run the required Rustdoc
+checks as well as Clippy: configuring a tool's lints does not execute that tool.
+
+Do not enable the entire `nursery` or `restriction` group. Select justified
+individual lints. Existing `pedantic` policy may remain after reviewing its
+exceptions; it is not required by the common minimum. Extra checks must protect
+a named contract rather than recreate a broad experimental group. Enforce
+`future_not_send` only on APIs promising multithreaded-executor compatibility,
+not IC-local futures. Keep `too_many_lines` outside blocking gates; an optional
+review invocation may enable it. `warn` remains blocking under `-D warnings`.
+
+Review broad ownership/import allowances for relocation to narrow expectations;
+keep justified naming and documentation-style choices. Removing a lint also
+requires removing its now-unfulfilled expectations across supported targets and
+features. Keep strict warning gates for the selected checks. Do not split coherent
+operations, add parameter wrappers, widen visibility, discard results, add locks
+or change ownership merely to satisfy a lint. Preserve behavior and fix the actual
+problem; explain a justified exception where the suggestion would make it worse.
+
+These requirements supersede older linked guidance delegating the entire lint
+selection to consumers. Domain-specific stricter checks and reviewed exceptions
+remain consumer-owned. Adoption must inspect actual member inheritance, local
+attributes and command-line overrides and qualify the affected callers; a green
+snapshot check alone is not compiler or lint-policy adoption.
 
 ### Product and qualification workspaces
 
@@ -553,8 +660,9 @@ Required API, security or compatibility migrations qualify the affected consumer
 boundary, rather than automatically updating the whole fleet.
 Follow the [adoption planning contract](https://github.com/dragginzgame/toko-tooling/blob/626da7cd9626cc2e152594862a2d82ea82ef51da/docs/cargo-graph-checks.md#dependency-adoption-planning).
 Use root-owned dependency selections, reviewed toko tooling and explicit setup.
-Rust 1.99.1 is the approved minimum and pinned development/release compiler;
-follow the [compiler support policy](https://github.com/dragginzgame/toko-tooling/blob/d4b09ceb6dd94d825adee2b894fa26dac4618ae0/rules/cargo-dependencies.md#minimum-supported-rust-version-msrv)
+Rust 1.100.0 is the approved minimum and pinned development/release compiler;
+this supersedes older compiler versions in the revision-bound references below.
+Follow the [compiler support policy](https://github.com/dragginzgame/toko-tooling/blob/d4b09ceb6dd94d825adee2b894fa26dac4618ae0/rules/cargo-dependencies.md#minimum-supported-rust-version-msrv)
 when adopting it and consolidating duplicate compiler checks. Preserve product
 host requirements. Select canonical identities
 from `ic-platform-types`, IC0/execution from `ic-platform-runtime`, and crypto or

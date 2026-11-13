@@ -638,7 +638,7 @@ cat > Cargo.toml <<'MANIFEST'
 [workspace]
 members = ["crates/ic-storage", "crates/ic-metrics-storage", "crates/ic-logging-storage"]
 [workspace.package]
-rust-version = "1.99.1"
+rust-version = "1.100.0"
 [workspace.dependencies]
 ic-storage = { path = "crates/ic-storage", version = "0.12.3" }
 ic-metrics-storage = { path = "crates/ic-metrics-storage", version = "0.12.3" }
@@ -848,7 +848,7 @@ cat > expected-manifest <<'MANIFEST'
 [workspace]
 members = ["crates/ic-storage", "crates/ic-metrics-storage", "crates/ic-logging-storage"]
 [workspace.package]
-rust-version = "1.99.1"
+rust-version = "1.100.0"
 [workspace.dependencies]
 ic-storage = { path = "crates/ic-storage", version = "0.13.0" }
 ic-metrics-storage = { path = "crates/ic-metrics-storage", version = "0.13.0" }
@@ -921,7 +921,7 @@ cat > Cargo.toml <<'MANIFEST'
 [workspace]
 members = ["crates/ic-storage", "crates/ic-metrics-storage", "crates/ic-logging-storage"]
 [ workspace.package ] # selected metadata
-  rust-version   = "1.99.1" # keep this comment
+  rust-version   = "1.100.0" # keep this comment
 [workspace.dependencies]
 ic-storage = { path = "crates/ic-storage", version = "0.12.3" }
 ic-metrics-storage = { path = "crates/ic-metrics-storage", version = "0.12.3" }
@@ -933,7 +933,7 @@ cat > expected-manifest <<'MANIFEST'
 [workspace]
 members = ["crates/ic-storage", "crates/ic-metrics-storage", "crates/ic-logging-storage"]
 [ workspace.package ] # selected metadata
-  rust-version   = "1.99.1" # keep this comment
+  rust-version   = "1.100.0" # keep this comment
 [workspace.dependencies]
 ic-storage = { path = "crates/ic-storage", version = "0.13.0" }
 ic-metrics-storage = { path = "crates/ic-metrics-storage", version = "0.13.0" }
@@ -973,7 +973,7 @@ for input in Cargo.toml Cargo.lock crates/ic-storage/Cargo.toml crates/ic-metric
 done
 # Cargo admits manifest syntax before projection, including duplicate-key refusal.
 sed '/keep this comment/a\
-  rust-version = "1.99.1"' formatted-manifest > Cargo.toml
+  rust-version = "1.100.0"' formatted-manifest > Cargo.toml
 cp Cargo.toml duplicate-manifest
 cp calls saved-parser-calls
 if bash scripts/dev/run-repo-tool.sh "$FIXTURE_TOOLCHAIN" version > duplicate-manifest.log 2>&1; then

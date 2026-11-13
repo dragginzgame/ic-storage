@@ -20,6 +20,10 @@ mod canister {
         ic0::msg_arg_data_copy(&mut bytes, 0);
         bytes
     }
+    #[expect(
+        unsafe_code,
+        reason = "This standalone canister owns the uniquely named IC endpoint export."
+    )]
     #[unsafe(export_name = "canister_init")]
     extern "C" fn init() {
         let args = input::<16>();
@@ -35,6 +39,10 @@ mod canister {
         };
         STATE.with(|slot| *slot.borrow_mut() = Some(state));
     }
+    #[expect(
+        unsafe_code,
+        reason = "This standalone canister owns the uniquely named IC endpoint export."
+    )]
     #[unsafe(export_name = "canister_update run")]
     extern "C" fn run() {
         let [operation, repetitions] = input::<2>();

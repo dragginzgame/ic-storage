@@ -34,6 +34,7 @@ pub enum Workload {
 }
 
 impl Workload {
+    #[must_use]
     pub fn cases(self) -> &'static [Case] {
         match self {
             Self::DiscardMutations => &[
@@ -117,6 +118,7 @@ impl Workload {
             ],
         }
     }
+    #[must_use]
     pub fn payloads(self, case: Case) -> &'static [u32] {
         match (self, case) {
             (Self::DiscardMutations, _) => &[8, 256, 4096, 65_536],
@@ -145,6 +147,7 @@ impl Workload {
             ],
         }
     }
+    #[must_use]
     pub const fn rows(self) -> u32 {
         match self {
             Self::IdentityLookups => 100_000,
@@ -158,6 +161,7 @@ impl Workload {
             Self::Iterators | Self::Ordered | Self::VectorReads | Self::DiscardMutations => 256,
         }
     }
+    #[must_use]
     pub const fn counts(self) -> &'static [u32] {
         match self {
             Self::IdentityLookups => &[1],
@@ -171,6 +175,7 @@ impl Workload {
             Self::Control | Self::Bulk | Self::Boundaries => &[1],
         }
     }
+    #[must_use]
     pub const fn patterns(self) -> &'static [Pattern] {
         match self {
             Self::IdentityLookups => &[Pattern::Uniform],
@@ -186,6 +191,7 @@ impl Workload {
             Self::Boundaries => &[Pattern::Sequential],
         }
     }
+    #[must_use]
     pub const fn rounds(self) -> u32 {
         match self {
             Self::CellOpen | Self::IdentityLookups | Self::DiscardMutations => 3,
@@ -204,6 +210,7 @@ impl Workload {
 
 /// Bound setup and verification work independently of collection population.
 /// A single grown bulk value is admitted; batches otherwise target at most 512 KiB.
+#[must_use]
 pub fn transfer_rows(payload: usize) -> usize {
     (512 * 1024 / payload.max(1)).clamp(1, 128)
 }

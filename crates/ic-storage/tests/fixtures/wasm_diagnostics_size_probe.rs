@@ -1,9 +1,15 @@
+//! Standalone application size probe for governed allocation operations.
 pub mod support;
 use host::RUNTIME;
 use support::host;
 
 const AUTHORITY: &str = "wasm_diagnostics_size_probe";
 
+/// Bootstrap the probe allocation, returning its binding fingerprint or zero on refusal.
+#[expect(
+    unsafe_code,
+    reason = "Standalone probe owns these unique linker exports; no raw memory access."
+)]
 #[unsafe(no_mangle)]
 pub extern "C" fn ic_memory_wasm_diagnostics_size_probe_bootstrap() -> u64 {
     let Ok(declarations) = probe_declarations() else {
@@ -31,6 +37,11 @@ pub extern "C" fn ic_memory_wasm_diagnostics_size_probe_bootstrap() -> u64 {
     })
 }
 
+/// Encode the allocation report and return its byte length, or `u32::MAX` on refusal.
+#[expect(
+    unsafe_code,
+    reason = "Standalone probe owns these unique linker exports; no raw memory access."
+)]
 #[unsafe(no_mangle)]
 pub extern "C" fn ic_memory_wasm_diagnostics_size_probe_export() -> u32 {
     RUNTIME
@@ -53,6 +64,11 @@ pub extern "C" fn ic_memory_wasm_diagnostics_size_probe_export() -> u32 {
         .unwrap_or(u32::MAX)
 }
 
+/// Encode the allocation report and return its byte length, or `u32::MAX` on refusal.
+#[expect(
+    unsafe_code,
+    reason = "Standalone probe owns these unique linker exports; no raw memory access."
+)]
 #[unsafe(no_mangle)]
 pub extern "C" fn ic_memory_wasm_diagnostics_size_probe_allocations() -> u32 {
     RUNTIME

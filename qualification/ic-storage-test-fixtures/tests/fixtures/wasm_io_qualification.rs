@@ -3,6 +3,7 @@
 
 #[cfg(target_arch = "wasm32")]
 pub mod support;
+#[cfg(target_arch = "wasm32")]
 use ic_storage_test_fixtures::io as protocol;
 #[cfg(target_arch = "wasm32")]
 use support::host;

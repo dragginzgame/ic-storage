@@ -39,3 +39,6 @@ crate-type = ["cdylib"]
 name = "wasm-logging-qualification"
 path = "tests/fixtures/logging_qualification/main.rs"
 crate-type = ["cdylib"]
+
+[lints]
+workspace = true

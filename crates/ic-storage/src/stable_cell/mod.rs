@@ -22,14 +22,19 @@ const PAYLOAD_OFFSET: u64 = STABLE_CELL_HEADER_SIZE as u64;
 pub enum StableCellPayloadError {
     /// The payload exceeds the caller's ceiling or the host's buffer limit.
     #[error("Cell payload length {value_len} exceeds the admitted limit")]
-    TooLarge { value_len: u64 },
+    TooLarge {
+        /// Declared payload length in bytes, excluding the Cell header.
+        value_len: u64,
+    },
     /// The allocation does not contain supported Cell framing.
     #[error("allocation does not contain supported Cell framing")]
     NotStableCell,
     /// The declared payload extends beyond the allocation.
     #[error("Cell payload length {value_len} exceeds available bytes {available_bytes}")]
     InvalidLength {
+        /// Declared payload length in bytes, excluding the Cell header.
         value_len: u64,
+        /// Allocation bytes available after the Cell header.
         available_bytes: u64,
     },
 }

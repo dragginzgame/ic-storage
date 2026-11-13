@@ -44,7 +44,10 @@ impl State {
     fn admit(&mut self) {
         #[cfg(feature = "owned")]
         {
-            use ic_storage::*;
+            use ic_storage::{
+                AllocationGrants, GenericAllocationPolicy, MemoryAuthority, MemoryRequest,
+                SealedDeclarationSnapshot,
+            };
             let declarations = SealedDeclarationSnapshot::new(
                 self.keys
                     .iter()
@@ -81,6 +84,10 @@ impl State {
             .get(MemoryId::new(index.try_into().unwrap()))
     }
 }
+#[expect(
+    unsafe_code,
+    reason = "This standalone canister owns the uniquely named IC endpoint export."
+)]
 #[unsafe(export_name = "canister_init")]
 extern "C" fn init() {
     let args = input::<16>();
@@ -106,6 +113,10 @@ extern "C" fn init() {
     }
     STATE.with(|slot| *slot.borrow_mut() = Some(state));
 }
+#[expect(
+    unsafe_code,
+    reason = "This standalone canister owns the uniquely named IC endpoint export."
+)]
 #[unsafe(export_name = "canister_update run")]
 extern "C" fn run() {
     let operation = input::<1>()[0];

@@ -1,3 +1,4 @@
+//! Standalone application size probe for governed allocation operations.
 pub mod support;
 use host::RUNTIME;
 use support::host;
@@ -5,6 +6,11 @@ use support::host;
 const AUTHORITY: &str = "wasm_runtime_integration_size_probe";
 const KEY: &str = "wasm_runtime_integration_size_probe.rows.v1";
 
+/// Bootstrap the probe allocation, returning its binding fingerprint or zero on refusal.
+#[expect(
+    unsafe_code,
+    reason = "Standalone probe owns these unique linker exports; no raw memory access."
+)]
 #[unsafe(no_mangle)]
 pub extern "C" fn ic_memory_wasm_runtime_integration_size_probe_bootstrap() -> u64 {
     let Ok(declarations) = probe_declarations() else {
@@ -32,6 +38,11 @@ pub extern "C" fn ic_memory_wasm_runtime_integration_size_probe_bootstrap() -> u
     })
 }
 
+/// Grow the allocation and return its previous page count, or `u32::MAX` on refusal.
+#[expect(
+    unsafe_code,
+    reason = "Standalone probe owns these unique linker exports; no raw memory access."
+)]
 #[unsafe(no_mangle)]
 pub extern "C" fn ic_memory_wasm_runtime_integration_size_probe_grow(pages: u64) -> u32 {
     RUNTIME
@@ -48,6 +59,11 @@ pub extern "C" fn ic_memory_wasm_runtime_integration_size_probe_grow(pages: u64)
         .unwrap_or(u32::MAX)
 }
 
+/// Verify the existing binding and return its allocation ID, or `u32::MAX` on refusal.
+#[expect(
+    unsafe_code,
+    reason = "Standalone probe owns these unique linker exports; no raw memory access."
+)]
 #[unsafe(no_mangle)]
 pub extern "C" fn ic_memory_wasm_runtime_integration_size_probe_adopt() -> u32 {
     RUNTIME
@@ -68,6 +84,11 @@ pub extern "C" fn ic_memory_wasm_runtime_integration_size_probe_adopt() -> u32 {
         .unwrap_or(u32::MAX)
 }
 
+/// Encode the allocation report and return its byte length, or `u32::MAX` on refusal.
+#[expect(
+    unsafe_code,
+    reason = "Standalone probe owns these unique linker exports; no raw memory access."
+)]
 #[unsafe(no_mangle)]
 pub extern "C" fn ic_memory_wasm_runtime_integration_size_probe_summary() -> u32 {
     RUNTIME

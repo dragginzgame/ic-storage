@@ -842,9 +842,9 @@ dependencies = [
 
 [[package]]
 name = "ic-logging"
-version = "0.24.17"
+version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bcc6bfcecf142d7b5f7ec998a0d22ed1ec48fad18d40767ecb46e9e74c7b805e"
+checksum = "fa1197d5ff9b79b448abad8c9859f3348790a9786dc6ca201930201832fd4df7"
 
 [[package]]
 name = "ic-logging-storage"
@@ -870,13 +870,13 @@ dependencies = [
 
 [[package]]
 name = "ic-metrics"
-version = "0.29.12"
+version = "0.30.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94c0bc852016b1a7af5bdef20bfadd18d586842ef6f845ddb96d941ff8070c63"
+checksum = "aa71da71d785f922a85cf412be796c8b7946c3dfb35461eda3274aed334d34c0"
 
 [[package]]
 name = "ic-metrics-storage"
-version = "0.76.2"
+version = "0.76.3"
 dependencies = [
  "ic-metrics",
  "ic-storage",
@@ -891,17 +891,27 @@ version = "0.31.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fd611c3961165ef22a19764913cbf780b6f426b1f74173f02cce944a151d6aa"
 dependencies = [
- "ic-platform-types",
+ "ic-platform-types 0.19.5",
  "num-bigint 0.5.1",
  "serde",
  "serde_bytes",
 ]
 
 [[package]]
-name = "ic-platform-macros"
-version = "0.21.3"
+name = "ic-platform"
+version = "0.32.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "299d54eaa0d91c29d771124d5fb1254889168184f1680a0dff6c9e28a981fbbe"
+checksum = "207beedb33b13087281c5b7ca365c97eea50f600dd4155cc21bad6bbba320877"
+dependencies = [
+ "ic-platform-types 0.20.0",
+ "serde",
+]
+
+[[package]]
+name = "ic-platform-macros"
+version = "0.22.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "360e1633522e61430ae1edba0b30d19602c69f263b6c327eecd3db86f6ffde8e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -910,13 +920,13 @@ dependencies = [
 
 [[package]]
 name = "ic-platform-runtime"
-version = "0.21.3"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30b250e59766678bc54f25f3d1591e2df4671a7e6a66cfa9f9d6945650bb1bc8"
+checksum = "30ec8d27354fc1a8f376b16a9bb44663f84134a73e36a10a6f75a8ed3e7ebaef"
 dependencies = [
  "ic-platform-macros",
  "ic-platform-runtime-guard",
- "ic-platform-types",
+ "ic-platform-types 0.20.0",
  "ic0",
  "pin-project-lite",
  "serde",
@@ -926,15 +936,28 @@ dependencies = [
 
 [[package]]
 name = "ic-platform-runtime-guard"
-version = "0.21.3"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57b0c9a1fc1fc07b003a48f66f616740942c0801e3cf472ca922f584df78f4d8"
+checksum = "aa9e1a1cfcce65483d943593f50890c6800f770641fd4105056f8d80a39491e8"
 
 [[package]]
 name = "ic-platform-types"
 version = "0.19.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "038ec9df9eab1ae1324886140788dbdaf6d2791edd43ebbebcf3f17164d6303e"
+dependencies = [
+ "crc32fast",
+ "data-encoding",
+ "serde",
+ "serde_bytes",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "ic-platform-types"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "88677cb6751fe188b3a0c1870573e80bb62d775105256a44b73aad15e3ae48e6"
 dependencies = [
  "crc32fast",
  "data-encoding",
@@ -1002,7 +1025,7 @@ dependencies = [
 name = "ic-storage-platform-qualification"
 version = "0.0.0"
 dependencies = [
- "ic-platform",
+ "ic-platform 0.32.0",
  "ic-platform-runtime",
  "ic-storage",
  "toko-tooling",
@@ -1043,8 +1066,8 @@ dependencies = [
  "ic-host-artifacts",
  "ic-host-fs",
  "ic-host-process",
- "ic-platform",
- "ic-platform-types",
+ "ic-platform 0.31.3",
+ "ic-platform-types 0.19.5",
  "libc",
  "pocket-ic",
  "thiserror 2.0.18",
@@ -1907,9 +1930,9 @@ checksum = "eec689c0bc40ff2458a5977b6619cb718087084a18e02a131c599b62d05e1a5f"
 
 [[package]]
 name = "rustls-webpki"
-version = "0.103.16"
+version = "0.103.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4443b1b6d39d7c663139942cc4558262562d2c84123bb6282ef177009ca8b281"
+checksum = "e3a0760a887c14823fca5a1c970b01d47c328c696c0c64829d1df50e8f853fd5"
 dependencies = [
  "aws-lc-rs",
  "ring",
@@ -2467,9 +2490,9 @@ dependencies = [
 
 [[package]]
 name = "toko-tooling"
-version = "0.39.17"
+version = "0.40.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aaeab49adb84ea0d66cf86ecc48d826125f9c3ac6eafaf2a362bccfeba7acbfd"
+checksum = "fb884b05e2e5bbca2388dd0b757833fb5ad37e91b3ced09f6a37b454c7fe9f90"
 
 [[package]]
 name = "tower"

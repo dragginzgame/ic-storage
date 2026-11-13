@@ -6,5 +6,6 @@ use std::cell::RefCell;
 pub type Runtime = MemoryRuntime<DefaultMemoryImpl>;
 
 thread_local! {
+    /// Exclusive runtime retained by this standalone size probe.
     pub static RUNTIME: RefCell<Option<Runtime>> = const { RefCell::new(None) };
 }

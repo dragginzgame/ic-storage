@@ -17,14 +17,26 @@ fn reply(values: &[u64]) {
     }
     ic0::msg_reply();
 }
+#[expect(
+    unsafe_code,
+    reason = "This standalone canister owns the uniquely named IC endpoint export."
+)]
 #[unsafe(export_name = "canister_init")]
 extern "C" fn init() {
     STATE.with(|slot| *slot.borrow_mut() = Some(State::open(false)));
 }
+#[expect(
+    unsafe_code,
+    reason = "This standalone canister owns the uniquely named IC endpoint export."
+)]
 #[unsafe(export_name = "canister_post_upgrade")]
 extern "C" fn reopen() {
     STATE.with(|slot| *slot.borrow_mut() = Some(State::open(true)));
 }
+#[expect(
+    unsafe_code,
+    reason = "This standalone canister owns the uniquely named IC endpoint export."
+)]
 #[unsafe(export_name = "canister_update put")]
 extern "C" fn put() {
     let bytes = input::<16>();
@@ -32,21 +44,37 @@ extern "C" fn put() {
     let value = u64::from_le_bytes(bytes[8..].try_into().unwrap());
     STATE.with(|slot| reply(&slot.borrow_mut().as_mut().unwrap().put(key, value)));
 }
+#[expect(
+    unsafe_code,
+    reason = "This standalone canister owns the uniquely named IC endpoint export."
+)]
 #[unsafe(export_name = "canister_query get")]
 extern "C" fn get() {
     let key = u64::from_le_bytes(input::<8>());
     STATE.with(|slot| reply(&slot.borrow().as_ref().unwrap().get(key)));
 }
+#[expect(
+    unsafe_code,
+    reason = "This standalone canister owns the uniquely named IC endpoint export."
+)]
 #[unsafe(export_name = "canister_update remove")]
 extern "C" fn remove() {
     let key = u64::from_le_bytes(input::<8>());
     STATE.with(|slot| reply(&slot.borrow_mut().as_mut().unwrap().remove(key)));
 }
+#[expect(
+    unsafe_code,
+    reason = "This standalone canister owns the uniquely named IC endpoint export."
+)]
 #[unsafe(export_name = "canister_query scan")]
 extern "C" fn scan() {
     let start = u64::from_le_bytes(input::<8>());
     STATE.with(|slot| reply(&slot.borrow().as_ref().unwrap().scan(start)));
 }
+#[expect(
+    unsafe_code,
+    reason = "This standalone canister owns the uniquely named IC endpoint export."
+)]
 #[unsafe(export_name = "canister_query extrema")]
 extern "C" fn extrema() {
     let _ = input::<0>();

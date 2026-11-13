@@ -91,10 +91,6 @@ impl GitState {
             _ => {}
         }
     }
-    #[expect(
-        clippy::too_many_lines,
-        reason = "one explicit Git observation protocol for release fixtures"
-    )]
     pub(super) fn capture(
         &mut self,
         root: &Path,

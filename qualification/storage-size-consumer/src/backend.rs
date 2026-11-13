@@ -31,7 +31,10 @@ impl State {
             feature = "region"
         ))]
         let open = {
-            use storage::*;
+            use storage::{
+                AllocationGrants, DefaultMemoryImpl, GenericAllocationPolicy, MemoryAuthority,
+                MemoryRequest, MemoryRuntime, SealedDeclarationSnapshot, StableKey,
+            };
             let mut runtime = MemoryRuntime::new(DefaultMemoryImpl::default()).unwrap();
             let names: &[&str] = &[
                 #[cfg(feature = "map")]

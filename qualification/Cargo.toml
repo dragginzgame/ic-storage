@@ -15,18 +15,18 @@ default-members = ["ic-storage-runtime-qualification"]
 [workspace.package]
 version = "0.0.0"
 edition = "2024"
-rust-version = "1.99.1"
+rust-version = "1.100.0"
 license-file = "../LICENSE.md"
 
 [workspace.dependencies]
 clap = { version = "4.6", default-features = false, features = ["derive", "std", "help", "usage", "error-context"] }
-ic-logging = { version = "0.24.0", default-features = false }
+ic-logging = { version = "0.25.0", default-features = false }
 ic-logging-storage = { path = "../crates/ic-logging-storage", version = "0.72.3" }
-ic-metrics = { version = "0.29.0", default-features = false }
+ic-metrics = { version = "0.30.0", default-features = false }
 ic-metrics-storage = { path = "../crates/ic-metrics-storage", version = "0.76.2" }
 # Platform supplies the composition fixture identity; Testkit owns the native client.
-ic-platform = { version = "0.31.3", default-features = false }
-ic-platform-runtime = { version = "0.21.3", default-features = false }
+ic-platform = { version = "0.32.0", default-features = false }
+ic-platform-runtime = { version = "0.22.0", default-features = false }
 # Published reference engines, confined to this unpublished benchmark workspace.
 ic-stable-structures = "0.7.2"
 # Explicit research control for the maintainer-requested upstream comparison.
@@ -41,7 +41,29 @@ serde = { version = "1.0", features = ["derive"] }
 serde_bytes = "0.11"
 serde_json = "1.0"
 tokio = { version = "1.54.1", default-features = false, features = ["macros", "rt"] }
-toko-tooling = "=0.39.17"
+toko-tooling = "=0.40.1"
+
+[workspace.lints.rust]
+dead_code = "deny"
+unused_must_use = "deny"
+unfulfilled_lint_expectations = "deny"
+unsafe_code = "deny"
+unsafe_op_in_unsafe_fn = "deny"
+missing_docs = "warn"
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "deny"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -2 }
+correctness = { level = "deny", priority = -1 }
+needless_pass_by_value = "warn"
+wildcard_imports = "warn"
+too_many_lines = "allow"
+
+missing_panics_doc = "warn"
+must_use_candidate = "warn"
+redundant_clone = "warn"
 
 [profile.comparison]
 inherits = "release"

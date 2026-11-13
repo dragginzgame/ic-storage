@@ -7,6 +7,135 @@ revision, selected roots, payload hashes and executable modes. The former
 live-policy exception is retired: dirty sibling rules never override the reviewed
 local baseline. Future policy changes require reviewed snapshot adoption.
 
+## Toko 0.40.1 adoption
+
+Both catalogs and locks select published Toko Tooling 0.40.1, checksum
+`fb884b05e2e5bbca2388dd0b757833fb5ad37e91b3ced09f6a37b454c7fe9f90`.
+The authenticated packaged installer previewed and retained all 40 entrypoints
+and 104 files. Only the baseline text changes among installed payloads; executable
+bytes and tool pins are unchanged. Targeted Cargo updates change only Toko from
+the saved incoming locks. The Rust 1.100.0 migration, pending benchmark work and
+all earlier evidence remain intact.
+
+The deployment review follows the actual `release-verify`, preparation, final
+qualification and publication callers. [The local release guide](../../RELEASING.md#deployment-sequencing-and-recovery)
+now identifies their separate responsibilities and failure-specific recovery.
+Do not prepend a duplicate full validation, silently retry expensive stages after
+a metadata/upload failure, or add optional upgrades to a frozen release. Inspect
+retained timings and explain execution/reuse before an authorized attempt.
+Current schema-2 receipts support their existing preparation/publication recovery;
+they do not provide collector-only repair before a validated receipt exists or
+cross-source/cross-group stage reuse. Report that missing admission and rerun scope
+instead of inventing a skip path. The three product gates and pre-effect snapshot
+checks are unchanged. A tooling adoption request does not initiate deployment.
+
+The review corrected the three release-group `metadata_files` selections to the
+pending Storage 0.74, Metrics Storage 0.77 and Logging Storage 0.73 detail notes.
+The previous migration had updated the ledgers but left those selectors on the
+older minor lines. The focused native/Shared file-plan comparison passes for all
+three groups and verifies source preservation; only Git reads are substituted,
+and no release effects occur.
+
+Snapshot/member/pin checks, prepared-tool admission, formatting and documentation
+links qualify this documentation-only payload. Existing release caller fixtures
+and compiler/runtime results from 0.40.0 remain applicable; no unchanged generic
+fixture, product test suite or installed benchmark is replayed for this refresh.
+Evidence: `target/evidence/toko-0401-adoption-20261113/`, including starting locks,
+pending diff, receipt, package metadata, installer preview/install and group
+file-plan qualification. No release,
+publication, sibling modification or new recovery implementation is included.
+
+## Toko 0.40.0 adoption
+
+Both catalogs and locks select published Toko Tooling 0.40.0, checksum
+`9c1758c3c04e2754d97fd38d29177d73fc03d3d414d654f689d8b75cbc7ed918`.
+The packaged installer authenticated the old and new archives, previewed the
+change and retained all 40 entrypoints and 104 files. No snapshot-owned file was
+hand-edited. Only Toko changed relative to the saved starting lockfiles; the
+pending benchmark work and earlier qualification lock corrections are preserved.
+
+[#159](https://github.com/dragginzgame/ic-storage/issues/159) raises both workspace
+support floors and the development/release pin to Rust 1.100.0. Installed identities
+are rustc `0ef1bc386` (LLVM 23.1.5) and Cargo `3acc79c0c`. Every real member inherits
+its workspace's lint table. The product workspace retains reviewed pedantic and
+individual checks; both remove blanket nursery selection. The adapters retain
+source-level `forbid(unsafe_code)` while sharing the common tables; the safe-only
+default/Platform consumers and native runtime runner also forbid unsafe code. Existing
+custody/FFI exceptions remain narrow; standalone canister exports now explicitly
+identify their linker ownership. No collection algorithm, layout or runtime
+contract changes.
+
+Product public documentation has no admitted missing-docs debt. Two private
+protocol scopes retain expectations: the benchmark library and the Logging
+fixture DTO module. `ci/qualification-docs-debt.json` bounds 185 existing native
+diagnostics by file, diagnostic, source text and multiplicity, rather than a
+workspace-wide allowance. The Wasm surface has 165 of those diagnostics.
+`check-qualification-docs.sh` forces these warnings through expectations and
+rejects new debt, other warnings, failed commands and incomplete diagnostics.
+Existing entries can disappear without replacement; do not regenerate the
+baseline to accept new undocumented interfaces. Documentation links are checked
+strictly on both targets. New product APIs receive actual documentation.
+
+The independent runtime CI job now checks qualification lints and documentation
+before installed execution. Root library gates retain their graph boundary.
+Native runners, mutually exclusive Wasm backends, generated fixture
+exports, all eight size-consumer selections and discard mutations are selected
+explicitly; host-only runners are not compiled as Wasm. Private adapter group
+plans retain their narrower product checks. Compiler-only negative fixtures
+exercise inherited unsafe, unused-result, dead-code and stale-expectation refusal
+for both workspace tables. The documentation gate also has negative evidence tests.
+
+Compiler-bound shared tool receipts require explicit re-preparation; old caches
+are retained. Current compiler selectors and support documentation follow the
+new pin; historical measurement/compiler evidence retains its original identity.
+The higher published MSRV requires pending minor notes: Storage 0.74.0, Metrics
+Storage 0.77.0 and Logging Storage 0.73.0. Package versions and release/publication
+authority are unchanged. No retained-image reset is required.
+
+Evidence is retained under `target/evidence/toko-0400-adoption-20261113/`, including
+the starting diff/locks, installer preview, compiler diagnostics, qualification
+matrix and negative fixtures. Snapshot/pins/tools/compiler admission, formatting,
+both production graph boundaries, strict product and qualification Clippy/Rustdoc,
+182 product unit tests, 45 integration tests, 88 native helper tests and 64 native
+qualification tests pass. Six explicit research/installed tests remain ignored in
+the native invocation. Consumer Make substitutes, negative lint/debt fixtures,
+ShellCheck and Actionlint pass. The four raw size probes pass at 70,440 / 72,090 /
+75,168 / 75,784 bytes (core / diagnostics / admission / runtime integration).
+These are fixture sizes, not a matched compiler speed or application-size comparison.
+
+Installed original/O3/Os/Oz IO, corruption, custody, upgrade and rollback pass at
+`target/qualification/runtime/attempt.cDFmPe`. Native macOS proof remains external;
+Linux and Wasm checks do not establish it. This is local adoption, not a release.
+
+## Toko 0.39.18 adoption
+
+Both workspace catalogs and locks select published Toko Tooling 0.39.18,
+checksum `c2d05d47d59a2de3d1bb7bc8bc6e8c30174f964d03602fa75a89340bb7a71ff6`.
+Targeted Cargo updates change only Toko relative to the saved starting locks;
+both locked caches are prepared. The existing qualification lock correction
+to Metrics Storage 0.76.3 and pending identity benchmark work are preserved.
+The consumer-owned exact-pin exceptions follow the new selection.
+
+Authenticated preview/install retains all 40 entrypoints and 104 files. Only
+`TOKO-TOOLING.md` changes among managed payloads; the installer also updates the
+receipt. The baseline adds request-to-GitHub-and-registry deployment latency
+guidance and qualified evidence reuse. The producer's packaged-install fixture
+change is not an installed Storage caller. Executable bytes, tool pins, custom
+pre-effect snapshot prerequisites and all three product release gates are
+unchanged. No installed file was hand-edited and no sibling checkout was used.
+
+Snapshot-only installation reuses the prepared tools. Snapshot/member checks,
+both-workspace pin admission, installed-tool checks and formatting qualify the
+adoption. An initial pin check correctly refused the old version-specific
+exceptions; those consumer entries now name 0.39.18. Unchanged executable callers
+retain their earlier qualified evidence; no generic producer fixture, product
+build, installed runtime or release is repeated for a baseline-only payload.
+No deployment-latency improvement is claimed for Storage from this adoption.
+
+Evidence: `target/evidence/toko-03918-adoption-20261112/`, including starting
+locks, pending diff/hashes, Cargo metadata, preview/install and focused checks.
+This is local adoption, not publication or permission to skip a release gate.
+
 ## Current supplier and Toko 0.39.17 adoption
 
 The 2026-11-12 registry review selects published Toko Tooling 0.39.17,
@@ -1062,10 +1191,9 @@ dependency update activates neither maintenance schedules nor a snapshot refresh
 
 ### Local compiler decision
 
-The maintainer approved [#151](https://github.com/dragginzgame/ic-storage/issues/151):
-Rust 1.99.1 is the library support floor and pinned development/release compiler.
-This explicit owner decision supersedes the reviewed snapshot's earlier
-lowest-possible-floor guidance; snapshot files are unchanged. Root and independent
+The maintainer approved [#159](https://github.com/dragginzgame/ic-storage/issues/159):
+Rust 1.100.0 is the library support floor and pinned development/release compiler,
+superseding the earlier #151 selection. Root and independent
 workspace floors, inherited member declarations and observed Cargo/rustc identities
 must agree. Duplicate default compiler jobs and native archive runs are retired;
 feature-enabled native checks, all native hosts, Wasm/proc-macro compilation,

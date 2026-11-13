@@ -32,15 +32,15 @@ when recording release qualification; retain failed runs and their limitations.
 
 ## Prerequisites
 
-The maintainer selected Rust 1.99.1 as both the minimum supported compiler and
-pinned development/release compiler in [#151](https://github.com/dragginzgame/ic-storage/issues/151).
+The maintainer selected Rust 1.100.0 as both the minimum supported compiler and
+pinned development/release compiler in [#159](https://github.com/dragginzgame/ic-storage/issues/159).
 Both workspace catalogs and every package must match `rust-toolchain.toml`.
 `make validation-compilers-check` admits installed Cargo/rustc identities offline,
 rejecting mismatched floors/selectors before archive work. It installs nothing.
 The historical matrix evidence above retains its original compiler identities;
 current native macOS acceptance remains separate from local Linux evidence.
 
-- Rustup with Rust 1.99.1, Clippy, rustfmt and `wasm32-unknown-unknown`.
+- Rustup with Rust 1.100.0, Clippy, rustfmt and `wasm32-unknown-unknown`.
 - Git, GNU Make, Bash 3.2 or newer, curl, tar with gzip/xz support, Perl,
   `sed`, `awk`, and either `sha256sum` or `shasum` with SHA-256 support.
   On macOS, install Xcode Command Line Tools for native compilation and Git.
@@ -139,7 +139,7 @@ workspace lockfiles. Prepare it and Testkit's authenticated server selection exp
 make install-runtime-server
 make runtime-server-check
 make install-ic-tools
-cargo +1.99.1 fetch --locked --manifest-path qualification/Cargo.toml
+cargo +1.100.0 fetch --locked --manifest-path qualification/Cargo.toml
 make test-runtime
 ```
 
@@ -209,15 +209,15 @@ load rejection, byte/page preservation, leases and update/upgrade rollback witho
 replaying Memory's IO suite or the release optimizer matrix:
 
 ```sh
-cargo +1.99.1 build --manifest-path qualification/Cargo.toml \
+cargo +1.100.0 build --manifest-path qualification/Cargo.toml \
   --target-dir target -p ic-storage-test-fixtures --locked --offline --profile wasm-size \
   --target wasm32-unknown-unknown --example wasm-storage-qualification
-testkit_cli="$(RUSTUP_TOOLCHAIN=1.99.1 bash scripts/dev/install-rust-tools.sh \
+testkit_cli="$(RUSTUP_TOOLCHAIN=1.100.0 bash scripts/dev/install-rust-tools.sh \
   --consumer "$PWD" --package ic-testkit --version 0.101.0 \
   --bin ic-testkit-server --profile release --features cli --check)"
 IC_STORAGE_QUALIFICATION_WASM="$PWD/target/wasm32-unknown-unknown/wasm-size/examples/wasm_storage_qualification.wasm" \
   "$testkit_cli" run --directory "$PWD/.tools/ic-testkit-server" --ttl 900 -- \
-  cargo +1.99.1 test --locked --offline \
+  cargo +1.100.0 test --locked --offline \
     --manifest-path qualification/Cargo.toml \
     --target-dir target/runtime-qualification storage::tests::installed_storage_adapters \
     -- --ignored --nocapture

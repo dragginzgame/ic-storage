@@ -23,14 +23,13 @@ pub(super) fn shared_proof(root: &Path, args: &[&str], git: &GitState) -> Result
         let changes: Vec<_> = git
             .validation_baseline
             .as_ref()
-            .map(|base| {
+            .map_or_else(Vec::new, |base| {
                 git.source
                     .iter()
                     .filter(|(path, text)| base.get(*path) != Some(*text))
                     .map(|(path, _)| path.clone())
                     .collect()
-            })
-            .unwrap_or_default();
+            });
         return Ok(String::from_utf8(canonical(&serde_json::json!({
             "schema":1, "source":args[3], "reference":args[4],
             "available":git.validation_baseline.is_some(), "baseline":"baseline", "changes":changes,
@@ -308,10 +307,6 @@ fn altered_policy_roster_and_legacy_receipts_refuse() {
 
 #[cfg(unix)]
 #[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "one consumer dispatch matrix over the actual shared runner and all three groups"
-)]
 fn shared_runner_matches_full_roster_and_honors_consumer_exclusions() {
     use std::os::unix::fs::PermissionsExt as _;
     let fixture = Fixture::new();

@@ -10,6 +10,7 @@
 //! Underlying collection geometry, allocation failures and IC execution traps
 //! retain IC Storage's collection contract, not recoverable codec errors.
 
+#![forbid(unsafe_code)]
 #![doc = include_str!("../README.md")]
 
 use ic_metrics::persistence::{MeasurementStateError, validate_histogram_bounds};

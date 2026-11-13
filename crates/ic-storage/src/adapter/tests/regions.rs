@@ -1,8 +1,4 @@
 //! Retained control-layout qualification at the adapter/lease boundary.
-#![expect(
-    clippy::manual_assert_eq,
-    reason = "failed byte checks must not print multi-megabyte backing buffers"
-)]
 use super::*;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 

@@ -16,6 +16,7 @@ pub enum Collection {
 }
 impl Collection {
     pub const ALL: [Self; 5] = [Self::Map, Self::Set, Self::Vector, Self::Cell, Self::Region];
+    #[must_use]
     pub const fn name(self) -> &'static str {
         match self {
             Self::Map => "Map",
@@ -130,6 +131,7 @@ macro_rules! define_catalogue {
 }
 type_catalogue!(define_catalogue, ());
 impl DataType {
+    #[must_use]
     pub const fn payload_scope(self) -> &'static str {
         match self {
             Self::Pair48
@@ -166,6 +168,7 @@ impl DataType {
             _ => "logical-value-bytes",
         }
     }
+    #[must_use]
     pub const fn population_limit(self) -> u32 {
         match self {
             Self::Unit => 1,
@@ -175,6 +178,7 @@ impl DataType {
             _ => 1_000_000,
         }
     }
+    #[must_use]
     pub const fn tiny(self) -> bool {
         matches!(self, Self::Unit | Self::Bool)
     }
@@ -365,6 +369,7 @@ const fn push_case(
 static MATRIX_STORAGE: ([Case; CAPACITY], usize) = build_matrix();
 pub const MATRIX_CASES: &[Case] = MATRIX_STORAGE.0.split_at(MATRIX_STORAGE.1).0;
 
+#[must_use]
 pub fn operations(case: Case) -> Vec<Operation> {
     use Operation::*;
     let Case {
@@ -376,6 +381,7 @@ pub fn operations(case: Case) -> Vec<Operation> {
         Collection::Map => {
             let mut operations = crate::OPERATIONS.to_vec();
             operations.push(WarmGet);
+            operations.push(SecondGet);
             operations
         }
         Collection::Region => vec![
@@ -453,6 +459,7 @@ pub fn operations(case: Case) -> Vec<Operation> {
         .collect()
 }
 /// Expected availability is a separately verified result, never a fake timing.
+#[must_use]
 pub fn unavailable(case: Case, reference: bool) -> Option<(&'static str, &'static str)> {
     let Case {
         collection,
@@ -485,6 +492,7 @@ pub fn unavailable(case: Case, reference: bool) -> Option<(&'static str, &'stati
     None
 }
 impl Case {
+    #[must_use]
     pub fn label(self) -> String {
         match self {
             Self {

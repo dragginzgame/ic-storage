@@ -13,7 +13,7 @@ B-tree map per canister**. Multiple components share that map with permanent
 namespace/name keys. Adding this package is the opt-in: `ic-metrics` alone stays
 allocation-free, `no_std` and volatile, with validated Serde support.
 This adapter uses `std` and IC Storage’s owned governed ordered map,
-allocates bounded records and supports native hosts and Wasm with Rust 1.99.1.
+allocates bounded records and supports native hosts and Wasm with Rust 1.100.0.
 
 The host owns one `ic-storage` namespace grant set and bootstrap. It declares one
 permanent metrics-store key, such as `app.metrics.v1`, and admits that allocation
@@ -24,9 +24,9 @@ for the selected dependency's declaration and lifecycle APIs.
 Storage owns the core `storage` release identity. This adapter
 owns its independent `metrics-storage` release group; hosts select compatible core
 requirements declared by its package metadata. Hosts exchanging arithmetic values
-also select `ic-metrics = "0.29"` so Rust type identities agree. The adapter
-selects Metrics 0.29, which exposes canonical restoration through `ic_metrics::persistence`, and owns its stored
-Wire 0.16 codec. Services own frontend/report DTOs and their Wire schemas; this
+also select `ic-metrics = "0.30"` so Rust type identities agree. The adapter
+selects Metrics 0.30, which exposes canonical restoration through `ic_metrics::persistence`, and owns its stored
+Wire 0.21 codec. Services own frontend/report DTOs and their Wire schemas; this
 package does not require or supply Wire implementations for Metrics types.
 See [Storage #154](https://github.com/dragginzgame/ic-storage/issues/154) and the adapter's
 [release ledger](../../releases/metrics-storage/CHANGELOG.md) and [group commands](../../RELEASING.md#release-groups).
@@ -42,7 +42,7 @@ hooks.
 
 ## Upgrade disposition
 
-Metrics 0.29 and Wire 0.16 change public Rust type identities; align direct
+Metrics 0.30 and Wire 0.21 change public Rust type identities; align direct
 dependencies when exchanging those types. Existing Storage-owned backing and
 metric rows require no reset or migration for this adoption.
 

@@ -16,7 +16,7 @@ make benchmark-storage BENCH_ROWS=64 BENCH_SAMPLES=1 # quick complete smoke matr
 ```
 
 Rows accept 1–1,000,000, samples 1–20. Cell always has one value, regardless of the
-selected population. Builds are locked/offline on Rust 1.99.1; the command never
+selected population. Builds are locked/offline on Rust 1.100.0; the command never
 installs tools or changes locks. Testkit 0.101.0 re-exports the async
 client and manages the prepared PocketIC 16.1.0 server. Native drivers own a
 current-thread Tokio runtime, five-minute polling budgets and awaited best-effort
@@ -218,7 +218,7 @@ and functions without changing existing memory/data/global declarations. It wrap
 `stable64_read` and the selected dlmalloc malloc/free functions; the latter are
 counted only between the two existing measurement counters. A separate query
 exports records through idle stack scratch, without committing query writes.
-The driver rejects incomplete/overflowed Get traces or unexpected counter counts.
+The driver rejects incomplete/overflowed traces or unexpected counter counts.
 This is a diagnostic, not a general allocator profiler or production timing mode.
 
 Prepare both modules under a target evidence directory, with no optimization passes:
@@ -260,8 +260,8 @@ The ordinary inner-loop columns remain; `execution-summary.csv` and
 `execution_instructions` in each sample. The two diagnostic modes cannot be mixed.
 Both modes also admit `--workload depth`, covering Map, Set, Vector, Cell and
 regions at 256/4,096 records. Full-handler counters retain all batches/operations
-and aggregate across populations. Depth read traces capture only batch-one Get
-calls: multiple tree traversals can exceed the bounded 160-read trace. Other
+and aggregate across populations. Depth read traces capture batch-one Get and
+Map `nth`/`nth_back` calls: multiple traversals can exceed the 160-read trace. Other
 ordinary samples remain present with null read traces; overflow still fails closed.
 The existing Vector read-history diagnostic retains both batch sizes. This large
 synthetic reply is not a measurement of Auth's endpoint. Keep frozen ordinary
@@ -272,7 +272,13 @@ or another collection shard) and `--workload ordered` to check larger scans and
 string/fixed-byte key controls, or custom `--cases` selections with the same
 rows, rounds and patterns as their ordinary runs.
 
-Read probes also admit explicit Map cases. For batches that exceed 160 reads,
+Read probes also admit explicit Map cases and collect single-result `nth` and
+`nth_back` traces. Add `--trace-single-operations` to collect only batch/scan
+limit-one traces while retaining all other ordinary measurements. This permits
+complete bounded traces without dropping the larger-batch workload or accepting
+truncated records; the recorded configuration reports the capture limit.
+
+For batches that exceed 160 reads,
 pass `--batch-reads` as the injector's third argument. This keeps the same
 160-record/global bound but records only stable reads costing at least 10,000
 instructions; `total_calls_bytes` counts all stable reads and bytes in the full
@@ -546,14 +552,16 @@ BENCH_WORKLOAD=identity-lookups BENCH_SAMPLES=1 \
 
 This profile owns full 29-byte Principal, 31-byte tagged Principal and 62-byte
 composite Principal keys, with 256/1,024-byte values and shuffled populations of
-1k/10k/100k records. Three rounds measure one cold hit, repeated hit, above-range
+1k/10k/100k records. Three rounds measure a cold hit, second hit, third hit, above-range
 miss, replacement, removal, removed-key miss, reinsertion, hit after churn,
 insertion and removal of the new key, plus Control. Each phase is a separate
 update. Results and final population are checked against the independent model.
 There are only three sampled key paths per case; this is not tail qualification
-or an exact Auth record codec. `RepeatedGet` does two complete pre-reads outside
-the timer in that execution, then measures the third lookup. Other Map profiles
-also expose `WarmGet`; this changes their operation roster, so compare both
+or an exact Auth record codec. `SecondGet` does one complete pre-read outside
+the timer; `RepeatedGet` does two, then measures the third lookup. Each has its
+own execution and uses the same selected key. This distinguishes deferred access
+costs from a permanently warm path; pre-read costs are excluded from the result.
+Other Map profiles expose `SecondGet` and `WarmGet`; compare both
 engines using the same driver rather than mixing old reports.
 
 The existing diagnostic injector/driver admit this profile. Use `--batch-reads`
@@ -1064,7 +1072,7 @@ This is a comparison of real supported integrations, not a claim that their
 failure guarantees match. Default allocation policies and memory buckets differ;
 physical stable-page consumption is not the Wasm byte measurement.
 
-Builds use Rust 1.99.1, `wasm-size` (`opt-level=z`, fat LTO, one codegen unit,
+Current builds use Rust 1.100.0, `wasm-size` (`opt-level=z`, fat LTO, one codegen unit,
 abort panic, stripped symbols), normal stack settings and no Binaryen rewrite.
 The script records caller Rust flags, compiler identity, source archive/diff,
 lockfile, per-selection normal dependency graphs, build logs and artifact hashes.

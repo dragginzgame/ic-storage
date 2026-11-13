@@ -22,3 +22,6 @@ tokio.workspace = true
 
 [dev-dependencies]
 toko-tooling.workspace = true
+
+[lints]
+workspace = true

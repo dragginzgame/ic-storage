@@ -1,4 +1,5 @@
 //! Explicit installed qualification of the supplied current-graph fixture.
+#![forbid(unsafe_code)]
 mod logging;
 mod memory;
 mod ownership;
@@ -33,6 +34,10 @@ struct Arguments {
     storage_install_wasm: Option<std::path::PathBuf>,
 }
 
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "The assertion consumes a rejected call outcome; callers have no subsequent use."
+)]
 fn assert_trap(error: RejectResponse) {
     assert!(
         matches!(

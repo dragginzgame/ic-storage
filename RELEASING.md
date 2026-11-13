@@ -111,9 +111,11 @@ locking, ordered effects and atomic branch/tag push. PR release delivery remains
 unselected. A contribution PR does not change that policy.
 
 Before delivery, disclose the absolute checkout path, branch, source commit,
-remote destination and local versus remote effects. The configured direct path
-does not authorize pushing `main`: obtain explicit authorization for that effect
-and for any alternate delivery checkout, unless already authorized in the task.
+remote destination and local versus remote effects. A scoped release/ship/deploy
+request authorizes its direct branch/tag pushes and registry publication without
+another push/publication confirmation. Merely adopting tooling or checking
+readiness does not authorize delivery. The qualified frozen-batch paths above
+retain their existing authority; other delivery checkouts need explicit approval.
 Keep implementation in the requested checkout or an explicitly authorized durable
 contribution location; temporary validation copies must never hold the only copy.
 See the [shared checkout contract](https://github.com/dragginzgame/toko-tooling/blob/12459b6029115b830b8477879d3bea2f030b6e63/rules/contributions.md#durable-work-and-checkout-location).
@@ -126,6 +128,40 @@ ordinary validation/helper calls never fetch automatically or repair lockfiles.
 `make install-tools` includes the pinned Build editor; `ci/release-tools.env`
 owns its published selection. Build 0.73 supplies the group-aware renderer.
 Toolchain/formatter and installed server preparation retain their separate owners.
+
+### Deployment sequencing and recovery
+
+Apply the [0.40.1 deployment rule](https://github.com/dragginzgame/toko-tooling/blob/dcc51b5cab3d9993f0668bc0902252364d7dc316/docs/releases/releases.md#plan-once-recover-the-failed-phase)
+before starting or restarting an authorized delivery. Inspect the selected groups,
+saved attempt and nested commands first. Explain which stages will execute or
+reuse proof, using retained timings where available and stating unknown costs.
+Finish requested changes before capture; optional supplier/compiler/tooling updates
+stay outside an active release unless requested or necessary to resolve its blocker.
+
+Storage's `release-verify` owns the selected group validation. Do not prepend a
+second `make validate` to it. Version preparation admits the validated receipt,
+then checks the projected locks, formatting and prepared archives. Final packaging
+admits the actual committed archives; publication rechecks source, receipts, tag
+and registry identity. Those artifact/delivery admissions are distinct obligations,
+not permission to rerun all runtime tests. Qualify changed orchestration with
+focused caller fixtures before expensive product execution, reusing unchanged proof.
+
+Recover the failed phase rather than silently restarting the complete gate:
+
+- Metadata preparation uses the existing transaction and admitted validation.
+  Resume the exact saved group/version; preserve conflicting writes and receipts.
+- Uncertain pushes/uploads require remote/registry observation first. Matching
+  published checksums are skipped by the existing publication recovery.
+- A collector or receipt-write failure can leave successful execution without an
+  admissible validation receipt. Preserve its original logs/checkpoints. Storage's
+  schema-2 adapter currently has no post-processing-only recovery entrypoint or
+  cross-source/cross-group stage-reuse contract. Explain the missing admission and
+  resulting rerun scope before proceeding; a log PASS cannot replace the receipt.
+
+Independent group/version projections can require distinct validation. This policy
+does not create skip flags, change the three package gates, or qualify reuse that
+the adapter does not implement. Preserve failed attempts, final archive admission
+and the original identities of all reused evidence.
 
 The native release adapter selects a complete group plan under the
 [Storage validation mapping](docs/validation/storage-release-validation.md). Core, shared and

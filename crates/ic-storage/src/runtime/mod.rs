@@ -36,7 +36,10 @@ pub enum RuntimeGrowError {
     CapacityExceeded,
     /// Physical backing capacity was refused.
     #[error("backing refused growth by {additional_pages} pages")]
-    BackingRefused { additional_pages: u64 },
+    BackingRefused {
+        /// Number of additional Wasm pages requested from the backing.
+        additional_pages: u64,
+    },
     /// A previous backing failure poisoned this owner.
     #[error("allocation owner is poisoned")]
     Poisoned,
@@ -56,7 +59,10 @@ pub enum RuntimeOpenError {
     NotAdmitted(StableKey),
     /// An exclusive lease for this allocation is already alive.
     #[error("allocation {id} already open")]
-    AlreadyOpen { id: u64 },
+    AlreadyOpen {
+        /// Opaque allocation identity whose exclusive lease is still alive.
+        id: u64,
+    },
     /// The directory refused opening.
     #[error(transparent)]
     Directory(#[from] DirectoryError),

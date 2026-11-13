@@ -84,3 +84,6 @@ name = "metrics-checkpoints-wasm"
 path = "benches/metrics_checkpoints/wasm.rs"
 crate-type = ["cdylib"]
 required-features = ["metrics-checkpoints"]
+
+[lints]
+workspace = true

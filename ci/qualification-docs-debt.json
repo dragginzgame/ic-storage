@@ -1,0 +1,1055 @@
+{
+   "entries" : [
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/catalogue/mod.rs",
+         "message" : "missing documentation for a constant",
+         "source" : "        pub const DATA_TYPES: &[DataType] = &[$(DataType::$name,)*];"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/catalogue/mod.rs",
+         "message" : "missing documentation for a constant",
+         "source" : "pub const ICSS_KEYS: [DataType; 4] = ["
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/catalogue/mod.rs",
+         "message" : "missing documentation for a constant",
+         "source" : "pub const ICSS_VALUES: [DataType; 5] = ["
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/catalogue/mod.rs",
+         "message" : "missing documentation for a constant",
+         "source" : "pub const MATRIX_CASES: &[Case] = MATRIX_STORAGE.0.split_at(MATRIX_STORAGE.1).0;"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/catalogue/mod.rs",
+         "message" : "missing documentation for a function",
+         "source" : "pub fn operations(case: Case) -> Vec<Operation> {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/catalogue/mod.rs",
+         "message" : "missing documentation for a macro",
+         "source" : "macro_rules! type_catalogue {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/catalogue/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "            pub const fn bound(self)-> &'static str {match self {$(Self::$name=>$bound,)*}}"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/catalogue/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "            pub const fn fixed_option_refusal(self)->bool {match self {$(Self::$name=>$optional,)*}}"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/catalogue/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "            pub const fn name(self)-> &'static str {match self {$(Self::$name=>$label,)*}}"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/catalogue/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "            pub const fn ordered(self)->bool {match self {$(Self::$name=>$ordered,)*}}"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/catalogue/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "            pub const fn payloads(self)-> &'static [u32] {match self {$(Self::$name=>$payloads,)*}}"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/catalogue/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "            pub const fn source(self)-> &'static str {match self {$(Self::$name=>$source,)*}}"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/catalogue/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "            pub fn expected_value(self,key:u64,payload:u32,replacement:bool)->Vec<u8> {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/catalogue/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "    pub const fn name(self) -> &'static str {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/catalogue/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "    pub const fn payload_scope(self) -> &'static str {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/catalogue/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "    pub const fn population_limit(self) -> u32 {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/catalogue/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "    pub const fn tiny(self) -> bool {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/catalogue/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "    pub fn label(self) -> String {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/catalogue/mod.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "        pub enum DataType { $($name,)* }"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/catalogue/mod.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Cell,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/catalogue/mod.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Map,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/catalogue/mod.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Region,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/catalogue/mod.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Set,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/catalogue/mod.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Vector,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/catalogue/mod.rs",
+         "message" : "missing documentation for an associated constant",
+         "source" : "    pub const ALL: [Self; 5] = [Self::Map, Self::Set, Self::Vector, Self::Cell, Self::Region];"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a constant",
+         "source" : "pub const INIT_COST_ID: u64 = 4;"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a constant",
+         "source" : "pub const LIMITS: ic_wire::Limits = ic_wire::Limits {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a constant",
+         "source" : "pub const MAX_ROWS: u32 = 1_000_000;"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a constant",
+         "source" : "pub const OPERATIONS: [Operation; 27] = ["
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a constant",
+         "source" : "pub const RUN_ID: u64 = 2;"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a constant",
+         "source" : "pub const SETUP_ID: u64 = 1;"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a function",
+         "source" : "pub fn replacement(op: Operation) -> bool {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub bytes: u64,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub calls: u64,"
+      },
+      {
+         "count" : 2,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub case: Case,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub cold_cache: bool,"
+      },
+      {
+         "count" : 2,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub count: u32,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub decode: Option<DecodeMetrics>,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub entries: Vec<(u64, Option<Vec<u8>>)>,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub ids: Vec<u64>,"
+      },
+      {
+         "count" : 2,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub instructions: u64,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub length: u64,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub operation: Operation,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub pattern: Pattern,"
+      },
+      {
+         "count" : 2,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub payload: u32,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub rows: u32,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub seed: u64,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub stable_pages: u64,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub start: u64,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub upstream_bucket_pages: std::num::NonZeroU16,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub upstream_cache_slots: usize,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a struct",
+         "source" : "pub struct Initialization {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    AlternatingScan,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    BoundedKeysScan,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    BoundedScan,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Contains,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Control,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Decode,"
+      },
+      {
+         "count" : 2,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    First,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Get,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Grow,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Hot16,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Insert,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    IterLast,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    KeysLast,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    KeysScan,"
+      },
+      {
+         "count" : 2,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Last,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Middle,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    MissAbove,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Nth,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    NthBack,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Pop,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Push,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Reinsert,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Remove,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    RemoveDiscard,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    RemoveInserted,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    RemoveMiss,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Replace,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    ReplaceDiscard,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    ReverseKeysScan,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    ReverseScan,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Scan,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    ScanSet,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    SecondGet,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Sequential,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Set,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Shrink,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Uniform,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    ValuesLast,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    ValuesScan,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    WarmGet,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Zipf,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/lib.rs",
+         "message" : "missing documentation for an enum",
+         "source" : "pub enum Pattern {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/types/mod.rs",
+         "message" : "missing documentation for a constant",
+         "source" : "pub const DEFAULT_CASES: &[Case] = &["
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/types/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "    fn canonical(self) -> Vec<u8>;"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/types/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "    fn id(&self) -> u64;"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/types/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "    pub fn accepts_payload(self, payload: u32) -> bool {"
+      },
+      {
+         "count" : 2,
+         "file" : "ic-storage-benchmarks/src/types/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "    pub fn encode(&self) -> Result<Vec<u8>, ic_wire::Error> {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/types/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "    pub fn expected_value(self, key: u64, payload: u32, replacement: bool) -> Vec<u8> {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/types/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "    pub fn key_bound(self) -> &'static str {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/types/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "    pub fn key_type(self) -> &'static str {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/types/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "    pub fn measures_decode(self, operation: super::Operation) -> bool {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/types/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "    pub fn operations(self) -> Vec<super::Operation> {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/types/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "    pub fn payloads(self) -> &'static [u32] {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/types/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "    pub fn rows(self, rows: u32) -> u32 {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/types/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "    pub fn structure(self) -> &'static str {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/types/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "    pub fn value_bound(self) -> &'static str {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/types/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "    pub fn value_type(self) -> &'static str {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/types/mod.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub collection: crate::Collection,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/types/mod.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub key: crate::DataType,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/types/mod.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub value: crate::DataType,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/types/mod.rs",
+         "message" : "missing documentation for an associated function",
+         "source" : "    fn from_id(id: u64) -> Self;"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/types/mod.rs",
+         "message" : "missing documentation for an associated function",
+         "source" : "    fn make(key: u64, payload: u32, replacement: bool) -> Self;"
+      },
+      {
+         "count" : 2,
+         "file" : "ic-storage-benchmarks/src/types/mod.rs",
+         "message" : "missing documentation for an associated function",
+         "source" : "    pub fn decode(bytes: &[u8]) -> Result<Self, ic_wire::Error> {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/workloads/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "    pub const fn counts(self) -> &'static [u32] {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/workloads/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "    pub const fn patterns(self) -> &'static [Pattern] {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/workloads/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "    pub const fn rounds(self) -> u32 {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/workloads/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "    pub const fn rows(self) -> u32 {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/workloads/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "    pub fn cases(self) -> &'static [Case] {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/workloads/mod.rs",
+         "message" : "missing documentation for a method",
+         "source" : "    pub fn payloads(self, case: Case) -> &'static [u32] {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/workloads/mod.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    AuthLookups,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/workloads/mod.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Boundaries,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/workloads/mod.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Bulk,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/workloads/mod.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    CellOpen,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/workloads/mod.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Control,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/workloads/mod.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Depth,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/workloads/mod.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    DiscardMutations,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/workloads/mod.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    IdentityLookups,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/workloads/mod.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Iterators,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/workloads/mod.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Ordered,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/workloads/mod.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Records,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/workloads/mod.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Types,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/workloads/mod.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    VectorOpen,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-benchmarks/src/workloads/mod.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    VectorReads,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a constant",
+         "source" : "pub const INIT_ID: u64 = 0x4c4f_4751_0000_0001;"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a constant",
+         "source" : "pub const QUERY_ID: u64 = 0x4c4f_4751_0000_0003;"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a constant",
+         "source" : "pub const REQUEST: Limits = Limits {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a constant",
+         "source" : "pub const RESPONSE: Limits = Limits {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a constant",
+         "source" : "pub const UPDATE_ID: u64 = 0x4c4f_4751_0000_0004;"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a constant",
+         "source" : "pub const UPGRADE_ID: u64 = 0x4c4f_4751_0000_0002;"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "        max_age_secs: u64,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "        max_remove: u8,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "        now_secs: u64,"
+      },
+      {
+         "count" : 2,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub created_at_secs: u64,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub last_created_at_secs: Option<u64>,"
+      },
+      {
+         "count" : 2,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub message: String,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub next_sequence: Option<u64>,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub outcome: Outcome,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub rows: Vec<Row>,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub sequence: u64,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub snapshot: Snapshot,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub trap_after_save: bool,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a struct field",
+         "source" : "    pub truncated: bool,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a struct",
+         "source" : "pub struct Append {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a struct",
+         "source" : "pub struct Reply {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a struct",
+         "source" : "pub struct Row {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a struct",
+         "source" : "pub struct Snapshot {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Append(Append),"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Appended(u64),"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    BudgetChecked,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Exhausted,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    LabelRefused,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Prune {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Pruned(u64),"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Read,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    ReadTextBudget,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    Restore,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    TextBudgetProbe,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    TextRefused,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    TimestampRefused,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for a variant",
+         "source" : "    TrapAfterCheckpoint,"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for an enum",
+         "source" : "pub enum Outcome {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for an enum",
+         "source" : "pub enum Update {"
+      },
+      {
+         "count" : 1,
+         "file" : "ic-storage-test-fixtures/src/logging.rs",
+         "message" : "missing documentation for an enum",
+         "source" : "pub enum Upgrade {"
+      }
+   ],
+   "schema" : 1
+}

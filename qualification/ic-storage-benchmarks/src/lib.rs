@@ -1,4 +1,8 @@
 //! Matched map workload and bounded benchmark protocol; not a production API.
+#![expect(
+    missing_docs,
+    reason = "Private benchmark protocol documentation debt is bounded by check-qualification-docs.sh; new debt is rejected."
+)]
 use serde::{Deserialize, Serialize};
 pub mod catalogue;
 mod types;
@@ -66,6 +70,11 @@ pub struct Setup {
     pub ids: Vec<u64>,
 }
 
+/// Expand the explicit IDs or contiguous population range before measurement.
+///
+/// # Panics
+/// Panics if the explicit ID count differs from `count`, or range arithmetic overflows.
+#[must_use]
 pub fn population_ids(setup: &Setup) -> Vec<u64> {
     if setup.ids.is_empty() {
         (setup.start..setup.start + u64::from(setup.count)).collect()
@@ -117,6 +126,7 @@ pub enum Operation {
     ValuesLast,
     ReplaceDiscard,
     RemoveDiscard,
+    SecondGet,
 }
 pub const OPERATIONS: [Operation; 27] = [
     Operation::Control,
@@ -190,12 +200,14 @@ pub struct DecodeMetrics {
     pub instructions: u64,
 }
 /// Identical allocation/codec bytes for both engines; no Candid in the workload.
+#[must_use]
 pub fn value(key: u64, length: u32, replacement: bool) -> Vec<u8> {
     (0..length)
         .map(|i| (key as u8).wrapping_add(i as u8) ^ if replacement { 128 } else { 0 })
         .collect()
 }
 /// Bound result construction independently of population and selected payload.
+#[must_use]
 pub fn max_batch(case: Case) -> u32 {
     match case.structure() {
         "Vector" => 256,
@@ -204,6 +216,10 @@ pub fn max_batch(case: Case) -> u32 {
     }
 }
 /// Generate the complete trace outside the measured interval.
+///
+/// # Panics
+/// Panics if the population, batch count or payload lies outside the selected case's limits.
+#[must_use]
 pub fn keys(request: Request) -> Vec<u64> {
     assert!((1..=MAX_ROWS).contains(&request.rows));
     assert!((1..=max_batch(request.case)).contains(&request.count));
@@ -262,6 +278,7 @@ pub fn keys(request: Request) -> Vec<u64> {
         .collect()
 }
 /// Replacement-size variation is shared by canisters and the independent model.
+#[must_use]
 pub fn payload_for(r: Request) -> u32 {
     match r.operation {
         // Leave room for response framing below the IC's 2 MiB reply ceiling.
@@ -270,6 +287,7 @@ pub fn payload_for(r: Request) -> u32 {
         _ => r.payload,
     }
 }
+#[must_use]
 pub fn replacement(op: Operation) -> bool {
     matches!(
         op,

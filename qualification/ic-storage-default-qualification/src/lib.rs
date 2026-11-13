@@ -1,4 +1,5 @@
 //! External default-feature Storage consumer, compiled without runtime fixtures.
+#![forbid(unsafe_code)]
 use ic_storage::{DefaultMemoryImpl, Memory};
 
 /// Compile all backing operations without opting into any Storage features.

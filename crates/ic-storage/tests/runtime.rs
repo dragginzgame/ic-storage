@@ -1,3 +1,4 @@
+//! Public runtime custody, bootstrap and allocation integration tests.
 use ic_storage::*;
 fn source(keys: &[&str]) -> SealedDeclarationSnapshot {
     SealedDeclarationSnapshot::new(

@@ -68,7 +68,10 @@ struct Owned {
 }
 impl Owned {
     fn new(backing: Backing, count: usize) -> Self {
-        use ic_storage::*;
+        use ic_storage::{
+            AllocationGrants, GenericAllocationPolicy, MemoryAuthority, MemoryRequest,
+            MemoryRuntime, SealedDeclarationSnapshot,
+        };
         let mut runtime = MemoryRuntime::new(backing).unwrap();
         let declarations = SealedDeclarationSnapshot::new(
             (0..count)

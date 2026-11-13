@@ -4,7 +4,7 @@ See [Storage naming adoption](../../docs/migration/storage-naming.md) for the re
 
 Optional bounded checkpoints for IC Logging, following Metrics Storage's explicit
 load/save model. The package consumes Logging
-0.24's validated `LogSnapshot` restoration contract.
+0.25's validated `LogSnapshot` restoration contract.
 
 IC Observability owns the engine, snapshot admission, append, retention, UTF-8
 truncation and cursor scans. IC Storage owns durable encoding and governed
@@ -12,10 +12,10 @@ Storage integration. Neither adapter depends on the other. Hosts retain clocks,
 allocation declarations, stable identity, authorization, lifecycle and cadence.
 No endpoint, recorder, timer or automatic checkpoint is installed.
 
-This release adopts Storage's owned allocator and collection formats. Hosts must
+Upgrading from the retired allocator and collection formats requires hosts to
 use fresh/reset whole backing and rebuild against Storage-owned memory and codec
-types. Old manager/map images have no decoder or automatic reset. Discriminator-3
-logging records retain their schema, but their physical map format changes.
+types. Old manager/map images have no decoder or automatic reset. Current Storage-owned images and discriminator-3 logging rows remain compatible
+with the Logging 0.25 adoption; it requires no reset or migration.
 
 ## Host-owned storage
 

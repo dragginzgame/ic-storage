@@ -60,8 +60,8 @@ for the upstream contribution and the `ic-storage` package integration boundary.
 
 ## Development and qualification commands
 
-- The maintainer selected Rust 1.99.1 as both support floor and pinned
-  development/release compiler in [#151](https://github.com/dragginzgame/ic-storage/issues/151).
+- The maintainer selected Rust 1.100.0 as both support floor and pinned
+  development/release compiler in [#159](https://github.com/dragginzgame/ic-storage/issues/159).
   Both workspace catalogs and all packages must agree with `rust-toolchain.toml`.
   Admit actual
   Cargo/rustc identities, retain each distinct feature/target/host proof, and run
@@ -174,7 +174,7 @@ release readiness remain separate from source replacement.
 Registry requirements remain compatible ranges. Storage uses IC Platform Runtime's
 owned stable-memory API for Wasm backing IO. Native production has no
 Platform/Runtime, runtime-guard or Types dependency. Wasm selects only `ic0` from
-published Runtime 0.21 for safe stable64 IO; it must not activate runtime,
+published Runtime 0.22 for safe stable64 IO; it must not activate runtime,
 executor, CDK, guard, Types or Candid. No `ic-stable-structures` dependency is
 allowed in the production graph. Memory, codec traits, allocation metadata and
 collection integration are owned here. The ordered engine is private under `src/ordered_map`; Map, Set and regions
@@ -192,8 +192,8 @@ PocketIC async client, with caller-owned Tokio execution, explicit five-minute
 polling budgets and awaited best-effort instance deletion. The managed CLI bounds
 server lifetime; the client budget is not an absolute HTTP deadline. Testkit owns
 the reviewed PocketIC 16.1.0 server selection. Changing that pair requires
-repeating installed qualification. The composition fixture selects Platform 0.31
-and Runtime 0.21 independently; native test infrastructure must not enter
+repeating installed qualification. The composition fixture selects Platform 0.32
+and Runtime 0.22 independently; native test infrastructure must not enter
 Storage's production graph. Keep both lockfiles, sources, features and toolchains
 unchanged during pinning-only adoption.
 

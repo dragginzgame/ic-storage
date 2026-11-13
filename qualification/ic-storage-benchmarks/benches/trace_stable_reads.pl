@@ -49,7 +49,7 @@ WAT
 }
 my %heap;
 for my $kind (qw(malloc free)) {
-    my @names = $wat =~ /^ \(func (\$\S*8dlmalloc\S*\d${kind}\S*) \(param \$0 i32\)/mg;
+    my @names = $wat =~ /^ \(func (\$\S*8dlmalloc\S*\d${kind}\S*)(?: \(type \$[^\s()]+\))? \(param \$0 i32\)/mg;
     @names == 1 or die "expected one dlmalloc.$kind function\n";
     $heap{$kind} = $names[0];
     $wat =~ s/\(call \Q$names[0]\E(?=\s)/"(call \$read_trace_$kind"/ge

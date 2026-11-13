@@ -57,9 +57,11 @@ pub const DEFAULT_CASES: &[Case] = &[
 ];
 
 impl Case {
+    #[must_use]
     pub fn structure(self) -> &'static str {
         self.collection.name()
     }
+    #[must_use]
     pub fn rows(self, rows: u32) -> u32 {
         if self.collection == crate::Collection::Cell {
             1
@@ -67,6 +69,7 @@ impl Case {
             rows.min(self.key.population_limit())
         }
     }
+    #[must_use]
     pub fn measures_decode(self, operation: super::Operation) -> bool {
         self == crate::case!(Vector, U64, Session)
             && matches!(
@@ -78,27 +81,34 @@ impl Case {
                     | super::Operation::MissAbove
             )
     }
+    #[must_use]
     pub fn operations(self) -> Vec<super::Operation> {
         crate::catalogue::operations(self)
     }
+    #[must_use]
     pub fn key_type(self) -> &'static str {
         self.key.name()
     }
+    #[must_use]
     pub fn value_type(self) -> &'static str {
         self.value.name()
     }
+    #[must_use]
     pub fn key_bound(self) -> &'static str {
         match self.collection {
             crate::Collection::Vector | crate::Collection::Cell => "index",
             _ => self.key.bound(),
         }
     }
+    #[must_use]
     pub fn value_bound(self) -> &'static str {
         self.value.bound()
     }
+    #[must_use]
     pub fn payloads(self) -> &'static [u32] {
         self.value.payloads()
     }
+    #[must_use]
     pub fn accepts_payload(self, payload: u32) -> bool {
         self.payloads().contains(&payload)
             || matches!(self.value, crate::DataType::Bytes | crate::DataType::Chunk)
@@ -108,6 +118,7 @@ impl Case {
                 ]
                 .contains(&payload)
     }
+    #[must_use]
     pub fn expected_value(self, key: u64, payload: u32, replacement: bool) -> Vec<u8> {
         self.value.expected_value(key, payload, replacement)
     }
@@ -498,10 +509,13 @@ impl BenchValue for SessionEnvelope {
 #[cfg(target_arch = "wasm32")]
 thread_local! { static SESSION_DECODE: std::cell::Cell<crate::DecodeMetrics> = const { std::cell::Cell::new(crate::DecodeMetrics { calls:0,bytes:0,instructions:0 }) }; }
 #[cfg(target_arch = "wasm32")]
+/// Reset session decode attribution before a measured operation.
 pub fn reset_decode_metrics() {
     SESSION_DECODE.with(|m| m.set(crate::DecodeMetrics::default()));
 }
 #[cfg(target_arch = "wasm32")]
+/// Snapshot session decode counts, input bytes and measured IC instructions.
+#[must_use]
 pub fn decode_metrics() -> crate::DecodeMetrics {
     SESSION_DECODE.with(std::cell::Cell::get)
 }

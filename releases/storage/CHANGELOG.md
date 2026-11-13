@@ -3,6 +3,31 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/persistence/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.74.0] - Unreleased
+
+### 💥 Breaking
+
+- Require Rust 1.100.0; APIs and stored formats are unchanged.
+  [#159 — compiler and lint policy](https://github.com/dragginzgame/ic-storage/issues/159).
+
+### 📦 Dependencies
+
+- Adopt Runtime 0.22.0 for stable IO and Platform 0.32.0 for independent
+  composition qualification, preserving the production `ic0`-only boundary.
+
+### 🧰 Tooling
+
+- Adopt Toko Tooling 0.40.1 in both workspace selections and the authenticated
+  snapshot. See [the detailed notes](0.74.md#0740---unreleased).
+
+### 🧪 Testing
+
+- Separate first, second and third Map lookup costs in the full-identity
+  benchmark so deferred memory-access costs cannot be hidden by a warm-only
+  result. See [the detailed notes](0.74.md#0740---unreleased).
+- Extend bounded stable-read diagnostics to Map rank cursors and explicit
+  single-operation capture; admit Binaryen function-type annotations.
+
 ## [0.73.6] - 2026-11-12
 
 ### ⚡ Performance

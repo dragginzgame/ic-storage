@@ -1,4 +1,5 @@
 use super::*;
+use ic_storage_benchmarks::{DataType, case};
 
 #[test]
 fn discard_history_checks_presence_values_and_restores_population() {
@@ -39,6 +40,15 @@ fn discard_history_checks_presence_values_and_restores_population() {
 #[test]
 fn identity_lookup_history_measures_misses_and_reuses_removed_records() {
     let profile = Workload::IdentityLookups;
+    let steps = phases(profile.cases()[0], false, Some(profile));
+    assert_eq!(
+        &steps[1..4],
+        &[
+            ("ColdGet".into(), Operation::Get),
+            ("SecondGet".into(), Operation::SecondGet),
+            ("RepeatedGet".into(), Operation::WarmGet),
+        ]
+    );
     assert_eq!(IDENTITY_POPULATIONS, [1000, 10_000, 100_000]);
     assert_eq!(profile.counts(), [1]);
     for &case in profile.cases() {

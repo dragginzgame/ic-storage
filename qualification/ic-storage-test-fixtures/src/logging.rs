@@ -1,4 +1,8 @@
 // Shared fixture-only Wire policy and passive DTOs, compiled by both endpoints.
+#![expect(
+    missing_docs,
+    reason = "Private Logging fixture protocol documentation debt is bounded by check-qualification-docs.sh; new debt is rejected."
+)]
 use ic_wire::Limits;
 use serde::{Deserialize, Serialize};
 

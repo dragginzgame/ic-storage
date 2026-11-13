@@ -186,6 +186,7 @@ test-tooling:
 	+cargo +$(VALIDATION_TOOLCHAIN) test --locked --offline --example repo-tool
 
 test-release-adapters:
+	bash scripts/ci/test-lint-policy.sh $(VALIDATION_TOOLCHAIN)
 	bash scripts/ci/test-validation-cargo.sh
 	bash scripts/ci/test-release-group-plans.sh
 	bash scripts/ci/test-release-adapters.sh
@@ -260,6 +261,13 @@ validate-logging-tests:
 
 validate-docs:
 	+bash scripts/ci/validation-cargo.sh docs $(VALIDATION_TOOLCHAIN) "$(VALIDATION_PLAN)"
+
+.PHONY: check-qualification-lints check-qualification-docs
+check-qualification-lints:
+	+bash scripts/ci/check-qualification-lints.sh $(VALIDATION_TOOLCHAIN)
+
+check-qualification-docs:
+	+bash scripts/ci/check-qualification-docs.sh $(VALIDATION_TOOLCHAIN)
 
 validate-wasm:
 	+bash scripts/ci/validation-cargo.sh wasm $(VALIDATION_TOOLCHAIN) "$(VALIDATION_PLAN)"

@@ -2,6 +2,10 @@
 #[cfg(target_arch = "wasm32")]
 mod canister {
     use ic_platform_runtime::ic0;
+    #[expect(
+        clippy::wildcard_imports,
+        reason = "Backend feature selections share the passive benchmark protocol; each selection uses a different subset."
+    )]
     use ic_storage_benchmarks::*;
     use serde::{Serialize, de::DeserializeOwned};
     use std::cell::{Cell, RefCell};
@@ -86,6 +90,10 @@ mod canister {
         fn read(&self, offset: u64, bytes: &mut [u8]) {
             self.0.read(offset, bytes);
         }
+        #[expect(
+            unsafe_code,
+            reason = "Forward ICSS exclusive uninitialized-read custody to Storage with identical bounds."
+        )]
         unsafe fn read_unsafe(&self, offset: u64, dst: *mut u8, count: usize) {
             // SAFETY: ICSS and Storage require the same exclusive destination
             // and guarantee complete initialization on successful return.
@@ -97,7 +105,10 @@ mod canister {
     }
     #[cfg(any(feature = "owned", feature = "dfinity-governed"))]
     fn new_runtime() -> ic_storage::MemoryRuntime<ic_storage::DefaultMemoryImpl> {
-        use ic_storage::*;
+        use ic_storage::{
+            AllocationGrants, DefaultMemoryImpl, GenericAllocationPolicy, MemoryAuthority,
+            MemoryRequest, MemoryRuntime, SealedDeclarationSnapshot,
+        };
         let mut runtime = MemoryRuntime::new(DefaultMemoryImpl::default()).unwrap();
         let requests = SealedDeclarationSnapshot::new(vec![
             MemoryRequest::new("benchmark", "benchmark.rows.v1").unwrap(),
@@ -176,6 +187,10 @@ mod canister {
     #[cfg(not(feature = "footprint"))]
     mod reopen;
     use collections::{Region, TypedCell, TypedSet, TypedVector};
+    #[expect(
+        unsafe_code,
+        reason = "This standalone canister owns the uniquely named IC endpoint export."
+    )]
     #[unsafe(export_name = "canister_init")]
     extern "C" fn init() {
         let start = ic0::performance_counter(0);
@@ -239,11 +254,19 @@ mod canister {
         let map = matrix::create(case, case.collection, case.key, case.value, settings);
         MAP.with(|slot| *slot.borrow_mut() = Some(map));
     }
+    #[expect(
+        unsafe_code,
+        reason = "This standalone canister owns the uniquely named IC endpoint export."
+    )]
     #[unsafe(export_name = "canister_query initialization_cost")]
     extern "C" fn initialization_cost() {
         argument::<()>(INIT_COST_ID);
         INITIALIZATION_COST.with(|cost| reply(INIT_COST_ID, &cost.get()));
     }
+    #[expect(
+        unsafe_code,
+        reason = "This standalone canister owns the uniquely named IC endpoint export."
+    )]
     #[unsafe(export_name = "canister_update setup")]
     extern "C" fn setup() {
         let r: Setup = argument(SETUP_ID);
@@ -251,12 +274,20 @@ mod canister {
         assert!(r.ids.iter().all(|&id| id < u64::from(MAX_ROWS)));
         MAP.with(|slot| reply(SETUP_ID, &slot.borrow_mut().as_mut().unwrap().setup(r)));
     }
+    #[expect(
+        unsafe_code,
+        reason = "This standalone canister owns the uniquely named IC endpoint export."
+    )]
     #[unsafe(export_name = "canister_query verify")]
     extern "C" fn verify() {
         let r: Setup = argument(3);
         assert!(r.count <= 128);
         MAP.with(|slot| reply(3, &slot.borrow().as_ref().unwrap().verify(r)));
     }
+    #[expect(
+        unsafe_code,
+        reason = "This standalone canister owns the uniquely named IC endpoint export."
+    )]
     #[unsafe(export_name = "canister_query benchmark_read")]
     extern "C" fn benchmark_read() {
         let r: Request = argument(RUN_ID);
@@ -272,6 +303,10 @@ mod canister {
         ));
         MAP.with(|slot| reply(RUN_ID, &slot.borrow_mut().as_mut().unwrap().run(r)));
     }
+    #[expect(
+        unsafe_code,
+        reason = "This standalone canister owns the uniquely named IC endpoint export."
+    )]
     #[unsafe(export_name = "canister_update benchmark")]
     extern "C" fn benchmark() {
         let r: Request = argument(RUN_ID);
@@ -354,10 +389,14 @@ mod canister {
             } else {
                 Vec::new()
             };
-            if r.operation == Operation::WarmGet {
-                // Two complete pre-reads in this same execution. A first
+            if matches!(r.operation, Operation::SecondGet | Operation::WarmGet) {
+                // One or two complete pre-reads in this same execution. A first
                 // stable read can defer mapping charges to the next access.
-                for _ in 0..2 {
+                for _ in 0..if r.operation == Operation::SecondGet {
+                    1
+                } else {
+                    2
+                } {
                     for (key, _, _) in &inputs {
                         std::hint::black_box(self.map.get(key));
                     }
@@ -488,9 +527,10 @@ mod canister {
                             std::hint::black_box(&key);
                             None
                         }
-                        Operation::Get | Operation::WarmGet | Operation::MissAbove => {
-                            self.map.get(&key)
-                        }
+                        Operation::Get
+                        | Operation::SecondGet
+                        | Operation::WarmGet
+                        | Operation::MissAbove => self.map.get(&key),
                         Operation::Replace
                         | Operation::Insert
                         | Operation::Reinsert

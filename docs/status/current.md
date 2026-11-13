@@ -1,42 +1,22 @@
-# Current handoff — 2026-11-12
+# Current handoff — 2026-11-13
 
 ## Published work
 
-The maintainer authorized implementing the consumer audit findings and then
-deploying this repository. Storage 0.73.6 adds
-`insert_discard`/`remove_discard` on Map and regions, returning prior presence
-without fetching or decoding the old payload. Returning operations share the
-same engine and preserve their behavior. Length/block/key checks, governance,
-native poison guards and installed rollback remain. No image format changed.
-Metrics and Logging adopt these APIs after their existing validations.
-
 Storage 0.73.6, Metrics Storage 0.76.3 and Logging Storage 0.72.3 are published
 on crates.io and tagged on GitHub. Both published adapters require Storage
-0.73.6. Both locks retain Metrics 0.29.12 and Logging 0.24.17; qualification
-includes the local Metrics adapter for its optional checkpoint benchmark.
-
-[The discard study](../measurements/storage-discard-mutations-2026-11-12.md)
-owns reproduction, matched instruction/IO data, size and qualification evidence.
-All 96 discard replacement/deletion medians improve over same-engine returning
-controls; 87 beat ICSS and nine 256-byte cases lose. This is not a whole-consumer
-performance claim. Focused native tests/Clippy, installed Storage old-image upgrade
-and rollback, Logging lifecycle tests, and both size modes pass. Each size mode
-qualifies 16 modules, 131 calls and two upgrades per module. Returning application
-Wasm grows 135 bytes for Map / 198 for all collections. All 12 release stages
-passed for each group; no fresh hosted/macOS result is asserted here.
-
-The [histogram comparison study](../measurements/metrics-histogram-comparisons-2026-11-12.md)
-retains full-width numeric equality in Metrics Storage. A fresh 0.29.12 baseline
-shows ~8.6% selected load and ~22% unchanged-save savings (34.5% repeated-call),
-for 1.17 KB more benchmark Wasm. Thirty native tests and installed matched runs
-pass. Temporary profiling code/dependencies are removed; numeric admission,
-stored bytes and error order remain. Wire decoding and canonical restoration
-are separate remaining costs, with no sibling changes or issue writes.
+0.73.6. All 12 release stages passed for each group; no fresh hosted/macOS result
+is asserted. Both locks retain Metrics 0.29.12 and Logging 0.24.17.
+The [discard study](../measurements/storage-discard-mutations-2026-11-12.md) owns
+presence-returning mutations, adapter adoption, instruction/IO and size evidence;
+the [histogram study](../measurements/metrics-histogram-comparisons-2026-11-12.md)
+owns full-width comparison improvements. Guards, returning behavior and stored
+formats remain unchanged. [The published handoff](https://github.com/dragginzgame/ic-storage/blob/358b1ea/docs/status/current.md)
+retains the detailed delivery narrative and earlier evidence.
 
 ## Consumer ownership and next actions
 
-- [Storage #118](https://github.com/dragginzgame/ic-storage/issues/118) is reopened
-  for this implementation. Actual adapter checkpoint calls are now measured:
+- [Storage #118](https://github.com/dragginzgame/ic-storage/issues/118) is closed
+  as completed after publication. Actual adapter checkpoint calls are measured:
   changed histogram saves improve 0.31–0.48%, removals 0.20–0.58%, with 736 fewer
   benchmark Wasm bytes. No-op/rejection writes remain zero. The prefix-buffer
   trial was rejected and restored; the discard study owns its evidence.
@@ -53,19 +33,47 @@ are separate remaining costs, with no sibling changes or issue writes.
   the earlier <1M request remains an optimization goal, not that release gate.
 - [Storage #158](https://github.com/dragginzgame/ic-storage/issues/158) owns
   routing-key locality/blob density experiments and any explicit format decision.
+  [Read-path attribution](../measurements/storage-identity-lookups-2026-11-12.md#access-path-attribution--2026-11-13)
+  explains the coarse trial's extra 80k iterator event: two node reads share a
+  4 KiB source page, triggering native stable mapping on the second. All 36
+  complete read-only traces match the pinned IC path model. No extra IO or
+  allocator work explains that event. Across 20 rank-cursor rounds, coarse
+  raises whole-handler means 0.52–2.10%; the earlier ~84% inner median is not
+  representative. The 6.32% churn median redistributes 19 costly events across
+  three paths; their summed handler cost is nearly unchanged. Neither result
+  establishes a universal default penalty. However, the resize-capacity tradeoff
+  remains and 100k tagged/256-byte cold paths still incur 12 costly reads in
+  both layouts. No policy is adopted; production remains byte-identical.
+  Next assess checked routing/key read combination for contiguous allocations,
+  preserving bounds, corruption checks and value-free traversal. No new format,
+  reset, consumer change or publication is authorized. Auth remains unmeasured.
+  Maintained diagnostics now support single-result rank cursors, bounded
+  single-operation capture and explicit Binaryen type annotations. The locked
+  .17 rustls-webpki archive was fetched separately; final driver checks and
+  installed diagnostic runs pass with it, not a complete product release gate.
 
-The maintainer now owns issue follow-up; no issues/comments changed in the
-continuation or deployment. Sibling source remains read-only and consumer
-deployment needs its own request. No current cold-authentication speedup
-has been established by the discard work.
+The maintainer authorized closing #118 and continuing #158 after deployment.
+Sibling source stays read-only; sibling issues and delivery remain theirs.
+Neither these trials nor discard mutations establish an Auth endpoint speedup.
 
 ## Current published baseline and suppliers
 
-The 2026-11-12 delivery captured source `a2552c509975a08b668614c0bc8d19acb3ee50ef`
-in `batch-fgFa7wx8`, published supplier first, then reconciled the clean normal
-checkout to `4668fee8bac275d55bb0d5ef4c6b71725573e708`. GitHub main and annotated
-tags were verified. Downloaded crates.io archives match registry and final-receipt
-SHA-256 values; neither adapter retains the previous Storage minimum.
+The authorized next deployment adopts published Logging 0.25.0, Metrics 0.30.0,
+Platform 0.32.0 and Runtime/macros/guard 0.22.0. Both locked caches are prepared;
+only those requested families and required Types 0.20.0 were changed from the
+incoming selections. Native/Wasm production boundaries and isolated consumer
+compilation pass. Testkit 0.101.0 remains the latest published client and owns its
+separate native Platform 0.31/Types 0.19 graph. It exchanges opaque Wasm and Wire
+protocols with the canisters; the new composition fixture has one Runtime/Types
+identity. No collection format, checkpoint schema or allocation policy changes.
+Evidence: `target/evidence/suppliers-deploy-20261113/`. Installed original/O3/Os/Oz
+IO, corruption, custody, upgrade, rollback and Logging lifecycle qualification pass.
+The release runner will qualify the three minor releases supplier first; this
+preparation statement is not publication evidence.
+
+`batch-fgFa7wx8` captured `a2552c509975a08b668614c0bc8d19acb3ee50ef`, published
+supplier first and reconciled main to `4668fee8bac275d55bb0d5ef4c6b71725573e708`.
+GitHub tags and downloaded registry/final-receipt archive hashes were verified.
 
 | Package | Version | Release commit | Archive SHA-256 |
 | --- | --- | --- | --- |
@@ -78,25 +86,48 @@ Evidence: `target/evidence/deploy-storage-0736/verification.json`,
 `.git/release-state/frozen/batch-fgFa7wx8/`. Installed Logging qualification was
 refreshed against Logging 0.24.17: `target/qualification/runtime/attempt.Ge7c1K`
 passes lifecycle, query non-persistence, update/upgrade rollback and reopen.
-[The pre-release handoff](https://github.com/dragginzgame/ic-storage/blob/a2552c509975a08b668614c0bc8d19acb3ee50ef/docs/status/current.md)
-retains earlier delivery evidence and the implementation narrative.
 
-Toko 0.39.17, Rust 1.99.1, Host 0.76.5, Wire 0.21.4, Platform 0.31.3,
-Runtime 0.21.3, Testkit 0.101.0 and PocketIC 16.1.0 remain selected.
-[The adoption record](../adoption/storage-tooling.md#current-supplier-and-toko-03917-adoption)
-owns graph/tool/layout evidence. Original installed fixture evidence is retained
+Toko 0.40.1, Rust 1.100.0, Host 0.76.5, locked Wire 0.21.5, Platform 0.32.0,
+Runtime 0.22.0, Testkit 0.101.0 and PocketIC 16.1.0 are selected.
+[The 0.40.0 migration](../adoption/storage-tooling.md#toko-0400-adoption) addresses
+[#159](https://github.com/dragginzgame/ic-storage/issues/159): both workspace floors,
+member lint inheritance, strict native/Wasm qualification and bounded private
+protocol documentation debt. Pending benchmark work and supplier pins remain.
+[The 0.40.1 refresh](../adoption/storage-tooling.md#toko-0401-adoption) adds deployment
+sequencing and failure-specific recovery guidance. Installed executables and
+product gates are unchanged; collector-only recovery remains unsupported.
+Release-group metadata now selects the pending minor-line notes; the focused
+native/Shared file-plan comparison passes for all three groups.
+Earlier adoption evidence remains linked there; original installed evidence is
 at `target/qualification/runtime/attempt.exkRp9`.
+
+Pending Storage 0.74.0, Metrics Storage 0.77.0 and Logging Storage 0.73.0 notes
+cover the increased consumer MSRV; Storage also retains the benchmark work.
+Deployment is now authorized for these three groups; sibling source stays read-only.
+The pre-existing qualification lock correction to Metrics Storage 0.76.3 is
+preserved and used in both matched runs. Benchmark native tests (17 library,
+28 driver), native/owned-Wasm lint and the earlier installed comparisons pass.
+The isolated density/routing trials pass 50/59 engine tests, nine public contracts
+each, lint and sixteen installed size consumers each. Map total/code growth is
+413/307 bytes for density and 1,111/908 for routing. Native resize controls pass
+but reject fine-grained density as the default; scalar regressions reject routing.
+Temporary tests are removed with their trials. Those older optimization results
+retain Rust 1.99.1 attribution; they are not Rust 1.100.0 performance measurements.
+The compiler/lint adoption has separate evidence under
+`target/evidence/toko-0400-adoption-20261113/`: native/Wasm lint and docs, unit and
+integration tests, negative policy fixtures and all four size gates pass.
+Installed original/O3/Os/Oz qualification passes at
+`target/qualification/runtime/attempt.cDFmPe`. Publication and native macOS proof
+remain separate; #159 stays open until integration and applicable CI evidence.
+No release command was invoked for adoption.
 
 ## Performance and preservation boundaries
 
 The [scalar study](../measurements/storage-scalar-scans-2026-11-11.md) owns shipped
-cursor/extrema/removal improvements and remaining scalar scan gaps. The
-[identity study](../measurements/storage-identity-lookups-2026-11-12.md) owns
-node-first allocation and rejected 4–64 KiB refill trials. Node-first was shipped
-without a demonstrated cold Auth win. Refill trials worsened repeated-read and
-mutation costs and are removed. Do not restore rejected root-cache, combined-read,
-compact-frame or decoder-outlining implementations. New placement trials must
-measure first/second/third reads independently, mutation costs and application Wasm.
+scan/removal improvements. The [identity study](../measurements/storage-identity-lookups-2026-11-12.md)
+owns node-first allocation (no demonstrated Auth win) and rejected refills/scratch.
+Do not restore rejected root-cache, combined-read, compact-frame or decoder-outlining
+trials. Measure first/second/third reads, mutations and application Wasm together.
 
 Independent engines and current formats remain STORNAM1, STORCELL, STORVECT and
 STORMAP1 version 1. ICSS is an external benchmark/test dependency only. Earlier

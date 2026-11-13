@@ -3,7 +3,11 @@ use clap::Parser;
 use ic_storage_benchmarks::workloads::{
     DEPTH_POPULATIONS, IDENTITY_POPULATIONS, LOOKUP_POPULATIONS, Workload, transfer_rows,
 };
-use ic_storage_benchmarks::*;
+use ic_storage_benchmarks::{
+    BenchValue, Case, Collection, DEFAULT_CASES, INIT_COST_ID, Initialization, LIMITS,
+    MATRIX_CASES, Operation, Pattern, RUN_ID, Request, Response, SETUP_ID, SessionEnvelope, Setup,
+    catalogue, keys, payload_for, replacement,
+};
 use ic_testkit::pocket_ic::{CanisterId, PocketIcBuilder};
 use std::{collections::BTreeMap, fs, io::Write, path::PathBuf};
 
@@ -21,6 +25,9 @@ struct Arguments {
     /// Diagnostic modules only: collect stable-read traces and timed heap counters.
     #[arg(long)]
     trace_stable_reads: bool,
+    /// Collect bounded traces only for batch/scan limit one; retain other measurements.
+    #[arg(long, requires = "trace_stable_reads")]
+    trace_single_operations: bool,
     /// Second diagnostic pass: collect costly allocator memory accesses.
     #[arg(long, requires = "trace_stable_reads")]
     trace_allocator_accesses: bool,
@@ -96,6 +103,7 @@ fn phases(case: Case, growth_cycles: bool, workload: Option<Workload>) -> Vec<(S
         return [
             ("Control", Operation::Control),
             ("ColdGet", Operation::Get),
+            ("SecondGet", Operation::SecondGet),
             ("RepeatedGet", Operation::WarmGet),
             ("ColdMissAbove", Operation::MissAbove),
             ("Replace", Operation::Replace),
@@ -485,7 +493,7 @@ async fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
             "instrumented_execution_cost": args.trace_execution_cost,
             "reopen": matches!(args.workload, Some(Workload::VectorOpen | Workload::CellOpen)),
             "reopen_measurement": "allocation owner retained; lease/collection opening, operation preparation/result conversion and collection/lease drop inside the timer; ICSS Cell's unused default value is prepared before timing; Vector initialization separately includes the complete init handler",
-            "read_trace_batch_limit": (args.trace_stable_reads && matches!(args.workload, Some(Workload::Depth))).then_some(1),
+            "read_trace_batch_limit": (args.trace_stable_reads && (args.trace_single_operations || matches!(args.workload, Some(Workload::Depth)))).then_some(1),
             "execution_measurement": args.trace_execution_cost.then_some("exported benchmark handler including request decoding, input preparation, collection loop, response encoding/reply and cleanup; includes boundary probe overhead; excludes installation/population and host execution setup"),
             "execution_mode": if args.query {"query"} else {"update"}, "rows": args.rows, "structures": ["Map","Set","Vector","Cell","Region"], "samples": args.samples, "cases": cases.iter().map(|case| serde_json::json!({"case":case, "key_type":case.key_type(), "value_type":case.value_type(), "key_bound":case.key_bound(), "value_bound":case.value_bound(), "logical_value_bytes":payloads(*case), "structure":case.structure(), "operations":case.operations(), "phases":phases(*case,args.growth_cycles,args.workload), "payload_scope":case.value.payload_scope(), "population_rows":case.rows(args.rows)})).collect::<Vec<_>>(), "batch_sizes": batches, "workload": args.workload,
             "patterns": args.patterns, "seed": if args.growth_cycles { "sample + 1 (same keys across rounds)" } else { "sample + 1 + round * 7919" }, "shuffled": args.shuffled,
@@ -721,12 +729,22 @@ async fn run(mut args: Arguments) -> Result<(), Box<dyn std::error::Error>> {
                                     // A populated tree can exceed the bounded trace after
                                     // multiple lookups. Keep all ordinary operation samples,
                                     // but capture depth diagnostics only for single reads.
+                                    // Single-result rank cursors can expose a different
+                                    // access footprint from ordinary key lookups.
                                     let capture_read = (operation == Operation::Get
                                         && (!matches!(args.workload, Some(Workload::Depth))
                                             || count == 1))
+                                        || (case.collection == Collection::Map
+                                            && count == 1
+                                            && matches!(
+                                                operation,
+                                                Operation::Nth | Operation::NthBack
+                                            ))
                                         || (matches!(args.workload, Some(Workload::Bulk))
                                             && case.collection == Collection::Vector
                                             && count == 1);
+                                    let capture_read = capture_read
+                                        && (!args.trace_single_operations || count == 1);
                                     let read_trace = if args.trace_stable_reads && capture_read {
                                         let bytes = pic
                                             .query_call(
@@ -1303,7 +1321,7 @@ fn expected(model: &mut BTreeMap<u64, Vec<u8>>, r: Request) -> Vec<(u64, Option<
             };
             let result = match r.operation {
                 Control => None,
-                Get | WarmGet | Decode | MissAbove => {
+                Get | SecondGet | WarmGet | Decode | MissAbove => {
                     if structure == "Set" {
                         Some(vec![u8::from(model.contains_key(&key))])
                     } else {
@@ -1360,8 +1378,8 @@ fn admit_phase(model: &BTreeMap<u64, Vec<u8>>, r: Request) {
                     r.operation
                 );
             }
-            Get | WarmGet | Decode | Contains | Replace | Set | Remove | RemoveInserted | Grow
-            | Shrink => {
+            Get | SecondGet | WarmGet | Decode | Contains | Replace | Set | Remove
+            | RemoveInserted | Grow | Shrink => {
                 let old = model
                     .get(&key)
                     .unwrap_or_else(|| panic!("{:?}: key {key} must exist", r.operation));

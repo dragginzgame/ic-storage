@@ -5,6 +5,7 @@
 //! global recorder, append loop, timer or endpoint. Stable writes require update
 //! execution; collection/backing traps retain IC Storage's contract.
 
+#![forbid(unsafe_code)]
 #![doc = include_str!("../README.md")]
 
 use ic_logging::{Limits, Log, LogCheckpoint, RestoreError};

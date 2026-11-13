@@ -1,3 +1,4 @@
+//! Compile-time refusal of invalid collection/lease integrations.
 #[test]
 fn capability_and_dto_boundaries_are_compile_time_enforced() {
     let tests = trybuild::TestCases::new();

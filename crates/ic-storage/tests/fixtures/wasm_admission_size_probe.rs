@@ -1,3 +1,4 @@
+//! Standalone application size probe for governed allocation operations.
 pub mod support;
 use host::RUNTIME;
 use support::host;
@@ -36,6 +37,11 @@ impl RuntimeBootstrapPolicy for HostPolicy {
     }
 }
 
+/// Bootstrap the probe allocation, returning its binding fingerprint or zero on refusal.
+#[expect(
+    unsafe_code,
+    reason = "Standalone probe owns these unique linker exports; no raw memory access."
+)]
 #[unsafe(no_mangle)]
 pub extern "C" fn ic_memory_wasm_core_size_probe_bootstrap() -> u64 {
     let Ok(declarations) = probe_declarations() else {
@@ -63,6 +69,11 @@ pub extern "C" fn ic_memory_wasm_core_size_probe_bootstrap() -> u64 {
     })
 }
 
+/// Open the admitted allocation and return its pages, or `u32::MAX` on refusal.
+#[expect(
+    unsafe_code,
+    reason = "Standalone probe owns these unique linker exports; no raw memory access."
+)]
 #[unsafe(no_mangle)]
 pub extern "C" fn ic_memory_wasm_core_size_probe_open() -> u32 {
     RUNTIME.with(|slot| {

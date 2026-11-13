@@ -1,4 +1,8 @@
 //! Concrete non-map workloads. Dispatch and input construction precede timing.
+#[expect(
+    clippy::wildcard_imports,
+    reason = "Private canister modules share parent bindings selected by the benchmark backend features."
+)]
 use super::*;
 #[cfg(feature = "owned")]
 type Set<K> = ic_storage::adapter::StableBTreeSet<K>;

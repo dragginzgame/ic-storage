@@ -1,4 +1,8 @@
 //! Concrete dispatch for the catalogue. No type erasure enters collection IO.
+#[expect(
+    clippy::wildcard_imports,
+    reason = "Private canister modules share parent bindings selected by the benchmark backend features."
+)]
 use super::*;
 
 fn pair<K: BenchKey + Storable + 'static, V: BenchValue + Storable + 'static>(

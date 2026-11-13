@@ -3,6 +3,19 @@
 Current releases use the Storage naming. [Earlier published history](https://github.com/dragginzgame/ic-storage/blob/23deb81c48d58558ac3b0ce36bf266ddc25dca91/releases/metrics-stable/CHANGELOG.md)
 retains its original package and release identities.
 
+## [0.77.0] - Unreleased
+
+### 💥 Breaking
+
+- Require Rust 1.100.0; APIs and stored formats are unchanged.
+  [#159 — compiler and lint policy](https://github.com/dragginzgame/ic-storage/issues/159).
+- Adopt Metrics 0.30.0; hosts exchanging Metrics types must align their direct
+  dependency. Existing checkpoint bytes and Storage-owned images remain valid.
+
+### 🧰 Tooling
+
+- Inherit Toko Tooling 0.40.1 for development. See [the detailed notes](0.77.md#0770---unreleased).
+
 ## [0.76.3] - 2026-11-12
 
 ### ⚡ Performance

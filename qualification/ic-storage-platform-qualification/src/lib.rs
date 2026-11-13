@@ -1,5 +1,6 @@
 //! Independent consumer of Storage and the canonical Platform Runtime (#152).
 //! Graph admission proves one executor; installed backing tests remain separate.
+#![forbid(unsafe_code)]
 use ic_storage::{
     AllocationGrants, DefaultMemoryImpl, GenericAllocationPolicy, MemoryAuthority, MemoryBacking,
     MemoryRequest, MemoryRuntime, SealedDeclarationSnapshot, StableKey, adapter::StableCell,
@@ -8,10 +9,10 @@ use ic_storage::{
 /// Compile the deployed backing and execute its native counterpart in tests.
 /// This fixture requires fresh backing and explicitly reopens its own cell.
 pub fn composed_backing_roundtrip() {
-    roundtrip(DefaultMemoryImpl::default());
+    roundtrip(&DefaultMemoryImpl::default());
 }
 
-fn roundtrip<M: MemoryBacking + Clone>(backing: M) {
+fn roundtrip<M: MemoryBacking + Clone>(backing: &M) {
     let expected = ic_platform::Principal::anonymous().as_slice().to_vec();
     for create in [true, false] {
         let mut host = MemoryRuntime::new(backing.clone()).unwrap();

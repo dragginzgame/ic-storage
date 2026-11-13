@@ -28,6 +28,10 @@ fn identity_keys_keep_complete_principals_and_composite_order() {
     }
 }
 
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Each fixture transfers its value into this roundtrip assertion boundary."
+)]
 fn checked_roundtrip<T: Encoding + Clone + Eq + std::fmt::Debug>(value: T) {
     let bytes = value.encode();
     if T::FIXED {

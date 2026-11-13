@@ -384,6 +384,9 @@ jobs:
       - name: Admit both destination graphs before artifact qualification
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
         run: make check-dependency-adoption
+      - name: Check the independent compiler and documentation contracts
+        if: ${{ needs.change-scope.outputs.scope != 'docs' }}
+        run: make check-qualification-lints check-qualification-docs
       - name: Qualify original and optimized Wasm, installed IO and upgrade rollback
         if: ${{ needs.change-scope.outputs.scope != 'docs' }}
         shell: bash

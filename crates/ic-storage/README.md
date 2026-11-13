@@ -4,7 +4,7 @@ Owned stable allocation and collections for Internet Computer applications.
 Storage owns the backing interface, codec trait, named allocation directory,
 namespace admission, exclusive leases and collection implementations. It uses
 independently implemented collection engines, with no production
-`ic-stable-structures` dependency. Rust 1.99.1 or later is required.
+`ic-stable-structures` dependency. Rust 1.100.0 or later is required.
 
 ## Supported collections
 

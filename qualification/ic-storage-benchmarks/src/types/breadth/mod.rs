@@ -98,7 +98,7 @@ impl BenchKey for u32 {
 ///
 /// TupleKey
 ///
-/// Application-owned composite key inspired by ICSS's (u64, [u8;20]) tests.
+/// Application-owned composite key inspired by ICSS's `(u64, [u8; 20])` tests.
 /// Uses a shared fixed 28-byte codec; does not claim native tuple-codec parity.
 ///
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -120,7 +120,7 @@ impl BenchKey for TupleKey {
 /// OptionalU64
 ///
 /// Application codec for alternating None/Some values, with a variable nine-byte
-/// bound. ICSS 0.7.2's native Option<u64> incorrectly declares a fixed bound;
+/// bound. ICSS 0.7.2's native `Option<u64>` incorrectly declares a fixed bound;
 /// its checked encoding of None traps. This explicitly shared codec avoids
 /// presenting that unsupported combination as a successful paired benchmark.
 ///
@@ -190,7 +190,7 @@ impl BenchValue for f32 {
     all(target_arch = "wasm32", feature = "dfinity-head")
 ))]
 mod codec {
-    use super::*;
+    use super::{BoundedBytes, IdentityKey, OptionalU64, TupleKey};
     use std::borrow::Cow;
     // Define each application codec once, then project it to the two existing
     // Storable contracts. This helper stays in the unpublished comparison crate.
