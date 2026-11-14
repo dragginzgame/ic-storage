@@ -16,7 +16,7 @@ keywords = ["stable-memory", "storage", "collections", "canister", "icp"]
 categories = ["wasm", "data-structures"]
 
 [workspace.dependencies]
-ic-storage = { path = "crates/ic-storage", version = "0.74.0" }
+ic-storage = { path = "crates/ic-storage", version = "0.74.1" }
 toko-tooling = "=0.43.0"
 
 # External production dependencies.
