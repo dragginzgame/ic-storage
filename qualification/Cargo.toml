@@ -23,7 +23,7 @@ clap = { version = "4.6", default-features = false, features = ["derive", "std",
 ic-logging = { version = "0.25.1", default-features = false }
 ic-logging-storage = { path = "../crates/ic-logging-storage", version = "0.73.0" }
 ic-metrics = { version = "0.30.0", default-features = false }
-ic-metrics-storage = { path = "../crates/ic-metrics-storage", version = "0.77.0" }
+ic-metrics-storage = { path = "../crates/ic-metrics-storage", version = "0.78.0" }
 # Platform supplies the composition fixture identity; Testkit owns the native client.
 ic-platform = { version = "0.32.0", default-features = false }
 ic-platform-runtime = { version = "0.22.0", default-features = false }
