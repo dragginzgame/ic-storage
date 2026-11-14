@@ -1,28 +1,22 @@
 # Current handoff — 2026-11-14
 
-## Published baseline and pending delivery
+## Published baseline
 
-Storage 0.74.0, Metrics Storage 0.77.0 and Logging Storage 0.73.0 are published
-on crates.io and tagged on GitHub. The completed batch `batch-jkhHj3FX`
-reconciled main to `98e8d09504e8de2c668f7c7028180d86a5425752`; all three
-12-stage release gates passed. Registry/archive verification and installed
-qualification are retained under `target/evidence/suppliers-deploy-20261113/`
-and `target/qualification/runtime/attempt.Og2iy6`.
-[The preceding handoff](https://github.com/dragginzgame/ic-storage/blob/98e8d09504e8de2c668f7c7028180d86a5425752/docs/status/current.md)
-retains earlier delivered evidence; local commit `87b1792` retains the complete
-pre-adoption handoff and pending supplier/API qualification narrative.
+Storage 0.74.1, Metrics Storage 0.78.0 and Logging Storage 0.74.0 are published
+on crates.io and tagged on GitHub. Storage patch batch `batch-MUlACA2d` delivered
+`f001cf4`; adapter minor batch `batch-YUvWyvVJ` delivered Metrics at `a5bbe25`
+and Logging at `b5358b8`. Both batches are complete and reconciled into main.
+All three 12-stage release gates passed. Downloaded registry archives match the
+qualified checksums, and remote annotated tags point to the release commits.
+Evidence is under `target/evidence/deploy-20261114/`; final group receipts and
+stage logs remain in each batch's `target/release-frozen/` checkout.
 
-Source commit `87b1792bf38686ad0c98cacbc0b4e2afa3a38eb6` prepared Storage
-0.74.1, Metrics Storage 0.78.0 and Logging Storage 0.74.0. Package versions
-remain unchanged. The authorized Storage patch deployment captured that source
-in `target/release-frozen/batch-T5JZrPdp`; its journal is under
-`.git/release-state/frozen/batch-T5JZrPdp`. Admission, lint, features and policy
-passed, as did all 90 native repo-tool tests. The tooling stage failed because
-Toko 0.42.6's hook formed an invalid helper path with inherited `CDPATH`.
-No version preparation, release tag, push or publication occurred in that batch.
-Retain `target/evidence/deploy-20261113/storage-release.log` and the frozen
-checkout's gate logs. Failed evidence is not a release receipt. The adapter
-minor batch has not started; core patch and adapter minors use separate batches.
+[The pre-release handoff](https://github.com/dragginzgame/ic-storage/blob/1118f7af530e5f60323cb455bb7fca6f7710ef38/docs/status/current.md)
+retains the earlier adoption narrative and evidence. The failed `batch-T5JZrPdp`
+is preserved under `target/release-frozen/` and `.git/release-state/frozen/`.
+It failed before version preparation or delivery; do not resume that old source
+or reinterpret its failed gate. The fresh batches passed the unchanged CDPATH
+hook suite and all 90 native release-helper tests for each group.
 
 ## Current tooling adoption
 
@@ -32,60 +26,32 @@ The LOC interface is now `toko-cloc`; use `--manifest Cargo.toml` or
 target and settings are retired. The existing PATH launcher matches the
 published bytes. Baseline, release runner, hooks and product gates are unchanged.
 See [the adoption record](../adoption/storage-tooling.md#toko-0430-adoption) and
-`target/evidence/toko-0430-adoption-20261114/` for focused validation.
-Snapshot/pins, tool admission, formatting, docs and focused ShellCheck pass.
-Actual LOC reports select ten combined, three product or seven qualification
-members; the retired Make target is absent. Supplier lock selections are unchanged.
+`target/evidence/toko-0430-adoption-20261114/` for focused validation, including
+the ten/three/seven-member LOC selections. All release gates now pass as well.
 Preserve the earlier failing fixture `target/fixtures/ic-storage-hooks.oU8S2d`.
-No managed-file patch or weaker hook assertion is introduced.
-The preceding 0.42.8 hook suite passed with `CDPATH` set, clearing the known
-hook blocker; that unchanged-hook evidence remains applicable. Full product
-release gates still require execution.
-Incoming Metrics 0.30.5 and concurrent Logging 0.25.5 lock selections are
-preserved; tooling adoption does not qualify those supplier updates.
-No sibling edit, product release or publication is part of this refresh.
-A subsequent delivery must admit the updated source; never alter the retained
-failed batch or reuse its failed gate as a passing proof.
 
-## Pending product and supplier work
+## Delivered product and supplier changes
 
-The prepared batch includes native IO scope-guard simplification, Toko vendor
-layout and common lint adoption, native release catalog projection/recovery
-changes, Build 0.84 and Host 0.77 integration, Wire 0.22 and Testkit 0.104.
-Build 0.84 is required for Host 0.77's shared `OutputLimits` API. Product Wasm
-retains its existing Platform Runtime boundary; core production remains Wire-free.
-The composition fixture uses Platform 0.32/Runtime 0.22. Testkit 0.104 still
-selects PocketIC 16.1.0 and the existing bounded polling/server lifetime contract.
+The releases include native IO scope-guard simplification, tooling/lint adoption,
+release catalog projection/recovery fixes, Build 0.84 and Host 0.77 integration.
+The freeze reviewed published Build 0.84.1, Host 0.77.2, Metrics 0.30.5,
+Logging 0.25.5, Wire 0.22.1, Platform 0.32.2 and Runtime 0.22.2 selections.
+The separately qualified Build metadata CLI remains 0.84.0; its optional patch
+refresh is deferred to tool maintenance. Core production remains Wire-free.
 
-The 2026-11-14 Testkit adoption advances the qualification catalog, lock and
-managed CLI together from 0.102.0 to published 0.104.0. Only Testkit changes in
-the qualification lock; the product lock and pending supplier/tooling selections
-are preserved. Removed Testkit Wire helpers have no Storage callers. Evidence:
-`target/evidence/testkit-0104-adoption-20261114/`. This is local adoption, not
-publication or sibling delivery. Both native consumers pass all-target Clippy;
-50 unit tests pass (two installed-only tests remain ignored in that invocation).
-Installed Linux IO, corruption, custody, collections, Logging, upgrades and
-rollback pass for original/O3/Os/Oz at
-`target/qualification/runtime/attempt.r8NYr6`. Snapshot/pins, formatting and docs
-pass. Product Cargo.lock is byte-identical to this adoption's starting input.
+Both adapter minor releases replace the public Wire error payload/conversion
+with unit `StoreError::Codec`. Internal bounded Wire checkpoints and persisted
+bytes remain unchanged; this API change requires no persisted-state reset.
+Detailed notes and earlier focused evidence remain in the group ledgers and
+`target/evidence/adapter-codec-errors-20261113/`.
 
-Both adapters hard-cut public codec errors to the unit `StoreError::Codec`,
-removing the public Wire payload, conversion and error source. Their internal
-bounded Wire checkpoint encoding remains. Malformed/oversized categories,
-retained bytes, admission and no-write refusals stay unchanged. This requires
-the two pending minor releases, not a persisted-state reset. Product versions
-are advanced only by the release runner. Detailed notes live in the group ledgers.
-
-Focused evidence: `target/evidence/logging-host-adoption-20261113/`,
-`target/evidence/testkit-adoption-20261113/`,
-`target/evidence/wire-022-adoption-20261113/` and
-`target/evidence/adapter-codec-errors-20261113/`. Adapter tests/doctests,
-selected native/Wasm Clippy and boundary checks pass for their recorded inputs.
-The earlier Testkit 0.102 installed evidence remains at
-`target/qualification/runtime/attempt.qEgdWm`; the fresh 0.104 result above
-qualifies the currently selected Wire and Logging/Metrics graph. No new macOS
-proof or completed release gate is asserted. The unchanged 0.42.5 retention proof
-cleared [Toko #381](https://github.com/dragginzgame/toko-tooling/issues/381).
+Qualification and managed CLI select Testkit 0.104.0 with PocketIC 16.1.0.
+Both native consumers pass all-target Clippy and 50 unit tests; installed Linux
+IO, corruption, custody, collections, Logging, upgrades and rollback pass for
+original/O3/Os/Oz at `target/qualification/runtime/attempt.r8NYr6`.
+See `target/evidence/testkit-0104-adoption-20261114/`. No fresh macOS installed
+qualification is claimed. Hosted CI on the delivered commits is separate from
+the completed local gates; retain #159's host acceptance until verified.
 
 ## Performance work and consumer ownership
 
