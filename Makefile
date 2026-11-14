@@ -68,7 +68,7 @@ help:
 	@echo 'Focused installed Logging proof: test-runtime-logging (original Wasm only; no optimizer or other runtime suites).'
 	@echo 'Map comparison: benchmark-storage (prepared server/caches; BENCH_ROWS=256 BENCH_SAMPLES=3).'
 	@echo 'Consumer Wasm size: benchmark-storage-size (matched small apps; prepared server/caches).'
-	@echo 'Report: cloc (product and qualification workspaces; CLOC_MANIFEST selects one Cargo manifest). Fleet reports run in Shared Tooling.'
+	@echo 'LOC: toko-cloc (repository); --manifest Cargo.toml (product) or --manifest qualification/Cargo.toml (qualification).'
 	@echo 'Maintainer releases: release-patch, release-minor, release-major; normal targets start fresh; release-resume VERSION=X.Y.Z recovers a saved attempt.'
 
 # Explicit preparation; normal checks only admit the selected published editor.

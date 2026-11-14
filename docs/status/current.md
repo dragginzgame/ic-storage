@@ -1,273 +1,128 @@
-# Current handoff — 2026-11-13
+# Current handoff — 2026-11-14
 
-## Published work
+## Published baseline and pending delivery
 
 Storage 0.74.0, Metrics Storage 0.77.0 and Logging Storage 0.73.0 are published
-on crates.io and tagged on GitHub. Both published adapters require Storage
-0.74.0. All 12 release stages passed for each group; no fresh hosted/macOS result
-is asserted. The published locks select Metrics 0.30.0 and Logging 0.25.0.
-The [discard study](../measurements/storage-discard-mutations-2026-11-12.md) owns
-presence-returning mutations, adapter adoption, instruction/IO and size evidence;
-the [histogram study](../measurements/metrics-histogram-comparisons-2026-11-12.md)
-owns full-width comparison improvements. Guards, returning behavior and stored
-formats remain unchanged. [The published handoff](https://github.com/dragginzgame/ic-storage/blob/358b1ea/docs/status/current.md)
-retains the detailed delivery narrative and earlier evidence.
+on crates.io and tagged on GitHub. The completed batch `batch-jkhHj3FX`
+reconciled main to `98e8d09504e8de2c668f7c7028180d86a5425752`; all three
+12-stage release gates passed. Registry/archive verification and installed
+qualification are retained under `target/evidence/suppliers-deploy-20261113/`
+and `target/qualification/runtime/attempt.Og2iy6`.
+[The preceding handoff](https://github.com/dragginzgame/ic-storage/blob/98e8d09504e8de2c668f7c7028180d86a5425752/docs/status/current.md)
+retains earlier delivered evidence; local commit `87b1792` retains the complete
+pre-adoption handoff and pending supplier/API qualification narrative.
 
-## Consumer ownership and next actions
+Source commit `87b1792bf38686ad0c98cacbc0b4e2afa3a38eb6` prepared Storage
+0.74.1, Metrics Storage 0.78.0 and Logging Storage 0.74.0. Package versions
+remain unchanged. The authorized Storage patch deployment captured that source
+in `target/release-frozen/batch-T5JZrPdp`; its journal is under
+`.git/release-state/frozen/batch-T5JZrPdp`. Admission, lint, features and policy
+passed, as did all 90 native repo-tool tests. The tooling stage failed because
+Toko 0.42.6's hook formed an invalid helper path with inherited `CDPATH`.
+No version preparation, release tag, push or publication occurred in that batch.
+Retain `target/evidence/deploy-20261113/storage-release.log` and the frozen
+checkout's gate logs. Failed evidence is not a release receipt. The adapter
+minor batch has not started; core patch and adapter minors use separate batches.
 
-- [Storage #118](https://github.com/dragginzgame/ic-storage/issues/118) is closed
-  as completed after publication. Actual adapter checkpoint calls are measured:
-  changed histogram saves improve 0.31–0.48%, removals 0.20–0.58%, with 736 fewer
-  benchmark Wasm bytes. No-op/rejection writes remain zero. The prefix-buffer
-  trial was rejected and restored; the discard study owns its evidence.
-- [IcyDB #635](https://github.com/dragginzgame/icydb/issues/635) owns key-only scans
-  and bounded region existence probes using already published APIs.
-- [Blob #129](https://github.com/dragginzgame/ic-blob-storage/issues/129) owns
-  discard-mutation adoption; the supplier is now published.
-- [Relay #24](https://github.com/dragginzgame/ic-relay/issues/24) owns measurement
-  of bounded record rewrites before any state-layout redesign.
-- Existing [Auth #132](https://github.com/dragginzgame/ic-auth/issues/132) and
-  [Canic #764](https://github.com/dragginzgame/canic/issues/764) received adoption
-  notes. Complete their existing ownership migration; do not create a second
-  authentication engine. Their current installed regression ceiling is 1.3M;
-  the earlier <1M request remains an optimization goal, not that release gate.
-- [Storage #158](https://github.com/dragginzgame/ic-storage/issues/158) owns
-  routing-key locality/blob density experiments and any explicit format decision.
-  [Read-path attribution](../measurements/storage-identity-lookups-2026-11-12.md#access-path-attribution--2026-11-13)
-  explains the coarse trial's extra 80k iterator event: two node reads share a
-  4 KiB source page, triggering native stable mapping on the second. All 36
-  complete read-only traces match the pinned IC path model. No extra IO or
-  allocator work explains that event. Across 20 rank-cursor rounds, coarse
-  raises whole-handler means 0.52–2.10%; the earlier ~84% inner median is not
-  representative. The 6.32% churn median redistributes 19 costly events across
-  three paths; their summed handler cost is nearly unchanged. Neither result
-  establishes a universal default penalty. However, the resize-capacity tradeoff
-  remains and 100k tagged/256-byte cold paths still incur 12 costly reads in
-  both layouts. No policy is adopted; production remains byte-identical.
-  Next assess checked routing/key read combination for contiguous allocations,
-  preserving bounds, corruption checks and value-free traversal. No new format,
-  reset, consumer change or publication is authorized. Auth remains unmeasured.
-  Maintained diagnostics now support single-result rank cursors, bounded
-  single-operation capture and explicit Binaryen type annotations. The locked
-  .17 rustls-webpki archive was fetched separately; final driver checks and
-  installed diagnostic runs pass with it, not a complete product release gate.
+## Current tooling adoption
 
-The maintainer authorized closing #118 and continuing #158 after deployment.
-Sibling source stays read-only; sibling issues and delivery remain theirs.
-Neither these trials nor discard mutations establish an Auth endpoint speedup.
+Both workspace catalogs and locks now select authenticated Toko 0.43.0.
+The LOC interface is now `toko-cloc`; use `--manifest Cargo.toml` or
+`--manifest qualification/Cargo.toml` to select one workspace. The old Make
+target and settings are retired. The existing PATH launcher matches the
+published bytes. Baseline, release runner, hooks and product gates are unchanged.
+See [the adoption record](../adoption/storage-tooling.md#toko-0430-adoption) and
+`target/evidence/toko-0430-adoption-20261114/` for focused validation.
+Snapshot/pins, tool admission, formatting, docs and focused ShellCheck pass.
+Actual LOC reports select ten combined, three product or seven qualification
+members; the retired Make target is absent. Supplier lock selections are unchanged.
+Preserve the earlier failing fixture `target/fixtures/ic-storage-hooks.oU8S2d`.
+No managed-file patch or weaker hook assertion is introduced.
+The preceding 0.42.8 hook suite passed with `CDPATH` set, clearing the known
+hook blocker; that unchanged-hook evidence remains applicable. Full product
+release gates still require execution.
+Incoming Metrics 0.30.5 and concurrent Logging 0.25.5 lock selections are
+preserved; tooling adoption does not qualify those supplier updates.
+No sibling edit, product release or publication is part of this refresh.
+A subsequent delivery must admit the updated source; never alter the retained
+failed batch or reuse its failed gate as a passing proof.
 
-## Current published baseline and suppliers
+## Pending product and supplier work
 
-The completed deployment adopted published Logging 0.25.0, Metrics 0.30.0,
-Platform 0.32.0 and Runtime/macros/guard 0.22.0. Both locked caches are prepared;
-only those requested families and required Types 0.20.0 were changed from the
-incoming selections. Native/Wasm production boundaries and isolated consumer
-compilation pass. That release selected Testkit 0.101.0, which owned its
-separate native Platform 0.31/Types 0.19 graph. It exchanges opaque Wasm and Wire
-protocols with the canisters; the new composition fixture has one Runtime/Types
-identity. No collection format, checkpoint schema or allocation policy changes.
-Evidence: `target/evidence/suppliers-deploy-20261113/`. Installed original/O3/Os/Oz
-IO, corruption, custody, upgrade, rollback and Logging lifecycle qualification pass.
-All three groups passed their complete gates and were published supplier first.
+The prepared batch includes native IO scope-guard simplification, Toko vendor
+layout and common lint adoption, native release catalog projection/recovery
+changes, Build 0.84 and Host 0.77 integration, Wire 0.22 and Testkit 0.104.
+Build 0.84 is required for Host 0.77's shared `OutputLimits` API. Product Wasm
+retains its existing Platform Runtime boundary; core production remains Wire-free.
+The composition fixture uses Platform 0.32/Runtime 0.22. Testkit 0.104 still
+selects PocketIC 16.1.0 and the existing bounded polling/server lifetime contract.
 
-`batch-jkhHj3FX` captured `0c92858db24ede16b9800db3c3648187e637f184`, published
-supplier first and reconciled main to `98e8d09504e8de2c668f7c7028180d86a5425752`.
-GitHub tags and downloaded registry/final-receipt archive hashes were verified.
+The 2026-11-14 Testkit adoption advances the qualification catalog, lock and
+managed CLI together from 0.102.0 to published 0.104.0. Only Testkit changes in
+the qualification lock; the product lock and pending supplier/tooling selections
+are preserved. Removed Testkit Wire helpers have no Storage callers. Evidence:
+`target/evidence/testkit-0104-adoption-20261114/`. This is local adoption, not
+publication or sibling delivery. Both native consumers pass all-target Clippy;
+50 unit tests pass (two installed-only tests remain ignored in that invocation).
+Installed Linux IO, corruption, custody, collections, Logging, upgrades and
+rollback pass for original/O3/Os/Oz at
+`target/qualification/runtime/attempt.r8NYr6`. Snapshot/pins, formatting and docs
+pass. Product Cargo.lock is byte-identical to this adoption's starting input.
 
-| Package | Version | Release commit | Archive SHA-256 |
-| --- | --- | --- | --- |
-| Storage | 0.74.0 | `5ec264a09ead28537fb405670df9d35e78bdfa9f` | `1b69f61ba55898f3b7eafd55a6a90ee271e05dc2105a1263d281b03e549cc81e` |
-| Metrics Storage | 0.77.0 | `fd4f076df50ae11351d5e0abf0b9b4ab8c8e6c04` | `aa70edf01375057021950d52702bc29bcced5c2f0b9e6c7653967845d5ebff33` |
-| Logging Storage | 0.73.0 | `98e8d09504e8de2c668f7c7028180d86a5425752` | `443986f115d088baffe41fec9d608f404059bbc818333b98efd0468faf1a26a4` |
+Both adapters hard-cut public codec errors to the unit `StoreError::Codec`,
+removing the public Wire payload, conversion and error source. Their internal
+bounded Wire checkpoint encoding remains. Malformed/oversized categories,
+retained bytes, admission and no-write refusals stay unchanged. This requires
+the two pending minor releases, not a persisted-state reset. Product versions
+are advanced only by the release runner. Detailed notes live in the group ledgers.
 
-Evidence: `target/evidence/suppliers-deploy-20261113/verification.json`,
-its `deploy.log`, `target/release-frozen/batch-jkhHj3FX/` and
-`.git/release-state/frozen/batch-jkhHj3FX/`. Installed qualification at
-`target/qualification/runtime/attempt.Og2iy6` passes original/O3/Os/Oz IO,
-corruption, custody, upgrades, rollback and Logging lifecycle behavior.
-The initial reconciliation refused concurrent lock updates. They are retained on
-`preserve/post-deploy-suppliers-20261113`, and restored unstaged after reconciliation.
+Focused evidence: `target/evidence/logging-host-adoption-20261113/`,
+`target/evidence/testkit-adoption-20261113/`,
+`target/evidence/wire-022-adoption-20261113/` and
+`target/evidence/adapter-codec-errors-20261113/`. Adapter tests/doctests,
+selected native/Wasm Clippy and boundary checks pass for their recorded inputs.
+The earlier Testkit 0.102 installed evidence remains at
+`target/qualification/runtime/attempt.qEgdWm`; the fresh 0.104 result above
+qualifies the currently selected Wire and Logging/Metrics graph. No new macOS
+proof or completed release gate is asserted. The unchanged 0.42.5 retention proof
+cleared [Toko #381](https://github.com/dragginzgame/toko-tooling/issues/381).
 
-Toko 0.40.1, Rust 1.100.0, locked Wire 0.21.5, Platform 0.32.0,
-Runtime 0.22.0, Testkit 0.101.0 and PocketIC 16.1.0 are selected.
-[The 0.40.0 migration](../adoption/storage-tooling.md#toko-0400-adoption) addresses
-[#159](https://github.com/dragginzgame/ic-storage/issues/159): both workspace floors,
-member lint inheritance, strict native/Wasm qualification and bounded private
-protocol documentation debt. Pending benchmark work and supplier pins remain.
-[The 0.40.1 refresh](../adoption/storage-tooling.md#toko-0401-adoption) adds deployment
-sequencing and failure-specific recovery guidance. Installed executables and
-product gates are unchanged; collector-only recovery remains unsupported.
-Release-group metadata now selects the pending minor-line notes; the focused
-native/Shared file-plan comparison passes for all three groups.
-Earlier adoption evidence remains linked there; original installed evidence is
-at `target/qualification/runtime/attempt.exkRp9`.
+## Performance work and consumer ownership
 
-Storage 0.74.0, Metrics Storage 0.77.0 and Logging Storage 0.73.0 cover the
-increased consumer MSRV; Storage also retains the benchmark work. Sibling source
-stays read-only. Benchmark native tests (17 library,
-28 driver), native/owned-Wasm lint and the earlier installed comparisons pass.
-The isolated density/routing trials pass 50/59 engine tests, nine public contracts
-each, lint and sixteen installed size consumers each. Map total/code growth is
-413/307 bytes for density and 1,111/908 for routing. Native resize controls pass
-but reject fine-grained density as the default; scalar regressions reject routing.
-Temporary tests are removed with their trials. Those older optimization results
-retain Rust 1.99.1 attribution; they are not Rust 1.100.0 performance measurements.
-The compiler/lint adoption has separate evidence under
-`target/evidence/toko-0400-adoption-20261113/`: native/Wasm lint and docs, unit and
-integration tests, negative policy fixtures and all four size gates pass.
-Installed original/O3/Os/Oz qualification passes at
-`target/qualification/runtime/attempt.cDFmPe`. Publication and native macOS proof
-remain separate; #159 stays open until integration and applicable CI evidence.
+[Storage #118](https://github.com/dragginzgame/ic-storage/issues/118) was closed
+after publication. [The discard study](../measurements/storage-discard-mutations-2026-11-12.md)
+and [histogram study](../measurements/metrics-histogram-comparisons-2026-11-12.md)
+own shipped instruction/IO/size results. IcyDB #635, Blob #129, Relay #24,
+Auth #132 and Canic #764 retain their consumer work; sibling source stays read-only.
+[Storage #159](https://github.com/dragginzgame/ic-storage/issues/159) retains its
+integration/CI acceptance; Rust 1.100 is the selected floor and compiler.
 
-## Pending Logging and Host adoption
+[Storage #158](https://github.com/dragginzgame/ic-storage/issues/158) owns routing
+locality and blob-density research. [Read-path attribution](../measurements/storage-identity-lookups-2026-11-12.md#access-path-attribution--2026-11-13)
+explains the coarse trial's extra 80k event; all 36 captured read-only traces
+match the pinned IC model. Whole-handler and resize tradeoffs do not justify
+adopting that layout. Next assess checked routing/key read combination for
+contiguous allocations while preserving bounds and value-free traversal.
+Production is unchanged; no new format, reset or Auth endpoint win is qualified.
+Auth's installed ceiling is 1.3M; <1M remains an optimization goal.
 
-Toko Tooling 0.42.6 is selected locally in both workspaces and the authenticated
-snapshot. `make deps-list` replaces unused display-only adapter aliases; all three
-groups retain their members. Both workspaces apply the common Cargo lints and
-strict Rustdoc table validation. Product and independent native/Wasm Clippy pass
-after narrowing Metrics dependencies to examples and checking actual Principal
-exchange in the composition fixture. Strict Rustdoc and the existing private-debt
-gate pass. See [the adoption record](../adoption/storage-tooling.md#toko-0410-adoption)
-for evidence and the new deployment isolation rule. No full release or installed
-runtime gate is claimed for this tooling/qualification-only follow-up.
-The published 0.41.1 bootstrap observer removes the conflicting requirement for
-unused member aliases. The local bootstrap fixture now reflects the real catalog,
-retaining every release member without adding unused dependencies. Both the
-launcher refusal/recovery fixture and real three-group lock-first/manifest-first
-recovery pass. Snapshot, pins, tool admission and formatting also pass. See
-[the patch adoption](../adoption/storage-tooling.md#toko-0411-adoption).
+[The scalar study](../measurements/storage-scalar-scans-2026-11-11.md) and identity
+study retain shipped results and rejected trials. Do not restore rejected root
+cache, combined-read, compact-frame, decoder-outlining or prefix-buffer trials.
+Measure first/second/third reads, mutations and application Wasm together.
 
-The [0.42.1 migration](../adoption/storage-tooling.md#toko-0421-adoption) moves
-installed helpers to `vendor/toko-tooling/` and migrates Make, CI, hooks, release
-callers and their fixtures. Release and publication remain explicit selections;
-validation callers pass the consumer root. The shared retention probe initially
-assumed root-installed helper paths and blocked its consumer check. The gate
-remained enabled. The [0.42.2 patch](../adoption/storage-tooling.md#toko-0422-adoption)
-passes its changed root-file admission caller, snapshot/pin checks, tool admission
-and formatting, but does not change or fix the retention helper. The
-[0.42.4 adoption](../adoption/storage-tooling.md#toko-0424-adoption) adds Cargo-tool
-maintenance recovery and clarifies domain/endpoint ownership; Storage's existing
-codec boundaries need no change. The [0.42.5 fix](../adoption/storage-tooling.md#toko-0425-adoption)
-clears [Toko #381](https://github.com/dragginzgame/toko-tooling/issues/381):
-Storage's unchanged retention suite now passes, including completion/failure
-probes and the archive round trip. Snapshot/pin checks, tool setup/admission and
-formatting also pass. The [0.42.6 refresh](../adoption/storage-tooling.md#toko-0426-adoption)
-changes producer tests only; Storage's installed payload is unchanged, so the
-passing retention evidence remains applicable. No deployment is included in
-these adoptions.
+## Safety and preservation
 
-Select Logging 0.25.1 in both catalogs and locks, and Host Artifacts/FS/Process
-0.77.0 in the product workspace's native development graph. Build 0.84.0 is a
-required companion: its archive API exchanges Host `OutputLimits` with Storage.
-The 0.83/0.77 combination fails compilation; the matching release avoids a shim
-and leaves one Host family in that graph. The selected metadata CLI also advances
-to 0.84.0. The subsequent Testkit adoption below advances its native Host graph
-through published requirements; no Host dependency enters product Wasm.
-
-Preserve the incoming Metrics 0.30.1 lock update. Correct qualification's stale
-Metrics Storage 0.76.2 requirement to the current 0.77.0 package: this mismatch
-survived the preceding minor release and blocked independent Cargo resolution.
-Logging 0.25.1's production sources match 0.25.0 byte for byte. Collection APIs,
-checkpoint schemas, retained formats and product versions are unchanged.
-Pending notes were Storage 0.74.1 and Logging Storage 0.73.1; the Wire adoption
-below moves the unpublished adapter work into its next minor. This adoption is not
-another deployment. Evidence: `target/evidence/logging-host-adoption-20261113/`.
-The release guard handles Build's typed build/environment compiler declarations;
-direct and included overrides still refuse before effects without leaking values.
-Qualification passes 89 native helper tests, 13 Logging unit tests and two
-doctests, strict native helper/Wasm Logging Clippy, and the actual Build 0.84
-editor's lock-first/manifest-first recovery fixtures for all three groups.
-Both locked metadata graphs, snapshot/pins, production dependency boundaries,
-formatting and documentation links pass. No full release suite or fresh installed
-runtime run is claimed for this local adoption. Product source is unchanged;
-the affected native tool and compatible Logging callers own the focused checks.
-
-## Pending Testkit 0.102.0 adoption
-
-The qualification catalog/lock and selected server CLI now use published Testkit
-0.102.0. PocketIC remains 16.1.0. The targeted update advances Host 0.76.5 to
-0.77.0 and removes Platform 0.31.3/Types 0.19.5 in favor of the existing
-0.32.0/0.20.0 selections. The product lockfile is unchanged from this adoption's
-starting state; pending supplier, tooling and native guard edits are preserved.
-
-Installed Linux original/O3/Os/Oz qualification passes at
-`target/qualification/runtime/attempt.qEgdWm`, including allocation IO,
-corruption, custody, all collections, Logging, upgrades and rollback. Runner and
-benchmark Clippy, destination dependency boundaries and composition checks pass.
-No new macOS proof, full release validation or publication is claimed.
-
-The Cargo 1.100 binary-test blocker is resolved locally by adopting published
-Toko 0.41.1 and moving the runtime qualifier's tooling declaration to the admitted
-`target.'cfg(any())'.dev-dependencies` source-only marker. Exact inherited
-selection and the cargo-machete exemption remain; no lint is suppressed and no
-dummy import is added. All five runtime runner unit tests pass in this checkout.
-The two explicitly installed tests remain ignored in that invocation; the
-separate installed suite above already passed. The earlier reproduction and
-producer qualification stay in `target/evidence/tooling-unblock-20261113/`.
-Testkit adoption evidence remains in `target/evidence/testkit-adoption-20261113/`;
-the new snapshot and focused consumer proofs are under
-`target/evidence/toko-0411-adoption-20261113/`. No Storage commit, publication or
-fresh hosted/macOS qualification is included in this adoption.
-
-## Pending Wire 0.22.0 adoption
-
-Both catalogs and locks select published IC Wire 0.22.0, archive checksum
-`89cf2de2b642d47bfbc1d4c886cc9351f3f897e35252cd3dc18cb3bffb0293a6`.
-Only Wire's version/checksum changed relative to this adoption's incoming locks;
-both locked caches are prepared. The newer 0.22.1 notes in the supplier checkout
-were unpublished at selection and are not this adoption's source.
-
-Core Storage uses Wire only in key-codec tests and diagnostic size probes. Its
-production collection engines retain their own codecs. Metrics Storage and
-Logging Storage use bounded Wire encoding for persisted checkpoint values; the
-independent runner/benchmark uses it for test-canister protocols. No production
-Platform Types, endpoint or derive feature is introduced by this update.
-
-Both adapters now expose the unit variant `StoreError::Codec`, with no public
-Wire error payload, conversion or error source. Malformed and oversized record
-categories remain distinct; codec implementation details are intentionally hidden.
-Wire remains a private implementation dependency for the existing checkpoint
-formats. Prepare minor notes for Metrics Storage 0.78.0 and Logging Storage
-0.74.0 for this API hard cut, carrying the pending
-Logging 0.25.1 work forward. Core's pending 0.74.1 remains a patch. Package
-versions are unchanged until release. No persistence schema or reset changes.
-
-Focused native checks pass: 30 Metrics tests, 13 Logging tests and five adapter
-doctests; five core key-codec tests; five runtime runner tests (two installed-only
-tests ignored); and 17 benchmark library/protocol tests. These include literal
-checkpoint bytes, reopening retained rows, malformed/trailing input and no-write
-refusals. Adapter Wasm Clippy and production-graph policy pass. No installed
-runtime, performance or Wasm-size result is claimed for the new Wire selection.
-Evidence: `target/evidence/wire-022-adoption-20261113/`. No commit, deployment or
-sibling source change is included.
-
-The subsequent public-error hard cut passes all 43 adapter unit tests and five
-doctests, native all-target and Wasm library Clippy, formatting and documentation
-links. Literal checkpoint-byte and retained-row tests remain unchanged and pass;
-the codec change affects error reporting, not encoding or admission. Existing
-arithmetic error sources remain available; `Codec` has no nested source.
-Evidence: `target/evidence/adapter-codec-errors-20261113/`.
-
-## Performance and preservation boundaries
-
-The [scalar study](../measurements/storage-scalar-scans-2026-11-11.md) owns shipped
-scan/removal improvements. The [identity study](../measurements/storage-identity-lookups-2026-11-12.md)
-owns node-first allocation (no demonstrated Auth win) and rejected refills/scratch.
-Do not restore rejected root-cache, combined-read, compact-frame or decoder-outlining
-trials. Measure first/second/third reads, mutations and application Wasm together.
-
-Independent engines and current formats remain STORNAM1, STORCELL, STORVECT and
-STORMAP1 version 1. ICSS is an external benchmark/test dependency only. Earlier
-images require explicit reset and host framing admission; no automatic reset or
-compatibility reader exists. A new format must not inherit an earlier consumer's
-reset authorization. See [replacement records](../design/independent-storage-replacement.md).
+Independent engines retain STORNAM1, STORCELL, STORVECT and STORMAP1 version 1.
+ICSS is an external benchmark/test reference only. Earlier images require
+explicit host reset/framing admission; no legacy decoder or automatic reset.
+New format work needs its own decision, not another consumer's reset authority.
+See [replacement records](../design/independent-storage-replacement.md).
 
 Preserve failed attempts, archives, receipts, frozen sources, tool caches and
-`.git/release-state/`, including earlier batch evidence linked from the prior
-handoff. Keep stash `f652e8c7400f56f0cab6ad968d05c4c0aee6479d`. Trimming this
-handoff authorizes no artifact cleanup. Target evidence can disappear under an
-explicit cargo clean; durable recipes and decisions remain in measurement docs.
-Preserve unrelated sibling work, including authorized IcyDB preparation at
-`/tmp/icydb-control-layout`, branch `storage/control-allocation`, base `03c5713e`:
-native checks passed, installed composition is unqualified, and durable relocation
-or draft-PR approval remains pending.
+`.git/release-state/`. Keep stash `f652e8c7400f56f0cab6ad968d05c4c0aee6479d`
+and branch `preserve/post-deploy-suppliers-20261113`. No cleanup is authorized.
+Preserve authorized IcyDB preparation at `/tmp/icydb-control-layout`, branch
+`storage/control-allocation`, base `03c5713e`: native checks passed, installed
+composition remains unqualified, and durable relocation/draft-PR approval is
+pending. Handoff trimming authorizes neither sibling changes nor artifact deletion.

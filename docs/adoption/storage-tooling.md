@@ -7,6 +7,81 @@ revision, selected roots, payload hashes and executable modes. The former
 live-policy exception is retired: dirty sibling rules never override the reviewed
 local baseline. Future policy changes require reviewed snapshot adoption.
 
+## Toko 0.43.0 adoption
+
+Both workspace catalogs and locks select published Toko Tooling 0.43.0, checksum
+`060d3507b66eb290ce12bc2572098f7e7cb1e12e9d6697a9b1a5d1552fcb2588`.
+The authenticated update retains the 40 entrypoints and adds the `toko-cloc`
+launcher as a required companion, producing a 101-file snapshot. The common
+Make payload and LOC reporter change; the baseline, release runner, hooks and
+tool pins are unchanged. Only Toko changes relative to either incoming lock.
+
+Storage's help and current setup instructions use `toko-cloc` for both maintained
+workspaces, `--manifest Cargo.toml` for product-only reporting and
+`--manifest qualification/Cargo.toml` for qualification-only reporting. The retired Make target and
+`CLOC_*` settings have no compatibility alias. The existing user-PATH launcher
+matches the published bytes and needs no replacement; each invocation selects
+this checkout's installed reporter. Historical measurement and adoption records
+retain the commands actually used at the time.
+
+Evidence: `target/evidence/toko-0430-adoption-20261114/`. Preserve the pending
+Testkit, supplier and product work, prior hook proofs and failed-release evidence.
+This refresh does not publish or rerun full product release gates.
+Snapshot/member admission, tool setup/admission, pins, formatting, documentation
+links and focused ShellCheck pass. Actual PATH-launcher reports cover all ten
+members by default, three product members with `--manifest Cargo.toml` and seven
+qualification members with `--manifest qualification/Cargo.toml`, with no
+unclassified Rust lines. The old Make target is absent. Neither lock changes
+during reporting; the preceding unchanged-hook qualification remains applicable.
+
+## Toko 0.42.8 adoption
+
+Both workspace catalogs and locks select published Toko Tooling 0.42.8, checksum
+`10dde4572301be0c5540b54a04ddeb71d3cee0fab68e6700e5c6866b6cb877e2`.
+The authenticated installer retains the 40-entrypoint, 100-file selection.
+Relative to 0.42.7, only the hook installer changes in the installed payload:
+source, consumer and repository paths resolve independently of `CDPATH`, so
+vendor installation selects the correct hook directory. The baseline, release
+runner and tool pins remain unchanged. Supplier lock updates are preserved.
+
+The fix passes the unchanged `make test-hooks` caller, retaining its
+inherited `CDPATH`, repeated installation, existing-hook refusal, path-alias and
+formatting/isolation assertions. Evidence is retained under
+`target/evidence/toko-0428-adoption-20261113/`. Prior failed fixtures and the
+frozen release batch remain intact; this adoption does not itself publish or
+turn the failed release gate into passing evidence. Snapshot/member admission,
+explicit tool setup/admission, both workspace pin checks, formatting and
+documentation links also pass. The known hook blocker is cleared; the full
+product release gates have not been rerun by this adoption.
+
+## Toko 0.42.7 adoption
+
+Both workspace catalogs and locks select published Toko Tooling 0.42.7, checksum
+`45e4485be56d9c550a634ed579dabb5f7884d9028042eaaca82847cc247300cb`.
+The authenticated installer preserves the 40-entrypoint, 100-file selection.
+Only the pre-commit hook changes in the installed payload: it resolves its own
+location and scratch path independently of inherited `CDPATH`. The baseline,
+release runner, tool pins and product gates remain unchanged. Incoming Metrics
+and concurrent Logging lock updates are preserved separately from this adoption.
+
+The preceding Storage 0.74.1 release attempt stopped in `validate-tooling` when
+the unchanged `make test-hooks` caller exposed that hook defect. The frozen
+`batch-T5JZrPdp` and its failed gate evidence remain intact; no version change,
+tag, push or publication occurred. The new hook passes the consumer's formatting
+and isolation cases under that same `CDPATH` selection, but the suite then fails
+in hook installation. `vendor/toko-tooling/scripts/dev/install-git-hooks.sh:8`
+still resolves its relative source directory with inherited `CDPATH`; the
+multi-line `tooling_root` prevents recognition of the vendor layout and selects
+the missing root `.githooks` directory. This unchanged canonical installer needs
+its own correction. No managed-file patch or weakened fixture is introduced.
+
+Snapshot/member admission, tool setup/admission, both workspace pin checks,
+formatting and documentation links pass. The hook suite remains failed; its
+retained fixture is `target/fixtures/ic-storage-hooks.oU8S2d/installation`.
+Evidence: `target/evidence/toko-0427-adoption-20261113/` and the original
+`target/evidence/deploy-20261113/storage-release.log`. Adoption does not reuse
+the failed batch as successful release evidence.
+
 ## Toko 0.42.6 adoption
 
 Both workspace catalogs and locks select published Toko Tooling 0.42.6, checksum
@@ -1689,8 +1764,10 @@ Storage extends the common ordered setup/check targets with `install-ic-tools`
 and `ic-tools-check`, and exports `.tools/ic/bin`. Common setup supplies
 `.tools/host/bin` and `.tools/rust/common/bin`. Prepared bundles, failed attempts
 and old selections remain retained; refreshing source never silently installs
-or deletes tools. Fleet reports run in Shared Tooling; local `make cloc` selects
-the root workspace, or an explicit `CLOC_MANIFEST` for the independent graph.
+or deletes tools. `toko-cloc` reports both maintained workspaces; use
+`--manifest Cargo.toml` for the product graph or
+`--manifest qualification/Cargo.toml` for the independent graph.
+Sibling reporting requires an explicit directory argument.
 
 Formatting covers the root workspace, `qualification` and the
 standalone edition-2024 package consumer through declarative `FORMAT_RUST_ARGS`.

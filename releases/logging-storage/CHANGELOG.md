@@ -13,8 +13,8 @@ retains its original package and release identities.
 
 ### 📦 Dependencies
 
-- Select published Logging 0.25.1 in both catalogs and locks. Its production
-  source and the adapter's checkpoint contract are unchanged.
+- Require Logging 0.25.1 or compatible patches; locks select published 0.25.5.
+  The adapter's checkpoint contract is unchanged.
   See [the detailed notes](0.74.md#0740---unreleased).
 
 ## [0.73.0] - 2026-11-13

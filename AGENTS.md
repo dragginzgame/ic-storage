@@ -187,7 +187,7 @@ operations return successful values directly and codec/engine failures trap.
 Changes require native corruption, growth, custody and installed IO/upgrade
 qualification. Keep the single owned engine and direct public codec integration.
 
-The independent qualification workspace consumes Testkit 0.102.0's re-exported
+The independent qualification workspace consumes Testkit 0.104.0's re-exported
 PocketIC async client, with caller-owned Tokio execution, explicit five-minute
 polling budgets and awaited best-effort instance deletion. The managed CLI bounds
 server lifetime; the client budget is not an absolute HTTP deadline. Testkit owns

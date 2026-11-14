@@ -3,16 +3,16 @@
     "file": "Cargo.toml",
     "rule": "cargo-exact",
     "subject": "toko-tooling",
-    "value": "=0.42.6",
+    "value": "=0.43.0",
     "reason": "Toko Tooling requires exact Cargo selection matching the authenticated executable snapshot; compatible ranges cannot admit that installation contract.",
-    "evidence": "docs/adoption/storage-tooling.md#toko-0426-adoption"
+    "evidence": "docs/adoption/storage-tooling.md#toko-0430-adoption"
   },
   {
     "file": "qualification/Cargo.toml",
     "rule": "cargo-exact",
     "subject": "toko-tooling",
-    "value": "=0.42.6",
+    "value": "=0.43.0",
     "reason": "Toko Tooling requires exact Cargo selection matching the authenticated executable snapshot; compatible ranges cannot admit that installation contract.",
-    "evidence": "docs/adoption/storage-tooling.md#toko-0426-adoption"
+    "evidence": "docs/adoption/storage-tooling.md#toko-0430-adoption"
   }
 ]

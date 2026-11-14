@@ -14,12 +14,14 @@ retains its original package and release identities.
 
 - Adopt IC Wire 0.22.0 for tests, diagnostic probes and independent qualification;
   keep core Storage's production graph free of Wire.
-- Adopt Testkit 0.102.0 for the independent runner and server CLI, retaining
+- Adopt Testkit 0.104.0 for the independent runner and server CLI, retaining
   PocketIC 16.1.0 and caller-owned lifecycle. Remove older duplicate
   Platform/Types selections through the supplier's published requirements.
-- Adopt Toko Tooling 0.42.6, offline `make deps-list`, the common Cargo lint
+- Adopt Toko Tooling 0.43.0, offline `make deps-list`, the common Cargo lint
   minimum and strict Rustdoc tables. Remove unused catalog/metadata declarations;
   preserve all release members and document native test-dependency isolation.
+- Fix hook execution/installation with inherited `CDPATH`; replace `make cloc`
+  with the `toko-cloc` PATH launcher and explicit workspace selection.
 - Adopt the bootstrap alias correction and source-only tooling marker for
   binary-only tests, preserving dependency linting and release safeguards.
 - Migrate shared executables, Make/CI callers and hooks to `vendor/toko-tooling/`,

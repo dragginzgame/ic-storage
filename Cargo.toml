@@ -17,7 +17,7 @@ categories = ["wasm", "data-structures"]
 
 [workspace.dependencies]
 ic-storage = { path = "crates/ic-storage", version = "0.74.0" }
-toko-tooling = "=0.42.6"
+toko-tooling = "=0.43.0"
 
 # External production dependencies.
 ic-logging = { version = "0.25.1", default-features = false }

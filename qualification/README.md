@@ -31,11 +31,11 @@ the installed fixtures without retained mutation. Rebuild fixtures and runner
 together: the earlier raw packet protocol has been retired. These schemas add
 no public library endpoint and change no durable ledger or collection format.
 
-Testkit 0.102.0 re-exports the async PocketIC client and selects server 16.1.0.
+Testkit 0.104.0 re-exports the async PocketIC client and selects server 16.1.0.
 Drivers own a current-thread Tokio runtime, five-minute polling budgets and
 awaited best-effort instance deletion. The managed CLI bounds server lifetime;
 the polling budget is not an absolute HTTP deadline. The composition fixture
-independently selects Platform 0.31 / Runtime 0.21. Native client dependencies
+independently selects Platform 0.32 / Runtime 0.22. Native client dependencies
 do not enter product Wasm. Prepare the
 server explicitly with `make install-runtime-server`,
 check it offline with `make runtime-server-check`, and prepare the selected IC

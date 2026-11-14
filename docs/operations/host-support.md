@@ -130,7 +130,7 @@ already tracked by Git. Adopt new locks through an explicitly authorized commit
 or PR before the real-checkout declaration/release gate can pass; qualification
 alone does not authorize staging them.
 
-Installed runtime qualification uses the published `ic-testkit` 0.102.0 server CLI
+Installed runtime qualification uses the published `ic-testkit` 0.104.0 server CLI
 selected in `ci/runtime-tools.env`, installed through Shared Tooling's exact Cargo
 binary installer. It has a separate locked registry tool graph, outside both
 workspace lockfiles. Prepare it and Testkit's authenticated server selection explicitly:
@@ -152,7 +152,7 @@ Wasm, input hashes and all optimizer/server/runtime logs remain under
 `target/qualification/runtime/`, including failures. Normal library builds and
 their Wasm budgets remain unoptimized. The runner consumes
 `IC_TESTKIT_POCKET_IC_URL`; it never downloads or
-spawns a server. Testkit 0.102.0 re-exports PocketIC's async client and
+spawns a server. Testkit 0.104.0 re-exports PocketIC's async client and
 selects server 16.1.0. Drivers own a current-thread Tokio runtime, explicit
 five-minute polling budgets and awaited best-effort instance deletion. The
 managed CLI bounds server lifetime; polling budgets are not absolute HTTP
@@ -213,7 +213,7 @@ cargo +1.100.0 build --manifest-path qualification/Cargo.toml \
   --target-dir target -p ic-storage-test-fixtures --locked --offline --profile wasm-size \
   --target wasm32-unknown-unknown --example wasm-storage-qualification
 testkit_cli="$(RUSTUP_TOOLCHAIN=1.100.0 bash vendor/toko-tooling/scripts/dev/install-rust-tools.sh \
-  --consumer "$PWD" --package ic-testkit --version 0.102.0 \
+  --consumer "$PWD" --package ic-testkit --version 0.104.0 \
   --bin ic-testkit-server --profile release --features cli --check)"
 IC_STORAGE_QUALIFICATION_WASM="$PWD/target/wasm32-unknown-unknown/wasm-size/examples/wasm_storage_qualification.wasm" \
   "$testkit_cli" run --directory "$PWD/.tools/ic-testkit-server" --ttl 900 -- \
@@ -237,20 +237,23 @@ The normal installed runner includes this proof alongside its existing IO and
 Storage qualification. Custom host backings must implement `MemoryBacking` with
 one consistent physical identity; generic `Memory` alone is insufficient.
 
-`make cloc` reports the root library workspace by default using locked, offline
-Cargo metadata; it neither builds nor installs tools. Select the independent
-qualification graph explicitly with
-`make cloc CLOC_MANIFEST=qualification/Cargo.toml`. Each report
-uses only the selected workspace and its target configuration; reports do not
-combine the two graphs. `CLOC_ROOT` still selects a containing checkout, rather
-than an independent manifest. The selector is the reviewed fix for
-[Shared Tooling #41](https://github.com/dragginzgame/toko-tooling/issues/41).
-Fleet reports run centrally in Shared Tooling: use `make cloc` there for sibling
-Rust workspaces and `make cloc-tooling` there for sibling CI/tooling. Memory no
-longer vendors either fleet reporter. Its shared Make include reports that owner
-if an omitted optional fleet report is requested; it never invokes a sibling
-implicitly. Local workspace reports and their independent-manifest selection
-remain available.
+Install the reviewed LOC launcher once on your user PATH:
+
+```sh
+mkdir -p "$HOME/.local/bin"
+install -m 755 vendor/toko-tooling/scripts/dev/toko-cloc "$HOME/.local/bin/toko-cloc"
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+`toko-cloc` selects this checkout's installed reporter and prepared tools. It
+reports both maintained workspaces using locked, offline Cargo metadata,
+counting shared source paths once; it neither builds nor installs tools.
+Use `toko-cloc --manifest Cargo.toml` for the product graph or
+`toko-cloc --manifest qualification/Cargo.toml` for the independent graph.
+An explicit manifest selects only that workspace. Use `-d N` for module depth or `--json`
+for structured output. Sibling reporting is explicit through `toko-cloc ..`;
+ordinary Storage checks do not invoke it. Toko 0.43 retires `make cloc` and its
+`CLOC_*` settings without aliases.
 
 The LOC selector and generic manifest/output fixture qualify at Shared Tooling.
 Actual reports retain their selected workspace configuration. These fixes track
