@@ -5,6 +5,21 @@ runner and `ic-storage-rust-startup-probe` canister fixture. Product code stays
 under `crates/`; product crates never depend on this workspace. All packages
 remain unpublished.
 
+The [native feasibility experiment](native-feasibility/README.md) separately
+tests scoped ownership, forgotten tickets and native poisoning with live host
+allocations. `make native-feasibility-test` runs offline and joins CI. It does
+not retain std layouts or qualify the native persistence gate.
+Its `make native-layout-probe` diagnostic compiles host/wasm32 record variants,
+inspects private Vec debug metadata and rejects equal-size layout equivalence;
+it does not grant retained-state admission.
+
+The [checkpoint provider experiment](checkpoint-provider-probe/README.md) uses
+published Storage 0.74.1 through governed handles. Ordinary installed upgrades
+discard the source heap and reconstruct scalar/vector values from the bounded
+checkpoint. It exercises independent opening and failed-import rollback, not
+retained native allocation validity. Run `make checkpoint-provider-lint`,
+`make checkpoint-provider-build` and `make checkpoint-provider-test`.
+
 These fixtures qualify the existing byte-defined M0 experiment and selected IC
 mechanisms. They do not yet qualify the native retained allocator, collection
 layouts or migration paths selected in the [current design](../docs/DESIGN.md).

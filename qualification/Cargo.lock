@@ -824,6 +824,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "ic-storage-checkpoint-provider-probe"
+version = "0.1.0"
+dependencies = [
+ "ic-platform-runtime",
+ "ic-storage",
+ "ic-storage-native-feasibility",
+ "toko-tooling",
+]
+
+[[package]]
+name = "ic-storage-native-feasibility"
+version = "0.1.0"
+dependencies = [
+ "sha2 0.11.1",
+ "toko-tooling",
+]
+
+[[package]]
 name = "ic-storage-new"
 version = "0.1.2"
 dependencies = [

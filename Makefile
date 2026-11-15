@@ -3,6 +3,9 @@ FORMAT_RUST_ARGS := --extra-workspace qualification
 
 RETENTION_CARGO := --manifest-path qualification/Cargo.toml -p ic-storage-retention-probe --target-dir target/qualification --locked --offline
 BENCH_CARGO := --manifest-path qualification/Cargo.toml -p ic-storage-simple-benchmarks --locked --offline
+NATIVE_FEASIBILITY_CARGO := --manifest-path qualification/Cargo.toml -p ic-storage-native-feasibility --target-dir target/qualification --locked --offline
+CHECKPOINT_CARGO := --manifest-path qualification/Cargo.toml -p ic-storage-checkpoint-provider-probe --target wasm32-unknown-unknown --locked --offline --release
+CHECKPOINT_LINK := -C link-arg=--stack-first -C link-arg=-zstack-size=1048576 -C link-arg=--initial-memory=2097152 -C link-arg=--max-memory=16777216
 RETENTION_TOOL := bash vendor/toko-tooling/scripts/dev/install-rust-tools.sh --consumer "$(CURDIR)" --package ic-testkit --lockfile qualification/Cargo.lock --bin ic-testkit-server --profile release --features cli
 RUST_STARTUP_CARGO := --manifest-path qualification/Cargo.toml -p ic-storage-rust-startup-probe --target wasm32-unknown-unknown --locked --offline --release
 RUST_STARTUP_LINK := -C link-arg=--stack-first -C link-arg=-zstack-size=1048576 -C link-arg=--initial-memory=8454144 -C link-arg=--max-memory=16777216 -C link-arg=--export=__stack_pointer -C link-arg=--export=__data_end -C link-arg=--export=__heap_base
@@ -34,6 +37,14 @@ managed-graph-build managed-graph-lint managed-graph-test: | toko-execution-chec
 benchmark-simple benchmark-simple-build benchmark-simple-lint: export CARGO_NET_OFFLINE := true
 benchmark-simple benchmark-simple-build benchmark-simple-lint: | toko-execution-check
 
+.PHONY: native-feasibility-test native-feasibility-lint native-layout-probe
+native-feasibility-test native-feasibility-lint native-layout-probe: export CARGO_NET_OFFLINE := true
+native-feasibility-test native-feasibility-lint native-layout-probe: | toko-execution-check
+
+.PHONY: checkpoint-provider-build checkpoint-provider-lint checkpoint-provider-test
+checkpoint-provider-build checkpoint-provider-lint checkpoint-provider-test: export CARGO_NET_OFFLINE := true
+checkpoint-provider-build checkpoint-provider-lint checkpoint-provider-test: | toko-execution-check
+
 .PHONY: help check lint doc-check deps-check deps-pins deps-boundaries deps-tree
 check lint doc-check deps-check deps-pins deps-boundaries deps-tree: | toko-execution-check
 
@@ -57,6 +68,12 @@ help:
 	  'make managed-graph-test           Test installed graph upgrades and rollback' \
 	  'make benchmark-simple            Build and measure M0 vs published Storage' \
 	  'make benchmark-simple-lint       Lint both benchmark backends and runner' \
+	  'make native-feasibility-test     Test host-only scoped ownership boundaries' \
+	  'make native-feasibility-lint     Lint the native ownership experiment' \
+	  'make native-layout-probe         Inspect host/wasm compiler layout diagnostics' \
+	  'make checkpoint-provider-build  Build ordinary-upgrade checkpoint fixtures' \
+	  'make checkpoint-provider-lint   Lint provider fixtures and installed test' \
+	  'make checkpoint-provider-test   Test fresh-heap recovery and import rollback' \
 	  'make ci                          Aggregate hosted validation gate' \
 	  'make install-hooks               Activate the canonical formatting hook' \
 	  'make deps-check                  Aggregate dependency policy checks' \
@@ -80,7 +97,7 @@ doc-check:
 	+cargo doc $(RUST_STARTUP_CARGO) --target-dir target/qualification --features managed-graph --no-deps
 
 # Host setup and locked dependency fetching happen explicitly before this gate.
-ci: fmt-check deps-check lint doc-check m0-test m0-lint-wasm retention-lint rust-startup-lint managed-graph-lint benchmark-simple-lint
+ci: fmt-check deps-check lint doc-check m0-test m0-lint-wasm retention-lint rust-startup-lint managed-graph-lint benchmark-simple-lint native-feasibility-test native-layout-probe checkpoint-provider-lint
 
 deps-check: toko-tooling-check deps-pins deps-boundaries
 
@@ -91,6 +108,8 @@ deps-boundaries:
 	+bash "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-dependency-boundaries.sh" --consumer "$(CURDIR)" --external-ic
 	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)" --package ic-storage-new --target all --forbid toko-tooling
 	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)/qualification" --package ic-storage-retention-probe --target all --forbid toko-tooling
+	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)/qualification" --package ic-storage-native-feasibility --target all --forbid toko-tooling
+	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)/qualification" --package ic-storage-checkpoint-provider-probe --target wasm32-unknown-unknown --all-features --require ic-storage=1 --require ic-platform-runtime=1 --forbid ic-platform --forbid ic-platform-types --forbid ic-platform-runtime-guard --forbid toko-tooling
 	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)/qualification" --package ic-storage-rust-startup-probe --target wasm32-unknown-unknown --require ic-platform-runtime=1 --forbid ic-platform --forbid ic-platform-types --forbid ic-platform-runtime-guard --forbid toko-tooling
 	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)/qualification" --package ic-storage-rust-startup-probe --target wasm32-unknown-unknown --all-features --require ic-storage-new=1 --require ic-platform-runtime=1 --forbid ic-platform --forbid ic-platform-types --forbid ic-platform-runtime-guard --forbid toko-tooling
 	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)/qualification" --package ic-storage-simple-benchmarks --target wasm32-unknown-unknown --all-features --require ic-storage=1 --require ic-platform-runtime=1 --forbid ic-platform --forbid ic-platform-types --forbid ic-platform-runtime-guard --forbid toko-tooling
@@ -157,3 +176,27 @@ benchmark-simple-lint:
 
 benchmark-simple: benchmark-simple-build
 	+@server="$$($(RETENTION_TOOL) --check)" && "$$server" run -- cargo run $(BENCH_CARGO) --example compare --target-dir target/qualification
+
+native-feasibility-lint:
+	+cargo clippy $(NATIVE_FEASIBILITY_CARGO) --all-targets -- -D warnings
+	+cargo clippy $(NATIVE_FEASIBILITY_CARGO) --example layout_probe --features layout-swapped -- -D warnings
+
+# Keep lint ordered before execution even when Make runs in parallel.
+native-feasibility-test: native-feasibility-lint
+	+cargo test $(NATIVE_FEASIBILITY_CARGO)
+
+native-layout-probe: native-feasibility-lint
+	+bash qualification/native-feasibility/scripts/run-layout-probe.sh
+
+checkpoint-provider-build:
+	@test -z "$${RUSTFLAGS}$${CARGO_ENCODED_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_LINKER}" || { echo 'Checkpoint fixtures require no environment flag/linker overrides' >&2; exit 1; }
+	+cargo rustc $(CHECKPOINT_CARGO) --target-dir target/qualification/checkpoint-a -- $(CHECKPOINT_LINK)
+	+cargo rustc $(CHECKPOINT_CARGO) --target-dir target/qualification/checkpoint-b --features version-b -- $(CHECKPOINT_LINK)
+
+checkpoint-provider-lint:
+	+cargo clippy $(CHECKPOINT_CARGO) --target-dir target/qualification -- -D warnings
+	+cargo clippy $(CHECKPOINT_CARGO) --target-dir target/qualification --features version-b -- -D warnings
+	+cargo clippy $(RETENTION_CARGO) --test checkpoint_provider -- -D warnings
+
+checkpoint-provider-test:
+	+@server="$$($(RETENTION_TOOL) --check)" && "$$server" run -- cargo test $(RETENTION_CARGO) --test checkpoint_provider -- --nocapture

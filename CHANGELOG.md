@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.1.3] - Unreleased
+
+### 🧪 Testing
+
+- Add a host-only native ownership experiment with scoped scalar/vector access,
+  tracked detach/attach/retire, owner-escape rejection and forgotten-ticket
+  quarantine. Exercise ordinary error preservation and panic poisoning through
+  `make native-feasibility-test`, included in CI. Native layout admission,
+  persistence and native incompatible-runtime migration remain unimplemented.
+- Add `make native-layout-probe` to inspect compiler-emitted host/wasm32 field
+  layouts, distinguish equal-sized reordered records and exercise malformed
+  metadata refusal. Keep raw diagnostics under target and explicitly separate
+  those observations from persistence admission.
+- Exercise real standard-library vectors with a bounded private host allocator,
+  same-domain parking/reopening, run reuse and failure/forgetting cases. Document
+  the pointer and ownership argument separately from unresolved IC reopening.
+- Specify and test a bounded scalar/vector checkpoint with schema/epoch checks,
+  completeness and integrity validation. Reconstruct after source-arena teardown
+  and preserve an existing host root on corrupt input or target allocation failure;
+  the native migration gate remains incomplete.
+- Add an installed checkpoint-provider fixture using published Storage 0.74.1
+  and fresh governed handles. Test ordinary A→B→A upgrades that discard Wasm
+  memory, continued writes, rejected checkpoints and rollback after a target
+  stable write. Record the provider/locator contract and add focused Make/CI
+  checks; this does not qualify native heap reopening or compiler transitions.
+
+### 📚 Documentation
+
+- Define the intended derive-based stored-type surface, with recursive field
+  eligibility, scoped ownership, portable codecs and explicit versioned
+  conversions. Distinguish these declarations from runtime/layout admission.
+- Describe a proposed IcyDB separation between stable index structure and
+  evolving records, including when inline values or index changes require
+  structural conversion or rebuilding.
+
 ## [0.1.2] - 2026-11-15
 
 ### ➕ Added

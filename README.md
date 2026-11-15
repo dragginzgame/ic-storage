@@ -53,6 +53,8 @@ make fmt-check
 make lint
 make m0-test
 make m0-lint-wasm
+make native-feasibility-test
+make native-layout-probe
 make doc-check
 make deps-list
 make deps-tree
@@ -112,6 +114,21 @@ formats the selected commit payload without modifying unrelated work.
 the current M0 scalar and linked sequence with Storage 0.74.1's cell and vector.
 They report IC instruction counts and check complete state after every sample;
 these are implementation costs, not raw memory-speed measurements.
+
+The [native ownership experiment](qualification/native-feasibility/README.md)
+tests scoped moves, owner escape refusals and forgotten-ticket quarantine. It
+uses live host allocations. A compiler diagnostic probe also measures private
+Vec header fields on the host and wasm32 and detects equal-sized reordered
+records; complete native layout admission and reopening remain open.
+Its [live allocation probe](qualification/native-feasibility/allocation-boundary.md)
+also tests real std vectors, allocation reuse and reopening within the same live
+host arena. It does not establish allocation custody across an IC upgrade.
+A [bounded checkpoint codec](qualification/native-feasibility/checkpoint-format.md)
+tests reconstruction after source teardown. The
+[installed provider probe](qualification/checkpoint-provider-probe/README.md)
+recovers through fresh Storage handles after ordinary upgrades discard the old
+heap, with failed-import rollback tests. Native incompatible-runtime migration
+remains an open gate.
 
 Library code lives in `crates/`. See [qualification/](qualification/README.md)
 for fixture contracts, commands and evidence scope. Production canister

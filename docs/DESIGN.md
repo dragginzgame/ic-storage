@@ -148,6 +148,67 @@ A derive marker alone proves none of these contracts. Opaque third-party types
 require explicit review. Stable schema identities and frozen declarations belong
 to owners; compiler TypeId values and raw addresses are not durable application IDs.
 
+### Application type declarations
+
+Use ordinary-looking Rust records with a derive-based persistence declaration
+as the intended application surface. The following syntax and collection names
+are illustrative, not implemented APIs or a decision to retain std Vec:
+
+```rust,ignore
+#[derive(Store)]
+#[store(id = "game.player", version = 1)]
+struct Player {
+    id: u64,
+    experience: u64,
+    inventory: StoredVec<Item>,
+}
+
+#[derive(Store)]
+#[store(id = "game.item", version = 1)]
+struct Item {
+    kind: u32,
+    quantity: u64,
+}
+```
+
+`StoredVec` denotes an admitted persistent owner, with its allocator and concrete
+element representation included in admission. Reuse of standard-library
+algorithms or storage remains subject to the layout and custody feasibility gate.
+Declaring a type does not allocate it, register a persistent root or make existing
+Global allocations persistent; construction and root attachment occur through
+the admitted runtime's scoped ownership operations.
+
+The derive should generate or require:
+
+- A stable owner-assigned schema identity and version, independent of Rust type
+  names, module paths and compiler TypeId. Frozen versions must not be silently
+  redefined; field identities and encoding rules belong to the portable contract.
+- Recursive eligibility checks for each concrete field and collection element.
+  Initially reject ordinary heap owners, borrowed references, executable
+  pointers, futures, runtime resources and arbitrary application Drop. An
+  unchecked manual marker implementation must not bypass admission.
+- Ownership metadata distinguishing scalar data from admitted owning edges,
+  including the operations required to move, attach, retire and export them.
+- Versioned logical export/import support composed from admitted field codecs,
+  with bounded decoding and exercised round trips. Generation does not waive
+  identity, ownership or completeness checks, nor imply routine serialization.
+- Scoped record and collection views that expose permitted scalar operations
+  and tracked owner operations without unrestricted mutable access to the
+  owning record. Apply the same restrictions recursively to owning elements.
+
+Keep transient services and caches outside stored records in the first subset;
+an attribute that merely skips their serialization would not make their native
+representation safe to retain. Application code should not implement unsafe
+layout or pointer reconstruction to use the derive.
+
+The derive describes the contract and connects its checks; it is not a layout
+certificate, allocator authority or upgrade admission decision. Compiler tooling
+or a representation we control must separately establish the complete actual
+layout, including collection internals. The kernel must establish allocation
+and pointer validity before generated views can access a retained value.
+Implement the derive only after the small native lifecycle and portable proof
+establish these mechanisms; this surface does not change the gate ordering.
+
 ### Borrowing and ownership boundaries
 
 The first public API prohibits untracked retained-owner extraction, including
@@ -269,6 +330,15 @@ hash, byte copy, or passing native/installed test is not by itself that argument
 If a complete justification cannot be established, reject the native mechanism
 and choose a supported representation or explicit compiler/runtime integration.
 
+The [live allocation boundary experiment](../qualification/native-feasibility/allocation-boundary.md)
+now exercises one narrower mechanism: park a vector while its original arena
+allocation remains live, validate a unique token against an allocation ledger,
+and reconstruct a fresh std header through the public raw-parts API. It derives
+pointers from the original allocation rather than integer addresses. This is
+not an IC reopening argument: it does not establish a new allocation domain
+after instantiation. Ephemeral std headers are a candidate alternative for this
+subset, not a selected product ABI or a solution for private collection nodes.
+
 ### Lifecycle ordering
 
 The normal lifecycle is:
@@ -305,6 +375,15 @@ versions. A converter reads the actual admitted predecessor type and constructs
 the target type; unknown predecessors refuse. Compiling a historical declaration
 with an incompatible new compiler does not recover the historical native layout.
 
+For derive-declared records, preserve declarations such as PlayerV1 and PlayerV2
+under the same stable schema identity with distinct versions, and register an
+explicit supported conversion from V1 to V2. A version attribute alone neither
+defines nor authorizes that conversion. Simple declared defaults may eventually
+be generated; changes in meaning, range, ownership or indexing require explicit
+policy. Converters use admitted predecessor views and tracked ownership moves,
+not an unrestricted mutable owning record. A runtime incompatibility selects
+portable reconstruction even when the logical application schema is unchanged.
+
 | Change | Required treatment |
 | --- | --- |
 | Add a field with an explicit default | Construct the new record; move unchanged compatible owners |
@@ -313,6 +392,33 @@ with an incompatible new compiler does not recover the historical native layout.
 | Change key ordering, equality, hashing or index semantics | Rebuild and validate the affected index |
 | Remove an owning field | Explicitly move or retire it under the admitted source contract |
 | Change runtime/allocator/native collection representation incompatibly | Use the portable migration path; do not cast or drop through the target type |
+
+### Collection structure versus application records
+
+For a future IcyDB integration, prefer separating index structure from evolving
+application records where its storage and performance contracts permit it. A
+B-tree whose values are stable record IDs can retain its admitted node/key/value
+representation while records behind those IDs undergo explicit type conversion.
+Preserve the IDs when replacing records so unchanged index entries still locate
+the converted records. This is a proposed integration boundary, not a statement
+about IcyDB's current implementation or authorization to migrate it.
+
+| Change | Potential reuse and required work |
+| --- | --- |
+| Non-indexed record fields change; tree stores stable record IDs | Convert records and update their admitted lookup bindings; reuse the tree if its complete contract and indexed values remain compatible |
+| Record values are embedded inline in tree nodes | Changed value layout can change node layout; convert or rebuild affected tree storage unless complete compatibility is established |
+| Key representation, comparator, collation or index definition changes | Convert keys and rebuild affected indexes under the new interpretation contract |
+| An indexed field's value or meaning changes during record conversion | Update or rebuild affected index entries even if node layout is unchanged |
+| Tree implementation changes under an otherwise compatible, admitted runtime | Require a supported structural conversion or rebuild; unchanged application schema is insufficient |
+| Allocator or compiler representation becomes incompatible | Use portable reconstruction rather than directly reopening the old tree, even when its logical keys and records are unchanged |
+
+Stable IDs are logical identities, not raw addresses or permission to reopen
+old pointers. Their lookup representation and ownership rules also need their
+own admission and migration contracts. Separate versions for tree structure,
+record schemas and index semantics make reuse explicit; they do not make those
+components independently safe by assumption. Publish converted records and
+affected indexes consistently, using an atomic conversion when bounded or the
+qualified resumable protocol before enabling normal queries and writes.
 
 Converters must be deterministic, owner-scoped and bounded. No external calls,
 clock/random dependencies or unrelated application effects. Preserve sharing
@@ -346,6 +452,15 @@ object identities, bounded lengths/counts, ownership/reference kinds, integrity
 coverage and an explicit completeness marker. Its exact byte format and codecs
 must be specified and independently tested before use.
 
+The first [scalar/vector checkpoint fixture](../qualification/native-feasibility/checkpoint-format.md)
+now specifies and exercises a bounded envelope with schema/root/ownership IDs,
+source epoch, completeness marker and SHA-256 coverage. Host tests destroy the
+source arena before reconstructing a fresh target with reordered record fields.
+This establishes a small logical round trip. The separate installed provider
+experiment below exercises durability without the old heap; neither experiment
+completes the native incompatible-runtime migration proof. The prototype format admits
+only one counter and one unique u64 vector; it cannot encode shared/cyclic graphs.
+
 Assign checkpoint-local object IDs and preserve aliasing/cycles with an identity
 map. Define weak-edge and unreachable-resource policy explicitly. Reconstruct
 object identities before connecting graph edges, and validate all required
@@ -369,6 +484,15 @@ exact package/artifact, lockfile, stable format and owned checkpoint key/locator
 before the first provider-backed proof. Production access continues to use
 governed Storage handles; this design does not authorize raw ungoverned stable
 allocations or silently select a different provider version.
+
+The [installed provider fixture](../qualification/checkpoint-provider-probe/README.md)
+now pins that reader, its directory/cell formats and an owned stable key. It
+exports the bounded scalar/vector checkpoint, performs ordinary upgrades that
+discard the source Wasm heap, and reconstructs through new governed handles.
+Local PocketIC evidence covers A→B→A, continued mutation, refused imports and
+rollback after a target stable write. These are transient Global-owned vectors,
+not retained native allocations: this proves independent provider opening, not
+complete layout admission, direct-reopen refusal or the full native migration gate.
 
 This repository owns the checkpoint envelope, locator/adapter specification,
 source/target conformance fixtures and maintenance of the qualified reader
@@ -490,11 +614,33 @@ those historical results; each linked record owns its artifacts and test scope:
 | [Rust startup/growth probe](../qualification/rust-startup-probe/README.md) | Controlled transient initialization and bounded growth for the admitted wasm32 artifacts |
 | [M0 graph probe](../qualification/rust-startup-probe/managed-graph.md) | Byte-defined sharing/cycles, allocator continuation and selected installed rollback cases |
 | [M0 vs Storage benchmarks](../qualification/simple-benchmarks/README.md) | Current implementation instruction costs, including session read reuse |
+| [Native ownership experiment](../qualification/native-feasibility/README.md) | Host-only scalar/vector confinement, tracked moves, forgotten-ticket quarantine and ordinary Err/panic behavior |
+| [Compiler layout diagnostics](../qualification/native-feasibility/README.md#compiler-layout-diagnostics) | Stable-compiler debug metadata exposes selected private Vec header fields on host/wasm32; equal-sized reordered records are distinguished |
+| [Live allocation custody](../qualification/native-feasibility/allocation-boundary.md) | A private host arena supports real std vectors, same-domain parking/reopening, run reuse and selected failure/forgetting cases |
+| [Scalar/vector checkpoint](../qualification/native-feasibility/checkpoint-format.md) | Bounded logical bytes, refusal cases and reconstruction after source-arena teardown; candidate failure preserves the existing host root |
+| [Installed checkpoint provider](../qualification/checkpoint-provider-probe/README.md) | Fresh governed handles reconstruct scalar/vector state after ordinary upgrades discard Wasm memory; selected failed imports preserve the previous module, heap observations and stable bytes |
 
-These do not qualify native allocator metadata, standard-library layouts,
-destructors, native pointer retention, schema conversion or portable recovery.
+These do not qualify retained native allocator metadata, standard-library
+layouts across upgrades, retained destruction, native pointer retention, schema
+conversion or a native incompatible-runtime transition.
 M0 remains a regression/evidence baseline; it is not the new persistent ABI.
 The [frozen M0 format](design/m0-layout.md) remains unchanged.
+
+The first native ownership experiment uses live Global allocations solely to
+exercise the proposed access boundary. Its std Vec is not retained or certified.
+The separate live-arena and checkpoint experiments establish same-domain
+reopening and a host logical round trip. The provider fixture adds installed
+bounded checkpoint recovery without establishing cross-instance native allocation
+validity. Gate 1 is still incomplete. Shared-owner cloning, provider
+loans and owning elements
+remain excluded rather than being inferred safe from the scalar-vector cases.
+
+The compiler diagnostic probe supplies a candidate measurement source for private
+headers without a nightly compiler. Its recursive metadata observations are not
+representation certificates: allocation/initialization and validity semantics,
+debug-metadata fidelity, controlled std provenance and binding to the actual
+optimized executable remain unresolved. Do not use a diagnostic report or its
+successful collection marker to authorize retained interpretation.
 
 Proceed with bounded experiments in this order:
 

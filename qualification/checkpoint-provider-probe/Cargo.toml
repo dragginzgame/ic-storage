@@ -1,0 +1,29 @@
+[package]
+name = "ic-storage-checkpoint-provider-probe"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+
+[target.'cfg(any())'.dev-dependencies]
+toko-tooling.workspace = true
+
+[package.metadata.toko-tooling.loc]
+category = "tests"
+
+[lib]
+crate-type = ["cdylib"]
+test = false
+doctest = false
+
+[features]
+version-b = []
+
+[dependencies]
+ic-platform-runtime = { workspace = true, features = ["ic0"] }
+ic-storage.workspace = true
+ic-storage-native-feasibility.workspace = true
+
+[lints]
+workspace = true

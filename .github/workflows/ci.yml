@@ -58,6 +58,10 @@ jobs:
         run: |
           make managed-graph-build 2>&1 | tee target/evidence/managed-graph-build.log
           make managed-graph-test 2>&1 | tee target/evidence/managed-graph-test.log
+      - name: Build and validate independent checkpoint provider
+        run: |
+          make checkpoint-provider-build 2>&1 | tee target/evidence/checkpoint-provider-build.log
+          make checkpoint-provider-test 2>&1 | tee target/evidence/checkpoint-provider-test.log
       - name: Retain diagnostics
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -1,6 +1,12 @@
 [workspace]
 resolver = "3"
-members = ["retention-probe", "rust-startup-probe", "simple-benchmarks"]
+members = [
+    "checkpoint-provider-probe",
+    "native-feasibility",
+    "retention-probe",
+    "rust-startup-probe",
+    "simple-benchmarks",
+]
 
 [workspace.package]
 version = "0.1.0"
@@ -12,11 +18,13 @@ license-file = "../LICENSE.md"
 ic-host-artifacts = "0.79.0"
 ic-platform-runtime = { version = "0.22.5", default-features = false }
 ic-storage = "0.74.1"
+ic-storage-native-feasibility = { path = "native-feasibility" }
 ic-storage-new = { path = "../crates/ic-storage-new" }
 ic-storage-retention-probe = { path = "retention-probe" }
 ic-storage-simple-benchmarks = { path = "simple-benchmarks" }
 ic-testkit = "0.106.0"
 serde_json = "1.0.154"
+sha2 = { version = "0.11.1", default-features = false }
 tokio = "1.54.1"
 toko-tooling = "=0.44.3"
 wasm-encoder = { version = "0.263.0", default-features = false }
