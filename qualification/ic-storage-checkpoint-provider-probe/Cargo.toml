@@ -18,6 +18,7 @@ test = false
 doctest = false
 
 [features]
+native-bridge = []
 version-b = []
 
 [dependencies]

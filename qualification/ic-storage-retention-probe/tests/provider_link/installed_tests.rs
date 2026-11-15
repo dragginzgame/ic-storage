@@ -24,7 +24,7 @@ async fn read(pic: &PocketIc, id: CanisterId) -> u64 {
     u64::from_le_bytes(bytes.try_into().expect("one native u64"))
 }
 
-async fn update(pic: &PocketIc, id: CanisterId, method: &str) {
+pub(super) async fn update(pic: &PocketIc, id: CanisterId, method: &str) {
     assert!(
         pic.update_call(id, id, method, vec![])
             .await
@@ -33,7 +33,7 @@ async fn update(pic: &PocketIc, id: CanisterId, method: &str) {
     );
 }
 
-async fn stopped_hash(pic: &PocketIc, id: CanisterId) -> Vec<u8> {
+pub(super) async fn stopped_hash(pic: &PocketIc, id: CanisterId) -> Vec<u8> {
     pic.stop_canister(id, None).await.unwrap();
     pic.canister_status(id, None)
         .await

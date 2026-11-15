@@ -3,8 +3,8 @@
 set -euo pipefail
 
 mode="${1:-artifact}"
-if [[ $# -gt 1 || ( "$mode" != artifact && "$mode" != installed ) ]]; then
-    echo 'usage: run-provider-probe.sh [artifact|installed]' >&2
+if [[ $# -gt 1 || ( "$mode" != artifact && "$mode" != installed && "$mode" != migration ) ]]; then
+    echo 'usage: run-provider-probe.sh [artifact|installed|migration]' >&2
     exit 1
 fi
 
@@ -28,6 +28,15 @@ mkdir "$output/vector"
 cp qualification/ic-storage-native-feasibility/tests/fixtures/provider_vector.rs \
     qualification/ic-storage-native-feasibility/tests/fixtures/region.rs "$output/vector/"
 cp -R qualification/ic-storage-native-feasibility/tests/fixtures/region "$output/vector/region"
+cp -R qualification/ic-storage-retention-probe/tests/provider_custody/vector "$output/vector/provider-source"
+cp qualification/ic-storage-native-feasibility/vector-provider-contract.md "$output/vector/"
+if [[ "$mode" == migration ]]; then
+    cp -R qualification/ic-storage-checkpoint-provider-probe/src "$output/checkpoint-source"
+    cp -R qualification/ic-storage-native-feasibility/src/checkpoint "$output/checkpoint-codec"
+    cp qualification/ic-storage-checkpoint-provider-probe/Cargo.toml "$output/checkpoint-source/"
+    cp qualification/ic-storage-native-feasibility/native-checkpoint-contract.md "$output/"
+    cp target/qualification/checkpoint-native/wasm32-unknown-unknown/release/ic_storage_checkpoint_provider_probe.wasm "$output/checkpoint-bridge.wasm"
+fi
 
 rustc --edition 2024 --crate-type cdylib --target wasm32-unknown-unknown \
     -C panic=abort -C codegen-units=1 -C lto=fat -C opt-level=3 \
@@ -38,7 +47,8 @@ rustc --edition 2024 --crate-type cdylib --target wasm32-unknown-unknown \
     --out-dir "$output" "$output/provider_abi.rs" \
     > "$output/compiler.log" 2>&1
 
-# This larger profile is only inventoried; the scalar combiner must refuse it.
+# This larger profile has separate artifact checks; the scalar combiner refuses it.
+# Installed mode executes only the documented bounded scalar/vector contracts.
 # Reserve the lower 32 KiB for stack, leaving transient data below provider metadata.
 rustc --edition 2024 --crate-type cdylib --target wasm32-unknown-unknown \
     -C panic=abort -C codegen-units=1 -C lto=fat -C opt-level=3 \
@@ -51,10 +61,15 @@ rustc --edition 2024 --crate-type cdylib --target wasm32-unknown-unknown \
 
 NATIVE_PROVIDER_INPUTS="$output" cargo test --manifest-path qualification/Cargo.toml \
     -p ic-storage-retention-probe --target-dir target/qualification --locked --offline \
-    --test provider_link -- --include-ignored --skip installed_tests --nocapture 2>&1 | tee "$output/report.txt"
+    --test provider_link -- --include-ignored --skip installed_tests --skip migration --nocapture 2>&1 | tee "$output/report.txt"
 if [[ "$mode" == installed ]]; then
     NATIVE_PROVIDER_INPUTS="$output" cargo test --manifest-path qualification/Cargo.toml \
         -p ic-storage-retention-probe --target-dir target/qualification --locked --offline \
         --test provider_link installed_tests -- --ignored --nocapture 2>&1 | tee "$output/installed.txt"
 fi
-printf 'Scalar provider %s checks passed; vector persistence is NOT qualified.\n' "$mode" > "$output/COMPLETE"
+if [[ "$mode" == migration ]]; then
+    NATIVE_PROVIDER_INPUTS="$output" cargo test --manifest-path qualification/Cargo.toml \
+        -p ic-storage-retention-probe --target-dir target/qualification --locked --offline \
+        --test provider_link migration -- --ignored --nocapture 2>&1 | tee "$output/migration.txt"
+fi
+printf 'Bounded provider %s checks passed; only this mode and its recorded inputs are covered, not general native persistence.\n' "$mode" > "$output/COMPLETE"

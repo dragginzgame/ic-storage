@@ -1,5 +1,5 @@
-//! Compile-only vector/provider diagnostic. Never admitted by the scalar linker.
-//! The foreign loan and initialized prefix are preconditions, not implemented here.
+//! Bounded vector/provider fixture. Never admitted by the scalar linker.
+//! Installed use requires vector-provider-contract.md and the final link checks.
 #![no_std]
 #![deny(unsafe_code, unsafe_op_in_unsafe_fn, missing_docs, dead_code)]
 
@@ -48,7 +48,7 @@ fn abort() -> ! {
 
 #[expect(
     unsafe_code,
-    reason = "hypothetical loan contract for compiler diagnostics only"
+    reason = "exclusive foreign backing under the bounded vector provider contract"
 )]
 #[link(wasm_import_module = "native_vector_diagnostic")]
 unsafe extern "C" {
@@ -66,7 +66,7 @@ unsafe extern "C" {
 /// this source nor its compiler output supplies that provider/admission contract.
 #[expect(
     unsafe_code,
-    reason = "compile-only raw entrypoint under explicit provider preconditions"
+    reason = "private raw entrypoint under the bounded vector provider contract"
 )]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn provider_vector_step(

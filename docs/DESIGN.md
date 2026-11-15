@@ -537,6 +537,17 @@ Local PocketIC evidence covers A→B→A, continued mutation, refused imports an
 rollback after a target stable write. These are transient Global-owned vectors,
 not retained native allocations: this proves independent provider opening, not
 complete layout admission, direct-reopen refusal or the full native migration gate.
+An explicit version-2 checkpoint now covers the native fixture's full 512-element
+capacity, with installed ordinary-heap recovery and rollback at that bound.
+Version-1 bytes and its 16-element limit remain unchanged. This resolves a wire
+capacity mismatch. The subsequent
+[native checkpoint bridge](../qualification/ic-storage-retention-probe/native-checkpoint.md)
+now exports the retained vector through the same governed adapter and reconstructs
+it at a different native base after explicit heap replacement. Installed evidence
+covers A→B→A, continued allocation, corruption/refusal and export/import rollback.
+The checkpoint runtime's private allocator is not admitted across EOP; retained
+reopening refuses before entering it. This is a bounded allocation-domain change,
+not an actual compiler/SDK migration, authenticated coordinator or resumable protocol.
 
 This repository owns the checkpoint envelope, locator/adapter specification,
 source/target conformance fixtures and maintenance of the qualified reader
@@ -658,7 +669,9 @@ those historical results; each linked record owns its artifacts and test scope:
 | [WAT provider custody](../qualification/ic-storage-retention-probe/provider-custody.md) | Exclusive claim/settlement, destination refusal and rollback across installed upgrades; no Rust pointer validity |
 | [WAT vector descriptor custody](../qualification/ic-storage-retention-probe/vector-provider.md) | Full-width length/capacity admission, descriptor publication and full provider-payload rollback across upgrades; no installed Rust vector |
 | [Installed Rust scalar provider](../qualification/ic-storage-native-feasibility/provider-boundary.md#installed-scalar-lifecycle) | Explicit fixed foreign-allocation model, admitted Rust access/settlement, compatible upgrades and refusal/rollback; no native vector or allocator issuance |
-| [Provider-region controller](../qualification/ic-storage-native-feasibility/provider-region.md) | Host fresh vector issuance over exclusive loaned backing, growth/shrink/reuse and refusal; the shared wasm32 diagnostic is compiled but not admitted or executed |
+| [Provider-region controller](../qualification/ic-storage-native-feasibility/provider-region.md) | Host fresh vector issuance over exclusive loaned backing, growth/shrink/reuse and refusal |
+| [Installed native vector](../qualification/ic-storage-retention-probe/vector-link.md#installed-vector-lifecycle) | Bounded foreign-allocation contract, transient std headers, A→B→A operations, reclamation, descriptor refusal and rollback; no incompatible-runtime native-vector recovery or general heap admission |
+| [Connected native checkpoint](../qualification/ic-storage-retention-probe/native-checkpoint.md) | Canister-side governed export, retained-heap refusal, fresh reconstruction in a relocated native domain, continued native allocation and rollback; no actual compiler transition or production migration authority |
 | [Rust startup/growth probe](../qualification/ic-storage-rust-startup-probe/README.md) | Controlled transient initialization and bounded growth for the admitted wasm32 artifacts |
 | [M0 graph probe](../qualification/ic-storage-rust-startup-probe/managed-graph.md) | Byte-defined sharing/cycles, allocator continuation and selected installed rollback cases |
 | [M0 vs Storage benchmarks](../qualification/ic-storage-simple-benchmarks/README.md) | Current implementation instruction costs, including session read reuse |

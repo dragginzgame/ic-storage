@@ -2,7 +2,8 @@
 
 This private single-vector experiment bridges the existing live-Box transfer
 tests and the fixed-scalar foreign provider. It does not extend the installed
-scalar admission profile or authorize a native vector on the IC.
+scalar admission profile. Installed vector use has its own narrow
+[foreign-allocation contract](vector-provider-contract.md).
 
 ## Allocation and ownership argument
 
@@ -10,7 +11,7 @@ The controller accepts one exclusive, live backing allocation through an unsafe
 constructor. A pointer, numeric extent and descriptor are insufficient: the
 caller must establish provenance, initialization and custody for the entire loan.
 Host tests supply those facts through an exclusive borrow of initialized storage.
-A Wasm caller would need an admitted provider and complete startup/artifact
+The Wasm fixture now has an admitted provider and bounded startup/artifact
 contract extending [the scalar argument](scalar-provider-contract.md).
 
 The controller does not own a Box, Global allocation or retained Rust reference.
@@ -81,8 +82,8 @@ pointer; that is not a retained-region pointer-creation mechanism.
 Four artifact diagnostic tests passed, including refusal of this vector module
 by the exact scalar admission profile. The inventory checks bounds, imports,
 startup/growth exclusions and selected compiler structure; it does not establish
-every load/store address or stack bound on every path. **No vector Wasm is linked
-to the provider or executed.** No private layout or installed-vector qualification
+every load/store address or stack bound on every path. **This cohort neither linked
+nor executed vector Wasm.** No private layout or installed-vector qualification
 follows from compilation, the reported artifact size or the host lifecycle tests.
 
 ## Transient stack and direct-call proof
@@ -114,9 +115,9 @@ This proves the admitted shape's **stack-pointer discipline**, not that every
 load/store falls inside its frame or the provider payload. Helper pointer
 arguments, initialized vector span, memory.copy bounds, complete retained metadata
 and the final linked provider remain independent admission obligations. The
-vector still cannot pass scalar admission and is not executed.
+vector still cannot pass scalar admission; that cohort did not execute it.
 
-## Next boundary
+## Installed boundary and remaining recovery
 
 The [installed vector metadata protocol](../ic-storage-retention-probe/vector-provider.md)
 now checks full-width length/capacity before narrowing, refuses invalid source
@@ -125,13 +126,18 @@ tests compare the entire header and payload after rollback. The accompanying
 source-level access audit records the Rust candidate's initialized-span and copy
 obligations; it does not yet bind all compiled accesses or execute that candidate.
 
-Before installed use, qualify the final vector artifact's complete memory access,
-transient stack/data initialization, imports, abort paths and provider entrypoint
-ordering. The scalar combiner deliberately rejects additional code. Extend the
-provider's initialized-span/descriptor and complete-root admission independently;
-do not relax admission merely because this host test or compiler output succeeds.
-The portable scalar/vector format remains a separate required recovery contract.
+Installed use now combines final vector memory-access and entrypoint checks with
+the explicit allocation/initialization argument. The scalar combiner still rejects
+additional code. Numeric descriptor checks alone do not establish backing custody
+or initialization. The portable scalar/vector format remains a separate required
+recovery contract. Its new 512-element envelope and governed provider are tested,
+and the separate [native bridge](../ic-storage-retention-probe/native-checkpoint.md)
+now connects retained values to fresh reconstruction in a relocated domain.
 The [checked-access experiment](../ic-storage-retention-probe/vector-access.md)
 now routes all 49 compiled memory operations through unresolved helper imports.
 Installed WAT tests exercise the helpers' operation-specific access windows;
-the rewritten Rust artifact remains unlinked and unexecuted.
+the intermediate rewrite remains unresolved. The subsequent
+[link experiment](../ic-storage-retention-probe/vector-link.md) binds those imports
+and checks trusted entrypoint ordering. Its subsequent installed lifecycle now
+executes the bounded native vector under the separate allocation contract;
+general runtime migration remains outside that original lifecycle fixture.

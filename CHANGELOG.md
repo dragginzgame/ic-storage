@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.1.8] - 2026-11-15
+
+### 🧪 Testing
+
+- Link checked vector accesses to the private provider, derive Rust inputs from
+  admitted metadata and reject changed final artifacts. Document the bounded
+  foreign-allocation and initialized-owner contract before installed execution.
+- Exercise real Rust Vec operations across installed A→B→A upgrades, including
+  growth, shrink, removal, clear/reuse and empty/full capacity. Verify native
+  update/upgrade rollback, destination-only malformed-header refusal and lost
+  custody.
+- Add an explicit 512-element checkpoint envelope while preserving version-1
+  bytes and its 16-element bound. Exercise governed provider recovery at empty,
+  17-element and full capacity, failed-export/import rollback and subsequent
+  shrink/growth.
+- Connect the retained vector to the same governed checkpoint provider through
+  scalar-only calls and disjoint native/Global memory regions. Freeze/export
+  atomically, reject retained-heap reopening and reconstruct under a relocated
+  allocation domain using explicit heap replacement. Exercise full capacity,
+  return migration, continued native allocation and failed export/import rollback.
+
+### ▶️ Try it
+
+With cached dependencies and the prepared local server, run
+`make native-checkpoint-test` for the connected native migration experiment.
+
 ## [0.1.7] - 2026-11-15
 
 ### 🧪 Testing

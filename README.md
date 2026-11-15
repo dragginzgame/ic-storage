@@ -127,8 +127,10 @@ A [bounded checkpoint codec](qualification/ic-storage-native-feasibility/checkpo
 tests reconstruction after source teardown. The
 [installed provider probe](qualification/ic-storage-checkpoint-provider-probe/README.md)
 recovers through fresh Storage handles after ordinary upgrades discard the old
-heap, with failed-import rollback tests. Native incompatible-runtime migration
-remains an open gate.
+heap, with failed-import rollback tests. The
+[connected native bridge](qualification/ic-storage-retention-probe/native-checkpoint.md)
+now tests governed export and fresh reconstruction in a relocated native domain;
+general runtime migration and production authority remain open.
 
 Library code lives in `crates/`. See [qualification/](qualification/README.md)
 for fixture contracts, commands and evidence scope. Production canister

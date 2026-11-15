@@ -142,12 +142,23 @@ The [vector metadata protocol](../../qualification/ic-storage-retention-probe/ve
 adds installed WAT evidence for full-width descriptor admission, settlement and
 whole-header/payload rollback, including destination refusal without a source
 guard. Its payload-access audit states the remaining native compiler obligations;
-the Rust vector itself is still not linked to this provider or executed.
+that WAT cohort does not link or execute the Rust vector.
 The [access instrumentation](../../qualification/ic-storage-retention-probe/vector-access.md)
 adds checked effective-address windows and rewrites all current compiler memory
 operations to guard imports. This is a qualification mechanism, not a product
 performance decision or a substitute for pointer/initialization validity. The
-helpers have installed WAT evidence; the rewritten Rust module is not executed.
+helpers have installed WAT evidence; the intermediate rewrite alone is not executable.
+The [vector link experiment](../../qualification/ic-storage-retention-probe/vector-link.md)
+now binds the claim/guard imports, checks their non-reentrant closure and verifies
+admission/return/settlement ordering. The bounded
+[vector allocation contract](../../qualification/ic-storage-native-feasibility/vector-provider-contract.md)
+now supports installed A→B→A native operations, reclamation and refusal/rollback.
+This retains only u64 payload and checked descriptors, with fresh transient std
+headers. The separate
+[native checkpoint bridge](../../qualification/ic-storage-retention-probe/native-checkpoint.md)
+now qualifies governed export and fresh reconstruction in a relocated native
+domain. General heap admission, migration authority and actual compiler/runtime
+transitions remain open.
 
 If the provider cannot establish a live Rust allocation, stop pointer-based
 reopening and make the explicit runtime/compiler integration decision. If fresh

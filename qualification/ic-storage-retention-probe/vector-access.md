@@ -3,7 +3,9 @@
 This qualification-only experiment adds checked access helpers to the
 [vector provider protocol](vector-provider.md) and rewrites the compiled vector's
 memory instructions to call them. The helpers have installed WAT tests. The
-rewritten Rust module still has unresolved imports and is **not executed**.
+intermediate rewritten module has unresolved imports. The later
+[vector link experiment](vector-link.md) resolves them and now has a bounded
+installed lifecycle under its separate foreign-allocation contract.
 This is not a product allocator, a hostile-code sandbox or complete native
 admission. The foreign allocation and initialized-owner argument remains required.
 
@@ -96,11 +98,11 @@ retained by digest under `target/evidence/provider-custody/`. Strict Clippy and
 the eleven compiler/artifact diagnostics also passed. These are local results,
 not native-vector, production-subnet or hosted macOS execution claims.
 
-The compiled-vector diagnostics run through `make native-provider-probe`. Passing
-either command does not link the guard imports or authorize execution of the
-rewritten Rust module. Before that step, final artifact admission must bind each
-import to these exact helper semantics, keep the raw Rust function private and
-establish the complete provider loan and source initialization history.
+The compiled-vector diagnostics run through `make native-provider-probe`. The
+later [link experiment](vector-link.md) binds the imports and checks private
+entrypoint ordering. Its installed suite uses the separate
+[vector allocation contract](../ic-storage-native-feasibility/vector-provider-contract.md);
+guard checks alone never establish the loan or source initialization history.
 
 The trusted entrypoint must derive length/capacity from the admitted header,
 select the operation, call Rust, and settle the returned descriptor only after
@@ -108,4 +110,4 @@ all Rust ownership has ended. It must reset the transient operation selector
 before replying. Failure must trap without local recovery. Guards cannot repair
 Rust undefined behavior before code generation, certify aliases or replace the
 allocation contract. Their role is to enforce bounded machine accesses and make
-unexpected accesses fail during the eventual installed lifecycle experiment.
+unexpected accesses fail during the bounded installed lifecycle experiment.

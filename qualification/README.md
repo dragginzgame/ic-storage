@@ -19,6 +19,9 @@ discard the source heap and reconstruct scalar/vector values from the bounded
 checkpoint. It exercises independent opening and failed-import rollback, not
 retained native allocation validity. Run `make checkpoint-provider-lint`,
 `make checkpoint-provider-build` and `make checkpoint-provider-test`.
+The [native bridge](ic-storage-retention-probe/native-checkpoint.md), exercised by
+`make native-checkpoint-test`, now connects retained values to that same provider
+and reconstructs a relocated native allocation after explicit heap replacement.
 
 These fixtures qualify the existing byte-defined M0 experiment and selected IC
 mechanisms. They do not yet qualify the native retained allocator, collection
@@ -31,11 +34,13 @@ It tests custody across installed upgrades without claiming Rust pointer validit
 that WAT source and checks artifact admission. It executes no combined Wasm.
 `make native-provider-test` adds the installed scalar lifecycle under its explicit
 [foreign-allocation contract](ic-storage-native-feasibility/scalar-provider-contract.md),
-using the prepared server. Native vectors and allocator issuance remain unqualified.
+using the prepared server. The vector profile has its own bounded admission below.
 The [provider-region controller](ic-storage-native-feasibility/provider-region.md)
-adds host issuance/growth/reuse tests to `make native-feasibility-test` and a
-compile-only vector inventory to `make native-provider-probe`. Scalar artifact
-admission continues to reject that vector module.
+adds host issuance/growth/reuse tests to `make native-feasibility-test` and
+vector artifact checks to `make native-provider-probe`. The separate
+[vector link contract](ic-storage-retention-probe/vector-link.md) now permits its
+bounded installed lifecycle through `make native-provider-test`; scalar admission
+continues to reject that vector module. General native-heap admission remains open.
 The [vector metadata protocol](ic-storage-retention-probe/vector-provider.md) adds
 installed full-width descriptor and settlement checks to `make retention-test`;
 its canisters contain no Rust vector code.

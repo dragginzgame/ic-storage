@@ -1,4 +1,4 @@
-use super::{Checkpoint, Error, MAX_VALUES, decode, encode};
+use super::{Checkpoint, Error, MAX_CHECKPOINT_BYTES, MAX_VALUES, decode, encode};
 use sha2::{Digest, Sha256};
 
 fn reseal(bytes: &mut [u8]) {
@@ -55,14 +55,14 @@ fn every_truncated_prefix_trailing_data_and_oversize_refuse() {
     let mut extra = bytes;
     extra.push(0);
     assert_eq!(decode(&extra, 7), Err(Error::Framing));
-    assert_eq!(decode(&[0; 249], 7), Err(Error::Limit));
+    assert_eq!(decode(&[0; MAX_CHECKPOINT_BYTES + 1], 7), Err(Error::Limit));
 }
 
 #[test]
 fn resealed_unknown_and_inconsistent_headers_still_refuse() {
     for (offset, value, expected) in [
         (0, 0, Error::Format),
-        (8, 2, Error::Format),
+        (8, 3, Error::Format),
         (10, 1, Error::Framing),
         (12, 79, Error::Framing),
         (16, 0, Error::Schema),
@@ -79,6 +79,8 @@ fn resealed_unknown_and_inconsistent_headers_still_refuse() {
         assert_eq!(decode(&bytes, 7), Err(expected), "offset {offset}");
     }
 }
+
+mod v2;
 
 #[test]
 fn corruption_seal_and_epoch_mismatch_refuse() {

@@ -1,7 +1,8 @@
 # Scalar/vector checkpoint experiment
 
 This fixture specifies a logical checkpoint for one u64 counter and one uniquely
-owned vector of at most 16 u64 values. It is an experimental contract, not a
+owned vector: version 1 admits 16 u64 values; version 2 admits 512. It is an
+experimental contract, not a
 production Storage format or the complete migration protocol. It contains no
 pointer, capacity, native header, allocator layout or executable identity.
 
@@ -46,6 +47,28 @@ must bind the complete checkpoint digest, source epoch, authorized target and
 provider locator independently. This standalone fixture has no authenticated
 provider, durable publication or write-freeze protocol. An explicit schema
 version or new collection kind needs its own decoder and migration policy.
+
+## Version 2: complete retained-vector capacity
+
+Version 2 keeps every offset, the family magic, logical schema, ownership IDs,
+seal and digest algorithm above. The envelope version at offset 8 is `2`, the
+count is bounded to 512, and total size is 120 through 4216 bytes. This changes
+the envelope's resource bound, not the logical record fields or native layout.
+No pointers, spare capacity or allocator metadata are added.
+
+`encode` remains the original version-1 writer and refuses more than 16 values.
+`encode_v2` explicitly selects the larger envelope, including for empty/small
+vectors. `decode` accepts either known version and applies that version's exact
+bound before allocating. Changing a 512-element envelope's version to 1, even
+with a recomputed digest, refuses. Unknown versions never select a fallback.
+The original golden fixture and version-1 bytes remain unchanged.
+
+The provider keeps its existing governed key and opaque cell format, raises the
+reader's bounded payload to 4216 bytes and validates the envelope before root
+publication. Legacy executables that only understand version 1 cannot import a
+version-2 checkpoint; a downgrade requires an explicitly compatible reader or
+an admitted version-1 export within its original bound. A→B→A tests with the new
+reader do not prove compatibility with an older executable.
 
 ## Ownership and reconstruction
 
@@ -135,5 +158,22 @@ Two further tests compare native transfer with explicit portable reconstruction
 after an incompatible usable-region refusal, reusing the same checkpoint contract.
 
 No type becomes admitted for persistent application state from passing this
-codec experiment. Native allocation-domain establishment and the installed
-provider-backed migration proof remain open.
+codec experiment. General native migration requires its own integration evidence.
+
+## Version-2 evidence
+
+On 15 November 2026, eight codec tests and eight affected host checkpoint tests
+passed, as did strict Clippy. Version-2 cases cover 0/16/17/512 elements, every
+truncated prefix, oversized counts/framing, trailing data, corruption, wrong
+epochs, resealed invalid headers and version-1 limit preservation. A 17-element
+golden checkpoint was assembled independently with Perl packing and Digest::SHA:
+counter 42, epoch 7, and element i composed of eight copies of byte i, for i=0..16.
+Its 256 bytes end in digest
+`152066511d0a30c5de6d59f8c6952fc85dc5316acc89028e9b2c5ea597dd4957`.
+
+The [installed provider](../ic-storage-checkpoint-provider-probe/README.md#version-2-capacity-evidence)
+also passed fresh-heap restoration and failed-import rollback through 512 values.
+That cohort uses ordinary Global-owned vectors. The subsequent
+[connected native bridge](../ic-storage-retention-probe/native-checkpoint.md)
+adds canister-side native export/freeze and fresh reconstruction in a relocated
+native allocation domain, under its separate memory and ownership contract.

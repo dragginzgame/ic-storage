@@ -63,18 +63,21 @@ pub(super) fn input(variant: &str) -> Vec<u8> {
             "canister_query state",
             "canister_update append",
             "canister_update damage_checkpoint",
-            "canister_update export_checkpoint"
+            "canister_update export_checkpoint",
+            "canister_update fill",
+            "canister_update pop"
         ]
     );
     let evidence = root.join("target/evidence/checkpoint-provider");
     fs::create_dir_all(&evidence).expect("evidence directory");
-    fs::write(evidence.join(format!("{variant}.wasm")), &bytes).expect("artifact evidence");
+    let digest = Sha256Digest::compute(&bytes);
+    fs::write(evidence.join(format!("{digest}.wasm")), &bytes).expect("artifact evidence");
     let report = format!(
         "ordinary-upgrade fixture {variant}\nsha256={}\nbytes={}\n",
         Sha256Digest::compute(&bytes),
         bytes.len()
     );
-    fs::write(evidence.join(format!("{variant}.txt")), &report).expect("artifact identity");
+    fs::write(evidence.join(format!("{digest}.txt")), &report).expect("artifact identity");
     println!("{report}");
     bytes
 }

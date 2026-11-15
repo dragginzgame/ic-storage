@@ -6,6 +6,7 @@ BENCH_CARGO := --manifest-path qualification/Cargo.toml -p ic-storage-simple-ben
 NATIVE_FEASIBILITY_CARGO := --manifest-path qualification/Cargo.toml -p ic-storage-native-feasibility --target-dir target/qualification --locked --offline
 CHECKPOINT_CARGO := --manifest-path qualification/Cargo.toml -p ic-storage-checkpoint-provider-probe --target wasm32-unknown-unknown --locked --offline --release
 CHECKPOINT_LINK := -C link-arg=--stack-first -C link-arg=-zstack-size=1048576 -C link-arg=--initial-memory=2097152 -C link-arg=--max-memory=16777216
+NATIVE_CHECKPOINT_LINK := -C link-arg=--stack-first -C link-arg=-zstack-size=65536 -C link-arg=--global-base=196608 -C link-arg=--initial-memory=2097152 -C link-arg=--max-memory=16777216 -C link-arg=--export=__stack_pointer -C link-arg=--export=__data_end -C link-arg=--export=__heap_base
 RETENTION_TOOL := bash vendor/toko-tooling/scripts/dev/install-rust-tools.sh --consumer "$(CURDIR)" --package ic-testkit --lockfile qualification/Cargo.lock --bin ic-testkit-server --profile release --features cli
 RUST_STARTUP_CARGO := --manifest-path qualification/Cargo.toml -p ic-storage-rust-startup-probe --target wasm32-unknown-unknown --locked --offline --release
 RUST_STARTUP_LINK := -C link-arg=--stack-first -C link-arg=-zstack-size=1048576 -C link-arg=--initial-memory=8454144 -C link-arg=--max-memory=16777216 -C link-arg=--export=__stack_pointer -C link-arg=--export=__data_end -C link-arg=--export=__heap_base
@@ -42,6 +43,9 @@ native-feasibility-test native-feasibility-lint native-layout-probe: export CARG
 native-feasibility-test native-feasibility-lint native-layout-probe: | toko-execution-check
 
 .PHONY: native-provider-probe native-provider-test
+.PHONY: native-checkpoint-build native-checkpoint-test
+native-checkpoint-build native-checkpoint-test: export CARGO_NET_OFFLINE := true
+native-checkpoint-build native-checkpoint-test: | toko-execution-check
 native-provider-probe native-provider-test: export CARGO_NET_OFFLINE := true
 native-provider-probe native-provider-test: | toko-execution-check
 
@@ -76,10 +80,11 @@ help:
 	  'make native-feasibility-lint     Lint the native ownership experiment' \
 	  'make native-layout-probe         Inspect host/wasm compiler layout diagnostics' \
 	  'make native-provider-probe       Compile and inspect provider linkage; no execution' \
-	  'make native-provider-test        Test installed scalar access, custody and rollback' \
+	  'make native-provider-test        Test installed scalar/vector custody and rollback' \
 	  'make checkpoint-provider-build  Build ordinary-upgrade checkpoint fixtures' \
 	  'make checkpoint-provider-lint   Lint provider fixtures and installed test' \
 	  'make checkpoint-provider-test   Test fresh-heap recovery and import rollback' \
+	  'make native-checkpoint-test     Test native export and incompatible-domain recovery' \
 	  'make ci                          Aggregate hosted validation gate' \
 	  'make install-hooks               Activate the canonical formatting hook' \
 	  'make deps-check                  Aggregate dependency policy checks' \
@@ -208,9 +213,19 @@ checkpoint-provider-build:
 	+cargo rustc $(CHECKPOINT_CARGO) --target-dir target/qualification/checkpoint-b --features version-b -- $(CHECKPOINT_LINK)
 
 checkpoint-provider-lint:
+	+cargo clippy $(CHECKPOINT_CARGO) --target-dir target/qualification --features native-bridge -- -D warnings
 	+cargo clippy $(CHECKPOINT_CARGO) --target-dir target/qualification -- -D warnings
 	+cargo clippy $(CHECKPOINT_CARGO) --target-dir target/qualification --features version-b -- -D warnings
 	+cargo clippy $(RETENTION_CARGO) --test checkpoint_provider -- -D warnings
 
 checkpoint-provider-test:
 	+@server="$$($(RETENTION_TOOL) --check)" && "$$server" run -- cargo test $(RETENTION_CARGO) --test checkpoint_provider -- --nocapture
+
+native-checkpoint-build:
+	@test -z "$${RUSTFLAGS}$${CARGO_ENCODED_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_LINKER}" || { echo 'Native checkpoint probe requires no environment flag/linker overrides' >&2; exit 1; }
+	+cargo clippy $(CHECKPOINT_CARGO) --target-dir target/qualification --features native-bridge -- -D warnings
+	+cargo rustc $(CHECKPOINT_CARGO) --target-dir target/qualification/checkpoint-native --features native-bridge -- $(NATIVE_CHECKPOINT_LINK)
+
+native-checkpoint-test: native-checkpoint-build
+	+cargo clippy $(RETENTION_CARGO) --test provider_link -- -D warnings
+	+@server="$$($(RETENTION_TOOL) --check)" && "$$server" run -- bash qualification/ic-storage-native-feasibility/scripts/run-provider-probe.sh migration

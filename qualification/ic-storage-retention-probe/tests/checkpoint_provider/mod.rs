@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 
 mod artifacts;
+mod v2;
 
 use std::time::Duration;
 

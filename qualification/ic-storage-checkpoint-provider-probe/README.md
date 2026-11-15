@@ -14,9 +14,15 @@ admit native layouts or complete the design's incompatible-runtime gate.
   memory manager. This fixture never implements a parallel reader.
 - Owner `native-checkpoint`, authority prefix `native.checkpoint.`, stable key
   `native.checkpoint.scalar.v1`. Allocation numbers are provider-owned.
-- Value: `StableCell<Vec<u8>>`, maximum loaded payload 248 bytes, containing the
+- Value: `StableCell<Vec<u8>>`, maximum loaded payload 4216 bytes, containing the
   [scalar/vector checkpoint](../ic-storage-native-feasibility/checkpoint-format.md).
   Its schema, epoch, seal and digest checks precede root publication.
+
+The reader accepts envelope versions 1 (at most 16 elements) and 2 (at most 512).
+The named key is the original locator, not an envelope-version discriminator.
+An empty `export_checkpoint` argument preserves the version-1 command; one
+little-endian u64 argument equal to 2 explicitly selects version 2. Oversized
+version-1 exports trap without updating the cell or freezing the source.
 
 This repository owns this locator, adapter, envelope and conformance tests and
 the maintenance obligation for the pinned reader while these checkpoints are
@@ -85,3 +91,35 @@ The explicit trap case checked the post-write trap message as well as rollback;
 the missing-locator case checked that empty stable memory stayed empty after
 refusal. Strict Clippy, dependency/graph policy, formatting and workflow checks
 passed. Hosted macOS execution remains for CI; this local result does not claim it.
+
+## Version-2 capacity evidence
+
+On 15 November 2026, the original version-1 installed suite and the new version-2
+suite passed with Rust 1.100.0 on x86_64 Linux and the prepared local server.
+The new suite performs six successful heap-discarding upgrades over empty,
+17-element and full 512-element state. It checks the complete checkpoint against
+an independent byte/digest oracle, continues mutation after restoration, and
+removes/shrinks then grows the full vector before re-exporting and restoring it.
+
+Wrong epochs, truncation, corruption and unknown schema refuse. A target trap
+after a governed stable write preserves the old module hash, stable memory,
+checkpoint and heap state. Oversized population, partial population overflow,
+unknown export versions, oversized legacy exports and frozen writes also preserve
+state. The test-only `fill` and `pop` endpoints exercise these capacity cases.
+
+Strict Clippy, eight codec tests and eight affected host checkpoint tests passed.
+The installed phase passed both suites in 2.34 seconds, excluding preparation.
+Source, compiler identity, build/check logs and installed output are retained at
+`target/evidence/checkpoint-v2/attempt.MUq1l6/`; Wasm and identity reports are now
+stored by digest under `target/evidence/checkpoint-provider/`, preserving older
+named evidence. Current A and B identities are:
+
+- A, 152220 bytes: `c475d040c669529ec96f7c190b23a2fb6f855fb81848584f577cd51a7f689c10`
+- B, 152269 bytes: `5556caf43f6550fe422fc197fe7e655ee6c570878e82463ac0ed811e782e8023`
+
+This cohort resolves the codec/provider capacity mismatch with the native fixture.
+The later [connected native bridge](../ic-storage-retention-probe/native-checkpoint.md)
+shares `provider.rs` and the codec while selecting scalar callbacks instead of
+ordinary Global-owned application state. It exports inside the canister and
+reconstructs under a relocated native domain; the host does not copy observed
+values into the target. Ordinary-profile evidence above keeps its original scope.

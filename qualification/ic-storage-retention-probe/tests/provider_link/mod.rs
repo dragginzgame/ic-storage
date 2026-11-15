@@ -4,8 +4,10 @@
 mod artifact;
 mod entrypoints;
 mod installed_tests;
+mod migration;
 mod vector_access;
 mod vector_diagnostic;
+mod vector_link;
 mod vector_stack;
 
 use artifact::Profile;
