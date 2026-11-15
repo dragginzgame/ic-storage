@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+
+jobs:
+  rust:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          persist-credentials: false
+      - name: Prepare host parsers and pinned compiler
+        run: |
+          make install-host-tools
+          make host-tools-check
+          export PATH="$PWD/.tools/host/bin:$PATH"
+          bash vendor/toko-tooling/scripts/dev/prepare-rust-toolchain.sh --toolchain-file rust-toolchain.toml
+      - uses: ./vendor/toko-tooling/.github/actions/prepare-common-tools
+        with:
+          cache: 'true'
+          cache-save: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      - name: Prepare locked dependencies
+        run: cargo fetch --locked
+      - name: Validate research library
+        run: make ci
+      - name: Retain diagnostics
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: diagnostics-${{ matrix.os }}
+          path: |
+            target/toko-tooling/
+            ${{ runner.temp }}/tools-install.log
+            ${{ runner.temp }}/tools-check.log
+            ${{ runner.temp }}/formatting.*
+          if-no-files-found: ignore
+          retention-days: 7
+
+  security-and-workflow:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prepare and run pinned validators
+        run: |
+          tool_dir="$RUNNER_TEMP/ci-tools"
+          actionlint_bin="$(bash vendor/toko-tooling/scripts/ci/install-ci-tool.sh actionlint --install-dir "$tool_dir")"
+          gitleaks_bin="$(bash vendor/toko-tooling/scripts/ci/install-ci-tool.sh gitleaks --install-dir "$tool_dir")"
+          "$actionlint_bin" .github/workflows/ci.yml
+          "$gitleaks_bin" git --redact=100 --no-banner --no-color --log-level warn "$GITHUB_WORKSPACE"

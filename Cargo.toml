@@ -3,23 +3,17 @@ resolver = "3"
 members = ["crates/ic-storage-new"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.100.0"
 license-file = "LICENSE.md"
 
 [workspace.dependencies]
-# Production dependencies
-ic-storage-new = { path = "crates/ic-storage-new" }
-
-# Tests and tooling only
-toko-tooling = "=0.37.2"
+toko-tooling = "=0.44.3"
 
 [workspace.lints.cargo]
 unused_dependencies = "deny"
-# Toko requires every member in the root catalog, even without incoming edges.
-# This is a Cargo manifest policy; Rust #[expect] attributes cannot apply here.
-unused_workspace_dependencies = "allow"
+unused_workspace_dependencies = "deny"
 unused_workspace_package_fields = "deny"
 missing_lints_inheritance = "deny"
 unknown_lints = "deny"
