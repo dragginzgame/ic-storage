@@ -67,19 +67,36 @@ impl Ledger {
 
 struct Arena {
     backing: Box<UnsafeCell<[MaybeUninit<u64>; WORDS]>>,
+    limit: usize,
     ledger: Cell<Ledger>,
+    suspended: Cell<bool>,
+    release: Cell<Option<transfer::Release>>,
+    reservation: Cell<Option<transfer::Span>>,
 }
 
 impl Arena {
     fn new() -> Self {
         Self {
             backing: Box::new(UnsafeCell::new([MaybeUninit::uninit(); WORDS])),
+            limit: WORDS,
             ledger: Cell::new(Ledger {
                 occupied: [false; WORDS],
                 blocks: [None; WORDS],
                 next_generation: 1,
             }),
+            suspended: Cell::new(false),
+            release: Cell::new(None),
+            reservation: Cell::new(None),
         }
+    }
+
+    fn with_limit(limit: usize) -> Result<Self, AllocError> {
+        if limit == 0 || limit > WORDS {
+            return Err(AllocError);
+        }
+        let mut arena = Self::new();
+        arena.limit = limit;
+        Ok(arena)
     }
 
     fn base(&self) -> *mut u8 {
@@ -89,13 +106,15 @@ impl Arena {
     }
 
     fn reusable_bytes(&self) -> usize {
-        self.ledger
-            .get()
-            .occupied
+        self.ledger.get().occupied[..self.limit]
             .iter()
             .filter(|used| !**used)
             .count()
             * WORD_BYTES
+            - self
+                .reservation
+                .get()
+                .map_or(0, |span| span.words * WORD_BYTES)
     }
 
     fn park(values: Vec<u64, &Self>) -> Parked<'_> {
@@ -151,14 +170,15 @@ impl Arena {
 )]
 unsafe impl Allocator for Arena {
     fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-        if layout.align() != align_of::<u64>()
+        if self.suspended.get()
+            || layout.align() != align_of::<u64>()
             || layout.size() == 0
             || !layout.size().is_multiple_of(WORD_BYTES)
         {
             return Err(AllocError);
         }
         let words = layout.size() / WORD_BYTES;
-        if words > WORDS {
+        if words > self.limit {
             return Err(AllocError);
         }
         let mut ledger = self.ledger.get();
@@ -168,13 +188,30 @@ unsafe impl Allocator for Arena {
             .iter()
             .position(Option::is_none)
             .ok_or(AllocError)?;
-        let start = (0..=WORDS - words)
-            .find(|start| {
-                ledger.occupied[*start..*start + words]
-                    .iter()
-                    .all(|used| !used)
-            })
-            .ok_or(AllocError)?;
+        let start = if let Some(span) = self.reservation.get() {
+            // Only the destination's private reconstruction phase can unfreeze
+            // this allocator with a reservation. Issue the exact original span,
+            // once, without touching its already initialized payload.
+            if span.words != words
+                || span
+                    .start
+                    .checked_add(words)
+                    .is_none_or(|end| end > self.limit)
+                || ledger.blocks.iter().any(Option::is_some)
+                || ledger.occupied.iter().any(|used| *used)
+            {
+                return Err(AllocError);
+            }
+            span.start
+        } else {
+            (0..=self.limit - words)
+                .find(|start| {
+                    ledger.occupied[*start..*start + words]
+                        .iter()
+                        .all(|used| !used)
+                })
+                .ok_or(AllocError)?
+        };
         // SAFETY: start is in a bounded nonempty run of this original live Box;
         // the byte offset remains within its single allocation and u64 aligned.
         let pointer = unsafe { self.base().add(start * WORD_BYTES) };
@@ -188,10 +225,14 @@ unsafe impl Allocator for Arena {
         });
         ledger.next_generation = next_generation;
         self.ledger.set(ledger);
+        self.reservation.set(None);
         Ok(NonNull::slice_from_raw_parts(pointer, layout.size()))
     }
 
     unsafe fn deallocate(&self, pointer: NonNull<u8>, layout: Layout) {
+        if self.suspended.get() {
+            invalid();
+        }
         let mut ledger = self.ledger.get();
         let start_bytes = pointer
             .as_ptr()
@@ -223,7 +264,7 @@ fn invalid() -> ! {
     std::process::abort()
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Descriptor {
     start: usize,
     length: usize,
@@ -239,6 +280,7 @@ struct Parked<'arena> {
 
 #[derive(Debug, PartialEq, Eq)]
 enum Refusal {
+    Suspended,
     MalformedLedger,
     UnknownAllocation,
     Extent,
@@ -247,11 +289,13 @@ enum Refusal {
 }
 
 impl<'arena> Parked<'arena> {
-    fn reopen(self) -> Result<Vec<u64, &'arena Arena>, Refusal> {
-        let mut ledger = self.arena.ledger.get();
+    fn admit(&self, ledger: &Ledger) -> Result<Option<usize>, Refusal> {
         ledger.validate()?;
+        if ledger.occupied[self.arena.limit..].iter().any(|used| *used) {
+            return Err(Refusal::MalformedLedger);
+        }
         let Some(descriptor) = self.descriptor else {
-            return Ok(Vec::new_in(self.arena));
+            return Ok(None);
         };
         let index = ledger
             .blocks
@@ -262,7 +306,7 @@ impl<'arena> Parked<'arena> {
                 })
             })
             .ok_or(Refusal::UnknownAllocation)?;
-        let mut block = ledger.blocks[index].ok_or(Refusal::UnknownAllocation)?;
+        let block = ledger.blocks[index].ok_or(Refusal::UnknownAllocation)?;
         if descriptor.capacity != block.words {
             return Err(Refusal::Extent);
         }
@@ -270,6 +314,19 @@ impl<'arena> Parked<'arena> {
         if descriptor.length != initialized || descriptor.length > descriptor.capacity {
             return Err(Refusal::Initialization);
         }
+        Ok(Some(index))
+    }
+
+    fn reopen(self) -> Result<Vec<u64, &'arena Arena>, Refusal> {
+        if self.arena.suspended.get() {
+            return Err(Refusal::Suspended);
+        }
+        let mut ledger = self.arena.ledger.get();
+        let Some(index) = self.admit(&ledger)? else {
+            return Ok(Vec::new_in(self.arena));
+        };
+        let descriptor = self.descriptor.ok_or(Refusal::UnknownAllocation)?;
+        let mut block = ledger.blocks[index].ok_or(Refusal::UnknownAllocation)?;
         // SAFETY: the validated block remains allocated by this same borrowed
         // arena, in its original Box. Pointer arithmetic stays inside the block's
         // domain. The consumed unique token is the only parked owner. No old Vec
@@ -303,3 +360,15 @@ mod checkpoint_tests;
 
 #[cfg(test)]
 mod ledger_tests;
+
+#[cfg(test)]
+mod ledger_image;
+
+#[cfg(test)]
+mod suspension;
+
+#[cfg(test)]
+mod transfer;
+
+#[cfg(test)]
+mod scoped_tests;

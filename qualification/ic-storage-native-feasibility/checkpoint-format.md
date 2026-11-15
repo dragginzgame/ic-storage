@@ -67,6 +67,51 @@ proof. It does not qualify independent opening of governed Storage handles,
 canister upgrade modes, rollback, interruption/resume or persistent checkpoint
 storage. The required published Storage 0.74.1 provider boundary remains unchanged.
 
+## Handoff from a frozen live source
+
+The arena integration tests now connect this codec to
+[single-root suspension](suspension.md). Under exclusive source access, they
+export the counter and initialized vector elements, then immediately consume the
+vector into suspension. No callback or source mutation occurs between export and
+freeze. The checkpoint allocation is independent of the frozen source arena.
+The test coordinator retains the counter and selects the source epoch; the
+suspension object owns only the vector token, not the whole record or protocol.
+
+Recovery succeeds after both the source arena and its resume authority have
+ended. While the source remains frozen, corrupt, truncated, wrong-epoch and
+unallocatable imports preserve the existing target and allow retry from the same
+checkpoint. Export beyond the codec's limit leaves the source live and unchanged
+for correction before suspension. These are explicit fixture sequences, not an
+API enforcing checkpoint publication or cross-message quiescence.
+
+Cancellation before target publication can consume the original resume authority
+and continue using the same source allocation. Earlier checkpoint bytes remain
+an older snapshot; they do not follow later mutations or revoke themselves.
+The fixture selects a new epoch for a new export and rejects the older epoch at
+import. Durable epoch selection, publication authority, restart and preventing
+two writable authoritative copies remain obligations of the migration protocol.
+
+## Native refusal and explicit portable recovery
+
+The transfer fixture now checks a destination allocator's usable region before
+issuing any native block. The source test vector occupies words 48 through 55 of
+the 64-word backing, with three initialized values. A full-size controller can
+transfer it directly; encoding the resulting counter/vector produces the exact
+original logical checkpoint. A 32-word controller rejects its native extent,
+including spare capacity, and returns the original transfer owner untouched.
+
+The recovery test explicitly discards that native owner and its Box before
+creating a fresh 32-word arena. Only the independent checkpoint reaches the
+importer. Corrupt input, a wrong expected epoch and insufficient target capacity
+preserve the existing target root. Retrying valid input reconstructs the same
+logical record, supports continued mutation and releases all target runs.
+
+The smaller usable region is enforced by allocation and accounting, rather than
+being a synthetic version label. Both controllers still use the same compiler
+and allocator implementation; this is not complete runtime/layout admission or
+the installed incompatible-runtime proof. No normal native refusal invokes an
+importer, resets unknown data or chooses an older checkpoint automatically.
+
 ## Checks and evidence
 
 `make native-feasibility-test` includes checkpoint round trips, an independently
@@ -82,6 +127,12 @@ On 15 November 2026, five codec tests and two arena reconstruction tests passed
 on x86_64 Linux with Rust 1.100.0, alongside the existing ownership/allocation
 checks. The fixture uses the already-selected SHA-256 implementation sha2 0.11.1,
 inherited from the qualification workspace; no dependency versions were upgraded.
+
+Four additional handoff tests cover frozen-source loss, failed-import retry,
+cancellation followed by a new epoch, and export-limit refusal. They reuse the
+existing codecs, suspension and candidate importer without adding unsafe code.
+Two further tests compare native transfer with explicit portable reconstruction
+after an incompatible usable-region refusal, reusing the same checkpoint contract.
 
 No type becomes admitted for persistent application state from passing this
 codec experiment. Native allocation-domain establishment and the installed

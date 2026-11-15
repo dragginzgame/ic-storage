@@ -1,13 +1,16 @@
 //! Host-only experiment for scoped ownership of one integer record and vector.
 //!
-//! This uses live, ordinary Global allocations. It neither retains a Vec header
-//! nor reopens pointers. The checkpoint module exercises bounded logical export
-//! and import, separately from unresolved native and installed lifecycle admission.
-//! This is fixture code,
-//! not the proposed product collection API.
+//! This uses live Global or explicitly supplied allocator-backed vectors.
+//! It neither retains a Vec header nor reopens pointers. The checkpoint module
+//! exercises bounded logical export and import, separately from unresolved native
+//! and installed lifecycle admission. This is fixture code, not the proposed
+//! product collection API.
 #![forbid(unsafe_code)]
 
-use std::marker::PhantomData;
+use std::{
+    alloc::{Allocator, Global},
+    marker::PhantomData,
+};
 
 pub mod checkpoint;
 
@@ -21,7 +24,7 @@ pub enum Refusal {
     Detached,
     /// The fixture's declared element limit was reached.
     Capacity,
-    /// Global allocation failed before the append.
+    /// The selected allocator refused allocation before the append.
     Allocation,
 }
 
@@ -35,15 +38,64 @@ pub enum Fault {
 }
 
 /// Owns all allocations, including detached ones, independently of ticket Drop.
-#[derive(Default)]
-pub struct Host {
+pub struct Host<A: Allocator = Global> {
     counter: u64,
-    rooted: Vec<u64>,
-    detached: Option<Vec<u64>>,
+    rooted: Vec<u64, A>,
+    detached: Option<Vec<u64, A>>,
     poisoned: bool,
 }
 
-impl Host {
+impl Default for Host<Global> {
+    fn default() -> Self {
+        Self {
+            counter: 0,
+            rooted: Vec::new(),
+            detached: None,
+            poisoned: false,
+        }
+    }
+}
+
+impl<A: Allocator + Clone> Host<A> {
+    /// Takes exclusive ownership of an existing live vector without reallocating.
+    /// An oversized input is returned unchanged. This admits no retained layout.
+    /// The caller owns the allocator's validity contract; cloned allocators are
+    /// used only for new empty roots, never substituted under existing blocks.
+    ///
+    /// ```
+    /// use std::alloc::System;
+    /// use ic_storage_native_feasibility::Host;
+    /// let allocator = Box::new(System);
+    /// let mut values = Vec::new_in(&*allocator);
+    /// values.push(42);
+    /// let mut host = Host::from_vec(7, values).ok().unwrap();
+    /// assert_eq!(host.with_update(|frame| frame.counter()), Ok(7));
+    /// drop(host);
+    /// drop(allocator);
+    /// ```
+    ///
+    /// The backing allocator cannot be destroyed while the host still uses it:
+    /// ```compile_fail,E0505
+    /// use std::alloc::System;
+    /// use ic_storage_native_feasibility::Host;
+    /// let allocator = Box::new(System);
+    /// let values = Vec::<u64, _>::new_in(&*allocator);
+    /// let mut host = Host::from_vec(0, values).ok().unwrap();
+    /// drop(allocator);
+    /// host.with_update(|frame| frame.counter()).unwrap();
+    /// ```
+    pub fn from_vec(counter: u64, values: Vec<u64, A>) -> Result<Self, (Refusal, Vec<u64, A>)> {
+        if values.len() > MAX_VALUES {
+            return Err((Refusal::Capacity, values));
+        }
+        Ok(Self {
+            counter,
+            rooted: values,
+            detached: None,
+            poisoned: false,
+        })
+    }
+
     /// Runs one exclusive frame. An ordinary returned Err does not roll back.
     ///
     /// Panics propagate and leave the host poisoned. There is deliberately no
@@ -85,7 +137,7 @@ impl Host {
     /// ```
     pub fn with_update<R>(
         &mut self,
-        operation: impl for<'scope> FnOnce(Frame<'scope>) -> R,
+        operation: impl for<'scope> FnOnce(Frame<'scope, A>) -> R,
     ) -> Result<R, Fault> {
         if self.poisoned {
             return Err(Fault::Poisoned);
@@ -127,11 +179,11 @@ impl Host {
 /// let mut host = Host::default();
 /// let escaped = host.with_update(|frame| frame.values().unwrap());
 /// ```
-pub struct Frame<'scope> {
-    host: &'scope mut Host,
+pub struct Frame<'scope, A: Allocator = Global> {
+    host: &'scope mut Host<A>,
 }
 
-impl<'scope> Frame<'scope> {
+impl<'scope, A: Allocator + Clone> Frame<'scope, A> {
     /// Reads the record's non-owning integer field.
     #[must_use]
     pub fn counter(&self) -> u64 {
@@ -170,9 +222,15 @@ impl<'scope> Frame<'scope> {
     }
 
     /// Detaches into a host-owned slot. The ticket carries authority, not a Vec.
+    ///
+    /// # Panics
+    /// Propagates allocator-clone panics; the enclosing host remains poisoned.
     pub fn detach(&mut self) -> Result<Ticket<'scope>, Refusal> {
         self.require_attached()?;
-        self.host.detached = Some(std::mem::take(&mut self.host.rooted));
+        // Clone only for an empty replacement. The detached Vec keeps its own
+        // allocator, so this does not require interchangeable allocator clones.
+        let empty = Vec::new_in(self.host.rooted.allocator().clone());
+        self.host.detached = Some(std::mem::replace(&mut self.host.rooted, empty));
         Ok(Ticket { scope: PhantomData })
     }
 

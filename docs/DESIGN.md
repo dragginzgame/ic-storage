@@ -339,6 +339,40 @@ not an IC reopening argument: it does not establish a new allocation domain
 after instantiation. Ephemeral std headers are a candidate alternative for this
 subset, not a selected product ABI or a solution for private collection nodes.
 
+The private [allocation-ledger image](../qualification/ic-storage-native-feasibility/ledger-format.md)
+specifies fixed-width versioned metadata without relying on Rust struct layout.
+It rejects active-owner export, corrupt framing and contradictory allocation
+records. Decoding grants no allocation custody and never installs a live ledger;
+the domain/pointer mechanism and complete root inventory remain separate gates.
+
+The [single-root suspension fixture](../qualification/ic-storage-native-feasibility/suspension.md)
+now checks complete allocation accounting for one live vector, freezes its arena
+and consumes its original token exactly once on resume. Extra or forgotten
+allocations refuse admission; dropping or forgetting suspension leaves the arena
+unavailable for reuse. Matching image bytes cannot substitute for the token.
+This is bounded host inventory evidence, not a durable root inventory or an IC
+allocation-domain proof.
+
+The next [allocation-domain experiment](design/native-allocation-domain.md)
+separates backing-region validity from allocator-issued block authority. It
+investigates explicit custody transfer to a fresh controller over independently
+owned backing, followed by allocation issuance without overwriting initialized
+payloads. An actual IC provider and its compiler/startup contract remain required;
+decoding a ledger or declaring a foreign symbol cannot establish either authority.
+
+The private [backing-transfer fixture](../qualification/ic-storage-native-feasibility/transfer.md)
+now consumes explicit source authority, ends that controller and issues the same
+span through a fresh controller over the original live Box. It preserves values
+and supports reclamation while rejecting duplicate claims and failed issuance.
+This supplies host controller-replacement evidence, not an IC backing provider.
+
+Destination geometry now bounds usable allocation space independently of the
+physical backing. Native spans outside that region refuse before issuance and
+return original custody. Host checkpoint tests explicitly discard that refused
+native source and reconstruct its logical state into a smaller fresh arena.
+This connects both routes under an actual allocator-capacity constraint; it does
+not qualify a different compiler, retained ABI or installed native transition.
+
 ### Lifecycle ordering
 
 The normal lifecycle is:
@@ -460,6 +494,14 @@ This establishes a small logical round trip. The separate installed provider
 experiment below exercises durability without the old heap; neither experiment
 completes the native incompatible-runtime migration proof. The prototype format admits
 only one counter and one unique u64 vector; it cannot encode shared/cyclic graphs.
+
+Host handoff tests now export under exclusive source access and immediately
+freeze the vector, then restore from independent checkpoint bytes after losing
+the source arena and resume token. Refused imports preserve the frozen source,
+checkpoint and existing target for retry. Cancellation resumes the original
+allocation; subsequent writes require a new export and coordinator-selected epoch.
+These fixture sequences connect the existing mechanisms without implementing
+durable publication, restart authority or a complete migration coordinator.
 
 Assign checkpoint-local object IDs and preserve aliasing/cycles with an identity
 map. Define weak-edge and unreachable-resource policy explicitly. Reconstruct
@@ -626,8 +668,11 @@ conversion or a native incompatible-runtime transition.
 M0 remains a regression/evidence baseline; it is not the new persistent ABI.
 The [frozen M0 format](design/m0-layout.md) remains unchanged.
 
-The first native ownership experiment uses live Global allocations solely to
-exercise the proposed access boundary. Its std Vec is not retained or certified.
+The native ownership experiment exercises the same safe frame interface with
+Global and explicitly supplied live arena allocations. Its
+[scoped arena tests](../qualification/ic-storage-native-feasibility/scoped-ownership.md)
+cover actual run custody, quarantine, reclamation and entry after fresh native
+issuance. Its std Vec is not retained or certified.
 The separate live-arena and checkpoint experiments establish same-domain
 reopening and a host logical round trip. The provider fixture adds installed
 bounded checkpoint recovery without establishing cross-instance native allocation

@@ -1,6 +1,42 @@
 # Changelog
 
-## [0.1.4] - Unreleased
+## [0.1.4] - 2026-11-15
+
+### 📚 Documentation
+
+- Define the next allocation-domain experiment: independently owned backing,
+  explicit custody transfer and fresh allocator issuance. Separate the host
+  controller proof from the still-required IC provider and startup contract.
+
+### 🧪 Testing
+
+- Connect the existing safe scoped owner to arena-backed vectors and freshly
+  reconstructed records without reallocating. Exercise real allocation refusal,
+  retirement/reuse, panic and forgotten-ticket quarantine, and allocator lifetime
+  confinement; the default Global-backed experiment remains supported.
+
+- Enforce destination usable-region limits before native transfer and during
+  allocation/reuse. Exercise unchanged-custody refusal and explicit portable
+  reconstruction into a smaller arena after discarding the incompatible source.
+
+- Transfer live backing through explicit consumed source authority, replace the
+  allocator controller and issue the retained span afresh before vector creation.
+  Exercise nonzero offsets, duplicate/lost authority, reservation refusal,
+  allocation failure and reclamation; no cross-instance provider is implied.
+
+- Add a private, fixed-width allocation-ledger image with version, geometry and
+  integrity checks. Exercise independent golden bytes, truncation, corruption,
+  resealed invalid metadata and active-owner refusal. Decoding does not grant
+  allocation custody or create native pointers; IC reopening remains unresolved.
+
+- Exercise single-root live suspension with complete allocation accounting,
+  extra/forgotten-owner refusal, arena freezing and original-token single-use
+  resume. Dropping or forgetting suspension keeps the arena unavailable for reuse.
+
+- Connect portable checkpoints to source suspension in host handoff tests:
+  recover after source/token loss, retry refused imports, cancel before target
+  publication and export a new epoch after further writes. Keep durable migration
+  coordination and installed native reopening explicitly outside this evidence.
 
 ## [0.1.3] - 2026-11-15
 

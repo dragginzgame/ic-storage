@@ -17,6 +17,8 @@ The allocator accepts only nonzero multiples of u64 size with u64 alignment.
 It returns exact-sized disjoint runs from the backing array. All offsets are
 bounded before pointer arithmetic; pointers derive from UnsafeCell::get on the
 original live allocation. There is no integer-to-pointer reconstruction.
+Controllers may restrict allocation to a validated prefix of that backing;
+whole-ledger admission and reusable-byte accounting enforce the same limit.
 Allocation failure changes neither metadata nor an existing allocation. Methods
 do not allocate their metadata, invoke application callbacks or unwind. The
 standard Allocator grow/shrink defaults may move data between disjoint runs.
@@ -63,7 +65,16 @@ This validates structural consistency, not the truth of arbitrary metadata.
 The original arena and unique token still supply the evidence that allocations
 are live and elements initialized. A consistently forged ledger cannot become
 trusted through this check. Its typed host representation is not a persisted
-format, and no decoding or cross-instance pointer creation has been added.
+format. The separate [ledger-image codec](ledger-format.md) now exercises
+versioned metadata bytes with integrity and structural checks, including active
+owner refusal on export. Decoding never installs trusted bookkeeping or creates
+pointers. The image cannot replace the original allocation and ownership evidence.
+
+The [single-root suspension experiment](suspension.md) accounts for every allocated
+block before freezing the arena. Its independent flag blocks allocation and
+ordinary reopening until the original token is consumed by a checked resume.
+Losing that token never clears the flag; no destructor is required for safety.
+This adds live inventory evidence, not a retained allocation-domain contract.
 
 ## Refusal and forgetting
 
@@ -111,6 +122,11 @@ preserves Wasm memory in keep mode while creating the new instance; Rust's
 allocation/provenance and Allocator lifetime requirements remain separate.
 This is an unresolved integration obligation, not a claim that native reopening
 is impossible. No cross-instance unsafe cast was added on that assumption.
+
+The [next allocation-domain experiment](../../docs/design/native-allocation-domain.md)
+separates valid backing ownership from fresh allocator issuance. Its host
+[controller-transfer fixture](transfer.md) now replaces the controller over the
+same live Box; the actual IC provider contract remains outstanding.
 
 Contract sources: [Allocator](https://doc.rust-lang.org/std/alloc/trait.Allocator.html),
 [Vec raw-parts reconstruction](https://doc.rust-lang.org/std/vec/struct.Vec.html#method.from_raw_parts_in),

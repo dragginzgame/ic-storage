@@ -2,8 +2,8 @@
 
 These experiments cover parts of design gate 1: scoped ownership, compiler
 layout diagnostics and live allocation custody. They are fixture code, not a
-product API or a retained heap implementation. The ownership-model library uses
-ordinary Global allocations and forbids unsafe code. A separate private
+product API or a retained heap implementation. The ownership-model library accepts
+Global or explicit live allocators and forbids unsafe code. A separate private
 integration-test kernel exercises an arena allocator under the explicit
 [live allocation boundary](allocation-boundary.md); it reopens no retained data.
 
@@ -19,7 +19,7 @@ Detaching moves the allocation to a private host slot and returns an invariant,
 frame-bound ticket. The ticket contains no Vec, pointer or destructor-based
 cleanup. Attach consumes it and restores the same live allocation; retire
 consumes it and destroys the detached vector through its current runtime.
-There is only one detachable owner in this experiment.
+There is one detachable owner; [arena integration](scoped-ownership.md) uses this same API.
 
 The host marks itself poisoned before invoking the callback and clears that
 state only after normal return with no outstanding detached allocation.
@@ -51,9 +51,9 @@ representation evidence. No lifetime or provenance is carried across executable
 instantiation. The compiler diagnostic experiment below exposes private header
 offsets but does not select a certified std build, custom collection format or
 compiler extension. Gate 1 still requires complete admission evidence before the
-first retained native vector. A [bounded logical checkpoint](checkpoint-format.md)
-now round-trips this subset on the host; installed provider-backed recovery is
-still required before persistent state admission.
+first retained native vector. The [next domain experiment](../../docs/design/native-allocation-domain.md)
+separates backing ownership from allocator issuance. [Logical recovery](checkpoint-format.md)
+already works on the host; native admission and migration qualification remain open.
 
 ## Compiler layout diagnostics
 
@@ -115,6 +115,8 @@ and allocator. It neither retains a private Vec header nor restores a domain
 after an upgrade. Its reviewed operations and limits are recorded beside the
 private unsafe kernel; no unsafe permission is added to the ownership library
 or product crate.
+The [ledger image](ledger-format.md) avoids Rust struct layout. [Suspension](suspension.md)
+checks sole-root custody; [transfer](transfer.md) replaces the controller over live backing.
 
 ```sh
 make native-feasibility-test
@@ -122,13 +124,12 @@ make native-layout-probe
 ```
 
 The first command runs strict Clippy, nine ownership tests, five checkpoint
-tests, twenty arena/allocation/import tests, six metadata-reader tests and nine
-compile-fail documentation cases, locked and offline. The compiled
+tests, fifty-nine arena/allocation/import tests, six metadata-reader tests, ten
+compile-fail and one positive documentation case, locked and offline. The compiled
 metadata test is ignored in ordinary Cargo tests: the second command supplies
 fresh inputs and explicitly runs it. `make ci` includes both on the host matrix.
-The cases cover extraction by return/capture/future, cross-frame tickets,
-take/replace, consuming iterators, borrowed escape and ticket cloning. Cloning
-a shared retained owner is not qualified: no shared-owner type is admitted.
+Cases cover return/capture/future escape, cross-frame tickets, take/replace,
+iterators, borrowed escape and ticket cloning. No shared-owner type is admitted.
 
 Runtime cases cover in-frame moves, same-allocation reattachment, retirement,
 continued allocation, capacity refusal, detached access refusal, ordinary Err,
@@ -138,9 +139,9 @@ disjoint clients, growth exhaustion, shrink/removal, run reuse, partial
 construction unwind, malformed/stale descriptors, forgotten live/parked owners,
 empty/cleared vectors, unsupported layouts and generation exhaustion. This does
 not establish retained allocator reuse, physical page reclamation, durable
-checkpoint recovery or installed native upgrades. Host checkpoint tests destroy
-the source arena before reconstructing a fresh target and refuse incomplete,
-corrupt or mismatched input without replacing an existing root on failure.
+checkpoint recovery or installed native upgrades. Host checkpoint tests cover
+source teardown, failed-import retry, cancellation and native extent refusal;
+explicit portable recovery preserves the existing target on failed import.
 
 Both commands passed on x86_64 Linux with Rust 1.100.0. Raw IR, source snapshots,
 compiler identity, host observations and reports remain
