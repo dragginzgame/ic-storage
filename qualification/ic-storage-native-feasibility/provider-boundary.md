@@ -165,8 +165,9 @@ Rust pointer, arbitrary destructor or general application API.
 The [provider-region experiment](provider-region.md) now exercises a single-block
 controller over loaned backing on the host. The same implementation compiles into
 a separate vector Wasm diagnostic under `make native-provider-probe`; an additional
-test inventories it and verifies that scalar admission refuses it. This fourth
-artifact test does not execute the vector module or extend scalar admission.
+test inventories it and verifies that scalar admission refuses it. Stack/control
+regressions also check the transient frame and acyclic direct calls. These partial
+checks do not execute the vector module or extend scalar admission.
 
 The scalar integration decision is recorded; extending it to allocator-issued
 blocks and a native vector must satisfy these requirements together:

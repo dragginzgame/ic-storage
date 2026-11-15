@@ -656,6 +656,7 @@ those historical results; each linked record owns its artifacts and test scope:
 | --- | --- |
 | [WAT retention probe](../qualification/README.md) | Selected IC retention and rollback behavior on local PocketIC |
 | [WAT provider custody](../qualification/ic-storage-retention-probe/provider-custody.md) | Exclusive claim/settlement, destination refusal and rollback across installed upgrades; no Rust pointer validity |
+| [WAT vector descriptor custody](../qualification/ic-storage-retention-probe/vector-provider.md) | Full-width length/capacity admission, descriptor publication and full provider-payload rollback across upgrades; no installed Rust vector |
 | [Installed Rust scalar provider](../qualification/ic-storage-native-feasibility/provider-boundary.md#installed-scalar-lifecycle) | Explicit fixed foreign-allocation model, admitted Rust access/settlement, compatible upgrades and refusal/rollback; no native vector or allocator issuance |
 | [Provider-region controller](../qualification/ic-storage-native-feasibility/provider-region.md) | Host fresh vector issuance over exclusive loaned backing, growth/shrink/reuse and refusal; the shared wasm32 diagnostic is compiled but not admitted or executed |
 | [Rust startup/growth probe](../qualification/ic-storage-rust-startup-probe/README.md) | Controlled transient initialization and bounded growth for the admitted wasm32 artifacts |

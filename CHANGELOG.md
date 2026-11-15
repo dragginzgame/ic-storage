@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.1.7] - 2026-11-15
+
+### 🧪 Testing
+
+- Add checked vector access helpers and compiler instrumentation for all 49
+  emitted memory operations. Exercise metadata/spare-capacity refusal, bounded
+  operation-specific writes, offset overflow and overlapping copies in installed
+  WAT tests. Guard imports remain unresolved in the rewritten Rust diagnostic;
+  it is not executed or admitted as a native persistence implementation.
+
+- Exercise installed vector-descriptor custody before native integration. Reject
+  oversized length/capacity before wasm32 narrowing, require settlement before
+  publication, and preserve the full header/payload after traps or refused
+  upgrades. The WAT-only test includes missing source guards and full-region
+  capacity boundaries; it does not execute a Rust vector.
+
+- Check the compiled vector's transient stack discipline and direct-call graph.
+  Reject overwritten frame locals, incorrect restoration, branch/return escapes,
+  recursion and unreviewed control operators. Retain the operator listing for
+  review; payload-address admission and installed vector execution remain open.
+
 ## [0.1.6] - 2026-11-15
 
 ### 🧪 Testing

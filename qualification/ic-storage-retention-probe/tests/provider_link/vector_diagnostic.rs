@@ -1,6 +1,6 @@
 //! Inventory vector compiler output, without linking or admitting native access.
 
-use std::{collections::BTreeMap, fs};
+use std::{collections::BTreeMap, fmt::Write, fs};
 
 use ic_host_artifacts::{
     artifact::{Sha256Digest, read_reader},
@@ -23,10 +23,12 @@ fn compiled_vector_has_bounded_transient_storage_but_is_not_scalar_admitted() {
     let mut exports = BTreeMap::new();
     let mut globals = Vec::new();
     let mut bodies = 0;
+    let mut function_bodies = Vec::new();
     let mut data_bytes = 0;
     let mut memories = 0;
     let mut stack_updates = 0;
     let mut copies = 0;
+    let mut listing = String::new();
     for payload in Parser::new(0).parse_all(&raw) {
         match payload.unwrap() {
             Payload::ImportSection(r) => {
@@ -82,9 +84,23 @@ fn compiled_vector_has_bounded_transient_storage_but_is_not_scalar_admitted() {
                 }
             }
             Payload::CodeSectionEntry(body) => {
+                function_bodies.push(body.clone());
                 bodies += 1;
+                writeln!(
+                    listing,
+                    "function {} locals {:?}",
+                    imports.len() + bodies - 1,
+                    body.get_locals_reader()
+                        .unwrap()
+                        .into_iter()
+                        .collect::<Result<Vec<_>, _>>()
+                        .unwrap()
+                )
+                .unwrap();
                 for op in body.get_operators_reader().unwrap() {
-                    match op.unwrap() {
+                    let op = op.unwrap();
+                    writeln!(listing, "{op:?}").unwrap();
+                    match op {
                         Operator::MemoryGrow { .. } => panic!("unexpected growth authority"),
                         Operator::GlobalSet { .. } => stack_updates += 1,
                         Operator::MemoryCopy { .. } => copies += 1,
@@ -96,6 +112,7 @@ fn compiled_vector_has_bounded_transient_storage_but_is_not_scalar_admitted() {
             _ => {}
         }
     }
+    fs::write(directory.join("vector/operators.txt"), listing).unwrap();
     assert_eq!(imports, [("native_vector_diagnostic", "claim_region")]);
     assert_eq!(memories, 1);
     assert_eq!(exports["provider_vector_step"].0, ExternalKind::Func);
@@ -109,6 +126,23 @@ fn compiled_vector_has_bounded_transient_storage_but_is_not_scalar_admitted() {
     assert!(
         stack_updates > 0,
         "vector profile must cover transient stack use"
+    );
+    let (_, stack_global) = exports["__stack_pointer"];
+    let report = super::vector_stack::inspect(
+        &function_bodies,
+        exports["provider_vector_step"].1,
+        stack_global,
+        u32::try_from(globals[stack_global as usize]).unwrap(),
+    )
+    .unwrap();
+    println!("vector stack/call diagnostic: {report:?}; payload access remains unqualified");
+    let guarded = super::vector_access::prepare(&raw).unwrap();
+    let coverage = super::vector_access::tests::verify_coverage(&raw, &guarded);
+    fs::write(directory.join("vector/guarded.wasm"), &guarded).unwrap();
+    println!(
+        "vector access rewrite: sites={coverage:?} bytes={} sha256={}; unresolved helpers, NOT executed",
+        guarded.len(),
+        Sha256Digest::compute(&guarded)
     );
     println!(
         "vector diagnostic sha256={} bytes={} functions={bodies} data_bytes={data_bytes} global_sets={stack_updates} memory_copies={copies}; NOT admitted or executed",

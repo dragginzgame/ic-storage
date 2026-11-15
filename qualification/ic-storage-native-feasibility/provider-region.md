@@ -85,9 +85,53 @@ every load/store address or stack bound on every path. **No vector Wasm is linke
 to the provider or executed.** No private layout or installed-vector qualification
 follows from compilation, the reported artifact size or the host lifecycle tests.
 
+## Transient stack and direct-call proof
+
+The 0.1.7 diagnostic adds a deliberately narrow control-flow check to the actual
+vector Wasm. Only the exported entry may change the stack global. Its entry
+sequence reserves one positive, aligned constant frame in a protected Wasm local;
+that local cannot be reassigned. The only later stack write must restore exactly
+that amount from the saved local. The normal return follows restoration through
+a straight-line sequence without calls, effects or control-flow entry points.
+All other entry exits must trap. Local block branches may not target the implicit
+function label and bypass restoration.
+
+Helpers cannot read or change the stack global. The complete direct-call graph
+must be acyclic; indirect/tail calls, loops, exceptions, growth and unrecognized
+operators refuse. The foreign provider remains a conditional non-reentrant leaf:
+its future linked implementation must establish that assumption. This check
+starts from validated Wasm and the inspected import/export/global roster.
+
+Nine diagnostics passed on x86_64 Linux with Rust 1.100.0 on 15 November 2026,
+including five tests using valid Wasm counterexamples for stack mutation,
+restoration mismatch, early returns, branch escapes, recursion and unsupported
+control. The actual vector reports a 64-byte frame, stack-pointer floor 32704
+from initial 32768, and two direct helper-call sites. The raw vector digest is
+unchanged from the cohort above. New raw evidence and the full operator listing
+are under `target/evidence/provider-link/attempt.YrVrf1/`.
+
+This proves the admitted shape's **stack-pointer discipline**, not that every
+load/store falls inside its frame or the provider payload. Helper pointer
+arguments, initialized vector span, memory.copy bounds, complete retained metadata
+and the final linked provider remain independent admission obligations. The
+vector still cannot pass scalar admission and is not executed.
+
+## Next boundary
+
+The [installed vector metadata protocol](../ic-storage-retention-probe/vector-provider.md)
+now checks full-width length/capacity before narrowing, refuses invalid source
+headers and publishes replacement metadata only through settlement. Its WAT-only
+tests compare the entire header and payload after rollback. The accompanying
+source-level access audit records the Rust candidate's initialized-span and copy
+obligations; it does not yet bind all compiled accesses or execute that candidate.
+
 Before installed use, qualify the final vector artifact's complete memory access,
 transient stack/data initialization, imports, abort paths and provider entrypoint
 ordering. The scalar combiner deliberately rejects additional code. Extend the
 provider's initialized-span/descriptor and complete-root admission independently;
 do not relax admission merely because this host test or compiler output succeeds.
 The portable scalar/vector format remains a separate required recovery contract.
+The [checked-access experiment](../ic-storage-retention-probe/vector-access.md)
+now routes all 49 compiled memory operations through unresolved helper imports.
+Installed WAT tests exercise the helpers' operation-specific access windows;
+the rewritten Rust artifact remains unlinked and unexecuted.

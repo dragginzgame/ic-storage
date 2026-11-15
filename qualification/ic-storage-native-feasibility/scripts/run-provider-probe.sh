@@ -51,7 +51,7 @@ rustc --edition 2024 --crate-type cdylib --target wasm32-unknown-unknown \
 
 NATIVE_PROVIDER_INPUTS="$output" cargo test --manifest-path qualification/Cargo.toml \
     -p ic-storage-retention-probe --target-dir target/qualification --locked --offline \
-    --test provider_link -- --ignored --skip installed_tests --nocapture 2>&1 | tee "$output/report.txt"
+    --test provider_link -- --include-ignored --skip installed_tests --nocapture 2>&1 | tee "$output/report.txt"
 if [[ "$mode" == installed ]]; then
     NATIVE_PROVIDER_INPUTS="$output" cargo test --manifest-path qualification/Cargo.toml \
         -p ic-storage-retention-probe --target-dir target/qualification --locked --offline \

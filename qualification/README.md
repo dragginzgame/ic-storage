@@ -36,6 +36,9 @@ The [provider-region controller](ic-storage-native-feasibility/provider-region.m
 adds host issuance/growth/reuse tests to `make native-feasibility-test` and a
 compile-only vector inventory to `make native-provider-probe`. Scalar artifact
 admission continues to reject that vector module.
+The [vector metadata protocol](ic-storage-retention-probe/vector-provider.md) adds
+installed full-width descriptor and settlement checks to `make retention-test`;
+its canisters contain no Rust vector code.
 
 ## First experiment: retained scalar
 

@@ -84,6 +84,10 @@ the current execution log is `target/evidence/provider-custody/current.log`.
 
 ## Remaining gate
 
+The separate [vector descriptor protocol](vector-provider.md) extends this
+investigation with variable initialized length/capacity and publication after
+access ends. It preserves this scalar fixture and uses a distinct format marker.
+
 This supplies an exercised custody protocol, not a Rust validity argument by
 itself. The separate [combined scalar experiment](../ic-storage-native-feasibility/provider-boundary.md#installed-scalar-lifecycle)
 now records its external-allocation contract, admits the final artifact and

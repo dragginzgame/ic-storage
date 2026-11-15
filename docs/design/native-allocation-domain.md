@@ -134,6 +134,20 @@ controller compiles for wasm32 with Global allocation disabled. Its larger code
 profile uses transient stack storage and memory.copy and is explicitly rejected
 by scalar admission. Final vector access/startup admission and the installed
 provider's initialized-span and descriptor contract remain the next boundary.
+The vector diagnostic now checks one constant transient frame, restoration on
+normal return, refusal of branch escapes and an acyclic direct-call graph. This
+bounds the stack pointer under the non-reentrant-provider assumption; it does not
+yet validate all stack/payload accesses or authorize installed vector execution.
+The [vector metadata protocol](../../qualification/ic-storage-retention-probe/vector-provider.md)
+adds installed WAT evidence for full-width descriptor admission, settlement and
+whole-header/payload rollback, including destination refusal without a source
+guard. Its payload-access audit states the remaining native compiler obligations;
+the Rust vector itself is still not linked to this provider or executed.
+The [access instrumentation](../../qualification/ic-storage-retention-probe/vector-access.md)
+adds checked effective-address windows and rewrites all current compiler memory
+operations to guard imports. This is a qualification mechanism, not a product
+performance decision or a substitute for pointer/initialization validity. The
+helpers have installed WAT evidence; the rewritten Rust module is not executed.
 
 If the provider cannot establish a live Rust allocation, stop pointer-based
 reopening and make the explicit runtime/compiler integration decision. If fresh

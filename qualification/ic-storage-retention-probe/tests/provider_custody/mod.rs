@@ -12,6 +12,8 @@ use super::{module, stopped_hash};
 
 const SOURCE: &str = include_str!("provider.wat");
 
+mod vector;
+
 fn variant_source(version: u64, extent: u64, trap: bool) -> String {
     SOURCE
         .replace("__VERSION__", &version.to_string())
