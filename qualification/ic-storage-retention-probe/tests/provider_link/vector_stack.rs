@@ -15,13 +15,16 @@ pub(super) enum Error {
 
 #[derive(Debug, PartialEq, Eq)]
 pub(super) struct Report {
+    /// Maximum simultaneous frame sum along a reachable direct call path.
     pub(super) frame_bytes: u32,
     pub(super) lowest_stack_pointer: u32,
     pub(super) direct_edges: usize,
 }
 
 /// Caller first validates Wasm, the sole non-reentrant foreign import, global
-/// roster/initializer and entrypoint identity. Only the entry may use the stack.
+/// roster/initializer and entrypoint identity. Every stack-using body must have
+/// one balanced frame. Acyclic direct calls bound the sum of simultaneously live
+/// frames; no callee may change its caller's frame local or return unbalanced.
 pub(super) fn inspect(
     bodies: &[FunctionBody<'_>],
     entry: u32,
@@ -35,7 +38,7 @@ pub(super) fn inspect(
         return Err(Error::Shape);
     }
     let mut edges = vec![Vec::new(); bodies.len()];
-    let mut frame_bytes = 0;
+    let mut frames = vec![0; bodies.len()];
     for (index, body) in bodies.iter().enumerate() {
         let ops = body
             .get_operators_reader()
@@ -43,9 +46,12 @@ pub(super) fn inspect(
             .into_iter()
             .collect::<Result<Vec<_>, _>>()
             .map_err(|_| Error::Shape)?;
-        let frame = if index as u32 + 1 == entry {
+        let frame = if ops
+            .iter()
+            .any(|op| matches!(op, Op::GlobalGet { .. } | Op::GlobalSet { .. }))
+        {
             let frame = frame(&ops, stack_global)?;
-            frame_bytes = frame.bytes;
+            frames[index] = frame.bytes;
             Some(frame)
         } else {
             None
@@ -78,7 +84,7 @@ pub(super) fn inspect(
                 Op::Return => {
                     if frame
                         .as_ref()
-                        .is_some_and(|f| position != f.return_at || depth != 1)
+                        .is_some_and(|f| position != f.exit_at || depth != 1)
                     {
                         return Err(Error::Control);
                     }
@@ -130,6 +136,7 @@ pub(super) fn inspect(
                 | Op::I32GeU
                 | Op::I32GtU
                 | Op::I32LeU
+                | Op::Select
                 | Op::I64Add
                 | Op::I64ExtendI32U
                 | Op::I64Or
@@ -153,19 +160,44 @@ pub(super) fn inspect(
             return Err(Error::Control);
         }
     }
-    let lowest_stack_pointer = stack_top
-        .checked_sub(frame_bytes)
-        .filter(|floor| *floor > 0)
-        .ok_or(Error::Stack)?;
     let mut colors = vec![0; bodies.len()];
     for index in 0..bodies.len() {
         visit(index, &edges, &mut colors)?;
     }
+    let frame_bytes = peak(
+        entry as usize - 1,
+        &edges,
+        &frames,
+        &mut vec![None; bodies.len()],
+    )?;
+    let lowest_stack_pointer = stack_top
+        .checked_sub(frame_bytes)
+        .filter(|floor| *floor > 0)
+        .ok_or(Error::Stack)?;
     Ok(Report {
         frame_bytes,
         lowest_stack_pointer,
         direct_edges: edges.iter().map(Vec::len).sum(),
     })
+}
+
+// Called only after cycle rejection; conservatively count all direct call paths.
+fn peak(
+    index: usize,
+    edges: &[Vec<usize>],
+    frames: &[u32],
+    memo: &mut [Option<u32>],
+) -> Result<u32, Error> {
+    if let Some(value) = memo[index] {
+        return Ok(value);
+    }
+    let mut children = 0;
+    for &next in &edges[index] {
+        children = children.max(peak(next, edges, frames, memo)?);
+    }
+    let value = frames[index].checked_add(children).ok_or(Error::Stack)?;
+    memo[index] = Some(value);
+    Ok(value)
 }
 
 fn visit(index: usize, edges: &[Vec<usize>], colors: &mut [u8]) -> Result<(), Error> {
@@ -186,7 +218,7 @@ struct Frame {
     bytes: u32,
     local: u32,
     restore_at: usize,
-    return_at: usize,
+    exit_at: usize,
 }
 
 fn frame(ops: &[Op<'_>], stack: u32) -> Result<Frame, Error> {
@@ -217,19 +249,18 @@ fn frame(ops: &[Op<'_>], stack: u32) -> Result<Frame, Error> {
     {
         return Err(Error::Stack);
     }
-    let return_at = ops
-        .iter()
-        .position(|op| matches!(op, Op::Return))
-        .ok_or(Error::Control)?;
-    if return_at <= restore_at
-        || !matches!(&ops[return_at + 1..], [Op::End, Op::Unreachable, Op::End])
-    {
+    let explicit = ops.iter().position(|op| matches!(op, Op::Return));
+    let exit_at = explicit.unwrap_or(ops.len() - 1);
+    if exit_at <= restore_at || !matches!(ops.last(), Some(Op::End)) {
+        return Err(Error::Control);
+    }
+    if explicit.is_some() && !matches!(&ops[exit_at + 1..], [Op::End, Op::Unreachable, Op::End]) {
         return Err(Error::Control);
     }
     // No branch target, callback or effect may enter or interrupt this suffix.
     // Return is dominated by restoration; all other exits trap after the outer
     // block. Local block branches cannot target the function's implicit label.
-    for op in &ops[restore_at + 1..return_at] {
+    for op in &ops[restore_at + 1..exit_at] {
         if !matches!(
             op,
             Op::LocalGet { .. }
@@ -246,7 +277,7 @@ fn frame(ops: &[Op<'_>], stack: u32) -> Result<Frame, Error> {
         bytes: *bytes as u32,
         local: *local,
         restore_at,
-        return_at,
+        exit_at,
     })
 }
 

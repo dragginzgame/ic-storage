@@ -132,7 +132,9 @@ heap, with failed-import rollback tests. The
 now tests compatible reopening, governed export and relocated native recovery;
 general runtime migration and production authority remain open.
 The [governed job fixture](qualification/ic-storage-native-feasibility/migration-job.md)
-adds controller checks, durable epochs and consumed-checkpoint refusal.
+adds guarded jobs, cancellation, frozen-source upgrades and staged import.
+The shared [native core](crates/ic-storage-native/README.md) now supplies scoped
+vector operations to that fixture; `make native-core-test` checks ownership limits.
 
 Library code lives in `crates/`. See [qualification/](qualification/README.md)
 for fixture contracts, commands and evidence scope. Production canister

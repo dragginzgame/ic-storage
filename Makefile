@@ -21,6 +21,9 @@ m0-test m0-lint-wasm: export CARGO_NET_OFFLINE := true
 
 .PHONY: m0-test m0-lint-wasm
 m0-test m0-lint-wasm: | toko-execution-check
+.PHONY: native-core-test
+native-core-test: export CARGO_NET_OFFLINE := true
+native-core-test: | toko-execution-check
 retention-test retention-lint retention-tools-check: export CARGO_NET_OFFLINE := true
 
 .PHONY: retention-setup retention-tools-check retention-lint retention-test
@@ -67,6 +70,7 @@ help:
 	  'make lint / doc-check            Strict Clippy / Rustdoc for the library' \
 	  'make m0-test                     Run native M0 image and capability tests' \
 	  'make m0-lint-wasm                Check the no_std image library on wasm32' \
+	  'make native-core-test           Test the scoped native vector core' \
 	  'make retention-setup             Explicitly prepare the retention-test server' \
 	  'make retention-tools-check       Admit the prepared server offline' \
 	  'make retention-lint              Strict Clippy for the Rust test runner' \
@@ -100,19 +104,19 @@ help:
 	  'make toko-tooling-check          Admit pin, lockfile and snapshot bytes'
 
 check:
-	+cargo check -p ic-storage-new --locked --offline
+	+cargo check --workspace --locked --offline
 
 lint:
-	+cargo clippy -p ic-storage-new --all-targets --locked --offline -- -D warnings
+	+cargo clippy --workspace --all-targets --locked --offline -- -D warnings
 
 doc-check: export RUSTDOCFLAGS := -D warnings
 doc-check:
-	+cargo doc -p ic-storage-new --no-deps --locked --offline
+	+cargo doc --workspace --no-deps --locked --offline
 	+cargo doc $(RUST_STARTUP_CARGO) --target-dir target/qualification --no-deps
 	+cargo doc $(RUST_STARTUP_CARGO) --target-dir target/qualification --features managed-graph --no-deps
 
 # Host setup and locked dependency fetching happen explicitly before this gate.
-ci: fmt-check deps-check lint doc-check m0-test m0-lint-wasm retention-lint rust-startup-lint managed-graph-lint benchmark-simple-lint native-feasibility-test native-layout-probe native-provider-probe checkpoint-provider-lint
+ci: fmt-check deps-check lint doc-check m0-test m0-lint-wasm native-core-test retention-lint rust-startup-lint managed-graph-lint benchmark-simple-lint native-feasibility-test native-layout-probe native-provider-probe checkpoint-provider-lint
 
 deps-check: toko-tooling-check deps-pins deps-boundaries
 
@@ -122,6 +126,7 @@ deps-pins:
 deps-boundaries:
 	+bash "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-dependency-boundaries.sh" --consumer "$(CURDIR)" --external-ic
 	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)" --package ic-storage-new --target all --forbid toko-tooling
+	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)" --package ic-storage-native --target all --forbid toko-tooling
 	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)/qualification" --package ic-storage-retention-probe --target all --forbid toko-tooling
 	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)/qualification" --package ic-storage-native-feasibility --target all --forbid toko-tooling
 	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)/qualification" --package ic-storage-checkpoint-provider-probe --target wasm32-unknown-unknown --all-features --require ic-storage=1 --require ic-platform-runtime=1 --forbid ic-platform --forbid ic-platform-types --forbid ic-platform-runtime-guard --forbid toko-tooling
@@ -138,6 +143,10 @@ m0-test:
 
 m0-lint-wasm:
 	+cargo clippy -p ic-storage-new --lib --target wasm32-unknown-unknown --locked --offline -- -D warnings
+
+native-core-test:
+	+cargo test -p ic-storage-native --locked --offline
+	+cargo clippy -p ic-storage-native --lib --target wasm32-unknown-unknown --locked --offline -- -D warnings
 
 retention-setup:
 	+@server="$$($(RETENTION_TOOL))" && "$$server" setup

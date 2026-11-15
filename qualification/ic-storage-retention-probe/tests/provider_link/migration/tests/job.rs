@@ -7,6 +7,10 @@ use ic_testkit::{
 };
 use std::time::Duration;
 
+mod cancellation;
+mod frozen;
+mod staged;
+
 fn args(epoch: u64, domain: u64, fault: u64) -> Vec<u8> {
     [epoch, domain, fault]
         .into_iter()

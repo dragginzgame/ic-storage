@@ -23,7 +23,7 @@ The [native bridge](ic-storage-retention-probe/native-checkpoint.md), exercised 
 `make native-checkpoint-test`, now connects retained values to that same provider
 and reconstructs a relocated native allocation after explicit heap replacement.
 The [governed job profile](ic-storage-native-feasibility/migration-job.md), run with
-`make native-job-test`, adds controller checks, durable epochs and single-use admission.
+`make native-job-test`, adds durable epochs, cancellation, frozen resumption and staged import.
 
 These fixtures qualify the existing byte-defined M0 experiment and selected IC
 mechanisms. They do not yet qualify the native retained allocator, collection

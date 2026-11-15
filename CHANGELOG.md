@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.1.10] - 2026-11-16
+
+### 🧪 Testing
+
+- Extract a reusable, unsafe-free scoped u64-vector core under `crates/` and use
+  it in the installed native fixture. Check owner/reference/future escape,
+  forgotten views and allocation refusal. Extend artifact admission to measure
+  nested balanced stack frames and guard every access in the new compiler output.
+- Add controller-authorized cancellation before heap replacement. Retire the
+  sealed epoch, preserve the original vector allocation and resume native writes;
+  identical retries leave later writes intact. Exercise cancellation rollback,
+  stale-job refusal, compatible reopening and fresh export after cancellation.
+- Add explicit frozen-source resumption across compatible upgrades. Rebuild
+  transients, verify the sealed job against retained logical values and keep
+  writes blocked; preserve subsequent cancellation and replacement recovery.
+- Add staged checkpoint import with a version-2 durable cursor, batches of up
+  to 64 values and explicit compatible resumption. Keep partial vectors
+  inaccessible; verify exact retries, native/checkpoint disagreement and
+  rollback before publishing the complete root.
+
+### ▶️ Try it
+
+Run `make native-core-test` for the scoped vector core and ownership checks.
+Run `make native-job-test` with cached dependencies and the prepared local server
+for cancellation, frozen resumption, staged import and governed admission cases.
+
 ## [0.1.9] - 2026-11-15
 
 ### 🧪 Testing

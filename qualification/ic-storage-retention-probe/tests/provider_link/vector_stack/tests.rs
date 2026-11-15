@@ -136,3 +136,55 @@ fn recursion_and_unreviewed_control_operators_refuse() {
         assert_eq!(inspect(&source("", body, 64, 64)), Err(Error::Unsupported));
     }
 }
+
+fn helper_frame(bytes: u32, body: &str, suffix: &str) -> String {
+    format!(
+        "(local i32) global.get 0 i32.const {bytes} i32.sub local.tee 0 global.set 0 {body} local.get 0 i32.const {bytes} i32.add global.set 0 {suffix}"
+    )
+}
+
+#[test]
+fn nested_frames_use_peak_live_depth_not_individual_or_sequential_sizes() {
+    let helper = helper_frame(16, "call 3", "");
+    let mut nested = source(&helper, "call 1 call 1", 48, 48);
+    let end = nested.rfind(')').unwrap();
+    nested.insert_str(end, &format!("(func {})", helper_frame(16, "", "")));
+    assert_eq!(
+        inspect(&nested).unwrap(),
+        Report {
+            frame_bytes: 80,
+            lowest_stack_pointer: 32688,
+            direct_edges: 3
+        }
+    );
+    let exhausted = source(&helper_frame(32720, "", ""), "call 1", 48, 48);
+    assert_eq!(inspect(&exhausted), Err(Error::Stack));
+    // A helper's size alone must also be rejected when the total would wrap.
+    let huge = source(&helper_frame(2147483632, "", ""), "call 1", 64, 64);
+    assert_eq!(inspect(&huge), Err(Error::Stack));
+}
+
+#[test]
+fn helper_frames_cannot_escape_or_execute_effects_after_restoration() {
+    for (body, suffix) in [
+        ("return", ""),
+        ("br 0", ""),
+        ("block br 1 end", ""),
+        ("", "call 0"),
+        ("", "block end"),
+        ("", "i32.const 0 i32.const 1 i32.store"),
+    ] {
+        assert_eq!(
+            inspect(&source(&helper_frame(16, body, suffix), "call 1", 48, 48)),
+            Err(Error::Control)
+        );
+    }
+    let helper = helper_frame(16, "", "").replace(
+        "local.get 0 i32.const 16 i32.add",
+        "local.get 0 i32.const 32 i32.add",
+    );
+    assert_eq!(
+        inspect(&source(&helper, "call 1", 48, 48)),
+        Err(Error::Stack)
+    );
+}

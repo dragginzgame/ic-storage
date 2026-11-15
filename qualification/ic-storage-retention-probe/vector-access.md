@@ -16,8 +16,9 @@ u64 arithmetic, and check addition and end-of-range overflow before narrowing.
 They check the entire byte interval, not only its starting address. An offset
 that would wrap into the provider after i32 addition therefore refuses.
 
-The only transient-memory window is `[32704, 32768)`, exactly the 64-byte frame
-established by the current compiler's stack/control check. The helpers themselves
+The current transient-memory window is `[32688, 32768)`, the 80-byte peak across
+balanced frames established by the scoped-core compiler profile. The earlier
+single-frame evidence below used `[32704, 32768)`. The helpers themselves
 use only Wasm locals and globals, with no additional linear-memory stack. Stack
 access does not require a provider claim because Rust entry may initialize its
 transient frame before claiming backing. This checks bounds, not initialization
@@ -74,12 +75,15 @@ kinds with emitted helper calls and verifies there are no original direct memory
 operations left in the rewritten bodies. Synthetic cases check store value/offset
 ordering and direct-call/export remapping.
 
-For the current Rust 1.100.0 output, all 49 sites are replaced: 19 i32 loads,
+For the original Rust 1.100.0 output, all 49 sites were replaced: 19 i32 loads,
 one byte load, one i64 load, 21 i32 stores, two byte stores, four i64 stores and
 one copy. The unresolved output is 1429 bytes with SHA-256
 `9330264d5230f7b23358eef05e7cba4c2a5611390358d96df9b7affecb1db7ac`.
 The passing eleven-check cohort and `vector/guarded.wasm` are under
 `target/evidence/provider-link/attempt.JIJ4Hv/`.
+The shared scoped-core build has 76 sites: 31 i32 loads, one byte load, one i64
+load, 36 i32 stores, two byte stores, four i64 stores and one copy. Its current
+artifact and installed evidence are recorded under [vector linkage](vector-link.md).
 
 ## Installed helper evidence and remaining gate
 

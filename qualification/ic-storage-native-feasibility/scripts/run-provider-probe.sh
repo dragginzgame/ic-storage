@@ -25,6 +25,9 @@ cp qualification/ic-storage-retention-probe/tests/provider_custody/provider.wat 
 cp -R qualification/ic-storage-retention-probe/tests/provider_link "$output/admission-source"
 cp qualification/Cargo.toml qualification/Cargo.lock rust-toolchain.toml "$output/"
 mkdir "$output/vector"
+cp -R crates/ic-storage-native "$output/vector/native-core"
+cp Cargo.toml "$output/vector/native-core/workspace-Cargo.toml"
+cp Cargo.lock "$output/vector/native-core/workspace-Cargo.lock"
 cp qualification/ic-storage-native-feasibility/tests/fixtures/provider_vector.rs \
     qualification/ic-storage-native-feasibility/tests/fixtures/region.rs "$output/vector/"
 cp -R qualification/ic-storage-native-feasibility/tests/fixtures/region "$output/vector/region"
@@ -39,6 +42,7 @@ if [[ "$mode" == migration || "$mode" == job ]]; then
         cp qualification/ic-storage-native-feasibility/src/migration_job.rs "$output/"
         cp -R qualification/ic-storage-native-feasibility/src/migration_job "$output/migration-job-tests"
         cp qualification/ic-storage-native-feasibility/migration-job.md "$output/"
+        cp qualification/ic-storage-native-feasibility/staged-import.md "$output/"
         cp target/qualification/checkpoint-job/wasm32-unknown-unknown/release/ic_storage_checkpoint_provider_probe.wasm "$output/checkpoint-job.wasm"
     else
         cp target/qualification/checkpoint-native/wasm32-unknown-unknown/release/ic_storage_checkpoint_provider_probe.wasm "$output/checkpoint-bridge.wasm"
@@ -57,12 +61,18 @@ rustc --edition 2024 --crate-type cdylib --target wasm32-unknown-unknown \
 # This larger profile has separate artifact checks; the scalar combiner refuses it.
 # Installed mode executes only the documented bounded scalar/vector contracts.
 # Reserve the lower 32 KiB for stack, leaving transient data below provider metadata.
+rustc --edition 2024 --crate-type rlib --crate-name ic_storage_native \
+    --target wasm32-unknown-unknown -C panic=abort -C opt-level=3 \
+    -C embed-bitcode=yes -D warnings \
+    --out-dir "$output/vector" "$output/vector/native-core/src/lib.rs" \
+    > "$output/vector/native-core-compiler.log" 2>&1
 rustc --edition 2024 --crate-type cdylib --target wasm32-unknown-unknown \
     -C panic=abort -C codegen-units=1 -C lto=fat -C opt-level=3 \
     -C link-arg=--stack-first -C link-arg=-zstack-size=32768 \
     -C link-arg=--initial-memory=196608 -C link-arg=--max-memory=196608 \
     -C link-arg=--export=__stack_pointer -C link-arg=--export=__data_end \
     -C link-arg=--export=__heap_base -D warnings --emit=link,llvm-ir \
+    --extern "ic_storage_native=$output/vector/libic_storage_native.rlib" \
     --out-dir "$output/vector" "$output/vector/provider_vector.rs" \
     > "$output/vector/compiler.log" 2>&1
 

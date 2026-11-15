@@ -90,13 +90,10 @@ fn linked_vector_binds_guards_and_orders_custody_without_execution() {
             })
             .collect::<Vec<_>>()
     };
-    let root = bodies.len() as u32 + 1;
-    let helper = root - 1;
-    assert!(
-        !exports
-            .values()
-            .any(|index| *index == root || *index == helper)
-    );
+    let profile = super::super::vector_access::inspect(&raw).unwrap();
+    let first_rust = bodies.len() as u32 + 2 - profile.functions;
+    let root = first_rust + profile.entry - 1;
+    assert!(!exports.values().any(|index| *index >= first_rust));
     let append = calls(exports["canister_update append"])[0];
     let wat_calls = calls(append);
     let claim = wat_calls[0];
@@ -151,10 +148,12 @@ fn linked_vector_binds_guards_and_orders_custody_without_execution() {
     ));
 
     let mut guard_counts = BTreeMap::new();
-    for index in [helper, root] {
+    for index in first_rust..first_rust + profile.functions {
         for op in ops(index) {
             match op {
-                Call { function_index } if function_index != claim && function_index != helper => {
+                Call { function_index }
+                    if function_index != claim && function_index < first_rust =>
+                {
                     *guard_counts.entry(function_index).or_insert(0) += 1;
                 }
                 I32Load { .. }
@@ -172,11 +171,11 @@ fn linked_vector_binds_guards_and_orders_custody_without_execution() {
         }
     }
     assert_eq!(guard_counts.len(), 7);
-    assert_eq!(guard_counts.values().sum::<u32>(), 49);
+    assert_eq!(guard_counts.values().sum::<u32>(), 76);
     let guards: Vec<_> = guard_counts.keys().copied().collect();
     assert_eq!(
         guard_counts.values().copied().collect::<Vec<_>>(),
-        [19, 1, 1, 21, 2, 4, 1]
+        [31, 1, 1, 36, 2, 4, 1]
     );
     let access = calls(guards[0])[0];
     for private in guards.iter().copied().chain([claim, settle, access, run]) {
@@ -192,7 +191,7 @@ fn linked_vector_binds_guards_and_orders_custody_without_execution() {
     assert_eq!(
         calls(root)
             .iter()
-            .filter(|&&target| target == helper)
+            .filter(|&&target| target >= first_rust)
             .count(),
         2
     );
@@ -217,12 +216,12 @@ fn linked_vector_binds_guards_and_orders_custody_without_execution() {
         )));
     }
     // The entire foreign closure is non-reentrant: no provider/helper path can
-    // call either Rust body, even transitively or through a host callback.
+    // call any Rust body, even transitively or through a host callback.
     let mut pending = guards.clone();
     pending.push(claim);
     let mut seen = BTreeSet::new();
     while let Some(index) = pending.pop() {
-        assert!(index >= 2 && index < helper);
+        assert!(index >= 2 && index < first_rust);
         if seen.insert(index) {
             pending.extend(calls(index));
         }

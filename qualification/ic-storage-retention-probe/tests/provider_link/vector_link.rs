@@ -114,6 +114,7 @@ pub(super) fn compose(raw: &[u8], provider: &[u8]) -> Result<Vec<u8>> {
     // Only our admitted raw profile and its deterministic rewrite can enter this
     // composition. An arbitrary "guarded" module is never an accepted input.
     let guarded = vector_access::prepare(raw).map_err(|_| "raw vector profile")?;
+    let profile = vector_access::inspect(raw).map_err(|_| "raw vector profile")?;
     wasm::validate(provider, LIMIT).map_err(|_| "vector provider validation")?;
     let mut provider_functions = 0;
     let mut bindings = BTreeMap::new();
@@ -143,7 +144,7 @@ pub(super) fn compose(raw: &[u8], provider: &[u8]) -> Result<Vec<u8>> {
         functions: (0..3 + provider_functions)
             .map(|index| match index {
                 0 | 1 => index,
-                2 => first_rust + 1,
+                2 => first_rust + profile.entry - 1,
                 _ => index - 1,
             })
             .collect(),
@@ -158,7 +159,7 @@ pub(super) fn compose(raw: &[u8], provider: &[u8]) -> Result<Vec<u8>> {
                 .ok_or("missing guard")?,
         );
     }
-    rust_functions.extend([first_rust, first_rust + 1]);
+    rust_functions.extend(first_rust..first_rust + profile.functions);
 
     let mut types = TypeSection::new();
     let mut imports = ImportSection::new();

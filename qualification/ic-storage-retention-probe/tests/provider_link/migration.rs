@@ -21,8 +21,9 @@ fn native(raw: &[u8], relocated: bool, root: (u64, u64), job: bool) -> Vec<u8> {
     source.truncate(source.rfind(')').unwrap());
     source.push_str(include_str!("migration/callbacks.wat"));
     if job {
-        // Immutable geometry from this same native provider, not caller input.
-        source.push_str("(func (export \"ncp_domain\") (result i64) (i64.const 131072))");
+        source = source.replace("(else (call $provider_pre))", "(else (if (i32.eq (global.get $phase) (i32.const 5)) (then (call $staged)) (else (call $provider_pre))))");
+        source.push_str(include_str!("migration/job-callbacks.wat"));
+        source.push_str(include_str!("migration/staged-callbacks.wat"));
     }
     source.push(')');
     if relocated {
@@ -82,6 +83,27 @@ fn prepare_job(
         artifact::Post::Reopen
     };
     let bytes = artifact::combine(&native(raw, relocated, root, true), bridge, post);
+    wasm::validate(&bytes, LIMIT).unwrap();
+    bytes
+}
+
+fn prepare_frozen_job(raw: &[u8], bridge: &[u8], relocated: bool) -> Vec<u8> {
+    let bytes = artifact::combine(
+        &native(raw, relocated, (0, 0), true),
+        bridge,
+        artifact::Post::Frozen,
+    );
+    wasm::validate(&bytes, LIMIT).unwrap();
+    bytes
+}
+
+fn prepare_staged_job(raw: &[u8], bridge: &[u8], relocated: bool, resume: bool) -> Vec<u8> {
+    let post = if resume {
+        artifact::Post::Importing
+    } else {
+        artifact::Post::Stage
+    };
+    let bytes = artifact::combine(&native(raw, relocated, (0, 0), true), bridge, post);
     wasm::validate(&bytes, LIMIT).unwrap();
     bytes
 }

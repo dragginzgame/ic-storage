@@ -8,6 +8,43 @@ native imports. It now has an installed lifecycle under the separate
 This remains a closed qualification recipe, not a general linker, source
 authenticator or native-persistence admission.
 
+## Shared scoped core evidence (0.1.10)
+
+On 16 November 2026, the native fixture began using the unpublished
+[`ic-storage-native`](../../crates/ic-storage-native/README.md) library for
+scoped u64 operations. Its allocator claim, reconstruction and release remain
+in the separately reviewed provider boundary. No private header or new native
+representation is retained. Host checks passed three behavior tests, one usage
+doctest, eight ownership compile-fail cases and nine provider-region tests,
+including an allocator refusal that preserves earlier writes and custody.
+
+The generated Wasm contains eight Rust bodies with an acyclic nine-edge internal
+call graph. Entry reserves 48 bytes; nested helpers reserve 16 each, for an
+80-byte peak. Admission checks balanced helper frames and the maximum path sum,
+including rejection of nested exhaustion, early helper exits and effects after
+restoration. All 76 memory sites are rewritten and checked. No frame check was
+replaced by a source hash or an observed successful upgrade.
+
+`make native-provider-test` passed fourteen artifact checks and both installed
+scalar/vector suites (1.80 seconds) in
+`target/evidence/provider-link/attempt.DNozEc/`. Raw vector Wasm is 4739 bytes,
+SHA-256 `1445119c0d5fb7ebf1efd8bd377af4b07d13881bc14aa6a3f3fe203cf81f643f`;
+the linked ordinary A vector is 3759 bytes,
+SHA-256 `46d082e262c1a2b0550fa818db325097b375fecf64f0e6f99730873c91ceef38`.
+The cohort includes the library source/manifest and root workspace/lock inputs
+alongside the existing raw/compiler/provider evidence.
+
+The connected checkpoint suite passed four checks (4.00 seconds) in
+`attempt.4NFnuO`; the governed job suite passed five checks (38.39 seconds) in
+`attempt.tG9wAg`, both under the same evidence parent. These cover compatible
+upgrades, relocated recovery, cancellation, frozen resumption and staged imports
+through the shared core. Installed WAT helper/retention checks also passed all
+five tests, including both edges of the revised stack window. Host/wasm Clippy,
+strict Rustdoc, dependency policy, formatting and shell checks passed locally.
+The initial core build was refused by the earlier single-frame profile before
+installed execution; its failed cohort is preserved. These are Linux results
+with Rust 1.100.0, not hosted CI, general application callbacks or record conversion.
+
 ## Composition and custody
 
 The recipe accepts raw compiler output only through the existing vector profile
@@ -21,7 +58,8 @@ same module. Only the two existing IC reply imports remain.
 
 The fixed three-page memory is shared. Provider globals precede the Rust globals,
 and the raw Rust functions and compiler globals remain private. The transient
-64-byte stack window and all 49 guarded Rust access sites remain unchanged. The
+stack is now bounded to 80 live bytes with 76 guarded Rust access sites for the
+shared scoped-core build; the original evidence below used 64 bytes and 49 sites. The
 retention marker is preserved; pre-link function-name metadata is discarded
 because its indices no longer describe the final artifact.
 
@@ -47,7 +85,7 @@ byte comparison and is recorded with the artifact digest.
 test alongside the existing diagnostics. The test independently follows the WAT
 provider's claim/settle calls and checks:
 
-- All seven guard bindings and all 49 access sites, with no direct memory
+- All seven guard bindings and all 76 current access sites, with no direct memory
   instructions remaining in the Rust bodies.
 - Private Rust/claim/settle/access functions, correct global remapping, fixed
   memory and the sole retention marker; no data initializer, table or start.
@@ -88,7 +126,9 @@ without wiping payload. Reuse reissues allocator capacity, not platform pages.
 
 An explicit trap after native settlement restores the complete header and payload.
 At full capacity, a two-operation update first mutates and settles, then fails
-reserve inside Rust; rollback restores both calls' effects. A post-upgrade target
+append inside Rust; rollback restores both calls' effects. The shared core now
+rejects this append at its logical limit before asking the allocator to grow.
+A post-upgrade target
 performs native work before trapping, preserving the source module hash, header
 and payload. Incompatible extent, 13 malformed-header variants and abandoned
 custody refuse. Corrupt sources omit pre-upgrade guards so destination admission

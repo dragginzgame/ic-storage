@@ -3,6 +3,8 @@ use crate::provider::job_cell;
 use ic_platform_runtime::ic0;
 use ic_storage_native_feasibility::migration_job::Job;
 
+mod staged;
+
 #[expect(unsafe_code, reason = "scalar imports bound to reviewed WAT callbacks")]
 #[link(wasm_import_module = "native_checkpoint")]
 unsafe extern "C" {
@@ -14,6 +16,7 @@ unsafe extern "C" {
     safe fn begin(counter: u64);
     safe fn put(index: u32, value: u64);
     safe fn finish(length: u32);
+    safe fn thaw(retry: u32);
 }
 
 fn controller() {
@@ -21,10 +24,9 @@ fn controller() {
     assert!(len <= 29);
     let mut bytes = [0; 29];
     ic0::msg_caller_copy(&mut bytes[..len], 0);
-    assert!(
-        ic0::is_controller(&bytes[..len]) == 1,
-        "migration controller required"
-    );
+    if ic0::is_controller(&bytes[..len]) != 1 {
+        ic0::trap(b"migration controller required");
+    }
 }
 
 fn args() -> [u64; 3] {
@@ -88,6 +90,62 @@ extern "C" fn checkpoint_restore() {
     }
 }
 
+#[expect(
+    unsafe_code,
+    reason = "private frozen-resume entry bound by final composer"
+)]
+#[unsafe(no_mangle)]
+extern "C" fn checkpoint_resume() {
+    let [epoch, target, fault] = args();
+    assert!(fault <= 1);
+    let cell = job_cell(false);
+    let job = Job::decode(cell.get()).unwrap();
+    let decoded = job.frozen(domain(), target, epoch).unwrap();
+    // The WAT bootstrap has already restored phase 3 from an admitted frozen
+    // header. This call checks it again and cannot thaw or create a native owner.
+    let count = freeze();
+    if decoded.values.len() != count as usize {
+        ic0::trap(b"frozen job length mismatch");
+    }
+    if decoded.counter != counter() {
+        ic0::trap(b"frozen job counter mismatch");
+    }
+    for (index, expected) in decoded.values.iter().enumerate() {
+        if value(index as u32) != *expected {
+            ic0::trap(b"frozen job values mismatch");
+        }
+    }
+    if fault == 1 {
+        ic0::trap(b"frozen resume after validation");
+    }
+}
+
+#[expect(
+    unsafe_code,
+    reason = "private cancellation entry bound by final composer"
+)]
+#[unsafe(no_mangle)]
+extern "C" fn checkpoint_cancel() {
+    controller();
+    let [epoch, target, fault] = args();
+    assert!(fault <= 2);
+    let mut cell = job_cell(false);
+    let mut job = Job::decode(cell.get()).unwrap();
+    let changed = job.cancel(domain(), target, epoch).unwrap();
+    if changed {
+        cell.set(job.encode().unwrap());
+    }
+    if fault == 1 {
+        ic0::trap(b"job cancellation after stable write");
+    }
+    // No freeze on retry: the source may have legitimate newer native writes.
+    thaw(u32::from(!changed));
+    if fault == 2 {
+        ic0::trap(b"job cancellation after native thaw");
+    }
+    ic0::msg_reply();
+}
+
 #[expect(unsafe_code, reason = "private evidence query bound by final composer")]
 #[unsafe(no_mangle)]
 extern "C" fn checkpoint_bytes() {
@@ -99,11 +157,34 @@ extern "C" fn checkpoint_bytes() {
 #[unsafe(no_mangle)]
 extern "C" fn checkpoint_damage() {
     controller();
-    assert_eq!(args(), [0, 0, 0]);
-    freeze();
+    let [mode, epoch, target] = args();
+    assert!(mode <= 3);
+    let count = freeze();
+    assert!(count <= 512);
     let mut cell = job_cell(false);
-    let mut bytes = cell.get().clone();
-    bytes[24] ^= 1;
-    cell.set(bytes);
+    if mode == 0 {
+        assert_eq!([epoch, target], [0, 0]);
+        let mut bytes = cell.get().clone();
+        bytes[24] ^= 1;
+        cell.set(bytes);
+    } else {
+        // Deliberate, correctly encoded disagreement with the frozen native
+        // source, using the real codec/provider rather than host stable writes.
+        let mut values: Vec<_> = (0..count).map(|i| value(i)).collect();
+        let mut record_counter = counter();
+        match mode {
+            1 => record_counter ^= 1,
+            2 => values[0] ^= 1,
+            3 => {
+                values.pop().unwrap();
+            }
+            _ => unreachable!(),
+        }
+        let job = Job::initial(domain())
+            .unwrap()
+            .export(domain(), target, epoch, record_counter, &values)
+            .unwrap();
+        cell.set(job.encode().unwrap());
+    }
     ic0::msg_reply();
 }

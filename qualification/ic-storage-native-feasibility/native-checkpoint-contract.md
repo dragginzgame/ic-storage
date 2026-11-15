@@ -23,7 +23,7 @@ allocation or memory growth can claim the lower native region under the selected
 Rust/allocator contract. The linker shares only memory, remaps functions/types/
 globals and preserves table/element references and the retention marker.
 
-The native 64-byte frame at 32704..32768 overlaps the checkpoint runtime's stack
+The native 80-byte peak stack at 32688..32768 overlaps the checkpoint runtime's stack
 reservation, but the two Rust runtimes are never live simultaneously. Native
 operations run directly from WAT. Checkpoint code calls only scalar WAT functions,
 whose transitive closure cannot call Rust or any host function. Trusted init and
@@ -106,6 +106,16 @@ The provider locator is independent of discarded native memory, and every
 canister-side stable access remains through the same governed Storage handles.
 
 ## Limits
+
+The [governed job profile](migration-job.md#explicit-frozen-source-resumption)
+also selects an explicit frozen-resume wrapper. It validates frozen metadata in
+WAT, resets transients and verifies the sealed job through scalar reads, without
+opening a native Vec or releasing frozen custody. Its ordering and installed
+evidence are separate from the ready-state reopen and replacement profiles above.
+Its [staged-import extension](staged-import.md) additionally admits settlement 3
+for an unpublished scalar prefix and validates durable job progress on explicit
+compatible resumption. It does not retain a partial Vec or the atomic recovery
+path's transient restore counter.
 
 Artifact checks bind final bytes to the reviewed inputs; they do not authenticate
 hostile source code or repair Rust undefined behavior. The compiler and pinned

@@ -1,4 +1,4 @@
-;; Private access helpers for the reviewed 64-byte vector stack frame.
+;; Private access helpers for the reviewed 80-byte peak vector stack use.
 ;; The trusted entrypoint selects the operation before entering Rust, then resets
 ;; it after return. These helpers never call Rust or expose provider metadata.
 (global $access_operation (mut i32) (i32.const -1))
@@ -12,7 +12,7 @@
   (if (i64.lt_u (local.get $end) (local.get $start)) (then unreachable))
   ;; Stack scratch is independent of the provider claim; globals/locals live
   ;; outside linear memory. Returning an address never touches that memory.
-  (if (i32.and (i64.ge_u (local.get $start) (i64.const 32704))
+  (if (i32.and (i64.ge_u (local.get $start) (i64.const 32688))
                (i64.le_u (local.get $end) (i64.const 32768)))
     (then (return (i32.wrap_i64 (local.get $start)))))
   (if (i32.ne (global.get $phase) (i32.const 2)) (then unreachable))

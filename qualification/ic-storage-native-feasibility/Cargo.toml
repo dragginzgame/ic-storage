@@ -18,5 +18,8 @@ layout-swapped = []
 [dependencies]
 sha2.workspace = true
 
+[dev-dependencies]
+ic-storage-native.workspace = true
+
 [lints]
 workspace = true

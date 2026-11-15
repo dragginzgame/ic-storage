@@ -33,10 +33,15 @@ a fixture-only live-memory kernel. Separate qualification fixtures now exercise
 bounded native-vector allocation, compatible upgrades and portable recovery.
 They do not implement the general native runtime, collection admission or
 application converters described here.
+The unpublished [`ic-storage-native`](../crates/ic-storage-native/README.md) crate
+now supplies a safe, reusable scoped scalar-vector interface used by the installed
+provider fixture. It accepts an already valid live Vec under the caller's
+allocator authority; it does not admit retained bytes or expose an owning carrier.
+This is the first shared native operations component, not a complete Store API.
 Keep the existing M0 format, tests and evidence; do not reinterpret those bytes
 as native Rust values or expand M0 into a competing collection architecture.
-There is no new package, upstream dependency or selected adoption of cdk-rsx
-code implied by this decision.
+This direction does not select an upstream dependency or adoption of cdk-rsx
+code.
 
 ### Successor rule
 
@@ -254,6 +259,17 @@ captures, shared-owner cloning, consuming iterators, ownership captured in a
 future, and forgotten guards/tickets. Positive tests must also demonstrate legal
 in-frame moves, attachment and retirement. No collection wrapper is admitted
 solely because ordinary borrowed references cannot escape.
+
+For the current u64-only core, `with_vector` borrows the runtime-owned vector
+and lends a higher-ranked view with scalar slices and explicit push, removal,
+clear and shrink operations. The view owns no allocation and needs no destructor
+to settle custody. Forgetting it leaves the original owner with the runtime.
+Compile-fail tests reject view/reference/future escape, take/replace of the carrier,
+cloning and consuming iteration; runtime tests cover ordinary error semantics and
+allocation refusal through the real bounded provider allocator. Native claim,
+publication and panic/trap policy remain the runtime caller's responsibility.
+The installed caller is still a closed operation selector, not arbitrary
+application callbacks. This does not qualify owning elements or record conversion.
 
 Keep allocator/kernel unsafe operations private and narrowly reviewed.
 The existing M0 crate continues to forbid unsafe Rust; adopting this direction
@@ -563,6 +579,34 @@ sealed job atomically with native publication; replay refuses even after a
 compatible upgrade. These geometry bindings are not executable authentication
 or an external anti-rollback anchor. The original checkpoint locator/codec and
 their earlier evidence remain separate and unchanged in meaning.
+
+The same bounded job now supports controller-authorized cancellation before
+heap replacement. It records Cancelled and returns the original frozen native
+allocation to ready custody in one update, preserving its values and capacity.
+Retries leave subsequent native writes intact; the retired checkpoint cannot
+be imported, and another export requires the next epoch. Installed tests cover
+cancellation rollback, compatible reopening and refusal after consumption.
+This does not provide cancellation after cutover or resumable multi-message work.
+
+An explicit frozen-resume target now preserves a sealed source across compatible
+upgrades. It validates frozen native custody without opening a Rust owner,
+rebuilds transients, and compares the independent sealed job's epoch, destination
+and complete logical values with the retained source. It leaves both the job and
+native payload unchanged and keeps writes blocked. Cancellation and replacement
+recovery remain available afterward; ordinary ready-state reopening still
+refuses frozen state. This is bounded source continuity, not general resumable
+conversion or authentication of an executable by its geometry.
+
+The [staged-import fixture](../qualification/ic-storage-native-feasibility/staged-import.md)
+now extends that job with a versioned durable cursor. Explicit heap replacement
+starts an unpublished native prefix; controller-authorized updates copy at most
+64 values and commit prefix/cursor together. Exact latest-request retries do not
+repeat writes. A separate compatible-resume profile rebuilds transients and
+compares the retained prefix with the checkpoint before continuing. Only the
+final batch publishes the native root and consumes the job. This proves bounded
+cross-message construction for one vector, not large-graph scalability: each
+step still reads/validates the complete checkpoint (at most 512 elements), and
+native-prefix verification and transient clearing have their own bounded costs.
 
 This repository owns the checkpoint envelope, locator/adapter specification,
 source/target conformance fixtures and maintenance of the qualified reader

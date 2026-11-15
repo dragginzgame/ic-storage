@@ -18,6 +18,14 @@ pub(super) const HELPERS: [&str; 7] = [
     "copy",
 ];
 
+/// Current pinned compiler output; historical two-body fixtures remain test inputs.
+pub(super) const NATIVE_FUNCTIONS: u32 = 8;
+
+pub(super) struct Profile {
+    pub(super) functions: u32,
+    pub(super) entry: u32,
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub(super) enum Error {
     Malformed,
@@ -32,7 +40,7 @@ fn checked<T, E>(value: std::result::Result<T, E>) -> Result<T> {
     value.map_err(|_| Error::Encoding)
 }
 
-fn inspect(raw: &[u8]) -> Result<()> {
+pub(super) fn inspect(raw: &[u8]) -> Result<Profile> {
     wasm::validate(raw, super::artifact::LIMIT).map_err(|_| Error::Malformed)?;
     let mut types = Vec::new();
     let mut imports = Vec::new();
@@ -110,8 +118,8 @@ fn inspect(raw: &[u8]) -> Result<()> {
     let signature = |index: u32| types.get(index as usize);
     if memories != 1
         || globals != 3
-        || bodies.len() != 2
-        || functions.len() != 2
+        || bodies.len() != functions.len()
+        || !matches!(functions.len(), 2 | 8)
         || imports.len() != 1
         || imports[0].0 != "native_vector_diagnostic"
         || imports[0].1 != "claim_region"
@@ -121,12 +129,36 @@ fn inspect(raw: &[u8]) -> Result<()> {
     let TypeRef::Func(import_type) = imports[0].2 else {
         return Err(Error::Profile);
     };
+    let expected = if functions.len() == 2 {
+        vec![
+            FuncType::new([I32, I32, I32], []),
+            FuncType::new([I32, I32, I32, I64], [I64]),
+        ]
+    } else {
+        vec![
+            FuncType::new([I32, I32], [I32]),
+            FuncType::new([I32, I32, I32], []),
+            FuncType::new([I32], []),
+            FuncType::new([I32, I32, I32], []),
+            FuncType::new([I32, I32], []),
+            FuncType::new([I32, I32, I32, I64], [I64]),
+            FuncType::new([], []),
+            FuncType::new([], []),
+        ]
+    };
     if signature(import_type) != Some(&FuncType::new([], [I32]))
-        || signature(functions[0]) != Some(&FuncType::new([I32, I32, I32], []))
-        || signature(functions[1]) != Some(&FuncType::new([I32, I32, I32, I64], [I64]))
+        || functions
+            .iter()
+            .zip(&expected)
+            .any(|(index, ty)| signature(*index) != Some(ty))
     {
         return Err(Error::Profile);
     }
+    let (entry, peak) = if functions.len() == 2 {
+        (2, 64)
+    } else {
+        (6, 80)
+    };
     exports.sort_by_key(|export| export.0);
     if exports
         != [
@@ -134,18 +166,22 @@ fn inspect(raw: &[u8]) -> Result<()> {
             ("__heap_base", ExternalKind::Global, 2),
             ("__stack_pointer", ExternalKind::Global, 0),
             ("memory", ExternalKind::Memory, 0),
-            ("provider_vector_step", ExternalKind::Func, 2),
+            ("provider_vector_step", ExternalKind::Func, entry),
         ]
     {
         return Err(Error::Profile);
     }
     // This closed operator profile refuses unhandled memory operations before
     // rewriting. A new opcode must qualify both stack/control and access handling.
-    let report = super::vector_stack::inspect(&bodies, 2, 0, 32768).map_err(|_| Error::Stack)?;
-    if report.frame_bytes != 64 || report.lowest_stack_pointer != 32704 {
+    let report =
+        super::vector_stack::inspect(&bodies, entry, 0, 32768).map_err(|_| Error::Stack)?;
+    if report.frame_bytes != peak || report.lowest_stack_pointer != 32768 - peak {
         return Err(Error::Stack);
     }
-    Ok(())
+    Ok(Profile {
+        functions: functions.len() as u32,
+        entry,
+    })
 }
 
 struct Mapping;
@@ -262,6 +298,7 @@ pub(super) fn prepare(raw: &[u8]) -> Result<Vec<u8>> {
                             | Op::I32GeU
                             | Op::I32GtU
                             | Op::I32LeU
+                            | Op::Select
                             | Op::I64Add
                             | Op::I64ExtendI32U
                             | Op::I64Or

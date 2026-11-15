@@ -269,3 +269,29 @@ fn unsupported_layouts_and_failed_growth_preserve_the_live_block() {
     values.push(91_u64);
     assert_eq!(values[0], 91);
 }
+
+#[test]
+fn scoped_core_allocation_refusal_preserves_prior_mutation_and_custody() {
+    let mut backing = Backing::new();
+    let region = backing.claim(16, 16).unwrap();
+    let mut values = region.restore().unwrap();
+    let pointer = values.as_ptr();
+    let result = ic_storage_native::with_vector(&mut values, 17, |mut view| {
+        view.values_mut()[0] = 41;
+        // The logical limit permits this, but the real backing has only 16 slots.
+        view.push(99)
+    });
+    assert_eq!(result, Ok(Err(ic_storage_native::Refusal::Allocation)));
+    assert_eq!(values.len(), 16);
+    assert_eq!(values.capacity(), 16);
+    assert_eq!(values.as_ptr(), pointer);
+    assert_eq!(values[0], 41);
+    assert_eq!(values[1..], [SENTINEL; 15]);
+    assert_eq!(
+        region.release(values).unwrap(),
+        Descriptor {
+            length: 16,
+            capacity: 16
+        }
+    );
+}

@@ -125,8 +125,39 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
         ];
         if callbacks.contains(&"domain") {
             expected.insert(2, "domain");
+            expected.insert(7, "thaw");
+            expected.extend([
+                "stage_begin",
+                "stage_count",
+                "stage_counter",
+                "stage_damage",
+                "stage_value",
+                "stage_put",
+                "stage_finish",
+                "stage_ready",
+            ]);
+            expected.sort_unstable();
         }
         assert_eq!(callbacks, expected);
+        assert_eq!(
+            result.exports.contains_key("checkpoint_cancel"),
+            callbacks.contains(&"domain")
+        );
+        assert_eq!(
+            result.exports.contains_key("checkpoint_resume"),
+            callbacks.contains(&"domain")
+        );
+        for name in [
+            "checkpoint_stage",
+            "checkpoint_stage_resume",
+            "checkpoint_batch",
+            "checkpoint_stage_damage",
+        ] {
+            assert_eq!(
+                result.exports.contains_key(name),
+                callbacks.contains(&"domain")
+            );
+        }
         for name in result.exports.keys() {
             assert!(matches!(
                 name.as_str(),
@@ -139,6 +170,12 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
                     | "checkpoint_restore"
                     | "checkpoint_bytes"
                     | "checkpoint_damage"
+                    | "checkpoint_cancel"
+                    | "checkpoint_resume"
+                    | "checkpoint_stage"
+                    | "checkpoint_stage_resume"
+                    | "checkpoint_batch"
+                    | "checkpoint_stage_damage"
             ));
         }
     } else {
@@ -154,17 +191,21 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
             })
             .collect();
         let imported = result.imports.len() as u32;
-        let first_rust = imported + result.functions - 2;
+        let first_rust =
+            imported + result.functions - super::super::vector_access::NATIVE_FUNCTIONS;
         let mut pending: Vec<_> = result
             .exports
             .iter()
-            .filter(|(name, _)| name.starts_with("ncp_"))
+            .filter(|(name, _)| {
+                name.starts_with("ncp_")
+                    || matches!(name.as_str(), "__bridge_frozen" | "__bridge_importing")
+            })
             .map(|(_, (_, index))| *index)
             .collect();
         assert_eq!(
             pending.len(),
             if result.exports.contains_key("ncp_domain") {
-                8
+                19
             } else {
                 7
             }
@@ -230,18 +271,34 @@ pub(super) enum Post {
     Refuse,
     Recover,
     Reopen,
+    Frozen,
+    Stage,
+    Importing,
 }
 
 pub(super) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
     let p = inventory(bridge, true);
     let n = inventory(native, false);
     assert_eq!(
+        n.exports.contains_key("ncp_thaw"),
+        n.exports.contains_key("ncp_domain")
+    );
+    assert_eq!(
+        n.exports.contains_key("__bridge_frozen"),
+        n.exports.contains_key("ncp_domain")
+    );
+    assert_eq!(
+        n.exports.contains_key("__bridge_importing"),
+        n.exports.contains_key("ncp_domain")
+    );
+    assert_eq!(
         p.imports
             .iter()
             .any(|(m, n)| m == "native_checkpoint" && n == "domain"),
         n.exports.contains_key("ncp_domain")
     );
-    let reset = (post == Post::Reopen).then(|| super::transient::Plan::read(bridge));
+    let reset = matches!(post, Post::Reopen | Post::Frozen | Post::Importing)
+        .then(|| super::transient::Plan::read(bridge));
     let ic: Vec<_> = p
         .imports
         .iter()
@@ -366,7 +423,7 @@ pub(super) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
         code.function(&reset.append(&mut data));
         data_count = Some(data.len());
     }
-    for (name, calls) in [
+    let mut entrypoints = vec![
         (
             "canister_init",
             vec![ncall("__bridge_init"), pcall("checkpoint_create")],
@@ -382,6 +439,17 @@ pub(super) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
                 // Native admission runs first without entering checkpoint Rust.
                 // Its transient native frame has ended before clearing stack.
                 Post::Reopen => vec![ncall("__bridge_post"), reset_index],
+                Post::Frozen => vec![
+                    ncall("__bridge_frozen"),
+                    reset_index,
+                    pcall("checkpoint_resume"),
+                ],
+                Post::Stage => vec![ncall("ncp_fresh"), pcall("checkpoint_stage")],
+                Post::Importing => vec![
+                    ncall("__bridge_importing"),
+                    reset_index,
+                    pcall("checkpoint_stage_resume"),
+                ],
                 Post::Refuse => vec![],
             },
         ),
@@ -397,7 +465,22 @@ pub(super) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
             "canister_update damage_checkpoint",
             vec![pcall("checkpoint_damage")],
         ),
-    ] {
+    ];
+    if p.exports.contains_key("checkpoint_cancel") {
+        entrypoints.push((
+            "canister_update cancel_checkpoint",
+            vec![pcall("checkpoint_cancel")],
+        ));
+        entrypoints.push((
+            "canister_update import_batch",
+            vec![pcall("checkpoint_batch")],
+        ));
+        entrypoints.push((
+            "canister_update damage_import",
+            vec![pcall("checkpoint_stage_damage")],
+        ));
+    }
+    for (name, calls) in entrypoints {
         exports.export(name, ExportKind::Func, imports.len() + functions.len());
         functions.function(unit);
         let mut body = Function::new([]);

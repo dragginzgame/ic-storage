@@ -54,8 +54,8 @@ async fn access_helpers_bound_effective_ranges_and_refuse_uninitialized_reads() 
 
     // Stack scratch is valid before claim, but neither side of its exact frame is.
     let stack = install(pic, candidate((3, 4), 0, false, r#"
-        (call $access_store_i32 (i32.const 32704) (i32.const 123) (i64.const 0))
-        (if (i32.ne (call $access_load_i32 (i32.const 32704) (i64.const 0)) (i32.const 123)) (then unreachable))
+        (call $access_store_i32 (i32.const 32688) (i32.const 123) (i64.const 0))
+        (if (i32.ne (call $access_load_i32 (i32.const 32688) (i64.const 0)) (i32.const 123)) (then unreachable))
         (call $access_store_u8 (i32.const 32767) (i32.const 255) (i64.const 0))
         (if (i32.ne (call $access_load_u8 (i32.const 32767) (i64.const 0)) (i32.const 255)) (then unreachable))
         (call $access_store_i64 (i32.const 32760) (i64.const 456) (i64.const 0))
@@ -177,7 +177,7 @@ async fn access_helpers_bound_effective_ranges_and_refuse_uninitialized_reads() 
             (3, 4),
             0,
             true,
-            "(drop (call $access_load_i32 (i32.const 32703) (i64.const 0)))",
+            "(drop (call $access_load_i32 (i32.const 32687) (i64.const 0)))",
         ),
         (
             (3, 4),

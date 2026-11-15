@@ -834,16 +834,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "ic-storage-native"
+version = "0.1.10"
+
+[[package]]
 name = "ic-storage-native-feasibility"
 version = "0.1.0"
 dependencies = [
+ "ic-storage-native",
  "sha2 0.11.1",
  "toko-tooling",
 ]
 
 [[package]]
 name = "ic-storage-new"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "sha2 0.11.1",
 ]

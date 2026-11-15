@@ -1,7 +1,8 @@
 # Single-vector foreign allocation contract
 
 This extends the [fixed-scalar argument](scalar-provider-contract.md) only for
-the reviewed `provider_vector.rs`, `region.rs`, provider WAT and final linker on
+the reviewed `provider_vector.rs`, `region.rs`, scoped
+[`ic-storage-native`](../../crates/ic-storage-native/README.md) core, provider WAT and final linker on
 Rust 1.100.0 / LLVM 23.1.5 / wasm32-unknown-unknown. It permits the bounded
 installed qualification fixture; it is not a public safe API or general retained
 Rust heap contract. Passing a machine-code profile alone does not authorize an
@@ -63,7 +64,8 @@ available to this controller again and touches no payload. It does not return
 Wasm pages to the platform. Controller moves do not move the backing; there is
 no Clone equivalence, callback or unwinding allocator method.
 
-The six operations use ordinary Vec methods on u64: mutate first, reserve/push,
+The six operations use ordinary Vec methods on u64 through the shared scoped
+core: mutate first, reserve/push,
 remove first, shrink, clear/shrink, and destroy/reallocate/push. Push writes before
 publishing a longer prefix; removal preserves the surviving elements; clear and
 destruction invoke no application Drop. Partial allocation failure traps. Source
@@ -76,15 +78,27 @@ contains only length/capacity. No reference, pointer, owner, iterator, future or
 closure can escape this fixed private entrypoint. The allocator instance ends
 before the wrapper settles. A leaked owner would keep issuance unavailable;
 memory safety does not depend on a guard destructor. This closed entrypoint does
-not expose the arbitrary closures that would require a general owner-extraction
-policy. Existing host scope tests remain separate evidence for that future API.
+not expose arbitrary canister callbacks. Its shared safe `with_vector` interface
+owns only a scoped borrow and exposes scalar slices and restricted operations,
+never the owning Vec or allocator. Compile-fail tests reject escaping views,
+references, capturing futures, owner extraction and consuming iteration. Forgetting
+the view leaves the actual Vec with this entrypoint; it has no Drop-based
+settlement obligation. This safe layer admits no retained pointer or descriptor.
+Arbitrary application callbacks, owning elements and frame poison/publication
+remain outside the installed closed-entrypoint contract.
 
 ## Machine boundary and failure semantics
 
 The final linker keeps raw Rust functions private, resolves all claim/access
 imports, shares the admitted memory, and checks the bounded stack/call profile.
-The only Rust linear stack is `[32704, 32768)`, disjoint from metadata/payload.
-All 49 emitted memory sites call guards for this stack or the operation's payload
+The Rust linear stack is bounded to `[32688, 32768)`, disjoint from metadata/payload.
+The current eight-body profile has a 48-byte entry frame and nested 16-byte helper
+frames, with at most 80 bytes simultaneously live. Each frame must reserve and
+restore the same amount through an unmodified local. An acyclic direct call
+graph supplies the maximum sum; early return, implicit-function-label branches,
+effects/control after restoration and unknown operators refuse. Plain numeric
+Select is admitted but cannot replace or bypass frame reservation/restoration.
+All 76 emitted memory sites call guards for this stack or the operation's payload
 window. Helpers use Wasm locals, not Rust stack slots. These post-codegen guards
 enforce machine bounds; they cannot fix earlier Rust undefined behavior or prove
 initialization, aliasing or source identity. The argument above must hold first.
@@ -99,8 +113,8 @@ that all transient scratch bytes are directly observed.
 
 Returning a business Err would not undo earlier writes. This fixture has no
 business-error API: reserve failures and invalid metadata trap. Native-host
-poisoning, arbitrary Drop, shared/cyclic ownership and public scoped access stay
-outside this subset. Capacity-reuse evidence is not platform-memory reclamation.
+poisoning, arbitrary Drop, shared/cyclic ownership and general installed application
+callbacks stay outside this subset. Capacity-reuse evidence is not platform-memory reclamation.
 
 ## Remaining migration boundary
 

@@ -12,6 +12,7 @@ use core::{
     alloc::{GlobalAlloc, Layout},
     ptr::NonNull,
 };
+use ic_storage_native::with_vector;
 use region::{Descriptor, Region};
 
 // Linking alloc requires a global allocator even though this client selects
@@ -93,34 +94,30 @@ pub unsafe extern "C" fn provider_vector_step(
         .unwrap_or_else(|_| abort())
     };
     let mut values = controller.restore().unwrap_or_else(|_| abort());
-    match operation {
+    if operation == 5 {
+        drop(values);
+        values = Vec::new_in(&controller);
+    }
+    with_vector(&mut values, 512, |mut view| match operation {
         0 => {
-            if let Some(first) = values.first_mut() {
+            if let Some(first) = view.values_mut().first_mut() {
                 *first = first.wrapping_add(value);
             }
         }
-        1 => {
-            values.try_reserve_exact(1).unwrap_or_else(|_| abort());
-            values.push(value);
+        1 | 5 => {
+            view.push(value).unwrap_or_else(|_| abort());
         }
         2 => {
-            if !values.is_empty() {
-                values.remove(0);
-            }
+            let _ = view.remove_first();
         }
-        3 => values.shrink_to_fit(),
+        3 => view.shrink_to_fit(),
         4 => {
-            values.clear();
-            values.shrink_to_fit();
-        }
-        5 => {
-            drop(values);
-            values = Vec::new_in(&controller);
-            values.try_reserve_exact(1).unwrap_or_else(|_| abort());
-            values.push(value);
+            view.clear();
+            view.shrink_to_fit();
         }
         _ => abort(),
-    }
+    })
+    .unwrap_or_else(|_| abort());
     let root = controller.release(values).unwrap_or_else(|_| abort());
     ((root.length as u64) << 32) | root.capacity as u64
 }
