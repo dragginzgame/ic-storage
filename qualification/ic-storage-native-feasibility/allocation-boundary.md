@@ -50,6 +50,21 @@ Default allocator growth copies only the byte spans its contract permits.
 Here, u64 eligibility is enforced by the parking API and the fixture clients;
 the allocator's layout restrictions alone are not a general type-admission test.
 
+Reopening now first validates the entire live ledger: checked nonempty extents,
+disjoint runs, exact agreement with the occupied bitmap, unique nonzero generation
+identities below the next generation, and parked lengths within capacity. Invalid
+metadata refuses without mutation, including corruption outside the requested
+block and attempts to reopen an empty vector. Four focused tests include fourteen
+fault injections plus live siblings, holes, exact-end blocks and exhausted
+generation counters. The fixed 64-slot diagnostic uses a bounded quadratic
+generation check; this is not a product allocator performance choice.
+
+This validates structural consistency, not the truth of arbitrary metadata.
+The original arena and unique token still supply the evidence that allocations
+are live and elements initialized. A consistently forged ledger cannot become
+trusted through this check. Its typed host representation is not a persisted
+format, and no decoding or cross-instance pointer creation has been added.
+
 ## Refusal and forgetting
 
 A malformed or stale parking descriptor refuses before creating a vector. Its
@@ -85,8 +100,9 @@ validated without typed access, and how each retained initialized span obtains
 valid pointers under the selected compiler/runtime contract. If that argument
 cannot be established, choose an explicit runtime integration or a supported
 representation. The [host checkpoint experiment](checkpoint-format.md) now
-reconstructs logical values after source teardown. Provider-backed export/import
-and installed recovery remain prerequisites for persistent state admission.
+reconstructs logical values after source teardown. The separate
+[installed provider fixture](../ic-storage-checkpoint-provider-probe/README.md)
+now exercises fresh-heap recovery; native admission remains unresolved.
 
 The 15 November 2026 contract review found no bridge in the consulted sources
 from IC memory retention to Rust allocation-domain validity. The

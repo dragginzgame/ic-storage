@@ -25,6 +25,46 @@ struct Ledger {
     next_generation: u64,
 }
 
+impl Ledger {
+    // Structural admission only: the original live arena and unique ownership
+    // token still supply custody and initialization evidence. Consistent forged
+    // metadata cannot establish those facts or authorize an IC reopen.
+    fn validate(&self) -> Result<(), Refusal> {
+        if self.next_generation == 0 {
+            return Err(Refusal::MalformedLedger);
+        }
+        let mut occupied = [false; WORDS];
+        for (index, entry) in self.blocks.iter().enumerate() {
+            let Some(block) = entry else { continue };
+            let end = block
+                .start
+                .checked_add(block.words)
+                .filter(|end| *end <= WORDS)
+                .ok_or(Refusal::MalformedLedger)?;
+            if block.words == 0
+                || block.generation == 0
+                || block.generation >= self.next_generation
+                || block.parked_len.is_some_and(|length| length > block.words)
+                || self.blocks[..index]
+                    .iter()
+                    .flatten()
+                    .any(|other| other.generation == block.generation)
+            {
+                return Err(Refusal::MalformedLedger);
+            }
+            let run = &mut occupied[block.start..end];
+            if run.iter().any(|used| *used) {
+                return Err(Refusal::MalformedLedger);
+            }
+            run.fill(true);
+        }
+        if occupied != self.occupied {
+            return Err(Refusal::MalformedLedger);
+        }
+        Ok(())
+    }
+}
+
 struct Arena {
     backing: Box<UnsafeCell<[MaybeUninit<u64>; WORDS]>>,
     ledger: Cell<Ledger>,
@@ -199,6 +239,7 @@ struct Parked<'arena> {
 
 #[derive(Debug, PartialEq, Eq)]
 enum Refusal {
+    MalformedLedger,
     UnknownAllocation,
     Extent,
     Initialization,
@@ -207,10 +248,11 @@ enum Refusal {
 
 impl<'arena> Parked<'arena> {
     fn reopen(self) -> Result<Vec<u64, &'arena Arena>, Refusal> {
+        let mut ledger = self.arena.ledger.get();
+        ledger.validate()?;
         let Some(descriptor) = self.descriptor else {
             return Ok(Vec::new_in(self.arena));
         };
-        let mut ledger = self.arena.ledger.get();
         let index = ledger
             .blocks
             .iter()
@@ -258,3 +300,6 @@ mod tests;
 
 #[cfg(test)]
 mod checkpoint_tests;
+
+#[cfg(test)]
+mod ledger_tests;

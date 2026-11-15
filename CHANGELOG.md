@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.3] - Unreleased
+## [0.1.3] - 2026-11-15
 
 ### ▶️ Try it
 
@@ -28,6 +28,11 @@ First-time online setup is explicit: `make install-tools`,
   Package identities, product versions and historical evidence remain unchanged.
 
 ### 🧪 Testing
+
+- Validate the whole host allocation ledger before vector reopening, rejecting
+  inconsistent extents, overlap, generation identities, occupancy and initialized
+  lengths. Exercise fourteen corruptions and valid boundary cases; this remains
+  live-domain qualification, not an IC pointer-validity proof.
 
 - Add a host-only native ownership experiment with scoped scalar/vector access,
   tracked detach/attach/retire, owner-escape rejection and forgotten-ticket

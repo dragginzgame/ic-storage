@@ -109,8 +109,8 @@ Do not turn these diagnostic measurements into native reopen permission.
 
 The [live allocation experiment](allocation-boundary.md) uses a fixed 512-byte
 arena and real `Vec<u64, &Arena>` allocations. Parking consumes a vector while
-keeping its block live. Reopening validates extent, generation and initialized
-length, then reconstructs a fresh header using the original allocation domain
+keeping its block live. Reopening validates ledger consistency, extent, generation
+and initialized length, then reconstructs a header using the original live domain
 and allocator. It neither retains a private Vec header nor restores a domain
 after an upgrade. Its reviewed operations and limits are recorded beside the
 private unsafe kernel; no unsafe permission is added to the ownership library
@@ -122,7 +122,7 @@ make native-layout-probe
 ```
 
 The first command runs strict Clippy, nine ownership tests, five checkpoint
-tests, sixteen arena/allocation/import tests, six metadata-reader tests and nine
+tests, twenty arena/allocation/import tests, six metadata-reader tests and nine
 compile-fail documentation cases, locked and offline. The compiled
 metadata test is ignored in ordinary Cargo tests: the second command supplies
 fresh inputs and explicitly runs it. `make ci` includes both on the host matrix.
