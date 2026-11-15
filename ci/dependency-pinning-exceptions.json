@@ -1,5 +1,13 @@
 [
   {
+    "file": "qualification/Cargo.toml",
+    "rule": "cargo-exact",
+    "subject": "toko-tooling",
+    "value": "=0.44.3",
+    "reason": "The qualification workspace inherits the same exact authenticated tooling selection as the product workspace.",
+    "evidence": "README.md#development"
+  },
+  {
     "file": "Cargo.toml",
     "rule": "cargo-exact",
     "subject": "toko-tooling",

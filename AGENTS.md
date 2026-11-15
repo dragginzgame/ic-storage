@@ -13,7 +13,24 @@ qualification. Do not copy Storage's release machinery.
 
 ## Product scope
 
+- Develop this repository as the intended successor to `ic-storage`, aiming to
+  subsume the storage capabilities our applications need, including those served
+  by ic-stable-structures. Do not maintain two competing product architectures.
+  Replacement requires capability and migration qualification; it does not imply
+  current completeness, API compatibility or stored-format compatibility.
+  Consumer cutovers require explicit authorization and evidence for their data,
+  lifecycle and operational contracts.
 - Read the [research architecture](docs/DESIGN.md) before implementation.
+- Follow its selected native retained-collection direction with explicit schema
+  conversions and a portable migration/recovery path for incompatible runtimes.
+  Preserve M0 as a byte-defined evidence baseline; do not treat it as the new
+  native ABI or continue a parallel M0 collection architecture. Prove complete
+  layout/pointer admission and scoped ownership, then native lifecycle and the
+  incompatible-runtime portable path before application converters and broader
+  collection support. Follow the design's explicit transitional checkpoint
+  provider boundary without modifying the frozen sibling repository.
+- Treat its [pinned cdk-rsx-store reference](docs/DESIGN.md#pinned-cdk-rsx-store-design-basis)
+  as an additional design basis; preserve the recorded review scope and pin.
 - Independently author the implementation from published behavior and interface
   specifications. Do not copy, translate or adapt Motoko implementation code.
 - Do not claim arbitrary Rust values are upgrade-safe. Layout, references,

@@ -1,0 +1,57 @@
+[workspace]
+resolver = "3"
+members = ["retention-probe", "rust-startup-probe", "simple-benchmarks"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.100.0"
+license-file = "../LICENSE.md"
+
+[workspace.dependencies]
+ic-host-artifacts = "0.79.0"
+ic-platform-runtime = { version = "0.22.5", default-features = false }
+ic-storage = "0.74.1"
+ic-storage-new = { path = "../crates/ic-storage-new" }
+ic-storage-retention-probe = { path = "retention-probe" }
+ic-storage-simple-benchmarks = { path = "simple-benchmarks" }
+ic-testkit = "0.106.0"
+serde_json = "1.0.154"
+tokio = "1.54.1"
+toko-tooling = "=0.44.3"
+wasm-encoder = { version = "0.263.0", default-features = false }
+wasmparser = { version = "0.263.0", default-features = false }
+
+[workspace.lints.cargo]
+unused_dependencies = "deny"
+unused_workspace_dependencies = "deny"
+unused_workspace_package_fields = "deny"
+missing_lints_inheritance = "deny"
+unknown_lints = "deny"
+
+[workspace.lints.rust]
+dead_code = "deny"
+unused_must_use = "deny"
+unfulfilled_lint_expectations = "deny"
+unsafe_code = "deny"
+unsafe_op_in_unsafe_fn = "deny"
+missing_docs = "warn"
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "deny"
+invalid_markdown_table = "deny"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -2 }
+correctness = { level = "deny", priority = -1 }
+redundant_clone = "warn"
+needless_pass_by_value = "warn"
+wildcard_imports = "warn"
+missing_panics_doc = "warn"
+must_use_candidate = "warn"
+too_many_lines = "allow"
+
+[profile.release]
+panic = "abort"
+lto = true
+codegen-units = 1

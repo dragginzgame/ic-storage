@@ -1,14 +1,16 @@
 [workspace]
 resolver = "3"
 members = ["crates/ic-storage-new"]
+exclude = ["qualification"]
 
 [workspace.package]
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 rust-version = "1.100.0"
 license-file = "LICENSE.md"
 
 [workspace.dependencies]
+sha2 = { version = "0.11.1", default-features = false }
 toko-tooling = "=0.44.3"
 
 [workspace.lints.cargo]

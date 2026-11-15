@@ -1,0 +1,42 @@
+[package]
+name = "ic-storage-simple-benchmarks"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+autoexamples = false
+autobenches = false
+
+[target.'cfg(any())'.dev-dependencies]
+toko-tooling.workspace = true
+
+[package.metadata.toko-tooling.loc]
+category = "benchmarks"
+
+[features]
+storage = ["dep:ic-storage"]
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+ic-host-artifacts = { workspace = true, features = ["wasm-validation"] }
+ic-storage-retention-probe.workspace = true
+ic-testkit.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = ["macros", "rt"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+ic-platform-runtime = { workspace = true, features = ["ic0"] }
+ic-storage = { workspace = true, optional = true }
+
+[[example]]
+name = "storage-wasm"
+path = "benches/storage/mod.rs"
+crate-type = ["cdylib"]
+required-features = ["storage"]
+
+[[example]]
+name = "compare"
+path = "benches/runner.rs"
+
+[lints]
+workspace = true

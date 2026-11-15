@@ -39,9 +39,25 @@ jobs:
           cache: 'true'
           cache-save: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
       - name: Prepare locked dependencies
-        run: cargo fetch --locked
+        run: |
+          cargo fetch --locked
+          cargo fetch --manifest-path qualification/Cargo.toml --locked
       - name: Validate research library
         run: make ci
+      - name: Prepare pinned retention-test server
+        run: make retention-setup
+      - name: Validate installed Wasm retention
+        run: |
+          mkdir -p target/evidence
+          make retention-test 2>&1 | tee target/evidence/retention-test.log
+      - name: Build and validate controlled Rust startup
+        run: |
+          make rust-startup-build 2>&1 | tee target/evidence/rust-startup-build.log
+          make rust-startup-test 2>&1 | tee target/evidence/rust-startup-test.log
+      - name: Build and validate installed managed graph
+        run: |
+          make managed-graph-build 2>&1 | tee target/evidence/managed-graph-build.log
+          make managed-graph-test 2>&1 | tee target/evidence/managed-graph-test.log
       - name: Retain diagnostics
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -49,6 +65,7 @@ jobs:
           name: diagnostics-${{ matrix.os }}
           path: |
             target/toko-tooling/
+            target/evidence/
             ${{ runner.temp }}/tools-install.log
             ${{ runner.temp }}/tools-check.log
             ${{ runner.temp }}/formatting.*

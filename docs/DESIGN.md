@@ -1,493 +1,549 @@
 # Architecture
 
-Status: research architecture, 15 November 2026. Proposed first implementation path, not a production format commitment or authorization to migrate existing canisters. The experiment plan below defines the first proof and stop conditions.
+Status: selected research direction, 15 November 2026. Native retained
+collections with explicit application-type conversion and a portable migration
+path for incompatible runtimes. This supersedes the
+[M0 research plan](design/m0-research-plan.md); it is not a production contract,
+a completed implementation or authorization to migrate an existing consumer.
 
-## 1 Recommendation
+## 1 Decision and implementation status
 
-Start with **managed orthogonal persistence in retained Wasm main memory**, using explicit persistent record layouts, durable object references and generated accessors. Applications declare persistent roots and supported fields; routine upgrades do not serialize and reconstruct the object graph.
+Pursue Nyxus-style orthogonal persistence: application data lives in native Rust
+records and collections allocated by an explicitly retained allocator. Compatible
+upgrades retain those allocations without serializing the complete graph.
+Selected collections should expose familiar Rust operations through scoped
+access, while ordinary Global allocations and execution state remain transient.
 
-This is a deliberate subset of the desired experience. It does not make arbitrary Rust Vec, String, Box, Rc, closures, trait objects, futures or existing static variables transparently persistent. Full ordinary-Rust persistence would require a substantially broader compiler, allocator, layout and lifecycle contract.
+**Upgrade flexibility is a foundational requirement.** Support three distinct
+paths rather than assuming every future binary can reopen the same native heap:
 
-Build the smallest retained-heap experiment before designing a collection library. Use a controlled wasm32 build first to isolate retention from memory64 toolchain work. Treat successful deployment of that target with memory retention as an experiment, not an established fact. A wasm64 cohort is a separate qualification milestone.
+| Change | Selected path |
+| --- | --- |
+| Application code changes; physical and interpretation contracts remain compatible | Admit and reopen retained state directly |
+| Application schema changes under a compatible runtime | Explicit versioned type conversion; move compatible fields and rebuild changed representations |
+| Native collection layout, allocator, compiler/SDK contract or memory target becomes incompatible | Export logical state through a compatible source executable, then reconstruct a fresh target heap from a portable checkpoint |
 
-The design goal is a safe foundation with explicit obligations. No claim of zero future debt, Motoko parity, constant-cost upgrades or better performance is made before measurement.
+Native access and the portable checkpoint serve different purposes. The
+checkpoint is an exceptional migration/recovery representation, not a second
+authoritative copy maintained on every ordinary update. Routine compatible
+upgrades must not acquire a whole-graph save/load requirement.
 
-## 2 What the current repository establishes
+This repository currently implements M0, a safe, byte-defined record model with
+a fixture-only live-memory kernel. It does not implement the native allocator,
+native collection admission, converters or portable checkpoint described here.
+Keep the existing M0 format, tests and evidence; do not reinterpret those bytes
+as native Rust values or expand M0 into a competing collection architecture.
+There is no new package, upstream dependency or selected adoption of cdk-rsx
+code implied by this decision.
 
-Public ic-storage was inspected at commit `98eb9313b7b241607a5dd81a7a4e34aa6c04f755`. This review covered manifests, runtime/custody contracts, backing memory, record codecs, selected adapters and upgrade tests. It did not execute the repository's tests.
+### Successor rule
 
-| Verified current responsibility | Consequence for OP |
-| - | - |
-| Core 0.74.1 provides governed stable allocations, exclusive leases and collections | Do not transplant its directory/extent machinery as the new heap architecture |
-| MemoryRuntime admits names and binds opaque allocation IDs before opening leases | Preserve appropriate consumer ownership requirements, but reassess their mechanism |
-| Default Wasm backing uses IC stable memory | Retained main memory is a different substrate, not an adapter rename |
-| Storable encodes application records; StableCell caches a value and persists encoded bytes | Routine OP access must not retain a hidden encode/store/reload pipeline |
-| StableVec uses bounded record slots; ordered collections have their own engines | No presumption that these engines belong in a managed object heap |
-| Logging and Metrics adapters implement explicit checkpoints | Persisting all their live runtime state is not an equivalent replacement |
-| Installed tests reject incompatible backing/collection upgrades and preserve the previous application | Reuse the failure scenarios as requirements; their passing status does not qualify OP |
+This remains the intended successor to ic-storage, aiming to subsume the
+persistence capabilities our applications need, including capabilities served
+by ic-stable-structures. Develop one product architecture. The sibling
+ic-storage repository remains on hold and unchanged.
 
-Sources: [workspace](https://github.com/dragginzgame/ic-storage/blob/98eb9313b7b241607a5dd81a7a4e34aa6c04f755/Cargo.toml), [runtime](https://github.com/dragginzgame/ic-storage/blob/98eb9313b7b241607a5dd81a7a4e34aa6c04f755/crates/ic-storage/src/runtime/mod.rs), [memory](https://github.com/dragginzgame/ic-storage/blob/98eb9313b7b241607a5dd81a7a4e34aa6c04f755/crates/ic-storage/src/memory/mod.rs), [record contract](https://github.com/dragginzgame/ic-storage/blob/98eb9313b7b241607a5dd81a7a4e34aa6c04f755/crates/ic-storage/src/storable/mod.rs), [Cell](https://github.com/dragginzgame/ic-storage/blob/98eb9313b7b241607a5dd81a7a4e34aa6c04f755/crates/ic-storage/src/adapter/cell.rs), [Vector](https://github.com/dragginzgame/ic-storage/blob/98eb9313b7b241607a5dd81a7a4e34aa6c04f755/crates/ic-storage/src/adapter/vector/mod.rs), [safety contract](https://github.com/dragginzgame/ic-storage/blob/98eb9313b7b241607a5dd81a7a4e34aa6c04f755/SAFETY.md), [upgrade tests](https://github.com/dragginzgame/ic-storage/blob/98eb9313b7b241607a5dd81a7a4e34aa6c04f755/qualification/ic-storage-benchmarks/src/tests/cell_upgrade.rs).
+Replacement means qualified capabilities and migration, not API, package or
+stored-format compatibility. Consumer cutovers require separate authorization,
+data/lifecycle evidence and an operational recovery procedure. Existing Storage
+bytes require an explicit importer through their owning format and handles.
 
-The new repository should initially contain no ported B-tree, allocation-governance framework, Metrics/Logging checkpoint package or release framework. Existing storage remains usable until a separately authorized migration is qualified.
+## 2 Design basis and provenance
 
-## 3 Platform facts and research assumptions
+### Pinned cdk-rsx-store design basis
 
-IC upgrade controls expose `wasm_memory_persistence = opt keep`. The specification requires the enhanced-orthogonal-persistence private custom section on the destination when keep is selected, and prevents an omitted retention choice for a source carrying that marker. Globals are initialized from the new module. [IC abstract behavior](https://docs.internetcomputer.org/references/ic-interface-spec/abstract-behavior/).
+Retain [Neutrinomic/cdk-rsx at ae5d3791361ff00a609ae9adf80e064ca08b14a4](https://github.com/Neutrinomic/cdk-rsx/tree/ae5d3791361ff00a609ae9adf80e064ca08b14a4)
+as the reviewed reference, beginning with its
+[Store contract](https://github.com/Neutrinomic/cdk-rsx/blob/ae5d3791361ff00a609ae9adf80e064ca08b14a4/ver1/crates/cdk-rsx-store/README.md).
+The subsequent source review found allocator-parameterized native collection
+wrappers, scoped module access, physical/interpretation admission and explicit
+owner-local conversion. These inform the selected direction, not an assumption
+that the upstream runtime is already qualified for our applications.
 
-Upgrade creates a new execution instance and invokes its startup/post-upgrade behavior. Retaining linear-memory bytes does not retain other Wasm execution state. Failed upgrade hooks roll the upgrade back. These semantics must be tested with the actual module transformation and server cohort. [IC canister interface](https://docs.internetcomputer.org/references/ic-interface-spec/canister-interface/).
+Nyxus's application conversion assumes an admitted kernel, allocator and compiler
+class. Its [upgrade boundary](https://github.com/Neutrinomic/cdk-rsx/blob/ae5d3791361ff00a609ae9adf80e064ca08b14a4/docs/upgrades.md#kernel-and-allocator-freeze-boundary)
+does not supply general native-image/kernel migration. Our required portable
+checkpoint and, where necessary, resumable migration protocol extend beyond that
+scope. Hylix and Minima still retain native anchors; selecting stable payloads
+alone would not remove the native-runtime compatibility problem.
 
-The management API also warns about outstanding callbacks across upgrades. The initial supported deployment procedure must quiesce work and drain callbacks before replacement. A timeout or cleared local task is not proof that a remote effect was cancelled. [IC management API](https://docs.internetcomputer.org/references/ic-interface-spec/management-canister/).
+The [recorded Motoko and cdk-rsx consultations](design/m0-research-plan.md#motoko-implementation-consultation)
+remain part of the research provenance. The later LOC exercise counted selected
+source in temporary storage and inspected Nyxus allocator declarations; it was
+not an upstream build, audit or benchmark. No upstream implementation has been
+copied or adapted into this product. Independently author from documented
+behavior and interface contracts; do not claim an unexposed clean-room context.
 
-Rust type layout may vary between compilations; repr(C) on an outer struct does not freeze the implementation of nested standard-library containers. Therefore raw retained Rust heap bytes are not the initial persistence ABI. [Rust layout reference](https://doc.rust-lang.org/reference/type-layout.html).
+The earlier [Storage review](design/m0-research-plan.md#2-what-the-prior-storage-review-establishes)
+remains pinned to 98eb9313b7b241607a5dd81a7a4e34aa6c04f755. It supplies requirements
+for governed ownership, failure handling and consumer migration, not the new
+heap implementation or release machinery.
 
-The Rust target documentation classifies wasm64-unknown-unknown as Tier 3 and describes additional toolchain requirements. Memory64 support in the IC is not evidence that the selected Rust/CDK/dependency cohort works correctly on it. [Rust target documentation](https://doc.rust-lang.org/rustc/platform-support/wasm64-unknown-unknown.html).
+### Platform and Rust constraints
 
-Motoko's published design combines retained memory, a controlled long-lived layout, compatibility metadata, transient reconstruction and a collector whose state survives upgrades. The lesson is coordinated tooling and runtime ownership. Do not copy its memory addresses, subtype rules, object representation or collector as this project's default. The linked design was read at commit `4fc510aa9a7f1093357df50d4a5ebad6660bf296`. [Motoko design](https://github.com/caffeinelabs/motoko/blob/4fc510aa9a7f1093357df50d4a5ebad6660bf296/design/OrthogonalPersistence.md), [published overview](https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/orthogonal-persistence/enhanced/).
+The IC's [retention and upgrade contract](https://docs.internetcomputer.org/references/ic-interface-spec/canister-interface/)
+is an input to qualification. Retained linear memory does not itself retain
+execution state, authorize typed access or reconstruct transient services.
+Unknown data must be rejected before interpretation, never silently initialized.
 
-The reported Foundation Rust OP effort is not a dependency, delivery assumption or compatibility target. Reassess it if a public specification and usable implementation become available.
+[Rust layout guarantees](https://doc.rust-lang.org/reference/type-layout.html)
+do not freeze native records and private standard-library collection layouts
+across compilations. An outer repr(C) declaration does not freeze its nested
+containers. Equal size alone does not establish equal representation or meaning.
+A changed compiler fingerprint is a reason to check compatibility, not proof
+that every stored layout changed.
 
-This proposal uses public specifications and the Motoko design document. It does not claim clean-room provenance. Record inputs and any later implementation-source consultation.
+Keep Rust 1.100.0 as this repository's compiler and support floor. Its published
+documentation and the installed pinned rust-src mark
+[Allocator](https://doc.rust-lang.org/std/alloc/trait.Allocator.html) and ordinary
+[Vec::new_in](https://doc.rust-lang.org/std/vec/struct.Vec.html#method.new_in)
+as stable since 1.100.0; const use and other allocator extensions have separate
+stability boundaries. This supplies an allocation API, not persistence admission.
+[Vec's guarantees](https://doc.rust-lang.org/std/vec/struct.Vec.html#guarantees)
+explicitly exclude a stable ABI and field order. These sources were checked on
+15 November 2026; no native-persistence proof follows from API availability.
 
-## 4 Scope of the first implementation
+Complete layout admission is the decisive first gate. For every retained
+representation, record how its complete concrete layout is measured or
+authoritatively specified, including private collection nodes, allocator
+metadata and initialized versus unused storage. The referenced
+[representation certificates](https://github.com/Neutrinomic/cdk-rsx/blob/ae5d3791361ff00a609ae9adf80e064ca08b14a4/ver1/crates/cdk-rsx-memory-abi/README.md)
+depend on compiler-derived metadata, private-layout recipes and controlled std
+builds; an ordinary derive macro does not reproduce those mechanisms. Reject
+unresolved private layouts. Matching sizes, source hashes or successful upgrade
+tests cannot substitute for establishing the representation.
 
-| Supported in the first graph experiment | Explicitly excluded |
-| - | - |
-| Fixed-width integers and byte arrays | usize/isize as persistent fields |
-| Fixed-layout records with explicit IDs and offsets | Arbitrary repr(Rust) object layout |
-| Explicit nullable typed object references | Native references and raw pointers in persistent data |
-| One named persistent root | General dynamic root registration |
-| Shared references and a cycle | Automatic garbage collection |
-| Append-only allocation with a bounded arena | Free, reuse, compaction or finalizers |
-| Synchronous field reads/writes | Futures, closures, vtables and function-table indices |
-| Exact-schema compatible upgrades | Automatic field addition, type widening or migrations |
+If the selected toolchain cannot establish a private representation, choose a
+representation we control or make a separate explicit compiler-tooling decision
+before retaining it. Native standard-library collection reuse remains a
+feasibility decision. Do not silently weaken admission or switch to nightly.
 
-Small byte blobs, persistent vectors and text follow only after retention and allocator continuation are proven. Their representations will be managed descriptors and heap objects, not retained standard-library container layouts.
+## 3 Native storage and ownership
 
-This route provides automatic retention for the declared heap. Application field access can use generated load/store methods without authoring upgrade serialization. It remains more explicit than Motoko's normal-language state model.
+Persistent storage has an explicit allocator authority, declared roots,
+owner-private modules and a bounded set of admitted native data types.
+Ordinary Global-owned Vec, String, Box or Rc values do not become persistent
+because their headers happen to lie in retained memory.
 
-## 5 Owners and dependency boundaries
+The eventual collection surface includes retained vectors, text, ordered maps
+and sets, queues, unique owners and selected shared owners. Qualify a small
+record/vector subset first. Reusing standard-library algorithms through an
+explicit allocator is desirable where the pinned toolchain and complete
+representation contract support it; it is not a promise to wrap every container.
+
+Each admitted type needs all three:
+
+- A recursive data/ownership contract excluding transient allocations, borrowed
+  application references, code/static addresses, closures, futures, trait-object
+  vtables and active runtime resources.
+- A physical and interpretation contract covering the actual concrete record,
+  private collection nodes, allocator metadata, initialization rules, ownership,
+  drop behavior, ordering/comparison and relevant configuration.
+- A versioned logical export/import contract, with bounded decoding, ownership
+  and identity preservation and an exercised round trip. No type enters
+  persistent application state before its portable path is available; adding
+  a container also requires contracts for its concrete elements and owning edges.
+
+A derive marker alone proves none of these contracts. Opaque third-party types
+require explicit review. Stable schema identities and frozen declarations belong
+to owners; compiler TypeId values and raw addresses are not durable application IDs.
+
+### Borrowing and ownership boundaries
+
+The first public API prohibits untracked retained-owner extraction, including
+returning owners, storing them in outer captures and carrying them in futures.
+A borrow ending does not prove an owner remained in the persistent root:
+[mem::take](https://doc.rust-lang.org/std/mem/fn.take.html), mem::replace, shared
+owner cloning and consuming iterators can move ownership out through safe Rust.
+Consequently the API must not expose unrestricted &mut access to an owning
+native collection or a record containing one, nor DerefMut/Clone/iterator escape
+routes to that carrier. A lifetime on a guard around an otherwise extractable
+owner is insufficient.
+
+Expose scoped collection operations, approved scalar/element views and owned
+transient copies. Element views must recursively enforce the same restriction
+when an element itself owns retained allocations. Move/attach/retire operations
+use explicit, frame-bound ownership tickets and accounting: a detached owner
+must be attached or retired before successful frame completion, and cannot be
+returned, captured outside the frame or persisted as a transient ticket. Shared
+owners, when admitted later, need explicit tracked sharing with the same scope
+rules. Owner-local converters must obey this boundary too; accepting old data
+does not authorize an untracked native owner to escape the conversion frame.
+
+References, guards, ownership tickets, allocator/provider loans and capturing
+futures cannot escape the scope or cross await. Mutations require exclusive
+access; module attachment ownership and stale-binding checks remain explicit.
+Native pointers are internal to their admitted heap and must not escape as RPC
+identities or checkpoint references. Familiar operations are a qualified API
+subset, not a promise of unrestricted standard-library access.
+
+Safe Rust permits [mem::forget](https://doc.rust-lang.org/std/mem/fn.forget.html).
+Memory safety must not depend on a guard/ticket destructor running. Outstanding
+loans and detached owners are tracked independently in the frame; finalization
+must detect them before enabling later access, teardown or allocator reuse.
+Unresolved obligations trap the IC execution or quarantine the native instance.
+Never clear a lost loan merely to open the next frame, reclaim beneath it, or
+guess ownership and run destructors. Leaks or refusal are acceptable outcomes
+of deliberate forgetting; invalid aliasing or allocator use is not.
+
+Require compile-fail/runtime adversarial cases for mem::take/replace, outer
+captures, shared-owner cloning, consuming iterators, ownership captured in a
+future, and forgotten guards/tickets. Positive tests must also demonstrate legal
+in-frame moves, attachment and retirement. No collection wrapper is admitted
+solely because ordinary borrowed references cannot escape.
+
+Keep allocator/kernel unsafe operations private and narrowly reviewed.
+The existing M0 crate continues to forbid unsafe Rust; adopting this direction
+does not remove that prohibition. A native implementation needs a separately
+reviewed custody boundary, not unsafe expectations spread through application
+code. Its allocation/std requirements must be stated separately from M0's
+current no_std, allocation-free behavior.
+
+### Mutation, destruction and reclamation
+
+An access scope is not a transaction. Returning an ordinary business Err does
+not undo preceding writes or suppress required successful-frame publication.
+Keep these outcomes distinct:
+
+| Outcome | Required behavior |
+| --- | --- |
+| Expected refusal before mutation | Return an error with the refused operation's bytes/ownership unchanged; earlier completed operations still stand |
+| Ordinary callback/business Err after completed operations | Preserve those operations and finalize required publication; no implicit rollback |
+| Unexpected mutation, invariant, destruction or finalization failure | Trap on IC; quarantine/poison the native owner until its host restores the complete snapshot or discards it safely |
+| Failed migration after persistent conversion work begins | Fail the atomic upgrade/message through a trap; never report a normal error that commits an incomplete conversion |
+
+Native catching/unwinding does not establish rollback or permit continued use
+of a poisoned allocator. Failures in a multi-message migration undo only the
+failing message; earlier progress follows the recovery protocol in section 6.
+
+For the first subset, permit compiler-generated destruction of admitted owners
+and narrowly reviewed container/allocator destruction. Arbitrary application
+Drop implementations and user finalizers are excluded. Destruction may operate
+only on live, initialized values under the admitted source runtime; neither
+spare capacity nor stale/incompatible representations may be dropped as T.
+Drop behavior and helpers belong to interpretation admission, and their failure
+paths must preserve the trap/poison boundary.
+
+Qualify growth, shrink, removal, partial construction, destruction, allocation
+reuse and failed conversion, including fault injection and forgotten owners.
+Report allocator-reusable bytes separately from physical memory pages: freeing
+an allocation does not prove that capacity was returned to the platform or
+that linear memory shrank. Any platform-capacity reclamation claim needs its own
+mechanism and evidence.
+
+Reference-counted strong cycles can leak; supporting shared ownership is not
+tracing GC. The earlier M0 tracing-collector proposal is superseded, not silently
+implemented. Tracing, moving compaction and arbitrary finalizers are outside the
+initial native scope.
+
+## 4 Runtime admission and compatible upgrades
+
+Native heap representations can change because of application type evolution,
+compiler/std changes, private collection implementation changes, allocator or
+Store metadata revisions, or a wasm32/wasm64 transition. Interpretation can
+change without a physical change, for example a new map comparator.
+
+Admit the complete supported source contract before following saved native
+pointers. The contract must bind the actual target's physical layouts, ownership
+and interpretation policies, allocator/kernel geometry and compiler/SDK class.
+Measure nested and private representations; do not accept an outer record's
+size or a compiler hash as a substitute. Any compatibility qualification must
+retain the same read/write invariant and exact tested artifact provenance.
+It cannot make different layouts equivalent by relabelling their digests.
+
+### Allocation and pointer validity
+
+Layout agreement and equal numerical addresses do not establish valid Rust
+allocations, pointers or references after instantiation. Before producing any
+typed reference, the kernel's unsafe argument must explain how the new executable
+establishes the live allocation domain and valid pointer provenance for retained
+objects, with alignment, complete-span bounds, initialized valid values, lifetime
+and aliasing guarantees. Cover allocator metadata and internal collection
+pointers as well as the root, including zero-sized values and unused capacity.
+The [Rust pointer contract](https://doc.rust-lang.org/std/ptr/index.html#safety)
+is an obligation, not permission to manufacture references from matching bytes.
+
+Specify the target/compiler assumptions and the exact pointer-creation/reopening
+mechanism before implementing unsafe casts. An integer-to-pointer cast, matching
+hash, byte copy, or passing native/installed test is not by itself that argument.
+If a complete justification cannot be established, reject the native mechanism
+and choose a supported representation or explicit compiler/runtime integration.
+
+### Lifecycle ordering
+
+The normal lifecycle is:
+
+1. Establish application quiescence and drain callbacks/tasks/providers.
+2. Finish old-runtime teardown of explicitly transient owners.
+3. Start the admitted target without overwriting retained allocations; rebuild
+   transient stack/data/statics before using newly compiled metadata.
+4. Validate the bounded bootstrap and accepted source catalog without opening
+   native objects or using the old allocator prematurely.
+5. Open the admitted allocator and root; execute any declared schema conversion.
+6. Validate the resulting state and publish the current catalog/root only on
+   success, then reconstruct transient services and permit application access.
+
+Use explicit keep mode for this path. Final artifact admission covers memory,
+stack/data ranges, startup, growth, tables, lifecycle exports and required
+markers. M0's fixed 8 MiB boundary and deny-all allocator are fixture choices,
+not the selected native layout. A new page-domain/allocator contract must prove
+that transient reconstruction and persistent allocation never overlap.
+
+Maintain invariants during normal access rather than carrying M0's whole-image
+scan into every field write. The exact dynamic checks and corruption coverage
+need a safety argument and tests; build-time layout compatibility is not a
+whole-heap corruption detector.
+
+Neither wasm64 nor cross-target migration is automatically qualified by the
+existing wasm32 evidence. Preserve target limits and capacity headroom as
+explicit admission and deployment inputs.
+
+## 5 Application-type migration
+
+Maintain immutable, owner-local schema versions and explicitly supported source
+versions. A converter reads the actual admitted predecessor type and constructs
+the target type; unknown predecessors refuse. Compiling a historical declaration
+with an incompatible new compiler does not recover the historical native layout.
+
+| Change | Required treatment |
+| --- | --- |
+| Add a field with an explicit default | Construct the new record; move unchanged compatible owners |
+| Change field width, optionality, enum cases or meaning | Explicit checked conversion, including overflow/unknown-case policy |
+| Change collection element representation | Convert affected elements while preserving declared identities/ownership |
+| Change key ordering, equality, hashing or index semantics | Rebuild and validate the affected index |
+| Remove an owning field | Explicitly move or retire it under the admitted source contract |
+| Change runtime/allocator/native collection representation incompatibly | Use the portable migration path; do not cast or drop through the target type |
+
+Converters must be deterministic, owner-scoped and bounded. No external calls,
+clock/random dependencies or unrelated application effects. Preserve sharing
+and application identities explicitly. A field-copy loop or an ordinary serde
+round trip does not by itself preserve a shared/cyclic graph.
+
+A small conversion can run in one qualified atomic upgrade. Include source
+teardown, startup, admission, conversion, target validation, retirement and
+provider flush in the instruction and memory budgets. Source and target may
+coexist temporarily. No claim of constant-cost schema migration follows from
+constant-size root replacement.
+
+If the complete operation cannot fit that lifecycle, require the separately
+qualified resumable protocol below. Do not silently turn a failing synchronous
+conversion into a partially committed upgrade or expose partially converted
+records to normal endpoints.
+
+## 6 Portable migration and recovery
+
+Ship an export capability with the first stateful native prototype. Preserve the
+compatible source executable, toolchain/locks and artifacts needed to operate it.
+Do not depend on retrofitting an exporter after losing the ability to open the
+source heap.
+
+### Checkpoint contract
+
+The checkpoint represents logical owned state, not native memory dumps, pointer
+values, Rust padding, allocator free lists or opaque std headers. It needs a
+versioned byte-defined envelope, explicit source schema identities, root and
+object identities, bounded lengths/counts, ownership/reference kinds, integrity
+coverage and an explicit completeness marker. Its exact byte format and codecs
+must be specified and independently tested before use.
+
+Assign checkpoint-local object IDs and preserve aliasing/cycles with an identity
+map. Define weak-edge and unreachable-resource policy explicitly. Reconstruct
+object identities before connecting graph edges, and validate all required
+targets and ownership before publishing roots. Stable business IDs must survive;
+allocator addresses need not. Arbitrary hidden pointers make a type ineligible
+until it supplies a complete export/import contract.
+
+A source-compatible executable performs export. A target importer reads the
+checkpoint using only the checkpoint contract, without dereferencing or dropping
+old native objects through new layouts. A bootstrap/migration entry point must
+distinguish normal reopen from explicitly authorized fresh reconstruction.
+Unknown or corrupt anchors never trigger that path automatically.
+
+### Transitional checkpoint provider
+
+Select published ic-storage 0.74.1 as the initial legacy provider baseline behind
+a narrow checkpoint adapter, subject to the installed migration proof. This is
+a transitional dependency on a frozen provider contract, not resumption of
+development in the sibling repository or a second product architecture. Pin its
+exact package/artifact, lockfile, stable format and owned checkpoint key/locator
+before the first provider-backed proof. Production access continues to use
+governed Storage handles; this design does not authorize raw ungoverned stable
+allocations or silently select a different provider version.
+
+This repository owns the checkpoint envelope, locator/adapter specification,
+source/target conformance fixtures and maintenance of the qualified reader
+dependency for supported checkpoints. The legacy provider implementation and
+stored-format contract remain owned by ic-storage. Preserve the matching reader,
+source and reproducible artifacts for as long as those checkpoints are supported.
+A required provider fix or format change is separately governed work; the sibling
+freeze does not authorize patching it here. If a supported reader cannot be
+maintained, block cutover instead of guessing its format.
+
+The adapter must locate and open a checkpoint through an admitted stable-provider
+format using new transient handles, with no retained Rust handle, old native
+module directory, native allocator or heap pointer needed. The frozen locator identifies
+the checkpoint namespace, provider/format version and complete checkpoint; its
+authorization, validation and recovery rules must be independently specified.
+An ordinary schema migration may reuse a provider, but incompatible native-heap
+reconstruction must prove this independent opening. Run that proof with the old
+native heap unavailable to the reader, not merely with its pointers unused by
+convention.
+
+Replacing this transitional provider requires explicit checkpoint/provider
+conversion while its admitted reader remains available, conformance tests and
+installed recovery evidence. It is not implied by replacing the application
+storage API. Stable memory is not automatically independent of software formats.
+External backup may be an additional operational route, but is not assumed
+implemented. The first small native export/import proof must exercise this
+boundary before application converters are expanded.
+
+### Source-to-target protocol
+
+Freeze application writes and drain in-flight effects before establishing the
+source epoch. The source remains authoritative during export. Seal and verify
+the complete checkpoint before any destructive heap transition. Bind the job
+to its source identity/epoch, checkpoint integrity and authorized target.
+
+The target creates a fresh admitted allocator and imports a candidate graph.
+Validate schema, counts, references, ownership and application invariants before
+publishing a complete root and enabling application writes. Retain the recovery
+checkpoint until the explicit recovery-retention policy permits reclamation.
+Never use reinstall as an implicit migration shortcut.
+
+The actual IC mode, startup, old-memory disposal and provider continuity for an
+incompatible-runtime transition need their own installed experiment. Ordinary
+keep admission deliberately rejects that runtime; bypassing its check is not a
+migration implementation. Do not invoke old destructors under an incompatible
+allocator. Old-region retirement/reset is permissible only through the explicit,
+validated migration protocol.
+
+### Large migrations and interruptions
+
+A resumable migration is a durable state machine, not one transaction spanning
+messages. Its declared phases cover export, checkpoint completion, target import,
+validation and publication, with bounded work and recorded progress. Persist
+source epoch, job identity, object mapping and restart-safe chunk acknowledgments;
+retries must not duplicate objects or ownership. Corrupt/incomplete checkpoints
+and mismatched resumes refuse.
+
+Normal application writes remain blocked until target publication. Permit only
+explicitly defined administrative/progress operations and any separately proven
+read path. State which executable and representation own each phase, how a crash
+or failed upgrade resumes, and when cancellation can return to the source.
+Cancellation after a destructive transition may require checkpoint restoration;
+the old native heap is not presumed still usable.
+
+Budget export bytes, import growth, temporary coexistence, checkpoint capacity,
+progress metadata, instructions per step and expected downtime. Insufficient
+space or unavailable compatible source readers blocks migration before cutover.
+Restoration and cross-message interruption tests are release requirements for
+this path.
+
+### Rollback and downgrade
+
+An IC trap rolls back its message or failed upgrade within the platform contract;
+it does not undo earlier committed migration chunks or external effects.
+Native poisoning is not rollback.
+
+After successful migration, old code may no longer admit the data. Downgrade
+requires a supported reverse conversion or an explicit checkpoint restore.
+Restoring an older checkpoint can lose later writes and must reconcile external
+business effects. A saved binary alone is not a data recovery plan.
+
+## 7 Transient state and integration ownership
+
+Executor state, callbacks, futures, Wakers, timers, locks, active borrow flags,
+service bindings, caches and entropy state are transient unless separately
+designed as durable data. Reconstruct them from declared state after admission.
+Do not discover arbitrary Rust statics or retain code pointers by accident.
+
+Applications own durable business intents, effect identities and the upgrade
+drain boundary. A timeout does not establish that a remote effect ended.
+Scheduling rebuilds timer demand; entropy starts under its fresh-generation
+contract; metrics/logging require explicit continuity decisions. Snapshot restore
+has its own external-effect and lifecycle obligations.
 
 | Owner | Responsibility |
-| - | - |
-| Storage runtime | Persistent layout, object identity, root directory, allocation and schema admission |
-| Declaration tooling | Field IDs/layouts, typed accessors, reference descriptors and schema manifest |
-| Build integration | Controlled linking/startup, data-segment handling, final-module validation and artifact manifest |
-| Platform Runtime | System bindings, message context and volatile executor state |
-| Host deployment | Retention mode, source/destination artifact admission, callback quiescence and install outcome |
-| Application | Business invariants, root selection, external effects and explicit migrations |
-| Qualification | Native corruption model, installed experiments and recorded environment identities |
-
-Begin with one unpublished runtime crate and private probe/runner packages. Add a declaration macro only after hand-written probe descriptors establish the required semantics. A host artifact-checking tool is real implementation work, not a placeholder package.
-
-No second executor or application retry engine. Wire may encode external messages or a later export format; it must not become the routine persistent object representation. Stable memory remains outside the managed arena and is not silently used as a second copy of it.
-
-## 6 Memory and startup contract
-
-There is one linear memory, partitioned into disjoint regions:
-
-```text
-low addresses
-  volatile stack and module data
-  bounded transient allocation region
-  fixed bootstrap anchor and bounded persistent descriptors
-  persistent objects and allocator metadata
-high addresses
-```
-
-Exact addresses are part of the experiment manifest, not a production promise. For the first probe, reserve a fixed low region, for example 8 MiB, and one 64 KiB anchor/descriptor page above it; place the persistent arena after that page. Both modules use the same boundary. Reject a build that does not fit. These are proposed experiment constants, not values taken from Motoko or validated against Rust output.
-
-The persistent arena is never a normal Rust global allocator region. No pointer from it may refer into stack, module data or transient allocation.
-
-Initial modules use no_std without general alloc or third-party initialization that allocates. This deliberately removes default allocator assumptions from the first retention proof. Later transient allocation uses a separately bounded allocator; it must never acquire persistent pages through a default dlmalloc heap boundary.
-
-Prefer a controlled passive-data initialization pipeline. A host transformer may convert admitted active data segments into passive segments and install a small, audited bootstrap that reloads only the module's volatile data region. It must also initialize the new module's BSS and stack correctly. Reject unknown start functions, out-of-region segments or unsupported initialization patterns.
-
-This is proposed build machinery, not something a derive macro or Cargo feature can guarantee. Prove it experimentally before building on it. Do not assume that a different constant string or a new global leaves the old heap untouched.
-
-The bootstrap must run without reading uninitialized Rust statics, using allocator state, formatting errors or executing arbitrary application code. It must not zero an executing Rust stack. A small generated Wasm bootstrap can establish the volatile region and stack before entering Rust admission code.
-
-Only after the persistent anchor is admitted may application initialization or root access occur. A layout mismatch may rewrite volatile scratch during attempted startup, but it must not mutate the persistent arena before refusal. Installed rollback must preserve the old application's usable state.
-
-Final-module checks are mandatory on the actual deployable bytes after optimization. Validate memory count/width, required custom-section marker, layout version, all data segments, startup function, stack region, imports and exported lifecycle wrappers. A sidecar manifest alone is insufficient.
-
-These checks constrain cooperating code; they do not sandbox malicious or arbitrary unsafe dependencies inside the same Wasm memory.
-
-Confine linear-memory read/write/grow operations to one private, reviewed kernel. Prefer numeric-offset Wasm load/store shims over manufacturing Rust references into retained memory; validate the complete span before access. The native model uses checked slices. Neither path exposes persistent native pointers. Generated lifecycle composition has one export owner: Storage admission runs before user post-upgrade logic, and normal endpoints cannot obtain a heap capability until admission succeeds.
-
-## 7 Persistent representation
-
-Choose a byte-defined ABI rather than Rust struct memory. Fixed-width integers are little-endian. Padding is explicit and initialized. Generated accessors read/write fields at admitted offsets; they do not cast retained bytes to &T.
-
-The experimental anchor records:
-
-- Format magic/version and memory-layout identifier.
-
-- Arena bounds and persistent allocation cursor.
-
-- Root and schema-directory locations and bounded counts.
-
-- Allocation identity counter and schema epoch.
-
-- Lifecycle state and any future migration state.
-
-- A bounded integrity check for bootstrap metadata.
-
-Each object has a fixed header: object/allocation identity, schema identifier, payload size and flags. Payload fields follow the admitted descriptor.
-
-A persistent reference is a fixed-width pair such as `(offset: u64, allocation_id: u64)`. Both zero represent null; other invalid combinations refuse. The first allocator never reuses an identity or address. Even on wasm32, stored offsets are checked before conversion to the executable address width.
-
-Before field access, validate the object start, bounds, header identity, schema and field span. Never accept an offset merely because it lands somewhere inside linear memory. A bounded allocation index or validated object-start map supplies this check in the prototype.
-
-Do not persist Rust TypeId, compiler type names, symbol addresses or function pointers as authority. Use explicit schema/root identifiers and complete descriptors. Hashes may index descriptors, but collision or mismatch must never authorize a layout.
-
-The graph's meaning includes sharing: two references to the same allocation identify the same object. Reading an object does not copy its graph. Cycles are legal references even before reclamation exists.
-
-A checksum detects some corruption; it neither authenticates the module nor proves every object is valid. Safe accessors must fail on invalid representation instead of creating an invalid Rust reference.
-
-## 8 Safe access and mutation semantics
-
-Proposed ergonomic direction, not a compiled API:
-
-```rust
-// CounterState and Node are generated descriptor/accessor types,
-// not Rust structs whose in-memory layout is persisted.
-heap.with_update(|cx| {
-    let state = cx.root::<CounterState>(COUNTER_ROOT)?;
-    let before = state.counter(cx)?;
-    state.set_counter(cx, before.checked_add(1).ok_or(Error::Overflow)?)?;
-    let left = state.left(cx)?;
-    left.set_value(cx, 42)?;
-    Ok(())
-})
-```
-
-The callback receives a scoped capability. Generated handles permit bounded scalar reads and writes; they do not expose &mut T or an interior pointer into a growable native buffer. Enforce no leaked borrow and no async suspension while a session is live. M0 exposes no async API.
-
-Persistent graph references are identity values, not unique Rust ownership claims. Access through one mutable session serializes conflicting mutation. Host/native models use the same span and identity checks.
-
-**with_update is a borrow scope, not a transaction.** Returning Err after successful earlier mutations does not roll those mutations back. An IC message trap provides message-level rollback; a normal reply containing an error does not.
-
-Each library operation validates bounds/resources before mutation. If an unexpected fault occurs after an operation begins changing its invariants, trap on the IC; the native model poisons the session unless its test harness explicitly restores a snapshot. Do not claim Rust unwinding supplies IC rollback.
-
-Allocation prepares a complete initialized object before publishing a reference to it. The arena cursor, object index and root updates must follow a documented order within one synchronous message. Test every interrupted publication point.
-
-No application Drop implementation runs on persisted bytes. Upgrade does not invoke destructors from the old binary. Deleting a future persistent field must be a runtime schema/migration action, not a cast to a new Rust type followed by drop.
-
-## 9 Upgrade admission
-
-The first compatible upgrade requires exact persistent layout/schema agreement. Code, constants and transient initialization may change. Layout evolution is not needed to prove OP.
-
-Admission order:
-
-1. Bootstrap the new volatile environment without touching the persistent arena.
-
-2. Read and bound-check the old anchor and descriptor directory.
-
-3. Check memory width/layout, format version, allocator version and root identities.
-
-4. Compare full record/reference descriptors under the declared compatibility rule.
-
-5. Check the prototype's bounded object index and required roots.
-
-6. Reconstruct transient runtime state.
-
-7. Publish the new admitted epoch and permit application methods.
-
-Any failure traps the upgrade. Do not initialize an empty heap because a magic value is missing during post-upgrade. Fresh installation and retained upgrade are separate paths.
-
-For the small first experiment, scanning the bounded object set is acceptable and must be measured. It is not proof of heap-size-independent upgrades. A later design may check bounded metadata and trust continuously maintained invariants, with lazy access checks; that requires its own corruption and scalability argument.
-
-Later evolution begins conservatively:
-
-| Change | Initial policy |
-| - | - |
-| Code-only change, same descriptors | Admit |
-| Rename a Rust source symbol while explicit persistent identity/layout remains equal | Admit after manifest comparison |
-| Reorder/change persistent fields or offsets | Refuse |
-| Change integer width, optionality, reference target or meaning | Refuse |
-| Add/remove root or object field | Refuse until an explicit evolution rule exists |
-| Change allocator, memory width or ABI | Refuse; separate migration experiment |
-| Change transient caches/constants | Reinitialize; verify no persistent references point to them |
-
-Do not import Motoko subtyping rules into a Rust managed ABI. Storage compatibility, service-interface compatibility and business-semantic compatibility are separate checks.
-
-## 10 Transient state and outstanding work
-
-Only declared roots and reachable managed objects are candidates for persistence. Executor queues, callback closures, Wakers, timers, locks, borrow flags, caches, metrics registries, random generators and native handles are transient unless separately redesigned as data-only state.
-
-They must be reconstructed, not resumed from retained arbitrary heap bytes. Reinitialization cannot overwrite managed data or run destructors against stale pointers.
-
-The initial deployment policy blocks new work, drains outstanding callbacks using the existing host/runtime procedure, then upgrades. An inability to drain is a blocked upgrade, not permission to discard uncertain operations. Durable business intents remain application data.
-
-After upgrade, Scheduling rebuilds timer demand from current application state; it does not reuse retained timer handles. Entropy follows its fresh-generation/reset contract; retaining its old random pool simply because bytes survived is forbidden. Metrics and Logging need an explicit continuity decision rather than automatic persistence of their entire registries.
-
-Snapshot load is not treated as the same operation as code upgrade. It can restore older runtime state and external-effect intent. Support requires a separate host protocol and installed proof; it is excluded from the first supported lifecycle.
-
-## 11 Allocation and reclamation roadmap
-
-M0 uses a bounded bump allocator with persistent cursor and checked growth. No free list, reuse, moving collector or application finalizer. Dropping a handle does not reclaim its object. The experiment must report this leak behavior plainly.
-
-Before production use, select and qualify reclamation. The recommended research direction is tracing from declared persistent roots, allowing sharing and cycles. Reference counting alone does not reclaim cycles and would add ownership traffic to every edge.
-
-First test nonmoving stop-the-world tracing on a bounded heap at a safe point. Before reuse, prove that no unregistered transient handle can outlive that point. Add a generation/identity discipline for stale references.
-
-Incremental collection is a later project: it requires persisted collector state, barriers, mutation rules, root handling, work limits, memory reserve and upgrade compatibility during every phase. It cannot be added as a background loop around the prototype.
-
-Compaction is separate again. Offset references simplify explicit rewriting, but do not make it automatic or prove that hidden pointers are absent.
-
-No live-memory capacity guarantee follows from retaining bytes. wasm32 addressability is bounded, and actual IC limits are deployment inputs. A managed heap is not automatically a replacement for every existing stable-memory dataset. Qualify capacity and headroom before selecting consumers.
-
-## 12 Migration and failure recovery
-
-Normal compatible upgrades must not serialize the whole graph. Exceptional schema/heap changes may require an explicit graph migration with alias/cycle preservation.
-
-For a small migration, build a candidate graph and switch roots only after validation within one qualified atomic upgrade/message. For a large migration, design a resumable state machine before implementation: old graph retained, applications blocked or explicitly restricted, bounded chunks, durable progress, object-ID mapping, commit barrier and recovery from interruption.
-
-Do not introduce that machinery into M0. A plain field-copy loop does not preserve shared references or cycles.
-
-Existing ic-storage bytes are not OP objects. A future importer must read the specific old format and produce managed objects, verify application totals/invariants, then cut over under explicit consumer authority. Keep old storage readable until that decision and proof exist. Never reinterpret a stable-memory directory or Storable record as a managed heap.
-
-There are two different rollback cases. A rejected upgrade must leave the old application usable. After a successful migration, reinstalling old code is safe only if the resulting representation is still admitted by that old code. A backup of the binary alone is not a data rollback plan.
-
-## 13 Tooling and deployment contract
-
-Each artifact carries an embedded persistence manifest and an external report tied to the exact final Wasm hash:
-
-- Compiler, linker, optimizer, dependency and transform identities.
-
-- Memory target/features and layout constants.
-
-- Persistent format/allocator/schema descriptors.
-
-- Required lifecycle wrappers and retention marker.
-
-- Supported source format versions and migration policy.
-
-The host supplies explicit keep mode and refuses accidental replace/reinstall in the normal upgrade command. The runtime refuses a missing/invalid retained anchor in post-upgrade. These protect against mistakes, not a controller deliberately replacing code or clearing memory.
-
-The build transformer and module validator are part of the trusted implementation. A stripped custom section, late optimizer rewrite or unchecked linker change invalidates prior evidence.
-
-Keep first runtime dependencies minimal. Platform supplies IC interfaces where compatible with the no-allocation bootstrap; otherwise a tiny private ABI shim must be explicitly reviewed. Host/Build/Testkit remain qualification/tooling dependencies.
-
-Do not port the current repository's release framework into a research scaffold. First deliver reproducible artifacts and installed evidence. Shared release integration follows when a releasable product actually exists.
-
-## 14 Decision gates and nonclaims
-
-Proceed in this order: retention/startup proof; graph/allocator continuation; incompatible-upgrade rollback; managed API/type restrictions; bounded reclamation; schema evolution; consumer pilot; production qualification.
-
-Stop or narrow scope if the selected IC/Rust cohort cannot safely initialize retained memory, if ordinary dependencies cannot be isolated from the arena, or if the managed API imposes unacceptable application cost.
-
-If transparent ordinary Rust containers remain a hard requirement, treat compiler-supported Rust OP as a separate research track. It must address layout of nested generic types, allocator ownership, relocations, globals, function/vtable references, Drop, unsafe code, root discovery and code-version compatibility. A trait derive alone cannot establish those guarantees.
-
-The next deliverable is an installed experiment with measured, declared scope—not a copied storage library and not a production OP claim.
-
-# First installed experiment
-
-Status: proposed research protocol, 15 November 2026. Companion to the architecture above. This is the next implementation milestone, not production acceptance.
-
-## 1 Question
-
-Can two different Rust Wasm modules safely share an explicitly managed object graph through retained main memory, with correct initialization, allocator continuation and rejection of incompatible upgrades?
-
-Success proves only the chosen type subset, memory layout, toolchain and installed server cohort. It does not prove transparent persistence for ordinary Rust values, reclamation, schema evolution or production safety.
-
-## 2 Freeze the experiment inputs
-
-Record:
-
-- Rust compiler/target, linker and optimizer versions and complete flags.
-
-- Dependency locks and source identities.
-
-- Module transformer and validator source hashes.
-
-- Final A, B and negative-variant Wasm hashes.
-
-- Simulator/server version and, where available, independent replica execution identity.
-
-- Exact install/upgrade arguments, including keep and skip-pre-upgrade choices.
-
-- Layout/format/schema manifest and raw evidence outputs.
-
-Read old ic-storage as pinned evidence at `98eb9313b7b241607a5dd81a7a4e34aa6c04f755`. The prototype starts fresh; its format is not that repository's stable-memory format.
-
-Maintain an inputs log naming the public Motoko design and specifications consulted. Do not call the work clean-room merely because implementation source was not copied.
-
-The current scaffold was not inspected or executed as part of the design review. Audit its manifests and generated Wasm before treating it as an experiment baseline.
-
-## 3 Establish platform retention first
-
-Begin with an allocation-free probe using fixed offsets and scalar sentinels. Before the graph test, prove:
-
-| Component | Probe |
-| - | - |
-| Linear memory | A writes sentinels in persistent and volatile regions; B reports what survived |
-| Globals | A changes mutable globals; B checks its newly initialized globals |
-| Data segments | Change constant contents and segment placement between modules; verify B gets its own data without overwriting retained arena bytes |
-| BSS/static state | A dirties transient cells; B reconstructs new zero/default state |
-| Stack | Exercise nested calls before and after upgrade; verify stack pointers/ranges and persistent sentinels |
-| Startup | Instrument the controlled startup path; no application initialization before admission |
-| Memory growth | Grow after upgrade and verify no overlap, cursor reset or lost old data |
-| Marker/mode | Exercise keep, omitted option and missing/stripped required marker with recorded outcomes |
-
-Use the memory-retention custom section's exact platform encoding. Do not infer its binary name/prefix from a conceptual name in documentation; inspect and validate the emitted custom section.
-
-Try wasm32 first. If the selected platform rejects that combination, record the refusal and select a separately qualified wasm64 toolchain before proceeding. Do not declare that Rust OP is impossible or proven based on target selection alone.
-
-Exit gate: exact startup behavior is observed, and the controlled build prevents initialization from touching persistent regions.
-
-## 4 Declare the experimental representation
-
-Proposed layout constants for this experiment:
-
-- Low 8 MiB reserved for the admitted stack, module data and transient space.
-
-- One 64 KiB anchor/schema/index page immediately above it.
-
-- Persistent arena after that page.
-
-- At most 1,024 objects; no deallocation or reuse.
-
-- A hard arena cap recorded in the manifest; tests include growth refusal.
-
-These constants are experimental. They must fit the emitted module and installed limits before any test is considered valid.
-
-Use a 48-byte object header:
-
-| Offset | Representation |
-| - | - |
-| 0 | allocation identity, u64 |
-| 8 | explicit 128-bit schema identity |
-| 24 | payload byte length, u64 |
-| 32 | flags, u32 |
-| 36 | 12 reserved zero bytes |
-
-Header and payload starts are aligned to eight bytes. Fields are accessed as byte-defined values, never by casting the header to a Rust struct.
-
-Define two payloads:
-
-| Record | Offsets |
-| - | - |
-| CounterState | counter u64 at 0; left reference at 8; right reference at 24; total 40 bytes |
-| Node | value u64 at 0; next nullable reference at 8; total 24 bytes |
-
-A reference occupies 16 bytes: arena-relative offset u64 plus allocation identity u64. The arena base comes from the admitted layout. Null is the all-zero pair. Non-null references must match an admitted object-start entry and header; the object schema must match the declared target.
-
-Use a fixed bounded allocation index in the anchor page for M0. Reserve and validate its capacity explicitly; the metadata page cannot grow into the arena. Include the exact descriptors, one root entry and cursor/counter fields in its manifest.
-
-The format is unpublished and disposable. Changing it during research invalidates old fixtures unless an explicit compatibility test says otherwise.
-
-## 5 Construct the graph with module A
-
-On fresh installation only:
-
-1. Initialize the anchor and descriptors.
-
-2. Allocate one Node with value 7 and next pointing to itself.
-
-3. Allocate CounterState with counter 41 and both left/right pointing to that Node.
-
-4. Publish the root only after both objects and index entries are complete.
-
-5. Return the graph's logical values, reference identities, cursor and managed-region digest.
-
-This tests shared identity and a cycle without needing collections or garbage collection. Root traversal must be bounded even when edges cycle.
-
-A normal update mutates the shared node through left and verifies the change through right. A subsequent message checks retention. Queries may observe state but cannot establish durable mutation.
-
-## 6 Upgrade to module B
-
-B has different executable logic, constant strings and transient initialization. Its persistent layout and descriptors are identical.
-
-Upgrade with explicit keep. B must:
-
-- Observe counter 41 and the current shared-node value.
-
-- Confirm left and right identify the same object and next identifies itself.
-
-- Increment the counter to 42 and mutate the shared node.
-
-- Allocate a new Node from the retained cursor.
-
-- Link the new Node through right and verify left still points to the original node.
-
-- Survive another message and another compatible upgrade.
-
-Run a separate near-page-boundary population variant within the same object limit so allocation after upgrade crosses a physical page boundary. This exposes an allocator that appears correct only when no new memory is needed.
-
-No pre-upgrade graph serialization, stable-memory mirror or deserialization restore routine is allowed in this proof. The host may record diagnostic snapshots as test evidence.
-
-## 7 Refuse incompatible modules and prove rollback
-
-Build negative B variants from the same test source:
-
-| Variant | Expected result |
-| - | - |
-| counter changes width or offset | Refuse descriptor compatibility before persistent mutation |
-| Node.next changes target/representation | Refuse |
-| Root identity, format or allocator version differs | Refuse |
-| Module data exceeds the volatile reserve | Reject final artifact before deployment |
-| Persistent anchor/header/index is malformed | Refuse safely; never initialize over it |
-| A late post-upgrade fault occurs after a test-only persistent write | Upgrade fails; old managed bytes and old application remain usable |
-
-After each failed installed upgrade, call A's old methods and compare its managed-region digest, cursor, identities and logical values with the pre-upgrade record. Also verify the expected old module hash and a later successful allocation/update.
-
-Do not require cycle balances, logs or every external observation to be unchanged; test the promised application and memory rollback boundary.
-
-Keep deliberate replace/reinstall testing confined to disposable canisters. Such an operation can destroy memory before post-upgrade code can protect it. The normal deployment command must refuse it; runtime checks are not protection against a deliberately destructive controller.
-
-## 8 Native corruption and mutation tests
-
-Use a byte-backed model with explicit bounds. Never use a growable Vec pointer as a persistent reference.
-
-Mutate anchor lengths, counts, offsets, identities, type IDs, object spans, reserved bytes and reference targets. Include overflow, interior-object pointers, repeated IDs, null mismatches, cycles and out-of-arena references.
-
-Inject failure at object initialization, index publication, cursor update and root publication. Model an IC trap by restoring a test snapshot. Also test ordinary Result::Err without restoration, to demonstrate that the borrow scope is not a transaction.
-
-If a native panic occurs after partial mutation, poison/discard the instance unless the harness explicitly restores it. Passing native unwinding tests does not establish installed rollback.
-
-No unrestricted typed reference may escape an access session. Add compile-fail tests for prohibited persistent fields and borrow escape when declaration tooling is introduced.
-
-## 9 Measure and report
-
-Measure the actual final transformed artifacts, not pre-transform Rust output:
-
-- Total uncompressed Wasm, code section and metadata/data overhead.
-
-- Initial memory reservation, live object bytes, metadata/index bytes and unreachable bump allocations.
-
-- Upgrade instructions, growth instructions and subsequent read/write cost.
-
-- Cost at several graph populations, up to the declared object limit.
-
-- Native validation cost versus installed execution cost.
-
-Use matched compiler/optimization/locks for A/B comparisons. Record raw measurements rather than claiming a constant upgrade bound from two tiny samples.
-
-For comparison with old ic-storage, use the same logical counter/shared-graph workload with explicit IDs on its stable-memory implementation. Existing stable collections already avoid whole-heap serialization; do not compare only against a naive dump/restore implementation and call that a storage improvement.
-
-Do not compare wasm32 and wasm64 sizes without separating pointer-width/toolchain effects.
-
-## 10 Required evidence and next decision
-
-The first milestone passes only with:
-
-- Reproducible A/B and negative artifacts plus validated manifests.
-
-- Observed retention/startup behavior on the selected installed cohort.
-
-- Correct sharing, cycles and post-upgrade growth.
-
-- Incompatible-layout refusal and old-state usability after failure.
-
-- No graph serialization during ordinary upgrade.
-
-- Bounded native corruption tests and an explicit unsafe-boundary review.
-
-- Reported memory/instruction/Wasm measurements and the no-reclamation limitation.
-
-Then choose the next bounded experiment: generated managed accessors; blob/vector support; reclamation; or memory64. Do not begin all four simultaneously.
-
-Production remains blocked until reclamation, large-state behavior, upgrade compatibility, dependency integration, callback quiescence, recovery, consumer migration and operational procedures have their own evidence.
-
-The milestone proves a managed retained-heap mechanism. It does not prove ordinary Rust OP or replace existing ic-storage users automatically.
+| --- | --- |
+| Persistence runtime | Native allocation custody, roots/modules, ownership, dynamic access checks and runtime admission |
+| Type/contract tooling | Supported-type closure, actual layouts, interpretation contracts and versioned conversion declarations |
+| Build integration | Controlled startup, final-artifact admission, reproducible manifests and reports |
+| Platform Runtime | IC bindings, message context and transient execution integration |
+| Migration tooling | Portable format, locator/provider adapter, maintained qualified reader dependencies, durable progress and explicit publication/recovery |
+| Application | Schema meaning, conversion policy, business invariants and external-effect quiescence |
+| Host/qualification | Exact source/target artifacts, authorized mode, installed outcomes and retained evidence |
+
+Keep product code under crates/ and probes in qualification/. No second executor,
+automatic application retry system, copied Storage release machinery or parallel
+Hylix-like product is selected. Tooling additions need concrete uses; do not add
+empty qualification packages or speculative collection APIs.
+
+## 8 Evidence and next implementation gates
+
+Existing repository-recorded evidence is scoped to M0 and its fixtures. The
+design review and documentation update do not independently rerun or verify
+those historical results; each linked record owns its artifacts and test scope:
+
+| Evidence | What it establishes |
+| --- | --- |
+| [WAT retention probe](../qualification/README.md) | Selected IC retention and rollback behavior on local PocketIC |
+| [Rust startup/growth probe](../qualification/rust-startup-probe/README.md) | Controlled transient initialization and bounded growth for the admitted wasm32 artifacts |
+| [M0 graph probe](../qualification/rust-startup-probe/managed-graph.md) | Byte-defined sharing/cycles, allocator continuation and selected installed rollback cases |
+| [M0 vs Storage benchmarks](../qualification/simple-benchmarks/README.md) | Current implementation instruction costs, including session read reuse |
+
+These do not qualify native allocator metadata, standard-library layouts,
+destructors, native pointer retention, schema conversion or portable recovery.
+M0 remains a regression/evidence baseline; it is not the new persistent ABI.
+The [frozen M0 format](design/m0-layout.md) remains unchanged.
+
+Proceed with bounded experiments in this order:
+
+1. **Complete layout and custody feasibility.** Use one integer record and one
+   retained vector on Rust 1.100.0. Inventory every retained representation and
+   provide authoritative layout evidence, initialization and interpretation
+   rules, allocation/pointer validity and the ownership-escape argument. A
+   working Allocator API or matching sizeof is insufficient. Resolve private
+   layouts through a supported mechanism or choose a controlled representation;
+   do not build a wrapper library around an unresolved certificate. Define the
+   small subset's portable contract at the same time.
+2. **Compatible native lifecycle and reclamation.** Install A, populate that
+   subset, upgrade to compatible B, grow/shrink/remove/release/reuse under B and
+   perform a supported compatible downgrade. Prove startup separation, rejection
+   before native interpretation, owner/reference confinement and failed-update/
+   upgrade rollback. Exercise partial construction, malformed metadata, ordinary
+   business Err, trap/poison, owner extraction and forgotten guards/tickets.
+3. **Incompatible-runtime portable proof.** Export the same integer record and
+   vector under A; make B deliberately incompatible with A's allocator or layout.
+   Verify direct reopen fails, then use the independent checkpoint provider to
+   reconstruct under B without opening A's heap. Verify values, roots, ownership
+   and continued allocation/reclamation, plus partial export/import, corrupt or
+   truncated input, restart and recovery. Shared/cyclic types remain outside this
+   initial subset; their identity-preserving round trips are required before
+   later admission. A real compiler/SDK transition remains a separate case if
+   this proof uses synthetic incompatible layouts. This gate precedes investment
+   in application converters or further collection types.
+4. **Application-type conversion.** Add a field while preserving an unchanged
+   collection; change element types with explicit identities/ownership; verify
+   overflow, incompatible-source refusal and failed-conversion rollback and
+   destruction. Admit shared owners only with confinement, tracked sharing and
+   identity-preserving portable tests. Every newly admitted type must already
+   have its export/import contract and exercised round trip.
+5. **Scale and recovery.** Qualify the chosen large-state protocol, capacity
+   failures, bounded progress, downtime and post-cutover recovery policy before
+   any consumer requires them.
+6. **Matched performance and consumer pilot.** Measure equivalent native
+   collections against Storage and M0 where semantics match, including body and
+   complete-call costs, memory, allocation/reclamation and all upgrade paths.
+   Select a separately authorized consumer only after migration gates pass.
+
+Do not broaden the collection library before the native lifecycle and migration
+proofs establish the direction. Stop or revise the mechanism if source layouts
+cannot be completely admitted, transient ownership cannot be excluded, migration
+cannot fit the required operational budgets, or compatible source readers cannot
+be maintained. A portable path that has never restored data is not an escape
+route.
+
+Production requires its own custody, type coverage, reclamation, large-state,
+dependency, quiescence, corruption, migration and recovery qualification.
+No arbitrary Rust persistence, automatic semantic migration, universal downgrade,
+GC, compiler portability or production readiness is claimed by this design.

@@ -1,0 +1,31 @@
+[package]
+name = "ic-storage-rust-startup-probe"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+
+[target.'cfg(any())'.dev-dependencies]
+toko-tooling.workspace = true
+
+[package.metadata.toko-tooling.loc]
+category = "tests"
+
+[lib]
+crate-type = ["cdylib"]
+test = false
+doctest = false
+
+[features]
+version-b = []
+managed-graph = ["dep:ic-storage-new"]
+managed-bench = ["managed-graph", "dep:ic-storage-simple-benchmarks"]
+
+[dependencies]
+ic-platform-runtime = { workspace = true, features = ["ic0"] }
+ic-storage-new = { workspace = true, optional = true }
+ic-storage-simple-benchmarks = { workspace = true, optional = true }
+
+[lints]
+workspace = true

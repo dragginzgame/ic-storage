@@ -1,0 +1,34 @@
+[package]
+name = "ic-storage-retention-probe"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+autotests = false
+
+[target.'cfg(any())'.dev-dependencies]
+toko-tooling.workspace = true
+
+[package.metadata.toko-tooling.loc]
+category = "tests"
+
+[dependencies]
+ic-host-artifacts = { workspace = true, features = ["wasm-text", "wasm-validation"] }
+wasm-encoder = { workspace = true, features = ["std", "wasmparser"] }
+wasmparser = { workspace = true, features = ["std", "validate", "features"] }
+
+[dev-dependencies]
+ic-testkit.workspace = true
+tokio = { workspace = true, features = ["macros", "rt"] }
+
+[lints]
+workspace = true
+
+[[test]]
+name = "retention"
+path = "tests/retention_tests.rs"
+
+[[test]]
+name = "rust_startup"
+path = "tests/rust_startup/mod.rs"

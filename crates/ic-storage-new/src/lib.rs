@@ -1,4 +1,9 @@
 //! Experimental Rust orthogonal persistence for the Internet Computer.
 //!
-//! This crate is a research scaffold. It does not yet implement persistent
-//! allocation, upgrade admission, schema migration, or canister integration.
+//! The allocation-free [`m0`] library validates byte-defined memory images and
+//! offers append-only object allocation and scoped mutation in caller-owned
+//! retained-region buffers. It does not install upgrade hooks or create raw
+//! slices; the separate qualification fixture owns live IC memory custody.
+#![no_std]
+
+pub mod m0;
