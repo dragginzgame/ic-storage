@@ -1,5 +1,52 @@
 # Changelog
 
+## [0.1.6] - 2026-11-15
+
+### 🧪 Testing
+
+- Exercise a transient single-vector allocator over exclusively loaned backing:
+  fresh issuance preserves initialized payload, growth/shrink and destruction
+  permit reuse, and invalid roots or forgotten owners refuse further access.
+  Compile the same controller for wasm32 and inventory its stack/copy operations;
+  scalar admission rejects this larger profile and no vector Wasm is executed.
+
+- Add `make native-provider-probe` to compile, combine and inspect the bounded
+  Rust/Wasm provider diagnostic. Reject overlapping compiler bounds, unexpected
+  initialization/code/imports and altered final artifacts. Keep raw Rust functions
+  private and admit trusted entrypoints that settle only after native access ends.
+
+- Add `make native-provider-test` and its installed CI step. Exercise native scalar
+  reads/writes across A→B→A upgrades, incompatible/corrupt headers, abandoned
+  custody, and update/post-upgrade trap rollback on the local test server. This
+  does not qualify native vectors or allocator issuance.
+
+- Exercise a fixed-region Wasm custody protocol across installed upgrades:
+  require explicit settlement, reject duplicate or abandoned claims, and retain
+  source state after incompatible targets or traps. Destination refusal also
+  holds when the source has no pre-upgrade guard. This does not yet qualify a
+  Rust allocation provider.
+
+### 📚 Documentation
+
+- Narrow the IC backing-provider investigation to an explicit foreign-allocation
+  boundary. Record the fixed scalar's unsafe-code argument, artifact admission
+  and installed evidence separately from the remaining native allocator gate. See the [provider investigation](qualification/ic-storage-native-feasibility/provider-boundary.md).
+
+### ▶️ Try it
+
+With the already prepared pinned compiler, wasm target and locked dependencies:
+
+```sh
+make native-provider-probe
+```
+
+This emits compiler and linked-artifact diagnostics; no combined Wasm is executed.
+
+With the previously prepared local test server, run the installed custody cases
+alongside the original retention probe using `make retention-lint` followed by
+`make retention-test`. Run `make native-provider-test` for the combined Rust/Wasm
+scalar lifecycle.
+
 ## [0.1.5] - 2026-11-15
 
 ### 🧪 Testing

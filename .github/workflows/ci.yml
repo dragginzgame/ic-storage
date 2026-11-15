@@ -54,6 +54,8 @@ jobs:
         run: |
           make rust-startup-build 2>&1 | tee target/evidence/rust-startup-build.log
           make rust-startup-test 2>&1 | tee target/evidence/rust-startup-test.log
+      - name: Validate installed scalar foreign provider
+        run: make native-provider-test 2>&1 | tee target/evidence/native-provider-test.log
       - name: Build and validate installed managed graph
         run: |
           make managed-graph-build 2>&1 | tee target/evidence/managed-graph-build.log

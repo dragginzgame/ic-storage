@@ -24,6 +24,19 @@ These fixtures qualify the existing byte-defined M0 experiment and selected IC
 mechanisms. They do not yet qualify the native retained allocator, collection
 layouts or migration paths selected in the [current design](../docs/DESIGN.md).
 
+The [provider-custody protocol](ic-storage-retention-probe/provider-custody.md) adds
+WAT-only region claim/settlement and refusal/rollback cases to `make retention-test`.
+It tests custody across installed upgrades without claiming Rust pointer validity.
+`make native-provider-probe` separately combines the Rust scalar diagnostic with
+that WAT source and checks artifact admission. It executes no combined Wasm.
+`make native-provider-test` adds the installed scalar lifecycle under its explicit
+[foreign-allocation contract](ic-storage-native-feasibility/scalar-provider-contract.md),
+using the prepared server. Native vectors and allocator issuance remain unqualified.
+The [provider-region controller](ic-storage-native-feasibility/provider-region.md)
+adds host issuance/growth/reuse tests to `make native-feasibility-test` and a
+compile-only vector inventory to `make native-provider-probe`. Scalar artifact
+admission continues to reject that vector module.
+
 ## First experiment: retained scalar
 
 The Rust runner compiles independently authored WAT fixtures through

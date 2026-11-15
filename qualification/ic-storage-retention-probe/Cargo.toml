@@ -36,3 +36,7 @@ path = "tests/rust_startup/mod.rs"
 [[test]]
 name = "checkpoint_provider"
 path = "tests/checkpoint_provider/mod.rs"
+
+[[test]]
+name = "provider_link"
+path = "tests/provider_link/mod.rs"

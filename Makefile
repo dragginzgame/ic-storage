@@ -41,6 +41,10 @@ benchmark-simple benchmark-simple-build benchmark-simple-lint: | toko-execution-
 native-feasibility-test native-feasibility-lint native-layout-probe: export CARGO_NET_OFFLINE := true
 native-feasibility-test native-feasibility-lint native-layout-probe: | toko-execution-check
 
+.PHONY: native-provider-probe native-provider-test
+native-provider-probe native-provider-test: export CARGO_NET_OFFLINE := true
+native-provider-probe native-provider-test: | toko-execution-check
+
 .PHONY: checkpoint-provider-build checkpoint-provider-lint checkpoint-provider-test
 checkpoint-provider-build checkpoint-provider-lint checkpoint-provider-test: export CARGO_NET_OFFLINE := true
 checkpoint-provider-build checkpoint-provider-lint checkpoint-provider-test: | toko-execution-check
@@ -71,6 +75,8 @@ help:
 	  'make native-feasibility-test     Test host-only scoped ownership boundaries' \
 	  'make native-feasibility-lint     Lint the native ownership experiment' \
 	  'make native-layout-probe         Inspect host/wasm compiler layout diagnostics' \
+	  'make native-provider-probe       Compile and inspect provider linkage; no execution' \
+	  'make native-provider-test        Test installed scalar access, custody and rollback' \
 	  'make checkpoint-provider-build  Build ordinary-upgrade checkpoint fixtures' \
 	  'make checkpoint-provider-lint   Lint provider fixtures and installed test' \
 	  'make checkpoint-provider-test   Test fresh-heap recovery and import rollback' \
@@ -97,7 +103,7 @@ doc-check:
 	+cargo doc $(RUST_STARTUP_CARGO) --target-dir target/qualification --features managed-graph --no-deps
 
 # Host setup and locked dependency fetching happen explicitly before this gate.
-ci: fmt-check deps-check lint doc-check m0-test m0-lint-wasm retention-lint rust-startup-lint managed-graph-lint benchmark-simple-lint native-feasibility-test native-layout-probe checkpoint-provider-lint
+ci: fmt-check deps-check lint doc-check m0-test m0-lint-wasm retention-lint rust-startup-lint managed-graph-lint benchmark-simple-lint native-feasibility-test native-layout-probe native-provider-probe checkpoint-provider-lint
 
 deps-check: toko-tooling-check deps-pins deps-boundaries
 
@@ -187,6 +193,14 @@ native-feasibility-test: native-feasibility-lint
 
 native-layout-probe: native-feasibility-lint
 	+bash qualification/ic-storage-native-feasibility/scripts/run-layout-probe.sh
+
+native-provider-probe:
+	+cargo clippy $(RETENTION_CARGO) --test provider_link -- -D warnings
+	+bash qualification/ic-storage-native-feasibility/scripts/run-provider-probe.sh
+
+native-provider-test:
+	+cargo clippy $(RETENTION_CARGO) --test provider_link -- -D warnings
+	+@server="$$($(RETENTION_TOOL) --check)" && "$$server" run -- bash qualification/ic-storage-native-feasibility/scripts/run-provider-probe.sh installed
 
 checkpoint-provider-build:
 	@test -z "$${RUSTFLAGS}$${CARGO_ENCODED_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_LINKER}" || { echo 'Checkpoint fixtures require no environment flag/linker overrides' >&2; exit 1; }

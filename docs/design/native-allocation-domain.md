@@ -115,6 +115,26 @@ and implement the artifact admission above. Test startup overlap and incompatibl
 profiles as refusals before typed access; then run the compatible lifecycle and
 portable migration gates already ordered in [the architecture](../DESIGN.md#8-evidence-and-next-implementation-gates).
 
+The [foreign-provider diagnostic](../../qualification/ic-storage-native-feasibility/provider-boundary.md)
+now narrows that investigation to an external allocation supplied outside LLVM.
+The pinned compiler preserves pointer-returning calls and derived scalar accesses
+in optimized IR. The [fixed-scalar contract](../../qualification/ic-storage-native-feasibility/scalar-provider-contract.md)
+now records the selected external-allocation model and bounded unsafe argument.
+Artifact admission checks memory separation, resolved calls and trusted lifecycle
+ordering. Installed scalar A→B→A tests exercise native reads/writes, incompatible
+header refusal, abandoned custody and trap rollback. This does not yet issue
+allocator blocks, construct a native vector or qualify general layout admission;
+linkage and passing tests alone are not allocation validity.
+
+The [single-vector provider controller](../../qualification/ic-storage-native-feasibility/provider-region.md)
+now separates its backing loan from its own transient bookkeeping. Host tests
+exercise fresh reserved-span issuance, controller replacement, in-place vector
+growth/shrink, release and reuse, refusal and forgotten-owner quarantine. The same
+controller compiles for wasm32 with Global allocation disabled. Its larger code
+profile uses transient stack storage and memory.copy and is explicitly rejected
+by scalar admission. Final vector access/startup admission and the installed
+provider's initialized-span and descriptor contract remain the next boundary.
+
 If the provider cannot establish a live Rust allocation, stop pointer-based
 reopening and make the explicit runtime/compiler integration decision. If fresh
 issuance cannot preserve custody and initialization, reject that candidate rather

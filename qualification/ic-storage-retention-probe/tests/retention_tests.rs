@@ -13,6 +13,8 @@ const B: &str = include_str!("fixtures/b.wat");
 const INCOMPATIBLE: &str = include_str!("fixtures/incompatible.wat");
 const TRAPPING: &str = include_str!("fixtures/trapping.wat");
 
+mod provider_custody;
+
 fn module(source: &str) -> Vec<u8> {
     let bytes = wasm_text::compile(
         source,

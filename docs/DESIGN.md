@@ -357,8 +357,10 @@ The next [allocation-domain experiment](design/native-allocation-domain.md)
 separates backing-region validity from allocator-issued block authority. It
 investigates explicit custody transfer to a fresh controller over independently
 owned backing, followed by allocation issuance without overwriting initialized
-payloads. An actual IC provider and its compiler/startup contract remain required;
-decoding a ledger or declaring a foreign symbol cannot establish either authority.
+payloads. A bounded [scalar provider contract](../qualification/ic-storage-native-feasibility/scalar-provider-contract.md)
+now supplies the first installed experiment; allocator issuance and native vectors
+still require their complete compiler/startup contract. Decoding a ledger or
+declaring a foreign symbol cannot establish either authority.
 
 The private [backing-transfer fixture](../qualification/ic-storage-native-feasibility/transfer.md)
 now consumes explicit source authority, ends that controller and issues the same
@@ -653,6 +655,9 @@ those historical results; each linked record owns its artifacts and test scope:
 | Evidence | What it establishes |
 | --- | --- |
 | [WAT retention probe](../qualification/README.md) | Selected IC retention and rollback behavior on local PocketIC |
+| [WAT provider custody](../qualification/ic-storage-retention-probe/provider-custody.md) | Exclusive claim/settlement, destination refusal and rollback across installed upgrades; no Rust pointer validity |
+| [Installed Rust scalar provider](../qualification/ic-storage-native-feasibility/provider-boundary.md#installed-scalar-lifecycle) | Explicit fixed foreign-allocation model, admitted Rust access/settlement, compatible upgrades and refusal/rollback; no native vector or allocator issuance |
+| [Provider-region controller](../qualification/ic-storage-native-feasibility/provider-region.md) | Host fresh vector issuance over exclusive loaned backing, growth/shrink/reuse and refusal; the shared wasm32 diagnostic is compiled but not admitted or executed |
 | [Rust startup/growth probe](../qualification/ic-storage-rust-startup-probe/README.md) | Controlled transient initialization and bounded growth for the admitted wasm32 artifacts |
 | [M0 graph probe](../qualification/ic-storage-rust-startup-probe/managed-graph.md) | Byte-defined sharing/cycles, allocator continuation and selected installed rollback cases |
 | [M0 vs Storage benchmarks](../qualification/ic-storage-simple-benchmarks/README.md) | Current implementation instruction costs, including session read reuse |

@@ -1,0 +1,93 @@
+# Transient allocator over a provider loan
+
+This private single-vector experiment bridges the existing live-Box transfer
+tests and the fixed-scalar foreign provider. It does not extend the installed
+scalar admission profile or authorize a native vector on the IC.
+
+## Allocation and ownership argument
+
+The controller accepts one exclusive, live backing allocation through an unsafe
+constructor. A pointer, numeric extent and descriptor are insufficient: the
+caller must establish provenance, initialization and custody for the entire loan.
+Host tests supply those facts through an exclusive borrow of initialized storage.
+A Wasm caller would need an admitted provider and complete startup/artifact
+contract extending [the scalar argument](scalar-provider-contract.md).
+
+The controller does not own a Box, Global allocation or retained Rust reference.
+Its pointer, lifetime marker and Cell bookkeeping are transient. The loan is
+bounded to 512 u64 words, with checked alignment, length and capacity. It reserves
+the root's exact capacity, blocks ordinary allocation, and issues that prefix
+through Allocator::allocate only during restoration. Issuance performs no payload
+writes. Vec::from_raw_parts_in then receives the newly allocated pointer, exact
+capacity, initialized length and this allocator; no fallible operation or callback
+intervenes. No private Vec representation is retained or decoded.
+
+One block may be live at a time. Growth and shrink change its issued prefix in
+place, within the same exclusively loaned backing allocation. Failed allocation
+or growth leaves the current block and bytes intact. The allocator returns exact
+sizes, accepts only nonzero u64-aligned multiples, and never unwinds. Its default
+grow_zeroed cannot acquire a second block and refuses without changing the first.
+Ordinary allocate_zeroed is allowed only on a free controller, never a reserved
+root. These restrictions satisfy a bounded allocator, not arbitrary allocation
+requests or element-type admission. [Allocator contract](https://doc.rust-lang.org/std/alloc/trait.Allocator.html).
+
+Release consumes the vector through its public raw-parts API after checking the
+issuing controller, pointer and exact block. It seals further access and returns
+only length/capacity. No pointer or private header is retained. Refusal returns
+the original vector; forgotten owners keep their block unavailable. Dropping a
+vector deallocates its block for reuse but cannot replay the old root descriptor.
+No application destructor runs because the only reconstructed element is u64.
+
+The provider must not settle or reissue the loan until the controller and all
+clients have ended. This private unsafe boundary is not the safe application
+scope API: source release, forgotten-loan quarantine and source/target identity
+must still be enforced by the eventual provider wrapper. A copied descriptor
+alone cannot authorize another claim. The host replacement test retains its
+original backing allocation, so it proves no cross-instance allocation identity.
+Allocator reuse does not return backing capacity or Wasm pages to the platform.
+
+## Validation and next boundary
+
+`make native-feasibility-test` selects the host tests alongside existing ownership,
+transfer and portable-checkpoint tests. They cover fresh issuance without payload
+writes, controller replacement, repeated restoration, reserved/duplicate allocation,
+malformed roots, empty/cleared roots, wrong-controller release, forgotten owners,
+growth failure, shrink/removal, zeroing and reuse.
+
+On 15 November 2026 the eight new host tests passed on x86_64 Linux with Rust
+1.100.0. The complete native-feasibility target passed 100 tests (including
+doctests), with its existing compiler-layout-input test intentionally ignored by
+the ordinary test invocation. Strict Clippy passed. Spare-capacity coverage also
+uses genuinely uninitialized slots and reads only the admitted initialized prefix.
+
+`make native-provider-probe` now also compiles
+[provider_vector.rs](tests/fixtures/provider_vector.rs) using the same controller.
+It exercises compilation of reconstruction, mutation, append, removal, shrink,
+clear and reuse through ordinary Vec operations. Linking alloc requires a Global
+allocator even though the vector explicitly selects Region; the fixture supplies
+one that refuses every request and traps on invalid deallocation. It grants no
+default-heap allocation or growth authority.
+
+The diagnostic reserves a 32 KiB transient stack, fixes memory at three pages,
+and exports compiler boundaries for inspection. The successful raw cohort is
+`target/evidence/provider-link/attempt.Y75Ei5/vector/`. Its 1628-byte Wasm has
+SHA-256 `3d40321d831bd7cc82aba77a6e16e97b44399e095eeefba6dab7f9eeda7d20af`:
+two defined functions, no data bytes, one unresolved diagnostic provider import,
+stack/data/heap boundaries at 32768, two global writes and one memory.copy.
+Optimized IR retains the foreign pointer call, transient controller/header stack
+storage and the removal memmove. Empty vectors use std's non-dereferenced dangling
+pointer; that is not a retained-region pointer-creation mechanism.
+
+Four artifact diagnostic tests passed, including refusal of this vector module
+by the exact scalar admission profile. The inventory checks bounds, imports,
+startup/growth exclusions and selected compiler structure; it does not establish
+every load/store address or stack bound on every path. **No vector Wasm is linked
+to the provider or executed.** No private layout or installed-vector qualification
+follows from compilation, the reported artifact size or the host lifecycle tests.
+
+Before installed use, qualify the final vector artifact's complete memory access,
+transient stack/data initialization, imports, abort paths and provider entrypoint
+ordering. The scalar combiner deliberately rejects additional code. Extend the
+provider's initialized-span/descriptor and complete-root admission independently;
+do not relax admission merely because this host test or compiler output succeeds.
+The portable scalar/vector format remains a separate required recovery contract.
