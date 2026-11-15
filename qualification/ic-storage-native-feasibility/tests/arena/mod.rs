@@ -372,3 +372,6 @@ mod transfer;
 
 #[cfg(test)]
 mod scoped_tests;
+
+#[cfg(test)]
+mod allocator_clone_tests;

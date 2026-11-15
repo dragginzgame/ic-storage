@@ -1,7 +1,7 @@
 # Live allocation boundary experiment
 
 This experiment covers live-host allocation custody, not IC retention. It uses
-one bounded arena and `Vec<u64, &Arena>` on Rust 1.100.0. Its private integration
+bounded arenas and allocator-backed u64 vectors on Rust 1.100.0. Its private integration
 test kernel is separate from the unsafe-forbidden ownership model and M0 crate.
 No application API, stored format or native reopening permission is introduced.
 
@@ -51,6 +51,13 @@ Only u64 elements are admitted, so dropping a vector invokes no application Drop
 Default allocator growth copies only the byte spans its contract permits.
 Here, u64 eligibility is enforced by the parking API and the fixture clients;
 the allocator's layout restrictions alone are not a general type-admission test.
+
+The [scoped-owner clone tests](scoped-ownership.md) add a private forwarding
+allocator. Each wrapper borrows one unchanged arena and forwards allocation and
+deallocation to it; the arenas outlive all wrappers and blocks. Clone can choose
+another arena or panic, without invalidating the original blocks. No
+AllocatorClone equivalence is asserted. The narrowly allowed unsafe forwarding
+implementation preserves the arena's contracts; the ownership library remains safe.
 
 Reopening now first validates the entire live ledger: checked nonempty extents,
 disjoint runs, exact agreement with the occupied bitmap, unique nonzero generation

@@ -18,8 +18,15 @@ create the empty replacement root; the detached vector always retains its own
 allocator. Attach moves that same vector back, while retire destroys it and
 leaves the empty replacement. No existing allocation is handed to a cloned
 allocator, so the generic mechanism does not assume clone equivalence. This is
-not admission of arbitrary allocators into persistent state. The arena tests
+not admission of arbitrary allocators into persistent state. Most arena tests
 use borrowed `&Arena` allocators, whose copies refer to the same live domain.
+Two additional cases use a private forwarding allocator whose Clone selects a
+different live arena or panics. It does not implement `AllocatorClone` or promise
+equivalence. Attachment retains the original domain; retirement releases that
+domain, and subsequent growth uses the empty replacement's allocator. A clone
+panic occurs before detachment, preserves the source allocation and leaves Host
+poisoned even after the injected failure is disabled. Dropping Host reclaims the
+original run without touching another domain's allocations.
 
 The allocator borrow travels with the vector into Host. Its lifetime prevents
 discarding the allocator while Host still uses it. A positive documentation case

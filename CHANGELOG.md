@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.5] - 2026-11-15
+
+### 🧪 Testing
+
+- Exercise allocator clones with independent live domains and cloning failures.
+  Scoped detachment keeps each vector paired with its issuing allocator;
+  failed cloning poisons access while preserving ownership for destruction.
+
 ## [0.1.4] - 2026-11-15
 
 ### 📚 Documentation

@@ -124,7 +124,7 @@ make native-layout-probe
 ```
 
 The first command runs strict Clippy, nine ownership tests, five checkpoint
-tests, fifty-nine arena/allocation/import tests, six metadata-reader tests, ten
+tests, sixty-one arena/allocation/import tests, six metadata-reader tests, ten
 compile-fail and one positive documentation case, locked and offline. The compiled
 metadata test is ignored in ordinary Cargo tests: the second command supplies
 fresh inputs and explicitly runs it. `make ci` includes both on the host matrix.
