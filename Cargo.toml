@@ -1,0 +1,47 @@
+[workspace]
+resolver = "3"
+members = ["crates/ic-storage-new"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.100.0"
+license-file = "LICENSE.md"
+
+[workspace.dependencies]
+# Production dependencies
+ic-storage-new = { path = "crates/ic-storage-new" }
+
+# Tests and tooling only
+toko-tooling = "=0.37.2"
+
+[workspace.lints.cargo]
+unused_dependencies = "deny"
+# Toko requires every member in the root catalog, even without incoming edges.
+# This is a Cargo manifest policy; Rust #[expect] attributes cannot apply here.
+unused_workspace_dependencies = "allow"
+unused_workspace_package_fields = "deny"
+missing_lints_inheritance = "deny"
+unknown_lints = "deny"
+
+[workspace.lints.rust]
+dead_code = "deny"
+unused_must_use = "deny"
+unfulfilled_lint_expectations = "deny"
+unsafe_code = "forbid"
+unsafe_op_in_unsafe_fn = "deny"
+missing_docs = "warn"
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "deny"
+invalid_markdown_table = "deny"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -2 }
+correctness = { level = "deny", priority = -1 }
+redundant_clone = "warn"
+needless_pass_by_value = "warn"
+wildcard_imports = "warn"
+missing_panics_doc = "warn"
+must_use_candidate = "warn"
+too_many_lines = "allow"

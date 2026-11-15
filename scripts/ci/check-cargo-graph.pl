@@ -1,0 +1,192 @@
+#!/usr/bin/env perl
+# Shared companions:
+use strict;
+use warnings;
+use Cwd qw(abs_path);
+use Getopt::Long qw(GetOptions);
+use JSON::PP;
+
+# Observe one explicitly selected locked graph. Policy and build qualification
+# remain consumer-owned; this is not artifact/deployment admission.
+Getopt::Long::Configure(qw(no_auto_abbrev no_ignore_case));
+my ($consumer, $target, $features, $all_features, $no_defaults, $depth);
+my ($json, $explain, $observations);
+my $edges = 'normal,build';
+my (@packages, @forbidden, @required, @patterns, @maximums, @forbidden_features);
+GetOptions(
+    'consumer=s' => \$consumer, 'target=s' => \$target, 'edges=s' => \$edges,
+    'package=s@' => \@packages, 'features=s' => \$features,
+    'all-features' => \$all_features, 'no-default-features' => \$no_defaults,
+    'forbid=s@' => \@forbidden, 'require=s@' => \@required,
+    'forbid-pattern=s@' => \@patterns, 'max-count=s@' => \@maximums, 'depth=s' => \$depth,
+    'forbid-feature=s@' => \@forbidden_features,
+    'json' => \$json, 'explain' => \$explain, 'observations' => \$observations,
+) && !@ARGV && defined($consumer) && defined($target) && @packages
+    && (@forbidden || @required || @patterns || @maximums || @forbidden_features)
+    or die "usage: check-cargo-graph.pl --consumer ROOT --package NAME [--package NAME] --target TARGET [--edges normal|normal,build] [--features LIST|--all-features] [--no-default-features] [--forbid-feature PACKAGE/FEATURE] [--depth COUNT] [--forbid NAME] [--forbid-pattern REGEX] [--require NAME=COUNT] [--max-count NAME=COUNT] [--json] [--explain] [--observations]\n";
+$observations && !$json and die "--observations requires --json\n";
+$edges eq 'normal' || $edges eq 'normal,build'
+    or die "--edges must be normal or normal,build\n";
+defined($features) && $all_features and die "select features or all-features, not both\n";
+$consumer !~ /[\r\n]/ or die "consumer directory contains CR/LF\n";
+my $root = abs_path($consumer);
+defined($root) && -d $root && $root !~ /[\r\n]/
+    or die "invalid resolved consumer directory\n";
+chdir $root or die "cannot enter consumer: $!\n";
+-f 'Cargo.toml' && !-l 'Cargo.toml' or die "consumer requires a regular Cargo.toml\n";
+$target =~ /\A[A-Za-z0-9_.-]+\z/ && $target !~ /^-/
+    or die "expected an explicit target triple or all\n";
+!defined($features) || (length($features) && $features !~ /[\r\n]/)
+    or die "invalid feature selection\n";
+!defined($depth) || $depth =~ /\A(?:0|[1-9][0-9]*)\z/
+    or die "invalid graph depth\n";
+my @compiled_patterns;
+for my $pattern (@patterns) {
+    length($pattern) && $pattern !~ /[\r\n]/ or die "invalid forbidden pattern\n";
+    my $compiled = eval { qr/$pattern/ };
+    defined($compiled) or die "invalid forbidden pattern: $@";
+    push @compiled_patterns, $compiled;
+}
+for my $selection (@forbidden_features) {
+    $selection =~ /\A[A-Za-z0-9_-]+\/[^\s\/"\r\n]+\z/
+        or die "expected PACKAGE/FEATURE\n";
+}
+my (%roots, %denied, %counts, %caps);
+for my $name (@packages) {
+    $name =~ /\A[A-Za-z0-9_-]+\z/ && !$roots{$name}++ or die "invalid or duplicate root package\n";
+}
+for my $name (@forbidden) {
+    $name =~ /\A[A-Za-z0-9_-]+\z/ or die "invalid forbidden package\n";
+    $denied{$name} = 1;
+}
+for my $requirement (@required) {
+    $requirement =~ /\A([A-Za-z0-9_-]+)=(0|[1-9][0-9]*)\z/
+        or die "expected NAME=COUNT\n";
+    my ($name, $count) = ($1, $2);
+    !exists($counts{$name}) && !exists($denied{$name})
+        or die "duplicate or conflicting identity count\n";
+    $counts{$name} = $count;
+}
+for my $requirement (@maximums) {
+    $requirement =~ /\A([A-Za-z0-9_-]+)=(0|[1-9][0-9]*)\z/
+        or die "expected NAME=COUNT\n";
+    my ($name, $count) = ($1, $2);
+    !exists($caps{$name}) && !exists($counts{$name}) && !exists($denied{$name})
+        or die "duplicate or conflicting identity count\n";
+    $caps{$name} = $count;
+}
+my @command = ('cargo', 'tree', '--locked', '--offline', '--color', 'never',
+    '--target', $target, '--edges', $edges . (@forbidden_features ? ',features' : ''),
+    '--prefix', $explain ? 'indent' : 'none', '--format', $observations ? "{p}\t{f}" : '{p}');
+push @command, ('--charset', 'ascii') if $explain;
+push @command, ('--package', $_) for @packages;
+push @command, ('--depth', $depth) if defined $depth;
+push @command, '--all-features' if $all_features;
+push @command, '--no-default-features' if $no_defaults;
+push @command, ('--features', $features) if defined $features;
+$ENV{CARGO_NET_OFFLINE} = 'true';
+$ENV{RUSTUP_AUTO_INSTALL} = '0';
+open my $cargo, '-|', @command or die "cannot observe Cargo graph: $!\n";
+my $graph;
+{ local $/; $graph = <$cargo> // ''; }
+unless (close $cargo) {
+    my $status = $?;
+    print STDERR $graph;
+    print STDERR "Cargo graph observation failed; no graph was admitted\n";
+    exit(($status & 127) ? 128 + ($status & 127) : ($status >> 8) || 1);
+}
+my (%identities, %observed_features, %effective_features, %paths, %identity_paths, @stack);
+for my $line (split /\n/, $graph) {
+    next if $line eq ''; # Cargo separates multiple selected roots with a blank.
+    $line =~ s/ \(\*\)\z//;
+    next if $line =~ /\A(?:\|   |    )*\[build-dependencies\]\z/;
+    my $feature_list;
+    if ($observations && $line !~ /\A(?:\|   |    )*(?:\|-- |`-- )?[A-Za-z0-9_-]+ feature "/) {
+        # Split from the right: source paths can themselves contain tabs.
+        $line =~ s/\t([^\t]*)\z// or die "missing effective Cargo features: $line\n";
+        $feature_list = $1;
+        $feature_list =~ /\A(?:[^\s,]+(?:,[^\s,]+)*)?\z/
+            or die "invalid effective Cargo features\n";
+    }
+    if ($explain) {
+        # ASCII branches delimit numeric-leading package names unambiguously;
+        # Cargo depth prefixes concatenate the number directly with the name.
+        next if $line =~ /\A(?:\|   |    )*\[build-dependencies\]\z/;
+        my $level = 0;
+        if ($line =~ s/\A((?:(?:\|   |    ))*(?:\|-- |`-- ))//) {
+            $level = length($1) / 4;
+        }
+        $level <= @stack or die "discontinuous Cargo depth observation\n";
+        splice @stack, $level;
+        push @stack, $line;
+    }
+    if (@forbidden_features && $line =~ /\A([A-Za-z0-9_-]+) feature "([^"\r\n]+)"(?: \(command-line\))?\z/) {
+        $observed_features{"$1/$2"} = 1;
+        $paths{"$1/$2"} //= [@stack] if $explain;
+        next;
+    }
+    $line =~ /\A([A-Za-z0-9_-]+) v[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.+-]+)?(?: \([^\r\n]+\))?\z/
+        or die "invalid flat Cargo package observation: $line\n";
+    $identities{$1}{$line} = 1;
+    $identity_paths{$1}{$line} //= [@stack] if $explain;
+    $effective_features{$line}{$_} = 1 for defined($feature_list) ? split(/,/, $feature_list) : ();
+    $paths{$1} //= [@stack] if $explain;
+}
+keys(%identities) or die "empty Cargo graph\n";
+exists($identities{$_}) or die "selected root absent from Cargo graph: $_\n" for @packages;
+my @violations;
+for my $selection (@forbidden_features) {
+    push @violations, { package => (split /\//, $selection)[0], feature => $selection, message => "forbidden dependency feature edge: $selection" } if $observed_features{$selection};
+}
+for my $name (sort keys %denied) {
+    push @violations, { package => $name, message => "forbidden $name: " . join('; ', sort keys %{$identities{$name}}) }
+        if exists $identities{$name};
+}
+for my $name (sort keys %identities) {
+    push @violations, { package => $name, message => "forbidden pattern matches $name" }
+        if grep { $name =~ $_ } @compiled_patterns;
+}
+for my $name (sort keys %caps) {
+    my $observed = exists($identities{$name}) ? scalar(keys %{$identities{$name}}) : 0;
+    # Compare nonnegative decimal strings without machine-integer overflow.
+    my $maximum = $caps{$name};
+    push @violations, { package => $name, message => "$name: maximum $maximum rendered package identities, observed $observed" }
+        if length("$observed") > length($maximum)
+            || (length("$observed") == length($maximum) && "$observed" gt $maximum);
+}
+for my $name (sort keys %counts) {
+    my $observed = exists($identities{$name}) ? scalar(keys %{$identities{$name}}) : 0;
+    push @violations, { package => $name, message => "$name: expected $counts{$name} rendered package identities, observed $observed" }
+        if "$observed" ne $counts{$name};
+}
+for my $violation (@violations) {
+    $violation->{path} = $paths{$violation->{feature} // $violation->{package}} // [] if $explain;
+    $violation->{identity_paths} = [map { +{ identity => $_, path => $identity_paths{$violation->{package}}{$_} } }
+        sort keys %{$identity_paths{$violation->{package}} // {}}] if $explain && !exists($violation->{feature});
+}
+if ($json) {
+    print JSON::PP->new->canonical->pretty->encode({
+        consumer => $root, command => \@command, target => $target, edges => $edges,
+        packages => \@packages, violations => \@violations,
+        ($observations ? (observations => [map {
+            my $name = $_;
+            map { +{ name => $name, identity => $_, features => [sort keys %{$effective_features{$_} // {}}] } }
+                sort keys %{$identities{$name}}
+        } sort keys %identities]) : ()),
+        passed => @violations ? JSON::PP::false : JSON::PP::true,
+        path_scope => 'first observed package/feature path in the selected Cargo rendering, not all paths',
+    });
+    exit(@violations ? 1 : 0);
+}
+if (@violations) {
+    print STDERR $graph;
+    for my $violation (@violations) {
+        print STDERR "Dependency path: ", join(' -> ', @{$violation->{path}}), "\n"
+            if $explain && @{$violation->{path}};
+        for my $identity (@{$violation->{identity_paths} // []}) {
+            print STDERR "Identity path: ", join(' -> ', @{$identity->{path}}), "\n";
+        }
+    }
+    die "Cargo graph policy failed:\n" . join("\n", map { $_->{message} } @violations) . "\n";
+}
+print "Cargo graph passed: ", join(', ', @packages), " on $target (", ($edges eq 'normal' ? 'normal' : 'normal/build'), " edges).\n";

@@ -1,0 +1,10 @@
+[
+  {
+    "file": "Cargo.toml",
+    "rule": "cargo-exact",
+    "subject": "toko-tooling",
+    "value": "=0.37.2",
+    "reason": "Toko's Cargo selection contract requires an exact pin matching the authenticated installed snapshot; compatible automatic upgrades would select unadmitted tooling bytes.",
+    "evidence": "README.md#development"
+  }
+]
