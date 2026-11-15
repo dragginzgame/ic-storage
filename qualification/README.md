@@ -5,7 +5,7 @@ runner and `ic-storage-rust-startup-probe` canister fixture. Product code stays
 under `crates/`; product crates never depend on this workspace. All packages
 remain unpublished.
 
-The [native feasibility experiment](native-feasibility/README.md) separately
+The [native feasibility experiment](ic-storage-native-feasibility/README.md) separately
 tests scoped ownership, forgotten tickets and native poisoning with live host
 allocations. `make native-feasibility-test` runs offline and joins CI. It does
 not retain std layouts or qualify the native persistence gate.
@@ -13,7 +13,7 @@ Its `make native-layout-probe` diagnostic compiles host/wasm32 record variants,
 inspects private Vec debug metadata and rejects equal-size layout equivalence;
 it does not grant retained-state admission.
 
-The [checkpoint provider experiment](checkpoint-provider-probe/README.md) uses
+The [checkpoint provider experiment](ic-storage-checkpoint-provider-probe/README.md) uses
 published Storage 0.74.1 through governed handles. Ordinary installed upgrades
 discard the source heap and reconstruct scalar/vector values from the bounded
 checkpoint. It exercises independent opening and failed-import rollback, not
@@ -82,7 +82,7 @@ belongs under `target/evidence/`. `make fmt` and `make fmt-check` include this
 workspace. `make deps-list` and `make deps-update` discover it through Toko's
 canonical inventory. The qualification catalog selected the latest stable,
 non-yanked registry releases on 15 November 2026: Testkit 0.106.0, Host Artifacts
-0.79.0 and Tokio 1.54.1. Tooling remains the admitted exact 0.44.3 pin.
+0.79.0 and Tokio 1.54.1. Tooling remains the admitted exact 0.44.4 pin.
 
 ## Evidence boundary
 
@@ -108,17 +108,17 @@ not been observed for this change.
 This WAT test does not qualify Rust startup/linking, grown memory, stack/BSS
 boundaries, a complete retained manifest, bounded graph admission, allocation,
 migration, callbacks, or resource costs. The subsequent
-[Rust startup experiment](rust-startup-probe/README.md) records its own inputs,
+[Rust startup experiment](ic-storage-rust-startup-probe/README.md) records its own inputs,
 admission checks, installed results and remaining gates.
 
-The separate [managed graph profile](rust-startup-probe/managed-graph.md) now
+The separate [managed graph profile](ic-storage-rust-startup-probe/managed-graph.md) now
 depends on the product crate by a workspace-owned path. It exercises the actual
 M0 representation through installed retaining upgrades, shared references,
 cycles, page-crossing allocation and selected rollback boundaries. Its unsafe
 custody kernel is confined to the qualification fixture; product code remains
 `no_std` and forbids unsafe Rust.
 
-The [simple structure benchmarks](simple-benchmarks/README.md) compare this M0
+The [simple structure benchmarks](ic-storage-simple-benchmarks/README.md) compare this M0
 kernel with published Storage 0.74.1 using installed scalar and sequence
 workloads. `make benchmark-simple` records 216 checked instruction measurements;
 it is opt-in and does not impose a CI timing threshold. Artifact admission is

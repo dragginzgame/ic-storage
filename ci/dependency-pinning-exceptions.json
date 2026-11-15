@@ -3,7 +3,7 @@
     "file": "qualification/Cargo.toml",
     "rule": "cargo-exact",
     "subject": "toko-tooling",
-    "value": "=0.44.3",
+    "value": "=0.44.4",
     "reason": "The qualification workspace inherits the same exact authenticated tooling selection as the product workspace.",
     "evidence": "README.md#development"
   },
@@ -11,7 +11,7 @@
     "file": "Cargo.toml",
     "rule": "cargo-exact",
     "subject": "toko-tooling",
-    "value": "=0.44.3",
+    "value": "=0.44.4",
     "reason": "Toko's Cargo selection contract requires an exact pin matching the authenticated installed snapshot; compatible automatic upgrades would select unadmitted tooling bytes.",
     "evidence": "README.md#development"
   }

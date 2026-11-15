@@ -16,7 +16,7 @@ printf 'Diagnostic inputs and outputs: %s\n' "$output"
 rustc --version --verbose > "$output/compiler.txt"
 host="$(sed -n 's/^host: //p' "$output/compiler.txt")"
 [[ -n "$host" && "$host" != *$'\n'* ]] || { echo 'Cannot identify compiler host' >&2; exit 1; }
-cp -R qualification/native-feasibility "$output/source"
+cp -R qualification/ic-storage-native-feasibility "$output/source"
 cp qualification/Cargo.toml "$output/workspace.toml"
 cp qualification/Cargo.lock rust-toolchain.toml "$output/"
 

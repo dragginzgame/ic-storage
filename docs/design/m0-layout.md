@@ -205,7 +205,7 @@ errors preserve completed operations; panics and unexpected write faults withhol
 further access without restoring bytes. Reopening after dropping the owner is
 explicit readmission and does not restore business invariants.
 
-The separate [managed graph qualification](../../qualification/rust-startup-probe/managed-graph.md)
+The separate [managed graph qualification](../../qualification/ic-storage-rust-startup-probe/managed-graph.md)
 now exercises this library through a private live-memory kernel. Its local
 PocketIC cohort preserves full retained bytes across A→B→A, continues allocation
 across a physical page boundary and rolls back selected trapped updates/upgrades.

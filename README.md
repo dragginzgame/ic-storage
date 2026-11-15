@@ -26,7 +26,7 @@ no current package, API or stored-format compatibility claim. See the
 Use the pinned Rust 1.100.0 toolchain (also the support floor). The library is
 `no_std` and allocation-free; its root-owned SHA-256 dependency is `sha2` 0.11.1
 with defaults disabled, selected from the latest stable registry release on
-15 November 2026. The root selects Toko Tooling 0.44.3 exactly as a
+15 November 2026. The root selects Toko Tooling 0.44.4 exactly as a
 development dependency. Its authenticated snapshot is installed through the
 canonical exporter under `vendor/toko-tooling/`; [TOKO-TOOLING.md](TOKO-TOOLING.md)
 owns the common rules and links to immutable upstream references.
@@ -101,31 +101,31 @@ and Rustdoc. GitHub Actions runs it and the
 retention/startup/graph tests on Linux and both macOS architectures after explicit setup, with
 one separate Gitleaks scan per run.
 The separate `retention-test` runs the first installed Wasm probe through
-Testkit/PocketIC. The [Rust startup probe](qualification/rust-startup-probe/README.md)
+Testkit/PocketIC. The [Rust startup probe](qualification/ic-storage-rust-startup-probe/README.md)
 adds controlled transient initialization and artifact admission; neither is a
 managed heap implementation. Its separate
-[managed graph profile](qualification/rust-startup-probe/managed-graph.md) uses the
+[managed graph profile](qualification/ic-storage-rust-startup-probe/managed-graph.md) uses the
 product library and a fixture-only retained-memory kernel to test shared/cyclic
 graphs, allocator continuation and selected installed rollback cases. Local
 development uses the individual commands above. The canonical pre-commit hook
 formats the selected commit payload without modifying unrelated work.
 
-[Simple structure benchmarks](qualification/simple-benchmarks/README.md) compare
+[Simple structure benchmarks](qualification/ic-storage-simple-benchmarks/README.md) compare
 the current M0 scalar and linked sequence with Storage 0.74.1's cell and vector.
 They report IC instruction counts and check complete state after every sample;
 these are implementation costs, not raw memory-speed measurements.
 
-The [native ownership experiment](qualification/native-feasibility/README.md)
+The [native ownership experiment](qualification/ic-storage-native-feasibility/README.md)
 tests scoped moves, owner escape refusals and forgotten-ticket quarantine. It
 uses live host allocations. A compiler diagnostic probe also measures private
 Vec header fields on the host and wasm32 and detects equal-sized reordered
 records; complete native layout admission and reopening remain open.
-Its [live allocation probe](qualification/native-feasibility/allocation-boundary.md)
+Its [live allocation probe](qualification/ic-storage-native-feasibility/allocation-boundary.md)
 also tests real std vectors, allocation reuse and reopening within the same live
 host arena. It does not establish allocation custody across an IC upgrade.
-A [bounded checkpoint codec](qualification/native-feasibility/checkpoint-format.md)
+A [bounded checkpoint codec](qualification/ic-storage-native-feasibility/checkpoint-format.md)
 tests reconstruction after source teardown. The
-[installed provider probe](qualification/checkpoint-provider-probe/README.md)
+[installed provider probe](qualification/ic-storage-checkpoint-provider-probe/README.md)
 recovers through fresh Storage handles after ordinary upgrades discard the old
 heap, with failed-import rollback tests. Native incompatible-runtime migration
 remains an open gate.

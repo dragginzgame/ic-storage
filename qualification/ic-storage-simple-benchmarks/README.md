@@ -33,7 +33,7 @@ Storage uses `MemoryRuntime`, declared keys and governed memory handles. Its
 cell getter reads the heap-cached value; cell writes persist through Storage.
 This measures normal held-handle use, not reopening Storage on each operation.
 M0 uses the same fixture-only custody kernel as the
-[managed graph probe](../rust-startup-probe/managed-graph.md), including image
+[managed graph probe](../ic-storage-rust-startup-probe/managed-graph.md), including image
 admission and validation. No product API or validation check is bypassed.
 
 Each backend starts with the same scalar and ordered values. Populations are

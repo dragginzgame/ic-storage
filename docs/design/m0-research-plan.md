@@ -53,7 +53,7 @@ managed-graph qualification and cannot establish functional replacement alone.
 The initial wasm32 WAT probe passed on PocketIC 16.1.0 on Linux, including
 retaining upgrades, fresh transient state and post-upgrade trap rollback. This
 qualifies that small protocol fixture only. The subsequent
-[controlled Rust startup probe](../../qualification/rust-startup-probe/README.md)
+[controlled Rust startup probe](../../qualification/ic-storage-rust-startup-probe/README.md)
 also passed on that cohort: passive initialization and bounded volatile clearing
 restore changed statics/BSS without changing the retained sentinel. This is a
 std-linked, allocation-free fixture, not a qualified managed heap runtime.
@@ -199,7 +199,7 @@ The persistent region comprises both the anchor/descriptor/index area and the ob
 
 The desired memory kernel uses no_std without general alloc or third-party initialization that allocates. The first Rust startup qualification deliberately selects a std-linked but allocation-free fixture: Platform Runtime 0.22.5's IC0-only binding path currently brings in std. This keeps IC bindings with their canonical owner rather than inventing a local SDK. The fixture uses only scalar atomics, fixed stack arrays and reply bindings; admission rejects memory-growth instructions and indirect calls in its compiler output. This does not prove arbitrary std code allocation-free or qualify a no_std dependency graph. Later transient allocation needs a separately bounded allocator and must never acquire persistent pages through a default dlmalloc heap boundary.
 
-The later [managed graph profile](../../qualification/rust-startup-probe/managed-graph.md)
+The later [managed graph profile](../../qualification/ic-storage-rust-startup-probe/managed-graph.md)
 links the safe M0 library into that controlled fixture. Its global allocator
 traps on any request; compiler-linked panic formatting uses an admitted fixed,
 immutable transient function table. Its distinct artifact profile allows exactly
@@ -291,7 +291,7 @@ behavior through admitted code after upgrade.
 Structure choice still controls lookup/traversal cost, allocation overhead,
 locality, fragmentation and migration work. A linked sequence and a vector can
 serve the same logical workload with different costs. The
-[simple benchmarks](../../qualification/simple-benchmarks/README.md) compare these
+[simple benchmarks](../../qualification/ic-storage-simple-benchmarks/README.md) compare these
 current implementations and do not establish that every collection is equally
 fast. Qualify a small contiguous collection before extrapolating from Node
 traversal to general collection performance.

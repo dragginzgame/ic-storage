@@ -330,7 +330,7 @@ hash, byte copy, or passing native/installed test is not by itself that argument
 If a complete justification cannot be established, reject the native mechanism
 and choose a supported representation or explicit compiler/runtime integration.
 
-The [live allocation boundary experiment](../qualification/native-feasibility/allocation-boundary.md)
+The [live allocation boundary experiment](../qualification/ic-storage-native-feasibility/allocation-boundary.md)
 now exercises one narrower mechanism: park a vector while its original arena
 allocation remains live, validate a unique token against an allocation ledger,
 and reconstruct a fresh std header through the public raw-parts API. It derives
@@ -452,7 +452,7 @@ object identities, bounded lengths/counts, ownership/reference kinds, integrity
 coverage and an explicit completeness marker. Its exact byte format and codecs
 must be specified and independently tested before use.
 
-The first [scalar/vector checkpoint fixture](../qualification/native-feasibility/checkpoint-format.md)
+The first [scalar/vector checkpoint fixture](../qualification/ic-storage-native-feasibility/checkpoint-format.md)
 now specifies and exercises a bounded envelope with schema/root/ownership IDs,
 source epoch, completeness marker and SHA-256 coverage. Host tests destroy the
 source arena before reconstructing a fresh target with reordered record fields.
@@ -485,7 +485,7 @@ before the first provider-backed proof. Production access continues to use
 governed Storage handles; this design does not authorize raw ungoverned stable
 allocations or silently select a different provider version.
 
-The [installed provider fixture](../qualification/checkpoint-provider-probe/README.md)
+The [installed provider fixture](../qualification/ic-storage-checkpoint-provider-probe/README.md)
 now pins that reader, its directory/cell formats and an owned stable key. It
 exports the bounded scalar/vector checkpoint, performs ordinary upgrades that
 discard the source Wasm heap, and reconstructs through new governed handles.
@@ -611,14 +611,14 @@ those historical results; each linked record owns its artifacts and test scope:
 | Evidence | What it establishes |
 | --- | --- |
 | [WAT retention probe](../qualification/README.md) | Selected IC retention and rollback behavior on local PocketIC |
-| [Rust startup/growth probe](../qualification/rust-startup-probe/README.md) | Controlled transient initialization and bounded growth for the admitted wasm32 artifacts |
-| [M0 graph probe](../qualification/rust-startup-probe/managed-graph.md) | Byte-defined sharing/cycles, allocator continuation and selected installed rollback cases |
-| [M0 vs Storage benchmarks](../qualification/simple-benchmarks/README.md) | Current implementation instruction costs, including session read reuse |
-| [Native ownership experiment](../qualification/native-feasibility/README.md) | Host-only scalar/vector confinement, tracked moves, forgotten-ticket quarantine and ordinary Err/panic behavior |
-| [Compiler layout diagnostics](../qualification/native-feasibility/README.md#compiler-layout-diagnostics) | Stable-compiler debug metadata exposes selected private Vec header fields on host/wasm32; equal-sized reordered records are distinguished |
-| [Live allocation custody](../qualification/native-feasibility/allocation-boundary.md) | A private host arena supports real std vectors, same-domain parking/reopening, run reuse and selected failure/forgetting cases |
-| [Scalar/vector checkpoint](../qualification/native-feasibility/checkpoint-format.md) | Bounded logical bytes, refusal cases and reconstruction after source-arena teardown; candidate failure preserves the existing host root |
-| [Installed checkpoint provider](../qualification/checkpoint-provider-probe/README.md) | Fresh governed handles reconstruct scalar/vector state after ordinary upgrades discard Wasm memory; selected failed imports preserve the previous module, heap observations and stable bytes |
+| [Rust startup/growth probe](../qualification/ic-storage-rust-startup-probe/README.md) | Controlled transient initialization and bounded growth for the admitted wasm32 artifacts |
+| [M0 graph probe](../qualification/ic-storage-rust-startup-probe/managed-graph.md) | Byte-defined sharing/cycles, allocator continuation and selected installed rollback cases |
+| [M0 vs Storage benchmarks](../qualification/ic-storage-simple-benchmarks/README.md) | Current implementation instruction costs, including session read reuse |
+| [Native ownership experiment](../qualification/ic-storage-native-feasibility/README.md) | Host-only scalar/vector confinement, tracked moves, forgotten-ticket quarantine and ordinary Err/panic behavior |
+| [Compiler layout diagnostics](../qualification/ic-storage-native-feasibility/README.md#compiler-layout-diagnostics) | Stable-compiler debug metadata exposes selected private Vec header fields on host/wasm32; equal-sized reordered records are distinguished |
+| [Live allocation custody](../qualification/ic-storage-native-feasibility/allocation-boundary.md) | A private host arena supports real std vectors, same-domain parking/reopening, run reuse and selected failure/forgetting cases |
+| [Scalar/vector checkpoint](../qualification/ic-storage-native-feasibility/checkpoint-format.md) | Bounded logical bytes, refusal cases and reconstruction after source-arena teardown; candidate failure preserves the existing host root |
+| [Installed checkpoint provider](../qualification/ic-storage-checkpoint-provider-probe/README.md) | Fresh governed handles reconstruct scalar/vector state after ordinary upgrades discard Wasm memory; selected failed imports preserve the previous module, heap observations and stable bytes |
 
 These do not qualify retained native allocator metadata, standard-library
 layouts across upgrades, retained destruction, native pointer retention, schema

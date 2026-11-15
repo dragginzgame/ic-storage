@@ -41,7 +41,7 @@ image. Reads reuse the last admitted accounting while the session exclusively
 owns the bytes; individual handle/schema and reference checks remain. The
 summary is refreshed after writes and cannot authorize access after a mutation
 fault or in another session. The library owns no IC bindings or raw memory access.
-A [qualification kernel](../../qualification/rust-startup-probe/managed-graph.md)
+A [qualification kernel](../../qualification/ic-storage-rust-startup-probe/managed-graph.md)
 now exercises the library directly against retained Wasm memory, including
 installed upgrades and selected rollback cases. This API does not make arbitrary
 Rust values persistent or provide production custody.

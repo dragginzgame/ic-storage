@@ -186,7 +186,7 @@ native-feasibility-test: native-feasibility-lint
 	+cargo test $(NATIVE_FEASIBILITY_CARGO)
 
 native-layout-probe: native-feasibility-lint
-	+bash qualification/native-feasibility/scripts/run-layout-probe.sh
+	+bash qualification/ic-storage-native-feasibility/scripts/run-layout-probe.sh
 
 checkpoint-provider-build:
 	@test -z "$${RUSTFLAGS}$${CARGO_ENCODED_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_LINKER}" || { echo 'Checkpoint fixtures require no environment flag/linker overrides' >&2; exit 1; }

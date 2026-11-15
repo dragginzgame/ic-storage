@@ -2,6 +2,31 @@
 
 ## [0.1.3] - Unreleased
 
+### ▶️ Try it
+
+From the repository root, with the pinned compiler, cached dependencies and
+previously prepared test server, these checks run offline:
+
+```sh
+make native-feasibility-test
+make native-layout-probe
+make checkpoint-provider-lint
+make checkpoint-provider-build
+make checkpoint-provider-test
+```
+
+Expect the ownership, layout diagnostic and installed checkpoint tests to pass.
+First-time online setup is explicit: `make install-tools`,
+`cargo fetch --manifest-path qualification/Cargo.toml --locked`, then
+`make retention-setup`; it downloads dependencies and the pinned local test server.
+
+### 🔧 Tooling
+
+- Adopt Toko Tooling 0.44.4 through its canonical exporter and both workspace
+  pins. Rename qualification package directories to their existing Cargo package
+  names, updating workspace paths, fixture inputs, commands and documentation.
+  Package identities, product versions and historical evidence remain unchanged.
+
 ### 🧪 Testing
 
 - Add a host-only native ownership experiment with scoped scalar/vector access,

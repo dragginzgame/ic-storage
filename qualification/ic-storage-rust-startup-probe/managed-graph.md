@@ -110,5 +110,5 @@ The current artifact directory contains A
 and B `88b8d9ff2b3bd08985f770cca6f52c096e34008414a288f235fb472e7a4a7c21`.
 A data/heap ends are 1050341/1050352 and B's are 1050853/1050864; stack top and
 retained boundary are unchanged. The
-[benchmark evidence](../simple-benchmarks/README.md#session-read-reuse-15-november-2026)
+[benchmark evidence](../ic-storage-simple-benchmarks/README.md#session-read-reuse-15-november-2026)
 records the measured instruction improvement and remaining validation overhead.

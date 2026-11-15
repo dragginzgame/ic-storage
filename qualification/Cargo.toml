@@ -1,11 +1,11 @@
 [workspace]
 resolver = "3"
 members = [
-    "checkpoint-provider-probe",
-    "native-feasibility",
-    "retention-probe",
-    "rust-startup-probe",
-    "simple-benchmarks",
+    "ic-storage-checkpoint-provider-probe",
+    "ic-storage-native-feasibility",
+    "ic-storage-retention-probe",
+    "ic-storage-rust-startup-probe",
+    "ic-storage-simple-benchmarks",
 ]
 
 [workspace.package]
@@ -18,15 +18,15 @@ license-file = "../LICENSE.md"
 ic-host-artifacts = "0.79.0"
 ic-platform-runtime = { version = "0.22.5", default-features = false }
 ic-storage = "0.74.1"
-ic-storage-native-feasibility = { path = "native-feasibility" }
+ic-storage-native-feasibility = { path = "ic-storage-native-feasibility" }
 ic-storage-new = { path = "../crates/ic-storage-new" }
-ic-storage-retention-probe = { path = "retention-probe" }
-ic-storage-simple-benchmarks = { path = "simple-benchmarks" }
+ic-storage-retention-probe = { path = "ic-storage-retention-probe" }
+ic-storage-simple-benchmarks = { path = "ic-storage-simple-benchmarks" }
 ic-testkit = "0.106.0"
 serde_json = "1.0.154"
 sha2 = { version = "0.11.1", default-features = false }
 tokio = "1.54.1"
-toko-tooling = "=0.44.3"
+toko-tooling = "=0.44.4"
 wasm-encoder = { version = "0.263.0", default-features = false }
 wasmparser = { version = "0.263.0", default-features = false }
 

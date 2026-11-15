@@ -15,7 +15,7 @@ admit native layouts or complete the design's incompatible-runtime gate.
 - Owner `native-checkpoint`, authority prefix `native.checkpoint.`, stable key
   `native.checkpoint.scalar.v1`. Allocation numbers are provider-owned.
 - Value: `StableCell<Vec<u8>>`, maximum loaded payload 248 bytes, containing the
-  [scalar/vector checkpoint](../native-feasibility/checkpoint-format.md).
+  [scalar/vector checkpoint](../ic-storage-native-feasibility/checkpoint-format.md).
   Its schema, epoch, seal and digest checks precede root publication.
 
 This repository owns this locator, adapter, envelope and conformance tests and
