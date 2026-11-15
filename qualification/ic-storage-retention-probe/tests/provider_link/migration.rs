@@ -5,10 +5,11 @@ use ic_host_artifacts::{wasm, wasm_text};
 
 mod artifact;
 mod tests;
+mod transient;
 
 const LIMIT: usize = 1024 * 1024;
 
-fn native(raw: &[u8], relocated: bool, root: (u64, u64)) -> Vec<u8> {
+fn native(raw: &[u8], relocated: bool, root: (u64, u64), job: bool) -> Vec<u8> {
     let mut source = vector_link::source(vector_link::Profile { root, ..vector_link::Profile::A }).unwrap()
         .replace("(memory (export \"memory\") 3 3)", "(memory (export \"memory\") 32 256)")
         .replace("(i32.ne (memory.size) (i32.const 3))", "(i32.lt_u (memory.size) (i32.const 32))")
@@ -19,6 +20,10 @@ fn native(raw: &[u8], relocated: bool, root: (u64, u64)) -> Vec<u8> {
         .replace("(i64.store (i32.const 65544) (i64.const 1))", "(i64.store (i32.const 65544) (i64.const 2))\n(i64.store (i32.const 65600) (i64.const 41))");
     source.truncate(source.rfind(')').unwrap());
     source.push_str(include_str!("migration/callbacks.wat"));
+    if job {
+        // Immutable geometry from this same native provider, not caller input.
+        source.push_str("(func (export \"ncp_domain\") (result i64) (i64.const 131072))");
+    }
     source.push(')');
     if relocated {
         source = source
@@ -44,7 +49,39 @@ fn prepare(
     root: (u64, u64),
     recovery: bool,
 ) -> Vec<u8> {
-    let bytes = artifact::combine(&native(raw, relocated, root), bridge, recovery);
+    let post = if recovery {
+        artifact::Post::Recover
+    } else {
+        artifact::Post::Refuse
+    };
+    let bytes = artifact::combine(&native(raw, relocated, root, false), bridge, post);
+    wasm::validate(&bytes, LIMIT).unwrap();
+    bytes
+}
+
+fn prepare_reopen(raw: &[u8], bridge: &[u8], relocated: bool, root: (u64, u64)) -> Vec<u8> {
+    let bytes = artifact::combine(
+        &native(raw, relocated, root, false),
+        bridge,
+        artifact::Post::Reopen,
+    );
+    wasm::validate(&bytes, LIMIT).unwrap();
+    bytes
+}
+
+fn prepare_job(
+    raw: &[u8],
+    bridge: &[u8],
+    relocated: bool,
+    root: (u64, u64),
+    recovery: bool,
+) -> Vec<u8> {
+    let post = if recovery {
+        artifact::Post::Recover
+    } else {
+        artifact::Post::Reopen
+    };
+    let bytes = artifact::combine(&native(raw, relocated, root, true), bridge, post);
     wasm::validate(&bytes, LIMIT).unwrap();
     bytes
 }

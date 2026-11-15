@@ -4,6 +4,10 @@ This unpublished fixture tests independent checkpoint opening after an ordinary
 IC upgrade discards the source Wasm heap. It does not retain native pointers,
 admit native layouts or complete the design's incompatible-runtime gate.
 
+The separately selected `native-job` feature uses the same governed provider
+under `native.checkpoint.job.v1` for [durable migration admission](../ic-storage-native-feasibility/migration-job.md).
+Its controller/epoch/consumption contract does not change the ordinary fixture.
+
 ## Frozen provider boundary
 
 - Reader/writer: published `ic-storage` **0.74.1**, selected by the qualification

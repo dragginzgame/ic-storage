@@ -157,7 +157,9 @@ This retains only u64 payload and checked descriptors, with fresh transient std
 headers. The separate
 [native checkpoint bridge](../../qualification/ic-storage-retention-probe/native-checkpoint.md)
 now qualifies governed export and fresh reconstruction in a relocated native
-domain. General heap admission, migration authority and actual compiler/runtime
+domain. Its explicit reopen profile rebuilds the transient checkpoint domain
+after native admission, connecting compatible upgrades to that portable route
+without interpreting the old Global allocator. General heap admission, migration authority and actual compiler/runtime
 transitions remain open.
 
 If the provider cannot establish a live Rust allocation, stop pointer-based

@@ -32,7 +32,7 @@ WAT callbacks use locals, not linear-memory stack. Stack bytes are transient;
 no private header, pointer, borrow or allocator state is transferred between them.
 
 The checkpoint runtime's private Global allocator is **not admitted across EOP
-upgrades**. Source-profile post-upgrade refuses. Recovery-profile post-upgrade
+upgrades**. The original source-profile post-upgrade refuses. Recovery-profile post-upgrade
 checks zero native metadata in WAT before its first Rust call and accepts only
 the explicit epoch/fault argument shape. Retained native headers therefore refuse
 before opening that runtime. Tests use ordinary upgrades to obtain a fresh heap.
@@ -41,6 +41,37 @@ Management requests explicitly select `wasm_memory_persistence = replace`; an
 upgrade with that option omitted is rejected by the platform for EOP modules.
 The harness uses the selected typed chunked-install API, not a reinstall (which
 would discard stable memory), and requires actual trap error codes for refusals.
+
+## Transient-domain reopening experiment
+
+The additional reopen profile admits the native descriptor and completes its
+native Rust call before discarding checkpoint runtime memory. A private WAT
+helper zeros stack bytes 0..65536 and the complete transient region from 196608
+through the current memory end, including grown pages. It restores the target's
+active data from private passive copies in original segment order, then resets
+the sole admitted mutable compiler global, the stack pointer. Other mutable
+globals, passive input initialization or dynamic data/table operations refuse
+this profile. Tables and immutable globals are freshly instantiated by Wasm.
+The retained metadata/payload gap is never part of either reset range.
+
+This relies on the reviewed bridge's synchronous entrypoints dropping all
+Global-owned objects before returning: no application owner, reference, static
+cache, pending callback or external resource can survive in that domain. Losing
+allocator free lists is allowed because the entire domain is discarded; there
+is no attempt to interpret or destroy an old allocator through new Rust. The
+target begins with its own initialized data/BSS and a fresh heap. This extends
+the ordinary foreign backing argument, not arbitrary heap-layout compatibility.
+Whole-domain clearing is a bounded qualification mechanism, not a scalable
+production allocator or evidence that physical pages are returned to the IC.
+
+Reopening is explicit in the target artifact. Wrong native geometry, frozen or
+unknown state refuses before reset; replacement recovery remains separately
+selected and requires a fresh native region and checkpoint epoch. A compatible
+upgrade neither reads nor writes the checkpoint. Installed tests must exercise
+checkpoint allocation after reopening, retained native bytes, grown/poisoned
+transient memory and subsequent export/replacement recovery before claiming
+that these paths are connected. The [installed evidence](../ic-storage-retention-probe/native-checkpoint.md#compatible-reopening)
+records that bounded proof separately from the original recovery cohort.
 
 ## Export, publication and reconstruction
 

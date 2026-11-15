@@ -44,6 +44,9 @@ native-feasibility-test native-feasibility-lint native-layout-probe: | toko-exec
 
 .PHONY: native-provider-probe native-provider-test
 .PHONY: native-checkpoint-build native-checkpoint-test
+.PHONY: native-job-build native-job-test
+native-job-build native-job-test: export CARGO_NET_OFFLINE := true
+native-job-build native-job-test: | toko-execution-check
 native-checkpoint-build native-checkpoint-test: export CARGO_NET_OFFLINE := true
 native-checkpoint-build native-checkpoint-test: | toko-execution-check
 native-provider-probe native-provider-test: export CARGO_NET_OFFLINE := true
@@ -85,6 +88,7 @@ help:
 	  'make checkpoint-provider-lint   Lint provider fixtures and installed test' \
 	  'make checkpoint-provider-test   Test fresh-heap recovery and import rollback' \
 	  'make native-checkpoint-test     Test native export and incompatible-domain recovery' \
+	  'make native-job-test            Test controller authority and single-use migration' \
 	  'make ci                          Aggregate hosted validation gate' \
 	  'make install-hooks               Activate the canonical formatting hook' \
 	  'make deps-check                  Aggregate dependency policy checks' \
@@ -229,3 +233,13 @@ native-checkpoint-build:
 native-checkpoint-test: native-checkpoint-build
 	+cargo clippy $(RETENTION_CARGO) --test provider_link -- -D warnings
 	+@server="$$($(RETENTION_TOOL) --check)" && "$$server" run -- bash qualification/ic-storage-native-feasibility/scripts/run-provider-probe.sh migration
+
+native-job-build:
+	@test -z "$${RUSTFLAGS}$${CARGO_ENCODED_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_LINKER}" || { echo 'Native job probe requires no environment flag/linker overrides' >&2; exit 1; }
+	+cargo clippy $(CHECKPOINT_CARGO) --target-dir target/qualification --features native-job -- -D warnings
+	+cargo rustc $(CHECKPOINT_CARGO) --target-dir target/qualification/checkpoint-job --features native-job -- $(NATIVE_CHECKPOINT_LINK)
+
+native-job-test: native-job-build
+	+cargo test $(NATIVE_FEASIBILITY_CARGO) --lib migration_job
+	+cargo clippy $(RETENTION_CARGO) --test provider_link -- -D warnings
+	+@server="$$($(RETENTION_TOOL) --check)" && "$$server" run -- bash qualification/ic-storage-native-feasibility/scripts/run-provider-probe.sh job

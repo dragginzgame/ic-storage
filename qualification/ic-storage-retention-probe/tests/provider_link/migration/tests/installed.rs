@@ -9,7 +9,7 @@ use ic_testkit::{
 };
 use std::time::Duration;
 
-async fn query(pic: &PocketIc, id: CanisterId, name: &str) -> Vec<u8> {
+pub(super) async fn query(pic: &PocketIc, id: CanisterId, name: &str) -> Vec<u8> {
     pic.query_call(id, id, name, vec![]).await.unwrap()
 }
 fn args(epoch: u64, fault: u64) -> Vec<u8> {
@@ -18,7 +18,7 @@ fn args(epoch: u64, fault: u64) -> Vec<u8> {
         .flat_map(u64::to_le_bytes)
         .collect()
 }
-async fn replace_heap(
+pub(super) async fn replace_heap(
     pic: &PocketIc,
     id: CanisterId,
     target: &[u8],
@@ -42,7 +42,7 @@ async fn replace_heap(
         .await
 }
 
-fn words(bytes: &[u8]) -> Vec<u64> {
+pub(super) fn words(bytes: &[u8]) -> Vec<u64> {
     bytes
         .as_chunks::<8>()
         .0
@@ -50,7 +50,7 @@ fn words(bytes: &[u8]) -> Vec<u64> {
         .map(|w| u64::from_le_bytes(*w))
         .collect()
 }
-fn logical(bytes: &[u8]) -> Vec<u64> {
+pub(super) fn logical(bytes: &[u8]) -> Vec<u64> {
     let w = words(bytes);
     assert_eq!(w[2], 0x4e5650524f563031);
     assert_eq!(w[3], 2);
@@ -58,7 +58,7 @@ fn logical(bytes: &[u8]) -> Vec<u64> {
     w[9..9 + w[6] as usize].to_vec()
 }
 
-async fn export(pic: &PocketIc, id: CanisterId, epoch: u64) -> Vec<u8> {
+pub(super) async fn export(pic: &PocketIc, id: CanisterId, epoch: u64) -> Vec<u8> {
     let values = logical(&query(pic, id, "observe").await);
     pic.update_call(id, id, "export_checkpoint", args(epoch, 0))
         .await
@@ -97,7 +97,7 @@ async fn refused_update(pic: &PocketIc, id: CanisterId, name: &str, arguments: V
     assert_eq!(pic.get_stable_memory(id).await, stable);
 }
 
-async fn refused(
+pub(super) async fn refused(
     pic: &PocketIc,
     id: CanisterId,
     target: &[u8],
@@ -135,7 +135,7 @@ async fn refused(
     assert_eq!(query(pic, id, "observe").await, before);
 }
 
-async fn recover(pic: &PocketIc, id: CanisterId, target: &[u8], epoch: u64, base: u64) {
+pub(super) async fn recover(pic: &PocketIc, id: CanisterId, target: &[u8], epoch: u64, base: u64) {
     let before = logical(&query(pic, id, "observe").await);
     let checkpoint = query(pic, id, "checkpoint_bytes").await;
     stopped_hash(pic, id).await;

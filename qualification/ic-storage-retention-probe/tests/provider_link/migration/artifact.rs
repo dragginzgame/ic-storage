@@ -120,12 +120,13 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
             .map(|(_, n)| n.as_str())
             .collect();
         callbacks.sort_unstable();
-        assert_eq!(
-            callbacks,
-            [
-                "begin", "counter", "finish", "freeze", "fresh", "put", "value"
-            ]
-        );
+        let mut expected = vec![
+            "begin", "counter", "finish", "freeze", "fresh", "put", "value",
+        ];
+        if callbacks.contains(&"domain") {
+            expected.insert(2, "domain");
+        }
+        assert_eq!(callbacks, expected);
         for name in result.exports.keys() {
             assert!(matches!(
                 name.as_str(),
@@ -160,7 +161,14 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
             .filter(|(name, _)| name.starts_with("ncp_"))
             .map(|(_, (_, index))| *index)
             .collect();
-        assert_eq!(pending.len(), 7);
+        assert_eq!(
+            pending.len(),
+            if result.exports.contains_key("ncp_domain") {
+                8
+            } else {
+                7
+            }
+        );
         let mut seen = BTreeSet::new();
         while let Some(index) = pending.pop() {
             assert!(
@@ -217,9 +225,23 @@ impl Reencode for Mapping {
     }
 }
 
-pub(super) fn combine(native: &[u8], bridge: &[u8], recovery: bool) -> Vec<u8> {
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum Post {
+    Refuse,
+    Recover,
+    Reopen,
+}
+
+pub(super) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
     let p = inventory(bridge, true);
     let n = inventory(native, false);
+    assert_eq!(
+        p.imports
+            .iter()
+            .any(|(m, n)| m == "native_checkpoint" && n == "domain"),
+        n.exports.contains_key("ncp_domain")
+    );
+    let reset = (post == Post::Reopen).then(|| super::transient::Plan::read(bridge));
     let ic: Vec<_> = p
         .imports
         .iter()
@@ -338,6 +360,12 @@ pub(super) fn combine(native: &[u8], bridge: &[u8], recovery: bool) -> Vec<u8> {
     let ncall = |name: &str| nm.functions[n.exports[name].1 as usize];
     let unit = types.len();
     types.ty().function([], []);
+    let reset_index = imports.len() + functions.len();
+    if let Some(reset) = reset {
+        functions.function(unit);
+        code.function(&reset.append(&mut data));
+        data_count = Some(data.len());
+    }
     for (name, calls) in [
         (
             "canister_init",
@@ -345,14 +373,16 @@ pub(super) fn combine(native: &[u8], bridge: &[u8], recovery: bool) -> Vec<u8> {
         ),
         (
             "canister_post_upgrade",
-            if recovery {
-                vec![
+            match post {
+                Post::Recover => vec![
                     ncall("ncp_fresh"),
                     pcall("checkpoint_restore"),
                     ncall("__bridge_post"),
-                ]
-            } else {
-                vec![]
+                ],
+                // Native admission runs first without entering checkpoint Rust.
+                // Its transient native frame has ended before clearing stack.
+                Post::Reopen => vec![ncall("__bridge_post"), reset_index],
+                Post::Refuse => vec![],
             },
         ),
         (
@@ -371,7 +401,7 @@ pub(super) fn combine(native: &[u8], bridge: &[u8], recovery: bool) -> Vec<u8> {
         exports.export(name, ExportKind::Func, imports.len() + functions.len());
         functions.function(unit);
         let mut body = Function::new([]);
-        if name == "canister_post_upgrade" && !recovery {
+        if name == "canister_post_upgrade" && post == Post::Refuse {
             body.instruction(&I::Unreachable);
         }
         for call in calls {

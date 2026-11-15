@@ -24,8 +24,9 @@ through checked scalar callbacks and publishes the complete envelope through
 fresh governed Storage handles. Freeze and stable writes share the IC transaction.
 Normal mutation refuses while frozen. Failed export restores both domains.
 
-The bridge runtime's private Global allocator is not admitted across EOP. Source
-post-upgrade refuses; a recovery target checks fresh zero native metadata in WAT
+The bridge runtime's private Global allocator is not admitted across EOP. In the
+original source profile post-upgrade refuses; a recovery target checks fresh zero
+native metadata in WAT
 before entering checkpoint Rust. Keeping source memory therefore refuses. The
 recovery request explicitly selects heap replacement through the typed management
 API, preserving stable memory while discarding the source Wasm heap.
@@ -97,3 +98,57 @@ cancellation, resumable migration and resource-exhaustion recovery remain open.
 No application converters, broader collection library or consumer cutover are
 introduced by this test. Further work should make those admission and migration
 controls concrete before expanding the supported state surface.
+
+## Compatible reopening
+
+The additional reopen profile connects compatible upgrades and portable recovery
+without admitting the checkpoint runtime's private allocator layout. Native
+admission and its Rust frame finish first. A private WAT helper then clears the
+entire transient heap/data region, including grown pages, clears transient stack
+bytes and restores the target's initialization from private passive data copies.
+Only the stack pointer is admitted as a mutable compiler global; dynamic
+data/table operations refuse. See the [reset contract](../ic-storage-native-feasibility/native-checkpoint-contract.md#transient-domain-reopening-experiment).
+
+This is an explicit target profile. It neither loads a checkpoint during a
+compatible upgrade nor guesses a recovery path from unknown native bytes.
+Frozen roots, wrong allocation geometry and fresh/unknown native headers refuse.
+The original source/refusal and replacement-recovery profiles keep their meanings
+and artifact identities. A recovered target can subsequently use the reopen
+profile, allocate natively and export a new checkpoint.
+
+`make native-checkpoint-test` also exercises this profile at empty, ordinary and
+full capacity. The installed source diagnostic grows memory, fills the transient
+domain and stack with poison, then permits only WAT observation and upgrade.
+The destination must preserve the full native header/payload and stable bytes,
+restore initial data and clear the last grown byte before checkpoint Rust runs.
+A second upgrade repeats the experiment. Wrong-geometry targets and a deliberate
+trap after resetting must restore the source, including observed poison bytes.
+Tests then export, replace the heap into the relocated domain, reopen that target
+compatibly, reuse its vector and export again.
+
+The poison/probe exports and post-reset trap are installed-test instrumentation,
+not public runtime operations or admitted modifications of the clean artifact.
+Evidence retains both clean and instrumented Wasm. Artifact tests reject an
+extra mutable compiler global, a valid table write and an altered reset boundary.
+This proves the bounded tested lifecycle; it does not authenticate inputs, admit
+arbitrary transient resources or establish an actual compiler/SDK transition.
+Whole-region clearing scales with physical transient memory, and does not return
+pages to the platform. A production transient allocation strategy remains open.
+
+On 15 November 2026, `make native-checkpoint-test` passed strict Clippy, twelve
+existing artifact checks and four migration/reopening checks on x86_64 Linux,
+Rust 1.100.0 and the prepared PocketIC server. The migration/reopening phase took
+4.20 seconds, excluding preparation. The added installed test covers nine
+compatible upgrades, three replacement recoveries and fifteen refused upgrades
+(six wrong-geometry, six post-reset traps and three frozen roots). The original
+replacement suite also passed, and its principal artifact identities did not change.
+
+Evidence is retained in `target/evidence/provider-link/attempt.DfXxtC/`, including
+compiler/bridge/codec sources, clean and instrumented artifacts and `migration.txt`.
+The clean reopening artifact is 132792 bytes, SHA-256
+`9bab6c69b3c21cfd9b632265ea1142b4d80f909ab7f5585a5f114ab7d0fd189b`.
+The installed A diagnostic is 132963 bytes, SHA-256
+`8462172c43087dda184a23e23086f878a1cdd6e656778fbb1b428dc891bd8b33`;
+the relocated B diagnostic is 132963 bytes, SHA-256
+`78649faf903888c51a4582ed78742681966120ae5dc126468fbddaad35c04254`.
+These diagnostic identities include the explicit poison/probe endpoints.

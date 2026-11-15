@@ -28,9 +28,11 @@ checkpoint is an exceptional migration/recovery representation, not a second
 authoritative copy maintained on every ordinary update. Routine compatible
 upgrades must not acquire a whole-graph save/load requirement.
 
-This repository currently implements M0, a safe, byte-defined record model with
-a fixture-only live-memory kernel. It does not implement the native allocator,
-native collection admission, converters or portable checkpoint described here.
+The product crate currently implements M0, a safe, byte-defined record model with
+a fixture-only live-memory kernel. Separate qualification fixtures now exercise
+bounded native-vector allocation, compatible upgrades and portable recovery.
+They do not implement the general native runtime, collection admission or
+application converters described here.
 Keep the existing M0 format, tests and evidence; do not reinterpret those bytes
 as native Rust values or expand M0 into a competing collection architecture.
 There is no new package, upstream dependency or selected adoption of cdk-rsx
@@ -545,9 +547,22 @@ capacity mismatch. The subsequent
 now exports the retained vector through the same governed adapter and reconstructs
 it at a different native base after explicit heap replacement. Installed evidence
 covers A→B→A, continued allocation, corruption/refusal and export/import rollback.
-The checkpoint runtime's private allocator is not admitted across EOP; retained
-reopening refuses before entering it. This is a bounded allocation-domain change,
-not an actual compiler/SDK migration, authenticated coordinator or resumable protocol.
+The checkpoint runtime's private allocator is not admitted across EOP. The
+additional explicit reopen profile admits native state, discards the entire
+transient domain and restores the target's initialization before checkpoint Rust
+can run. Installed tests connect compatible reopening to export and replacement
+recovery, including poisoned/grown transient memory and failed-upgrade rollback.
+This is a bounded allocation-domain change, not an actual compiler/SDK migration,
+authenticated coordinator or resumable protocol. Whole-transient-domain clearing
+is qualification machinery; its linear cost is not a production performance choice.
+
+The separate [governed migration-job fixture](../qualification/ic-storage-native-feasibility/migration-job.md)
+now binds controller-authorized export to a sequential durable epoch and the
+source/target native allocation domains. Successful replacement consumes the
+sealed job atomically with native publication; replay refuses even after a
+compatible upgrade. These geometry bindings are not executable authentication
+or an external anti-rollback anchor. The original checkpoint locator/codec and
+their earlier evidence remain separate and unchanged in meaning.
 
 This repository owns the checkpoint envelope, locator/adapter specification,
 source/target conformance fixtures and maintenance of the qualified reader
@@ -671,7 +686,8 @@ those historical results; each linked record owns its artifacts and test scope:
 | [Installed Rust scalar provider](../qualification/ic-storage-native-feasibility/provider-boundary.md#installed-scalar-lifecycle) | Explicit fixed foreign-allocation model, admitted Rust access/settlement, compatible upgrades and refusal/rollback; no native vector or allocator issuance |
 | [Provider-region controller](../qualification/ic-storage-native-feasibility/provider-region.md) | Host fresh vector issuance over exclusive loaned backing, growth/shrink/reuse and refusal |
 | [Installed native vector](../qualification/ic-storage-retention-probe/vector-link.md#installed-vector-lifecycle) | Bounded foreign-allocation contract, transient std headers, A→B→A operations, reclamation, descriptor refusal and rollback; no incompatible-runtime native-vector recovery or general heap admission |
-| [Connected native checkpoint](../qualification/ic-storage-retention-probe/native-checkpoint.md) | Canister-side governed export, retained-heap refusal, fresh reconstruction in a relocated native domain, continued native allocation and rollback; no actual compiler transition or production migration authority |
+| [Connected native checkpoint](../qualification/ic-storage-retention-probe/native-checkpoint.md) | Governed export and relocated recovery; explicit compatible reopening by rebuilding transient memory, continued native allocation and rollback; no actual compiler transition or production migration authority |
+| [Governed migration job](../qualification/ic-storage-native-feasibility/migration-job.md) | Controller-authorized export, sequential durable epochs, allocation-domain binding, consumed-job refusal and atomic rollback; no executable authentication or protection against restoring an entire old canister snapshot |
 | [Rust startup/growth probe](../qualification/ic-storage-rust-startup-probe/README.md) | Controlled transient initialization and bounded growth for the admitted wasm32 artifacts |
 | [M0 graph probe](../qualification/ic-storage-rust-startup-probe/managed-graph.md) | Byte-defined sharing/cycles, allocator continuation and selected installed rollback cases |
 | [M0 vs Storage benchmarks](../qualification/ic-storage-simple-benchmarks/README.md) | Current implementation instruction costs, including session read reuse |

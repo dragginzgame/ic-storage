@@ -129,8 +129,10 @@ tests reconstruction after source teardown. The
 recovers through fresh Storage handles after ordinary upgrades discard the old
 heap, with failed-import rollback tests. The
 [connected native bridge](qualification/ic-storage-retention-probe/native-checkpoint.md)
-now tests governed export and fresh reconstruction in a relocated native domain;
+now tests compatible reopening, governed export and relocated native recovery;
 general runtime migration and production authority remain open.
+The [governed job fixture](qualification/ic-storage-native-feasibility/migration-job.md)
+adds controller checks, durable epochs and consumed-checkpoint refusal.
 
 Library code lives in `crates/`. See [qualification/](qualification/README.md)
 for fixture contracts, commands and evidence scope. Production canister

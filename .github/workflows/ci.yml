@@ -66,6 +66,8 @@ jobs:
           make checkpoint-provider-test 2>&1 | tee target/evidence/checkpoint-provider-test.log
       - name: Validate native checkpoint recovery
         run: make native-checkpoint-test 2>&1 | tee target/evidence/native-checkpoint-test.log
+      - name: Validate governed native migration jobs
+        run: make native-job-test 2>&1 | tee target/evidence/native-job-test.log
       - name: Retain diagnostics
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

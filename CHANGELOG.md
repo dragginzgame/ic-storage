@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.1.9] - 2026-11-15
+
+### 🧪 Testing
+
+- Connect compatible native reopening to checkpoint export and relocated
+  recovery by discarding and rebuilding the checkpoint runtime's transient
+  domain. Admit its initialization/globals/table behavior before enabling the
+  profile; exercise poisoned and grown memory, native refusal and reset rollback.
+  The private Global allocator is rebuilt, not retained or declared compatible.
+- Add a separate governed migration record with controller-authorized export,
+  sequential durable epochs, source/destination domain checks and single-use
+  consumption. Exercise controller revocation, stale/replayed jobs, frozen
+  retries and rollback after stable/native publication at empty/full capacity.
+
+### ▶️ Try it
+
+Run `make native-checkpoint-test` with the prepared local server and cached
+dependencies to exercise compatible reopening and explicit replacement recovery.
+Run `make native-job-test` for the controller and durable-job admission cases.
+
 ## [0.1.8] - 2026-11-15
 
 ### 🧪 Testing
