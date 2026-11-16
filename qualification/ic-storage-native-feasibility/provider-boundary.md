@@ -1,7 +1,8 @@
 # Foreign allocation-provider investigation
 
 Status: compiler, artifact and installed scalar evidence, 15 November 2026.
-Gate 1 remains open.
+Scope: the scalar provider contract; later vector evidence is recorded in the
+[vector provider contract](vector-provider-contract.md).
 This investigates a concrete candidate from the
 [allocation-domain note](../../docs/design/native-allocation-domain.md): an
 independently implemented Wasm provider supplies one bounded foreign allocation

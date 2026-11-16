@@ -99,16 +99,32 @@ pub(super) async fn export(pic: &PocketIc, id: CanisterId, epoch: u64) -> Vec<u8
     bytes
 }
 
-async fn refused_update(pic: &PocketIc, id: CanisterId, name: &str, arguments: Vec<u8>) {
+// Shared update rollback assertion for checkpoint and governed-job suites.
+// Upgrade/restart assertions stay separate: they also own module identity and
+// management-call lifecycle checks. Return the rejection for diagnostic checks.
+pub(super) async fn refused_update(
+    pic: &PocketIc,
+    id: CanisterId,
+    sender: CanisterId,
+    name: &str,
+    arguments: Vec<u8>,
+) -> RejectResponse {
     let before = query(pic, id, "observe").await;
     let stable = pic.get_stable_memory(id).await;
-    let error = pic.update_call(id, id, name, arguments).await.unwrap_err();
-    assert!(matches!(
-        error.error_code,
-        ErrorCode::CanisterTrapped | ErrorCode::CanisterCalledTrap
-    ));
+    let error = pic
+        .update_call(id, sender, name, arguments)
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(
+            error.error_code,
+            ErrorCode::CanisterTrapped | ErrorCode::CanisterCalledTrap
+        ),
+        "{name}: {error:?}"
+    );
     assert_eq!(query(pic, id, "observe").await, before);
     assert_eq!(pic.get_stable_memory(id).await, stable);
+    error
 }
 
 pub(super) async fn refused(
@@ -207,9 +223,9 @@ async fn native_export_and_incompatible_domain_reconstruction() {
         }
         refused(pic, id, &b, 7, 0, true).await;
         refused(pic, id, &b, 7, 0, false).await; // No complete checkpoint.
-        refused_update(pic, id, "export_checkpoint", args(7, 1)).await;
+        refused_update(pic, id, id, "export_checkpoint", args(7, 1)).await;
         export(pic, id, 7).await;
-        refused_update(pic, id, "vector_append", vec![]).await;
+        refused_update(pic, id, id, "vector_append", vec![]).await;
         refused(pic, id, &b, 7, 0, true).await;
         refused(pic, id, &b, 8, 0, false).await;
         refused(pic, id, &b, 7, 1, false).await;

@@ -86,6 +86,73 @@ every load/store address or stack bound on every path. **This cohort neither lin
 nor executed vector Wasm.** No private layout or installed-vector qualification
 follows from compilation, the reported artifact size or the host lifecycle tests.
 
+## Host poisoning and explicit replacement
+
+The private [provider-host adapter](tests/fixtures/region/tests/host.rs) connects
+the same `Region` controller and `ic-storage-native::with_vector` used by the
+installed fixture to a native host with 16 inline u64 slots. This is separate
+from the earlier Global/arena ownership model; it is not a new product API.
+The host owns its backing, descriptor, scalar counter and poison bit. It derives
+each loan pointer from an exclusive borrow of the real array. No pointer, std
+header or controller survives a scope, so moving an idle host does not move a
+live client allocation. The higher-ranked callback receives only the scoped
+scalar view and may return transient copies.
+
+The host marks itself poisoned before admission, fresh allocation issuance or
+callback execution. Successful owner release supplies the next descriptor;
+publication then clears poison. Ordinary callback errors are return values and
+still publish completed writes, including growth and full-capacity refusal.
+Forgetting the non-owning view leaves the actual Vec with the host and does not
+prevent successful finalization. No guard destructor clears the poison bit.
+
+An unwind escaping the callback leaves poison set. Catching it outside the host
+does not roll back memory: tests observe earlier scalar writes and appended data
+while the published descriptor remains unchanged. Subsequent updates and exports
+refuse before invoking a callback or issuing another allocation. An admission
+failure also leaves the host poisoned. This policy does not detect a panic caught
+inside application code, recover a process abort or repair an unsafe allocator
+contract violation.
+
+Finalization failpoints after release and after descriptor publication also leave
+poison set. Both run after a callback mutates/grows the vector and returns an
+ordinary error, with and without forgetting its view. Before publication, the
+old descriptor remains; after publication, the new descriptor remains. Neither
+permits access or export. Tests observe the actual prior writes, preserve poison
+through invalid/failed recovery, and resume allocation only after successful
+checkpoint replacement. These failpoints return an injected lifecycle error;
+they do not simulate allocator corruption or recover a released native owner.
+
+Recovery is an explicit logical replacement using caller-held checkpoint bytes.
+Decode checks the existing wire contract and expected epoch, then enforces this
+host's smaller capacity. A private candidate reconstructs its vector through
+fresh controller issuance. Only complete construction replaces the old host;
+there is no reset-poison method and no reopening of the poisoned descriptor.
+The source contains only inline u64 storage and transient metadata, so discarding
+it invokes no stale native owner or application destructor. Recovery can discard
+successful changes newer than the saved checkpoint; it is not automatic rollback.
+
+Fault injection after one value, after the final value and before publication
+preserves the old host's complete backing, descriptor and availability state.
+Both poisoned and available sources are covered. Corrupt bytes, wrong epochs
+and a valid 17-element checkpoint refuse unchanged. Successful empty/full
+replacements restore the scalar counter and support subsequent native allocation,
+clear, shrink and reuse. These are construction failpoints, not simulated proof
+of an operating-system allocation failure.
+
+On 16 November 2026, all fourteen provider-region tests passed on x86_64 Linux
+with Rust 1.100.0, including five provider-host tests, with strict Clippy. The
+native-feasibility and scoped-core gates also passed; the core retains its eight
+ownership compile-fail checks. Fourteen artifact checks passed in
+`target/evidence/provider-link/attempt.qAFEnf/` before adding the installed
+finalization failpoint; its raw vector and linked A Wasm were byte-identical to
+the 0.1.11 artifacts. The later [installed finalization evidence](../ic-storage-retention-probe/vector-link.md#finalization-failure-evidence-0112)
+changes the WAT wrapper only; raw Rust remains unchanged. The host adapter is
+excluded from that Wasm build. `make native-feasibility-test` selects these tests
+through `provider_region_tests`. This establishes in-process unwind/replacement
+behavior only, not durable checkpoint custody, host-process restart, an installed
+IC upgrade, or macOS execution. The installed IC path continues to use trap
+rollback under its separately recorded evidence.
+
 ## Transient stack and direct-call proof
 
 The 0.1.7 diagnostic adds a deliberately narrow control-flow check to the actual

@@ -1,5 +1,6 @@
 ;; Trusted diagnostic glue, outside LLVM. No caller supplies a native descriptor.
-(func $vector_run (param $operation i32) (param $value i64) (local $root i64)
+(func $vector_run_with_fault (param $operation i32) (param $value i64)
+    (param $fail_finalize i32) (local $root i64)
   (if (i32.ne (global.get $access_operation) (i32.const -1)) (then unreachable))
   (call $admit)
   (global.set $access_operation (local.get $operation))
@@ -11,10 +12,16 @@
     (local.get $operation) (local.get $value)))
   ;; Only scalar descriptor bits survive the Rust return. No cleanup callback
   ;; or guard destructor is relied on to return provider custody.
+  ;; This closed qualification failpoint leaves custody and the old descriptor
+  ;; unpublished after native release. The enclosing IC message must roll back.
+  (if (local.get $fail_finalize) (then unreachable))
   (call $settle
     (i64.shr_u (local.get $root) (i64.const 32))
     (i64.and (local.get $root) (i64.const 0xffffffff)))
   (global.set $access_operation (i32.const -1)))
+
+(func $vector_run (param $operation i32) (param $value i64)
+  (call $vector_run_with_fault (local.get $operation) (local.get $value) (i32.const 0)))
 
 (func (export "canister_pre_upgrade")
   (if (i32.ne (global.get $access_operation) (i32.const -1)) (then unreachable))
@@ -47,6 +54,8 @@
   (call $vector_run (i32.const 7) (global.get $version)) (call $reply))
 (func (export "canister_update vector_error_trap")
   (call $vector_run (i32.const 6) (global.get $version)) unreachable)
+(func (export "canister_update vector_error_finalize_trap")
+  (call $vector_run_with_fault (i32.const 6) (global.get $version) (i32.const 1)))
 
 ;; A failed second operation must roll back the preceding settled mutation in
 ;; the same IC transaction. Both paths use the admitted native entrypoint.

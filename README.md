@@ -7,11 +7,16 @@ The selected direction is **native retained Rust collections with explicit
 type migration and a portable recovery path**. Compatible upgrades retain state
 directly; schema changes use versioned conversions; incompatible runtime or heap
 layouts require export under a compatible source executable and reconstruction
-under the target. See the [current design](docs/DESIGN.md).
+under the target. Initially support one explicit runtime contract. Major runtime
+changes may use planned downtime and an operator-run export/import procedure;
+general compiler portability is not a prerequisite for the application API.
+See the [current design](docs/DESIGN.md#supported-runtime-contract).
 
-This direction is not implemented yet. The repository currently contains an
-unpublished byte-defined M0 memory-image model and installed qualification
-probes. M0 remains an evidence baseline, not the native collection ABI or a
+The implementation is partial: an unpublished [scoped native vector core](crates/ic-storage-native/README.md)
+and installed scalar/vector lifecycle and migration fixtures provide the current
+native foundation. General records, derive support and application converters
+remain planned. The byte-defined M0 memory-image model remains an evidence
+baseline, not the native collection ABI or a
 complete persistence system. Its [earlier research plan](docs/design/m0-research-plan.md)
 is archived; its format and historical results remain scoped to that experiment.
 
@@ -23,8 +28,9 @@ no current package, API or stored-format compatibility claim. See the
 
 ## Development
 
-Use the pinned Rust 1.100.0 toolchain (also the support floor). The library is
-`no_std` and allocation-free; its root-owned SHA-256 dependency is `sha2` 0.11.1
+Use the pinned Rust 1.100.0 toolchain (also the support floor). The M0 library is
+`no_std` and allocation-free; the native core uses `no_std` plus `alloc` with a
+caller-supplied allocator. M0's root-owned SHA-256 dependency is `sha2` 0.11.1
 with defaults disabled, selected from the latest stable registry release on
 15 November 2026. The root selects Toko Tooling 0.44.4 exactly as a
 development dependency. Its authenticated snapshot is installed through the

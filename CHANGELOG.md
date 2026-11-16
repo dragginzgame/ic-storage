@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.1.12] - Unreleased
+
+### 📝 Design
+
+- Scope direct reopening to one supported runtime contract. Handle incompatible
+  compiler, allocator and heap changes through planned portable migration with
+  optional downtime; defer universal layout certification and automatic discovery.
+- Prioritize controlled records, explicit application conversions and derive
+  support while retaining per-type representation, ownership and recovery checks.
+- Consolidate duplicated migration-test rollback assertions and job input loading.
+  Remove stale implementation-status claims and replace repeated architecture
+  progress narratives with links to their owning qualification records.
+
+### 🧪 Testing
+
+- Connect native-host poisoning and explicit checkpoint recovery to the same
+  provider controller and scoped vector core used by the installed fixture.
+  Test caught unwinds, forgotten views, ordinary errors and failed candidate
+  reconstruction without treating host unwinding as rollback.
+- Inject finalization failure after native owner release. Keep host access
+  poisoned before and after root publication; verify installed IC traps restore
+  the full provider header and payload before subsequent access and upgrades.
+- Compare mixed installed native histories against an independent logical model,
+  including repeated compatible upgrades, failed reconstruction and portable
+  migrations in both directions.
+
+### ▶️ Try it
+
+Run `make native-feasibility-test` for the provider-host failure and recovery cases.
+Run `make native-provider-test` for installed finalization rollback.
+Run `make native-job-test` for mixed histories and repeated portable migrations.
+
 ## [0.1.11] - 2026-11-16
 
 ### 🧪 Testing

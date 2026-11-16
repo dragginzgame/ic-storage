@@ -1,16 +1,9 @@
 use super::*;
 
-fn inputs() -> (PathBuf, Vec<u8>, Vec<u8>) {
-    let (directory, _) = super::super::super::super::input();
-    let raw = fs::read(directory.join("vector/provider_vector.wasm")).unwrap();
-    let bridge = fs::read(directory.join("checkpoint-job.wasm")).unwrap();
-    (directory, raw, bridge)
-}
-
 #[test]
 #[ignore = "native-job-test supplies the compiled job bridge"]
 fn blocked_bootstrap_precedes_transient_reset_and_job_admission() {
-    let (_, raw, bridge) = inputs();
+    let (_, raw, bridge) = job_inputs();
     for bytes in [
         prepare_frozen_job(&raw, &bridge, false),
         prepare_staged_job(&raw, &bridge, false, true),
@@ -135,21 +128,16 @@ async fn resume(pic: &PocketIc, id: CanisterId, target: &[u8], epoch: u64, desti
         "vector_business_error",
         "vector_forget",
         "vector_error_trap",
+        "vector_error_finalize_trap",
     ] {
-        let error = pic.update_call(id, id, method, vec![]).await.unwrap_err();
-        assert!(matches!(
-            error.error_code,
-            ErrorCode::CanisterCalledTrap | ErrorCode::CanisterTrapped
-        ));
-        assert_eq!(query(pic, id, "observe").await, native);
-        assert_eq!(pic.get_stable_memory(id).await, stable);
+        refused_update(pic, id, id, method, vec![]).await;
     }
 }
 
 #[tokio::test(flavor = "current_thread")]
 #[ignore = "native-job-test supplies fresh job inputs and the prepared server"]
 async fn frozen_sources_survive_compatible_upgrades_without_releasing_writes() {
-    let (directory, raw, bridge) = inputs();
+    let (directory, raw, bridge) = job_inputs();
     let save = |bytes: Vec<u8>| {
         let digest = Sha256Digest::compute(&bytes);
         fs::write(directory.join(format!("frozen-{digest}.wasm")), &bytes).unwrap();

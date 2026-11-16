@@ -1,4 +1,4 @@
-use super::installed::{logical, query, replace_heap, words};
+use super::installed::{logical, query, refused_update, replace_heap, words};
 use super::*;
 use crate::installed_tests::{stopped_hash, update};
 use ic_testkit::{
@@ -9,8 +9,16 @@ use std::time::Duration;
 
 mod cancellation;
 mod frozen;
+mod history;
 mod restart;
 mod staged;
+
+fn job_inputs() -> (PathBuf, Vec<u8>, Vec<u8>) {
+    let (directory, _) = super::super::super::input();
+    let raw = fs::read(directory.join("vector/provider_vector.wasm")).unwrap();
+    let bridge = fs::read(directory.join("checkpoint-job.wasm")).unwrap();
+    (directory, raw, bridge)
+}
 
 fn args(epoch: u64, domain: u64, fault: u64) -> Vec<u8> {
     [epoch, domain, fault]
@@ -39,18 +47,7 @@ fn envelope(bytes: &[u8], phase: u16, epoch: u64, source: u64, target: u64) -> &
 }
 
 async fn refused_export(pic: &PocketIc, id: CanisterId, sender: CanisterId, arguments: Vec<u8>) {
-    let native = query(pic, id, "observe").await;
-    let stable = pic.get_stable_memory(id).await;
-    let error = pic
-        .update_call(id, sender, "export_checkpoint", arguments)
-        .await
-        .unwrap_err();
-    assert!(matches!(
-        error.error_code,
-        ErrorCode::CanisterCalledTrap | ErrorCode::CanisterTrapped
-    ));
-    assert_eq!(query(pic, id, "observe").await, native);
-    assert_eq!(pic.get_stable_memory(id).await, stable);
+    refused_update(pic, id, sender, "export_checkpoint", arguments).await;
 }
 
 async fn refused_import(pic: &PocketIc, id: CanisterId, target: &[u8], arguments: Vec<u8>) {
@@ -122,9 +119,7 @@ async fn import(
 #[tokio::test(flavor = "current_thread")]
 #[ignore = "native-job-test supplies the job bridge and prepared server"]
 async fn controller_authority_domains_epochs_and_single_use_survive_upgrades() {
-    let (directory, _) = super::super::super::input();
-    let raw = fs::read(directory.join("vector/provider_vector.wasm")).unwrap();
-    let bridge = fs::read(directory.join("checkpoint-job.wasm")).unwrap();
+    let (directory, raw, bridge) = job_inputs();
     let candidate = |relocated, root, recovery| {
         let bytes = prepare_job(&raw, &bridge, relocated, root, recovery);
         assert_eq!(bytes, prepare_job(&raw, &bridge, relocated, root, recovery));

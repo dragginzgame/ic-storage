@@ -13,32 +13,19 @@ async fn refused_cancel(
     arguments: Vec<u8>,
     message: Option<&str>,
 ) {
-    let native = query(pic, id, "observe").await;
-    let stable = pic.get_stable_memory(id).await;
-    let error = pic
-        .update_call(id, sender, "cancel_checkpoint", arguments)
-        .await
-        .unwrap_err();
-    assert!(matches!(
-        error.error_code,
-        ErrorCode::CanisterCalledTrap | ErrorCode::CanisterTrapped
-    ));
+    let error = refused_update(pic, id, sender, "cancel_checkpoint", arguments).await;
     if let Some(message) = message {
         assert!(
             error.reject_message.contains(message),
             "expected {message}: {error:?}"
         );
     }
-    assert_eq!(query(pic, id, "observe").await, native);
-    assert_eq!(pic.get_stable_memory(id).await, stable);
 }
 
 #[tokio::test(flavor = "current_thread")]
 #[ignore = "native-job-test supplies the job bridge and prepared server"]
 async fn cancelled_jobs_resume_in_place_without_replaying_retired_epochs() {
-    let (directory, _) = super::super::super::super::input();
-    let raw = fs::read(directory.join("vector/provider_vector.wasm")).unwrap();
-    let bridge = fs::read(directory.join("checkpoint-job.wasm")).unwrap();
+    let (directory, raw, bridge) = job_inputs();
     let candidate = |relocated, root, recovery| {
         let bytes = prepare_job(&raw, &bridge, relocated, root, recovery);
         let digest = Sha256Digest::compute(&bytes);

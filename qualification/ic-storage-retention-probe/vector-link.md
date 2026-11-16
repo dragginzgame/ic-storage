@@ -8,6 +8,46 @@ native imports. It now has an installed lifecycle under the separate
 This remains a closed qualification recipe, not a general linker, source
 authenticator or native-persistence admission.
 
+## Finalization failure evidence (0.1.12)
+
+The trusted WAT wrapper now has a closed failpoint after native Rust releases
+the Vec and returns its descriptor, before publication, custody settlement or
+operation-selector reset. Normal endpoints pass a fixed zero; only the diagnostic
+`vector_error_finalize_trap` passes one. The artifact test checks both bindings
+and the complete instruction order. Callers still cannot supply a descriptor.
+The change adds no native Rust code, retained representation or persistent
+injection global.
+
+The installed scope suite adds twenty finalization traps across the same five
+roots and A/B/A versions: five before the first successful update, then fifteen
+following ordinary error replies. Empty, spare, growing and full roots compare
+the complete provider header and payload before/after each trap. Subsequent
+forgotten-view operations and compatible upgrades verify usable custody and idle
+selector restoration. This complements the fifteen existing post-settlement
+traps. A business error cannot suppress fatal finalization failure. Frozen and
+staged-import fixtures also reject the diagnostic endpoint without state changes.
+
+On 16 November 2026, with Rust 1.100.0 on x86_64 Linux,
+`make native-provider-test` passed fourteen artifact checks and all three
+installed suites (2.04 seconds) in
+`target/evidence/provider-link/attempt.Uinp3r/`. The raw Rust vector and guarded
+intermediate are byte-identical to the 0.1.11 artifacts: eight bodies, eleven
+internal edges, 80-byte peak stack and 85 guarded memory sites. New linked artifacts:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| Linked A | 4177 | `b8391a437ba0e1efe23cbd8e489135e7a1a8a817d02e957619c91e7db13c0f41` |
+| Linked B | 4177 | `002076db46249ea3fcc9d72fea4aa2b341dbe0ab0816b2a790ec5df231d10850` |
+
+Connected checkpoint checks passed in `attempt.IyWGew` (four checks, 3.96 seconds).
+Job qualification passed nine host tests, fourteen artifact checks and six job
+checks (39.19 seconds) in `attempt.PtEZ7K`. All cohorts use the evidence parent
+above. The separate [native-host proof](../ic-storage-native-feasibility/provider-region.md#host-poisoning-and-explicit-replacement)
+keeps access poisoned on finalization failure and requires explicit replacement;
+host unwinding is not IC rollback. These remain fixed u64 fixtures, not general
+application callbacks, arbitrary Drop, complete native admission or production
+checkpoint custody.
+
 ## Installed scope outcomes (0.1.11)
 
 On 16 November 2026, the closed native fixture added two scoped operations:

@@ -1,14 +1,14 @@
 # Qualification
 
-The independent workspace here contains the `ic-storage-retention-probe` host
-runner and `ic-storage-rust-startup-probe` canister fixture. Product code stays
+The independent workspace here contains host runners, native feasibility models,
+canister fixtures and comparative benchmarks. Product code stays
 under `crates/`; product crates never depend on this workspace. All packages
 remain unpublished.
 
 The [native feasibility experiment](ic-storage-native-feasibility/README.md) separately
 tests scoped ownership, forgotten tickets and native poisoning with live host
 allocations. `make native-feasibility-test` runs offline and joins CI. It does
-not retain std layouts or qualify the native persistence gate.
+not retain std headers or establish general heap admission.
 Its `make native-layout-probe` diagnostic compiles host/wasm32 record variants,
 inspects private Vec debug metadata and rejects equal-size layout equivalence;
 it does not grant retained-state admission.
@@ -26,9 +26,11 @@ The [governed job profile](ic-storage-native-feasibility/migration-job.md), run 
 `make native-job-test`, adds durable epochs, cancellation, frozen resumption,
 staged import and explicit checkpoint-based restart of unfinished imports.
 
-These fixtures qualify the existing byte-defined M0 experiment and selected IC
-mechanisms. They do not yet qualify the native retained allocator, collection
-layouts or migration paths selected in the [current design](../docs/DESIGN.md).
+These fixtures cover M0 and a bounded native scalar/vector contract, including
+installed lifecycle and portable migration between two allocation domains.
+General records, private collection layouts and actual compiler transitions
+remain outside that evidence. The [current design](../docs/DESIGN.md) owns the
+supported runtime policy and implementation priorities.
 
 The [provider-custody protocol](ic-storage-retention-probe/provider-custody.md) adds
 WAT-only region claim/settlement and refusal/rollback cases to `make retention-test`.

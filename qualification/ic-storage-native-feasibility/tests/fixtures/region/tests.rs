@@ -9,6 +9,8 @@ use std::{
 
 const SENTINEL: u64 = 0xfedc_ba98_7654_3210;
 
+mod host;
+
 #[test]
 fn spare_capacity_need_not_be_initialized() {
     let mut backing = [MaybeUninit::<u64>::uninit(); 16];

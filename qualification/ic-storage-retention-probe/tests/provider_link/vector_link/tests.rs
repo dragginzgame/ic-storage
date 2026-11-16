@@ -100,6 +100,7 @@ fn linked_vector_binds_guards_and_orders_custody_without_execution() {
     let settle = wat_calls[1];
     let admit = calls(claim)[0];
     let run = calls(exports["canister_update vector_mutate"])[0];
+    let run_with_fault = calls(run)[0];
     for (operation, name) in ["mutate", "append", "remove", "shrink", "clear", "reuse"]
         .into_iter()
         .enumerate()
@@ -123,9 +124,19 @@ fn linked_vector_binds_guards_and_orders_custody_without_execution() {
         assert_eq!(calls(entry), expected_calls);
     }
     // Full instruction sequence: admission precedes narrowing and native entry;
-    // settlement consumes only returned bits, then operation resets to idle.
+    // the injected trap follows native return but precedes settlement and idle.
     use Op::*;
-    let run_ops = ops(run);
+    assert!(matches!(&ops(run)[..], [
+        LocalGet { local_index: 0 }, LocalGet { local_index: 1 },
+        I32Const { value: 0 }, Call { function_index }, End,
+    ] if *function_index == run_with_fault));
+    assert!(
+        matches!(&ops(exports["canister_update vector_error_finalize_trap"])[..], [
+        I32Const { value: 6 }, GlobalGet { global_index: 0 },
+        I32Const { value: 1 }, Call { function_index }, End,
+    ] if *function_index == run_with_fault)
+    );
+    let run_ops = ops(run_with_fault);
     assert!(matches!(&run_ops[..], [
         GlobalGet { global_index: 2 }, I32Const { value: -1 }, I32Ne,
         If { .. }, Unreachable, End, Call { function_index: a },
@@ -133,9 +144,10 @@ fn linked_vector_binds_guards_and_orders_custody_without_execution() {
         I32Const { value: 65568 }, I64Load { .. }, I32WrapI64,
         I32Const { value: 65576 }, I64Load { .. }, I32WrapI64,
         LocalGet { local_index: 0 }, LocalGet { local_index: 1 },
-        Call { function_index: r }, LocalSet { local_index: 2 },
-        LocalGet { local_index: 2 }, I64Const { value: 32 }, I64ShrU,
-        LocalGet { local_index: 2 }, I64Const { value: 0xffffffff }, I64And,
+        Call { function_index: r }, LocalSet { local_index: 3 },
+        LocalGet { local_index: 2 }, If { .. }, Unreachable, End,
+        LocalGet { local_index: 3 }, I64Const { value: 32 }, I64ShrU,
+        LocalGet { local_index: 3 }, I64Const { value: 0xffffffff }, I64And,
         Call { function_index: s }, I32Const { value: -1 }, GlobalSet { global_index: 2 }, End,
     ] if *a == admit && *r == root && *s == settle));
     let post = calls(exports["canister_post_upgrade"]);
@@ -187,7 +199,11 @@ fn linked_vector_binds_guards_and_orders_custody_without_execution() {
         [36, 1, 2, 37, 2, 6, 1]
     );
     let access = calls(guards[0])[0];
-    for private in guards.iter().copied().chain([claim, settle, access, run]) {
+    for private in guards
+        .iter()
+        .copied()
+        .chain([claim, settle, access, run, run_with_fault])
+    {
         assert!(!exports.values().any(|index| *index == private));
     }
     assert_eq!(

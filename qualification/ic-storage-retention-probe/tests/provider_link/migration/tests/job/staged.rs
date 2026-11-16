@@ -40,30 +40,6 @@ pub(super) fn progress(
     &bytes[64..64 + len]
 }
 
-pub(super) async fn refused(
-    pic: &PocketIc,
-    id: CanisterId,
-    sender: CanisterId,
-    method: &str,
-    arguments: Vec<u8>,
-) {
-    let native = query(pic, id, "observe").await;
-    let stable = pic.get_stable_memory(id).await;
-    let error = pic
-        .update_call(id, sender, method, arguments)
-        .await
-        .unwrap_err();
-    assert!(
-        matches!(
-            error.error_code,
-            ErrorCode::CanisterCalledTrap | ErrorCode::CanisterTrapped
-        ),
-        "{error:?}"
-    );
-    assert_eq!(query(pic, id, "observe").await, native);
-    assert_eq!(pic.get_stable_memory(id).await, stable);
-}
-
 async fn retry(pic: &PocketIc, id: CanisterId, arguments: Vec<u8>) {
     let native = query(pic, id, "observe").await;
     let stable = pic.get_stable_memory(id).await;
@@ -92,9 +68,7 @@ pub(super) async fn resume(pic: &PocketIc, id: CanisterId, wasm: &[u8], source: 
 #[tokio::test(flavor = "current_thread")]
 #[ignore = "native-job-test supplies fresh compiled inputs and the prepared server"]
 async fn bounded_imports_resume_retry_and_publish_only_complete_vectors() {
-    let (directory, _) = super::super::super::super::input();
-    let raw = fs::read(directory.join("vector/provider_vector.wasm")).unwrap();
-    let bridge = fs::read(directory.join("checkpoint-job.wasm")).unwrap();
+    let (directory, raw, bridge) = job_inputs();
     let save = |bytes: Vec<u8>| {
         let digest = Sha256Digest::compute(&bytes);
         fs::write(directory.join(format!("staged-{digest}.wasm")), &bytes).unwrap();
@@ -180,12 +154,13 @@ async fn bounded_imports_resume_retry_and_publish_only_complete_vectors() {
                 "vector_business_error",
                 "vector_forget",
                 "vector_error_trap",
+                "vector_error_finalize_trap",
             ] {
-                refused(pic, id, id, method, vec![]).await;
+                refused_update(pic, id, id, method, vec![]).await;
             }
-            refused(pic, id, id, "cancel_checkpoint", args(1, source, 0)).await;
-            refused(pic, id, id, "export_checkpoint", args(2, source, 0)).await;
-            refused(
+            refused_update(pic, id, id, "cancel_checkpoint", args(1, source, 0)).await;
+            refused_update(pic, id, id, "export_checkpoint", args(2, source, 0)).await;
+            refused_update(
                 pic,
                 id,
                 CanisterId::from_slice(&[42]),
@@ -202,12 +177,12 @@ async fn bounded_imports_resume_retry_and_publish_only_complete_vectors() {
                 batch_args(1, source, 0, 65, 0),
                 batch_args(1, source, u64::MAX, 64, 0),
             ] {
-                refused(pic, id, id, "import_batch", arguments).await;
+                refused_update(pic, id, id, "import_batch", arguments).await;
             }
             let mut offset = 0u64;
             loop {
                 for fault in [1, 3] {
-                    refused(
+                    refused_update(
                         pic,
                         id,
                         id,
@@ -217,7 +192,7 @@ async fn bounded_imports_resume_retry_and_publish_only_complete_vectors() {
                     .await;
                 }
                 if count != 0 {
-                    refused(
+                    refused_update(
                         pic,
                         id,
                         id,
@@ -259,7 +234,7 @@ async fn bounded_imports_resume_retry_and_publish_only_complete_vectors() {
                     )
                 );
                 retry(pic, id, request.clone()).await;
-                refused(
+                refused_update(
                     pic,
                     id,
                     id,
@@ -276,7 +251,7 @@ async fn bounded_imports_resume_retry_and_publish_only_complete_vectors() {
                         .unwrap();
                     retry(pic, id, request).await;
                     publish(pic, id, 2, target, source).await;
-                    refused(
+                    refused_update(
                         pic,
                         id,
                         id,
@@ -286,7 +261,7 @@ async fn bounded_imports_resume_retry_and_publish_only_complete_vectors() {
                     .await;
                     break;
                 }
-                refused(pic, id, id, "vector_reuse", vec![]).await;
+                refused_update(pic, id, id, "vector_reuse", vec![]).await;
                 resume(pic, id, &importing, source).await;
                 retry(pic, id, request).await;
                 offset = end;
@@ -312,7 +287,7 @@ async fn bounded_imports_resume_retry_and_publish_only_complete_vectors() {
                 .await
                 .unwrap();
             let bytes = query(pic, id, "checkpoint_bytes").await;
-            refused(
+            refused_update(
                 pic,
                 id,
                 CanisterId::from_slice(&[42]),
@@ -330,7 +305,7 @@ async fn bounded_imports_resume_retry_and_publish_only_complete_vectors() {
                 "import prefix metadata mismatch"
             };
             frozen::refused_resume(pic, id, &importing, args(1, source, 0), Some(message)).await;
-            refused(
+            refused_update(
                 pic,
                 id,
                 id,
@@ -338,8 +313,8 @@ async fn bounded_imports_resume_retry_and_publish_only_complete_vectors() {
                 batch_args(1, source, 64, 64, 0),
             )
             .await;
-            refused(pic, id, id, "import_batch", batch_args(1, source, 0, 64, 0)).await;
-            refused(pic, id, id, "vector_reuse", vec![]).await;
+            refused_update(pic, id, id, "import_batch", batch_args(1, source, 0, 64, 0)).await;
+            refused_update(pic, id, id, "vector_reuse", vec![]).await;
         }
     }
     owner.close().await;

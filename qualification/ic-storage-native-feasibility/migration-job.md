@@ -134,6 +134,37 @@ live controller revocation, retries, domain/epoch refusal, consumption across
 compatible upgrades and rollback. Evidence is recorded below, separately from
 the original bridge's unauthenticated epoch fixture.
 
+## Mixed lifecycle histories
+
+The installed [mixed-history test](../ic-storage-retention-probe/tests/provider_link/migration/tests/job/history.rs)
+uses a separate VecDeque logical oracle and explicit capacity expectations.
+It starts with empty/spare, exact-capacity and full 512-element roots. Each runs
+96 operations with fixed seeds 17, 41 and 97; a directed opening covers capacity
+refusal, normal errors, removal/shrink/growth and both trap boundaries. Later
+blocks vary the order while exercising all ten operation kinds. Values, root,
+domain and custody are checked after every operation. Ordinary updates must
+leave all stable bytes unchanged; traps must preserve the complete native
+observation as well.
+
+Across those histories, twelve compatible upgrades preserve complete native
+observations and stable bytes. Twelve portable cutovers alternate domains at
+successive epochs, each preceded by a failed reconstruction that must preserve
+the frozen source, module and complete stable memory. The oracle continues
+across cutovers without taking values from the implementation. Portable
+reconstruction resets capacity to logical length, preserves counter 41, and
+supports subsequent mutation and allocation. Three final reuse operations check
+allocation after the last return migration. This is a fixed reproducible corpus,
+not exhaustive state-space exploration or randomized fuzzing.
+
+On 16 November 2026, `make native-job-test` passed on x86_64 Linux with Rust
+1.100.0 and the prepared PocketIC server: nine host job tests, fourteen artifact
+checks and seven job checks, including this new installed history suite. The
+job phase took 39.41 seconds excluding preparation. Cohort
+`target/evidence/provider-link/attempt.o0IL59/` retains the exact test sources,
+compiler/bridge inputs, candidate artifacts, `job.txt` and completion marker.
+Strict host/wasm Clippy passed. The history test adds no Wasm behavior or wire
+format; it qualifies composition of existing operations within the stated bounds.
+
 ## Limits
 
 Controllers can install arbitrary code or restore an entire older stable-memory

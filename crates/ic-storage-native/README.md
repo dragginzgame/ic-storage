@@ -23,3 +23,7 @@ The existing checkpoint/job gates additionally exercise portable reconstruction.
 Installed scope cases cover normal callback errors, full-capacity refusal and
 forgotten views across compatible upgrades. They check settlement before reply
 and distinguish these outcomes from whole-message trap rollback.
+The separate [provider-host fixture](../../qualification/ic-storage-native-feasibility/provider-region.md#host-poisoning-and-explicit-replacement)
+tests caller-owned poisoning across caught unwinds and explicit checkpoint
+replacement using the same core and region controller. The core itself does not
+own that failure policy or make unwinding transactional.

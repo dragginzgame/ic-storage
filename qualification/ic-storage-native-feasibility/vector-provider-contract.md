@@ -112,6 +112,13 @@ or destructor cleanup is attempted. Fault tests compare the complete header and
 payload and the installed module hash after refused upgrades. They do not claim
 that all transient scratch bytes are directly observed.
 
+The closed `vector_error_finalize_trap` endpoint injects a trap immediately after
+native owner release/return and before descriptor publication, custody settlement
+or selector reset. Artifact inspection checks this exact instruction order;
+installed tests compare all header/payload bytes and then continue native access
+and compatible upgrades. This covers a failed finalization boundary, not a
+recoverable business refusal or a destructor-based cleanup path.
+
 Returning a business Err does not undo earlier writes. Operation 6 changes the
 first scalar, attempts one append, then returns an ordinary callback Err even
 when the append succeeds. At full capacity append refuses but the first write

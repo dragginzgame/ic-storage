@@ -1,7 +1,8 @@
 # Native allocation-domain feasibility
 
-Status: candidate experiment, 15 November 2026; gate 1 remains open. This note
-narrows the next native investigation after the live-arena suspension and
+Status: historical feasibility investigation begun 15 November 2026, with later
+results linked below. Current priorities belong to the [architecture](../DESIGN.md).
+This note records the investigation after the live-arena suspension and
 checkpoint proofs. It is not permission to interpret retained bytes as Rust
 objects, a selected product ABI or a completed unsafe-code argument.
 

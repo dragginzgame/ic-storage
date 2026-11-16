@@ -1,6 +1,6 @@
 # Native feasibility
 
-These experiments cover parts of design gate 1: scoped ownership, compiler
+These experiments cover the supported runtime's scoped ownership, compiler
 layout diagnostics and live allocation custody. They are fixture code, not a
 product API or a retained heap implementation. The ownership-model library accepts
 Global or explicit live allocators and forbids unsafe code. A separate private
@@ -36,6 +36,14 @@ does not justify reclamation under forgotten raw/provider loans in a future
 kernel. Those loans, shared owners, arbitrary application Drop and async
 execution remain excluded.
 
+The separate [provider-host fixture](provider-region.md#host-poisoning-and-explicit-replacement)
+now applies poison-before-entry and explicit checkpoint replacement to the actual
+region controller and shared scoped core used by the installed vector. It checks
+caught unwinds, failure after owner release or root publication, and partial
+candidate failures without reopening poisoned state.
+Its backing and checkpoints are host-owned; no durable provider or process-restart
+contract follows from this test.
+
 ## Layout and pointer gate remains open
 
 | Representation | Evidence available here | Retained admission |
@@ -50,10 +58,13 @@ matching addresses or passing these tests would not supply complete private
 representation evidence. No lifetime or provenance is carried across executable
 instantiation. The compiler diagnostic experiment below exposes private header
 offsets but does not select a certified std build, custom collection format or
-compiler extension. Gate 1 still requires complete admission evidence before the
-first retained native vector. The [next domain experiment](../../docs/design/native-allocation-domain.md)
-separates backing ownership from allocator issuance. [Logical recovery](checkpoint-format.md)
-already works on the host; native admission and migration qualification remain open.
+compiler extension. These limitations describe the earlier live ownership model;
+the later [provider contract](vector-provider-contract.md) qualifies a bounded
+installed vector by retaining scalar payload and controlled metadata, with a
+fresh transient std header. The [runtime policy](../../docs/DESIGN.md#supported-runtime-contract)
+permits controlled records and application conversions to build on that evidence.
+Universal layout certificates and cross-compiler migration are deferred; every
+new retained representation still needs its own safety and portable contract.
 
 ## Compiler layout diagnostics
 
@@ -146,5 +157,5 @@ explicit portable recovery preserves the existing target on failed import.
 Both commands passed on x86_64 Linux with Rust 1.100.0. Raw IR, source snapshots,
 compiler identity, host observations and reports remain
 under `target/evidence/native-layout/attempt.*/`. COMPLETE marks successful
-diagnostic collection and comparison, never persistence admission. Native macOS
-execution and installed native persistence are not established; gate 1 is incomplete.
+diagnostic collection and comparison, never persistence admission. These diagnostic
+results establish neither native macOS execution nor installed native persistence.

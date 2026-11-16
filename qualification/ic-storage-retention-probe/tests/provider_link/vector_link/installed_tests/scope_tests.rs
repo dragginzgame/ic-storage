@@ -35,6 +35,9 @@ async fn callback_errors_and_forgotten_views_finalize_custody_across_upgrades() 
     let b = candidate(Profile::B);
     for root in [(0, 0), (0, 8), (3, 3), (3, 4), (512, 512)] {
         let id = install(pic, candidate(Profile { root, ..Profile::A })).await;
+        // Include the original empty/spare roots before successful operations
+        // change their length. Native release has completed at this failpoint.
+        rejected_update(pic, id, "vector_error_finalize_trap").await;
         // Forgetting an empty view must leave even spare allocation custody intact.
         let before = observe(pic, id).await;
         update(pic, id, "vector_forget").await;
@@ -74,6 +77,9 @@ async fn callback_errors_and_forgotten_views_finalize_custody_across_upgrades() 
             // A subsequent trap undoes this entire call, including a settled
             // ordinary error. Earlier successful calls must remain committed.
             rejected_update(pic, id, "vector_error_trap").await;
+            // A business Err cannot turn failed finalization into a successful
+            // call. Compare the complete header and payload before reopening.
+            rejected_update(pic, id, "vector_error_finalize_trap").await;
             update(pic, id, "vector_forget").await;
             let forgotten = observe(pic, id).await;
             forgotten.settled();

@@ -1,6 +1,6 @@
 # Architecture
 
-Status: selected research direction, 15 November 2026. Native retained
+Status: selected research direction, revised 16 November 2026. Native retained
 collections with explicit application-type conversion and a portable migration
 path for incompatible runtimes. This supersedes the
 [M0 research plan](design/m0-research-plan.md); it is not a production contract,
@@ -27,6 +27,13 @@ Native access and the portable checkpoint serve different purposes. The
 checkpoint is an exceptional migration/recovery representation, not a second
 authoritative copy maintained on every ordinary update. Routine compatible
 upgrades must not acquire a whole-graph save/load requirement.
+
+The initial product scope supports one explicit runtime contract. Direct reopening
+is qualified within that contract; incompatible compiler, allocator or heap
+changes use a planned migration procedure that may require downtime. Universal
+compiler portability and automatic compatibility discovery are not prerequisites
+for useful records, type declarations and application migrations. This narrows
+the compatibility promise without changing memory-safety obligations.
 
 The product crate currently implements M0, a safe, byte-defined record model with
 a fixture-only live-memory kernel. Separate qualification fixtures now exercise
@@ -110,15 +117,18 @@ stability boundaries. This supplies an allocation API, not persistence admission
 explicitly exclude a stable ABI and field order. These sources were checked on
 15 November 2026; no native-persistence proof follows from API availability.
 
-Complete layout admission is the decisive first gate. For every retained
-representation, record how its complete concrete layout is measured or
-authoritatively specified, including private collection nodes, allocator
-metadata and initialized versus unused storage. The referenced
+Establish the representation contract for the subset actually retained. Record
+its layout, initialized versus unused storage, ownership and interpretation
+rules within the supported runtime. Controlled layouts and public reconstruction
+interfaces can avoid retaining private runtime headers entirely. Private nodes
+or allocator metadata that do persist still need an explicit justification;
+matching sizes, source hashes or successful upgrade tests alone are insufficient.
+
+Universal layout certification is deferred. The referenced
 [representation certificates](https://github.com/Neutrinomic/cdk-rsx/blob/ae5d3791361ff00a609ae9adf80e064ca08b14a4/ver1/crates/cdk-rsx-memory-abi/README.md)
 depend on compiler-derived metadata, private-layout recipes and controlled std
-builds; an ordinary derive macro does not reproduce those mechanisms. Reject
-unresolved private layouts. Matching sizes, source hashes or successful upgrade
-tests cannot substitute for establishing the representation.
+builds; reproducing that infrastructure is not a prerequisite for the first
+record API. An ordinary derive macro does not supply those certificates either.
 
 If the selected toolchain cannot establish a private representation, choose a
 representation we control or make a separate explicit compiler-tooling decision
@@ -208,13 +218,14 @@ an attribute that merely skips their serialization would not make their native
 representation safe to retain. Application code should not implement unsafe
 layout or pointer reconstruction to use the derive.
 
-The derive describes the contract and connects its checks; it is not a layout
-certificate, allocator authority or upgrade admission decision. Compiler tooling
-or a representation we control must separately establish the complete actual
-layout, including collection internals. The kernel must establish allocation
-and pointer validity before generated views can access a retained value.
-Implement the derive only after the small native lifecycle and portable proof
-establish these mechanisms; this surface does not change the gate ordering.
+The derive describes the contract and connects its checks; it is not allocator
+authority or permission to reinterpret arbitrary bytes. Begin with records whose
+retained representation the runtime controls, using the existing scalar/vector
+lifecycle and portable proof as the foundation. Implement concrete declarations
+and a hand-written conversion first; derive generation should remove proven
+boilerplate. It need not wait for universal private-layout certificates or an
+actual compiler transition. The kernel must still establish allocation and
+pointer validity before generated views access each newly admitted type.
 
 ### Borrowing and ownership boundaries
 
@@ -276,6 +287,24 @@ the view is forgotten. A later trap rolls back its whole IC message. This remain
 a closed operation selector, not arbitrary application callbacks, owning
 elements, native-host poisoning or record conversion.
 
+The closed installed fixture also injects a trap after Rust releases the owner
+and returns, before the wrapper publishes its descriptor and settles custody.
+Full header/payload comparisons and subsequent operations/upgrades verify that
+rollback restores usable custody even when the callback returned a business Err.
+
+A separate [provider-host fixture](../qualification/ic-storage-native-feasibility/provider-region.md#host-poisoning-and-explicit-replacement)
+now connects this same scoped core and region controller to native-host failure
+policy. Poison is set before admission/callback execution and cleared only after
+owner release and root publication. A panic escaping the callback leaves actual
+partial writes and blocks subsequent access/export even when caught outside.
+Injected finalization failures after release and after descriptor publication
+also keep poison set. A published root alone does not mean access is safe;
+availability is restored only after the entire frame completes successfully.
+Explicit checkpoint replacement builds a fresh private candidate; invalid input
+or failed construction leaves the prior host intact, including its poison state.
+This is a 16-element host-only policy proof with caller-held checkpoint bytes,
+not durable checkpoint custody, native process restart or a new product API.
+
 Keep allocator/kernel unsafe operations private and narrowly reviewed.
 The existing M0 crate continues to forbid unsafe Rust; adopting this direction
 does not remove that prohibition. A native implementation needs a separately
@@ -327,13 +356,33 @@ compiler/std changes, private collection implementation changes, allocator or
 Store metadata revisions, or a wasm32/wasm64 transition. Interpretation can
 change without a physical change, for example a new map comparator.
 
-Admit the complete supported source contract before following saved native
-pointers. The contract must bind the actual target's physical layouts, ownership
-and interpretation policies, allocator/kernel geometry and compiler/SDK class.
-Measure nested and private representations; do not accept an outer record's
-size or a compiler hash as a substitute. Any compatibility qualification must
-retain the same read/write invariant and exact tested artifact provenance.
-It cannot make different layouts equivalent by relabelling their digests.
+### Supported runtime contract
+
+Initially qualify one configuration: the pinned Rust 1.100.0 toolchain, wasm32
+target, selected dependency/features and build settings, allocator/provider
+contract, retained representations and startup/ownership rules. Record these as
+the supported runtime contract; this is a design policy, not a new implemented
+manifest or admission API. Application schema identities remain separate.
+
+Ordinary application releases may reopen directly when their actual retained
+representations and interpretation remain compatible under that contract.
+Pinning a compiler or assigning a runtime version is not proof that arbitrary
+Rust layouts match between builds. For the supported subset, use explicitly
+specified representations or a reviewed mechanism establishing the layouts
+actually retained. Do not require certificates for transient Vec headers that
+are reconstructed through public interfaces and never retained.
+
+A change outside the supported configuration defaults to planned export/import.
+Direct reopening across it requires a separately reviewed compatibility extension;
+it is optional, not a commitment to prove every compiler or allocator transition
+compatible. Unknown contracts refuse before typed access and never trigger an
+automatic empty-state reset or destructive reconstruction.
+
+The exact compiler-body, stack and access inventories in the current fixtures
+remain binding for those experiments. They are evidence for their particular
+unsafe boundary, not the intended permanent application compatibility interface.
+Replacing them requires a justified runtime boundary; this policy does not
+disable existing guards or relabel different artifacts as equivalent.
 
 ### Allocation and pointer validity
 
@@ -353,50 +402,17 @@ hash, byte copy, or passing native/installed test is not by itself that argument
 If a complete justification cannot be established, reject the native mechanism
 and choose a supported representation or explicit compiler/runtime integration.
 
-The [live allocation boundary experiment](../qualification/ic-storage-native-feasibility/allocation-boundary.md)
-now exercises one narrower mechanism: park a vector while its original arena
-allocation remains live, validate a unique token against an allocation ledger,
-and reconstruct a fresh std header through the public raw-parts API. It derives
-pointers from the original allocation rather than integer addresses. This is
-not an IC reopening argument: it does not establish a new allocation domain
-after instantiation. Ephemeral std headers are a candidate alternative for this
-subset, not a selected product ABI or a solution for private collection nodes.
+The current [vector provider contract](../qualification/ic-storage-native-feasibility/vector-provider-contract.md)
+retains controlled metadata and u64 payload while rebuilding transient Vec and
+allocator headers through public reconstruction interfaces. Its foreign provider
+establishes backing ownership before fresh allocator issuance; the installed
+fixtures qualify only that bounded contract. General private collection nodes
+and arbitrary Rust heaps need separate admission.
 
-The private [allocation-ledger image](../qualification/ic-storage-native-feasibility/ledger-format.md)
-specifies fixed-width versioned metadata without relying on Rust struct layout.
-It rejects active-owner export, corrupt framing and contradictory allocation
-records. Decoding grants no allocation custody and never installs a live ledger;
-the domain/pointer mechanism and complete root inventory remain separate gates.
-
-The [single-root suspension fixture](../qualification/ic-storage-native-feasibility/suspension.md)
-now checks complete allocation accounting for one live vector, freezes its arena
-and consumes its original token exactly once on resume. Extra or forgotten
-allocations refuse admission; dropping or forgetting suspension leaves the arena
-unavailable for reuse. Matching image bytes cannot substitute for the token.
-This is bounded host inventory evidence, not a durable root inventory or an IC
-allocation-domain proof.
-
-The next [allocation-domain experiment](design/native-allocation-domain.md)
-separates backing-region validity from allocator-issued block authority. It
-investigates explicit custody transfer to a fresh controller over independently
-owned backing, followed by allocation issuance without overwriting initialized
-payloads. A bounded [scalar provider contract](../qualification/ic-storage-native-feasibility/scalar-provider-contract.md)
-now supplies the first installed experiment; allocator issuance and native vectors
-still require their complete compiler/startup contract. Decoding a ledger or
-declaring a foreign symbol cannot establish either authority.
-
-The private [backing-transfer fixture](../qualification/ic-storage-native-feasibility/transfer.md)
-now consumes explicit source authority, ends that controller and issues the same
-span through a fresh controller over the original live Box. It preserves values
-and supports reclamation while rejecting duplicate claims and failed issuance.
-This supplies host controller-replacement evidence, not an IC backing provider.
-
-Destination geometry now bounds usable allocation space independently of the
-physical backing. Native spans outside that region refuse before issuance and
-return original custody. Host checkpoint tests explicitly discard that refused
-native source and reconstruct its logical state into a smaller fresh arena.
-This connects both routes under an actual allocator-capacity constraint; it does
-not qualify a different compiler, retained ABI or installed native transition.
+Earlier live-arena, ledger, suspension and backing-transfer experiments are
+[listed with their evidence](#8-evidence-and-next-implementation-gates). They
+establish narrower host mechanisms; none substitutes for the provider contract
+or grants authority merely from a decoded address or matching descriptor.
 
 ### Lifecycle ordering
 
@@ -502,6 +518,24 @@ compatible source executable, toolchain/locks and artifacts needed to operate it
 Do not depend on retrofitting an exporter after losing the ability to open the
 source heap.
 
+### Planned runtime replacement
+
+Major compiler, allocator or heap-format changes may use an operator-run procedure
+with application downtime. Freeze writes, export through the retained compatible
+source executable, verify an independently readable complete checkpoint, then
+replace the runtime and reconstruct logical state before reopening access. Keep
+the source executable and its build inputs available; a dedicated exporter may
+use that old toolchain, but must itself be compatible with the source heap.
+
+The first implementation needs a tested bounded escape route, not seamless or
+automatic migration across arbitrary compiler versions. Existing tests between
+incompatible allocation domains supply that bounded research evidence. A real compiler
+transition needs qualification when selected; it does not block application
+record work within the current contract. Maintenance procedures, chunked export,
+large-state orchestration and post-cutover recovery must meet a consumer's actual
+needs before deployment, rather than becoming universal early API prerequisites.
+No rollback to an old checkpoint may silently discard newer application writes.
+
 ### Checkpoint contract
 
 The checkpoint represents logical owned state, not native memory dumps, pointer
@@ -543,84 +577,35 @@ Unknown or corrupt anchors never trigger that path automatically.
 
 ### Transitional checkpoint provider
 
-Select published ic-storage 0.74.1 as the initial legacy provider baseline behind
-a narrow checkpoint adapter, subject to the installed migration proof. This is
+Use published ic-storage 0.74.1 as the initial legacy provider baseline behind
+a narrow checkpoint adapter. This is
 a transitional dependency on a frozen provider contract, not resumption of
-development in the sibling repository or a second product architecture. Pin its
-exact package/artifact, lockfile, stable format and owned checkpoint key/locator
-before the first provider-backed proof. Production access continues to use
+development in the sibling repository or a second product architecture. Maintain
+the qualified package/artifact, lockfile, stable format and owned checkpoint
+key/locator as explicit inputs. Production access continues to use
 governed Storage handles; this design does not authorize raw ungoverned stable
 allocations or silently select a different provider version.
 
-The [installed provider fixture](../qualification/ic-storage-checkpoint-provider-probe/README.md)
-now pins that reader, its directory/cell formats and an owned stable key. It
-exports the bounded scalar/vector checkpoint, performs ordinary upgrades that
-discard the source Wasm heap, and reconstructs through new governed handles.
-Local PocketIC evidence covers A→B→A, continued mutation, refused imports and
-rollback after a target stable write. These are transient Global-owned vectors,
-not retained native allocations: this proves independent provider opening, not
-complete layout admission, direct-reopen refusal or the full native migration gate.
-An explicit version-2 checkpoint now covers the native fixture's full 512-element
-capacity, with installed ordinary-heap recovery and rollback at that bound.
-Version-1 bytes and its 16-element limit remain unchanged. This resolves a wire
-capacity mismatch. The subsequent
-[native checkpoint bridge](../qualification/ic-storage-retention-probe/native-checkpoint.md)
-now exports the retained vector through the same governed adapter and reconstructs
-it at a different native base after explicit heap replacement. Installed evidence
-covers A→B→A, continued allocation, corruption/refusal and export/import rollback.
-The checkpoint runtime's private allocator is not admitted across EOP. The
-additional explicit reopen profile admits native state, discards the entire
-transient domain and restores the target's initialization before checkpoint Rust
-can run. Installed tests connect compatible reopening to export and replacement
-recovery, including poisoned/grown transient memory and failed-upgrade rollback.
-This is a bounded allocation-domain change, not an actual compiler/SDK migration,
-authenticated coordinator or resumable protocol. Whole-transient-domain clearing
-is qualification machinery; its linear cost is not a production performance choice.
+The [checkpoint provider](../qualification/ic-storage-checkpoint-provider-probe/README.md)
+pins the published reader and owned locator. The [native bridge](../qualification/ic-storage-retention-probe/native-checkpoint.md)
+connects retained scalar/vector state to independent checkpoint storage, compatible
+reopening and reconstruction in a different allocation domain. Checkpoint runtime
+headers remain transient; their memory is rebuilt before entering checkpoint Rust.
 
-The separate [governed migration-job fixture](../qualification/ic-storage-native-feasibility/migration-job.md)
-now binds controller-authorized export to a sequential durable epoch and the
-source/target native allocation domains. Successful replacement consumes the
-sealed job atomically with native publication; replay refuses even after a
-compatible upgrade. These geometry bindings are not executable authentication
-or an external anti-rollback anchor. The original checkpoint locator/codec and
-their earlier evidence remain separate and unchanged in meaning.
+The [governed job](../qualification/ic-storage-native-feasibility/migration-job.md)
+adds controller authority, durable epochs, consumption, pre-cutover cancellation
+and frozen-source resumption. The [staged import](../qualification/ic-storage-native-feasibility/staged-import.md)
+adds bounded batches, exact retries, compatible interruption and explicit restart
+from the independent checkpoint. Restart replaces the unfinished heap; it cannot
+replay a completed job or silently discard subsequent application writes.
 
-The same bounded job now supports controller-authorized cancellation before
-heap replacement. It records Cancelled and returns the original frozen native
-allocation to ready custody in one update, preserving its values and capacity.
-Retries leave subsequent native writes intact; the retired checkpoint cannot
-be imported, and another export requires the next epoch. Installed tests cover
-cancellation rollback, compatible reopening and refusal after consumption.
-This does not provide cancellation after cutover or resumable multi-message work.
-
-An explicit frozen-resume target now preserves a sealed source across compatible
-upgrades. It validates frozen native custody without opening a Rust owner,
-rebuilds transients, and compares the independent sealed job's epoch, destination
-and complete logical values with the retained source. It leaves both the job and
-native payload unchanged and keeps writes blocked. Cancellation and replacement
-recovery remain available afterward; ordinary ready-state reopening still
-refuses frozen state. This is bounded source continuity, not general resumable
-conversion or authentication of an executable by its geometry.
-
-The [staged-import fixture](../qualification/ic-storage-native-feasibility/staged-import.md)
-now extends that job with a versioned durable cursor. Explicit heap replacement
-starts an unpublished native prefix; controller-authorized updates copy at most
-64 values and commit prefix/cursor together. Exact latest-request retries do not
-repeat writes. A separate compatible-resume profile rebuilds transients and
-compares the retained prefix with the checkpoint before continuing. Only the
-final batch publishes the native root and consumes the job. This proves bounded
-cross-message construction for one vector, not large-graph scalability: each
-step still reads/validates the complete checkpoint (at most 512 elements), and
-native-prefix verification and transient clearing have their own bounded costs.
-
-An explicit restart target now recovers unfinished imports by replacing the
-partial heap and resetting its cursor from the same validated independent
-checkpoint. It can skip a refusing old upgrade hook without interpreting native
-prefix data. Wrong bindings, corrupt checkpoints and already completed jobs
-refuse; initialization traps restore the prior module, heap and stable bytes.
-This bounded path preserves the existing target domain and permits no native
-writes or external effects during import. General recovery authority, graph
-identity and migration to a different target remain separate qualification work.
+These are installed proofs for one counter and at most 512 u64 values, including
+refusal, rollback and repeated domain migrations. They do not qualify a real
+compiler transition, arbitrary graphs or production recovery authority. Each
+staged batch still validates the complete bounded checkpoint; whole-transient-
+domain clearing is fixture machinery, not a production cost commitment. Detailed
+protocols, artifact identities and historical outcomes belong to the linked
+qualification records rather than this architecture.
 
 This repository owns the checkpoint envelope, locator/adapter specification,
 source/target conformance fixtures and maintenance of the qualified reader
@@ -646,8 +631,9 @@ conversion while its admitted reader remains available, conformance tests and
 installed recovery evidence. It is not implied by replacing the application
 storage API. Stable memory is not automatically independent of software formats.
 External backup may be an additional operational route, but is not assumed
-implemented. The first small native export/import proof must exercise this
-boundary before application converters are expanded.
+implemented. The installed bounded native export/import fixtures exercise this
+boundary. Extend their logical contract and recovery checks alongside new
+application types; a production provider cutover remains separately qualified.
 
 ### Source-to-target protocol
 
@@ -732,9 +718,10 @@ empty qualification packages or speculative collection APIs.
 
 ## 8 Evidence and next implementation gates
 
-Existing repository-recorded evidence is scoped to M0 and its fixtures. The
-design review and documentation update do not independently rerun or verify
-those historical results; each linked record owns its artifacts and test scope:
+Repository evidence covers M0, native ownership models and installed bounded
+scalar/vector lifecycle and migration fixtures. Each linked record owns its
+artifact identities, observed outcomes and limits; historical results do not
+automatically qualify a later source revision:
 
 | Evidence | What it establishes |
 | --- | --- |
@@ -752,12 +739,17 @@ those historical results; each linked record owns its artifacts and test scope:
 | [Native ownership experiment](../qualification/ic-storage-native-feasibility/README.md) | Host-only scalar/vector confinement, tracked moves, forgotten-ticket quarantine and ordinary Err/panic behavior |
 | [Compiler layout diagnostics](../qualification/ic-storage-native-feasibility/README.md#compiler-layout-diagnostics) | Stable-compiler debug metadata exposes selected private Vec header fields on host/wasm32; equal-sized reordered records are distinguished |
 | [Live allocation custody](../qualification/ic-storage-native-feasibility/allocation-boundary.md) | A private host arena supports real std vectors, same-domain parking/reopening, run reuse and selected failure/forgetting cases |
+| [Scoped arena ownership](../qualification/ic-storage-native-feasibility/scoped-ownership.md) | Live host allocation confinement, tracked attachment/retirement and quarantine; no retained std header |
+| [Allocation ledger](../qualification/ic-storage-native-feasibility/ledger-format.md) | Versioned host allocation metadata and structural refusal; decoding grants no allocation authority |
+| [Single-root suspension](../qualification/ic-storage-native-feasibility/suspension.md) | Host allocation accounting and one-use source authority; no IC allocation-domain proof |
+| [Backing transfer](../qualification/ic-storage-native-feasibility/transfer.md) | Fresh controller issuance over the original live host allocation, with refusal and reclamation checks |
 | [Scalar/vector checkpoint](../qualification/ic-storage-native-feasibility/checkpoint-format.md) | Bounded logical bytes, refusal cases and reconstruction after source-arena teardown; candidate failure preserves the existing host root |
 | [Installed checkpoint provider](../qualification/ic-storage-checkpoint-provider-probe/README.md) | Fresh governed handles reconstruct scalar/vector state after ordinary upgrades discard Wasm memory; selected failed imports preserve the previous module, heap observations and stable bytes |
 
-These do not qualify retained native allocator metadata, standard-library
-layouts across upgrades, retained destruction, native pointer retention, schema
-conversion or a native incompatible-runtime transition.
+These do not qualify retained private allocator metadata or standard-library
+headers, arbitrary owning-element destruction, old Rust pointer retention,
+application schema conversion or an actual compiler/SDK transition. The native
+portable proof uses two incompatible allocation domains within one toolchain.
 M0 remains a regression/evidence baseline; it is not the new persistent ABI.
 The [frozen M0 format](design/m0-layout.md) remains unchanged.
 
@@ -767,11 +759,13 @@ Global and explicitly supplied live arena allocations. Its
 cover actual run custody, quarantine, reclamation and entry after fresh native
 issuance. Its std Vec is not retained or certified.
 The separate live-arena and checkpoint experiments establish same-domain
-reopening and a host logical round trip. The provider fixture adds installed
-bounded checkpoint recovery without establishing cross-instance native allocation
-validity. Gate 1 is still incomplete. Shared-owner cloning, provider
-loans and owning elements
-remain excluded rather than being inferred safe from the scalar-vector cases.
+reopening and a host logical round trip. The later provider fixture supplies a
+separate, narrowly reviewed foreign-allocation contract and installed bounded
+checkpoint recovery. These establish a scalar/vector foundation, not general
+cross-instance Rust heap validity. Shared-owner cloning, escaping provider loans
+and owning elements remain excluded rather than being inferred safe from those
+cases. Their unresolved general admission does not block controlled scalar
+records under the supported runtime contract.
 
 The compiler diagnostic probe supplies a candidate measurement source for private
 headers without a nightly compiler. Its recursive metadata observations are not
@@ -780,38 +774,34 @@ debug-metadata fidelity, controlled std provenance and binding to the actual
 optimized executable remain unresolved. Do not use a diagnostic report or its
 successful collection marker to authorize retained interpretation.
 
-Proceed with bounded experiments in this order:
+Continue from the existing bounded lifecycle and portable evidence in this order:
 
-1. **Complete layout and custody feasibility.** Use one integer record and one
-   retained vector on Rust 1.100.0. Inventory every retained representation and
-   provide authoritative layout evidence, initialization and interpretation
-   rules, allocation/pointer validity and the ownership-escape argument. A
-   working Allocator API or matching sizeof is insufficient. Resolve private
-   layouts through a supported mechanism or choose a controlled representation;
-   do not build a wrapper library around an unresolved certificate. Define the
-   small subset's portable contract at the same time.
-2. **Compatible native lifecycle and reclamation.** Install A, populate that
-   subset, upgrade to compatible B, grow/shrink/remove/release/reuse under B and
-   perform a supported compatible downgrade. Prove startup separation, rejection
-   before native interpretation, owner/reference confinement and failed-update/
-   upgrade rollback. Exercise partial construction, malformed metadata, ordinary
-   business Err, trap/poison, owner extraction and forgotten guards/tickets.
-3. **Incompatible-runtime portable proof.** Export the same integer record and
-   vector under A; make B deliberately incompatible with A's allocator or layout.
-   Verify direct reopen fails, then use the independent checkpoint provider to
-   reconstruct under B without opening A's heap. Verify values, roots, ownership
-   and continued allocation/reclamation, plus partial export/import, corrupt or
-   truncated input, restart and recovery. Shared/cyclic types remain outside this
-   initial subset; their identity-preserving round trips are required before
-   later admission. A real compiler/SDK transition remains a separate case if
-   this proof uses synthetic incompatible layouts. This gate precedes investment
-   in application converters or further collection types.
-4. **Application-type conversion.** Add a field while preserving an unchanged
-   collection; change element types with explicit identities/ownership; verify
-   overflow, incompatible-source refusal and failed-conversion rollback and
-   destruction. Admit shared owners only with confinement, tracked sharing and
-   identity-preserving portable tests. Every newly admitted type must already
-   have its export/import contract and exercised round trip.
+1. **Controlled records and declarations.** Define the first concrete versioned
+   scalar record under the supported runtime contract, with stable schema identity,
+   explicit retained layout and scoped access. Inventory only representations
+   actually retained; establish their initialization, pointer and ownership rules.
+   Extend logical export/import and exercise a round trip with the record. Keep
+   transient services and private std headers outside persistent state.
+2. **Application conversion and lifecycle.** Add a field with an explicit default
+   while preserving an unchanged admitted vector. Implement a hand-written V1→V2
+   conversion, then exercise compatible reopening, source-version refusal,
+   conversion failure/rollback, continued allocation and portable recovery of V2.
+   Preserve existing poison, forgotten-view and owner-confinement regressions.
+   Do not require an actual compiler transition to run this experiment.
+3. **Derive-backed application surface.** Generate declarations, scoped views and
+   codecs from those demonstrated contracts. Keep conversion policy explicit and
+   reject unsupported fields. Add changed scalar/element types with checked range
+   and meaning conversions. Extend collections only as concrete use requires;
+   each new representation needs its own lifecycle and portable round trip.
+   Shared owners require tracked sharing and identity-preserving recovery before
+   admission; arbitrary private collection layouts remain outside this scope.
+4. **Selected runtime replacement.** When a compiler, allocator or heap change is
+   needed, qualify its planned migration using a compatible source exporter and
+   fresh destination. Verify incompatible direct reopen refuses, checkpoints can
+   be read independently of the discarded heap, failures preserve a recoverable
+   state, and allocation continues after reconstruction. Accept maintenance
+   downtime. This work is scheduled for the actual transition, not imposed as a
+   universal portability gate on steps 1–3.
 5. **Scale and recovery.** Qualify the chosen large-state protocol, capacity
    failures, bounded progress, downtime and post-cutover recovery policy before
    any consumer requires them.
@@ -820,12 +810,12 @@ Proceed with bounded experiments in this order:
    complete-call costs, memory, allocation/reclamation and all upgrade paths.
    Select a separately authorized consumer only after migration gates pass.
 
-Do not broaden the collection library before the native lifecycle and migration
-proofs establish the direction. Stop or revise the mechanism if source layouts
-cannot be completely admitted, transient ownership cannot be excluded, migration
-cannot fit the required operational budgets, or compatible source readers cannot
-be maintained. A portable path that has never restored data is not an escape
-route.
+Scope admission to each concrete feature rather than blocking all application
+work on general heap portability. Stop or revise an affected feature if its
+retained representation cannot be justified, transient ownership cannot be
+excluded, its recovery path has never restored data, or compatible source readers
+cannot be maintained. Operational migration budgets become a release requirement
+for the state sizes and transitions actually supported.
 
 Production requires its own custody, type coverage, reclamation, large-state,
 dependency, quiescence, corruption, migration and recovery qualification.

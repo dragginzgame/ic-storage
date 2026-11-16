@@ -1,6 +1,6 @@
 //! Explicit post-cutover recovery from the independent checkpoint, not old heap data.
 use super::super::installed::replace_heap_with_options;
-use super::staged::{batch_args, progress, refused, resume};
+use super::staged::{batch_args, progress, resume};
 use super::*;
 
 async fn refused_restart(
@@ -31,9 +31,7 @@ async fn refused_restart(
 #[tokio::test(flavor = "current_thread")]
 #[ignore = "native-job-test supplies fresh compiled inputs and the prepared server"]
 async fn explicit_restart_recovers_partial_heaps_but_never_completed_or_corrupt_jobs() {
-    let (directory, _) = super::super::super::super::input();
-    let raw = fs::read(directory.join("vector/provider_vector.wasm")).unwrap();
-    let bridge = fs::read(directory.join("checkpoint-job.wasm")).unwrap();
+    let (directory, raw, bridge) = job_inputs();
     let save = |bytes: Vec<u8>| {
         let digest = Sha256Digest::compute(&bytes);
         fs::write(directory.join(format!("restart-{digest}.wasm")), &bytes).unwrap();
@@ -143,9 +141,9 @@ async fn explicit_restart_recovers_partial_heaps_but_never_completed_or_corrupt_
                 (5, target, 0, 0, 3)
             );
             assert!(logical(&observation).is_empty());
-            refused(pic, id, id, "vector_reuse", vec![]).await;
+            refused_update(pic, id, id, "vector_reuse", vec![]).await;
             // Old progress is no longer an acknowledgement, and zero is required.
-            refused(
+            refused_update(
                 pic,
                 id,
                 id,

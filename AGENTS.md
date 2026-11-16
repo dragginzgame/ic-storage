@@ -24,11 +24,15 @@ qualification. Do not copy Storage's release machinery.
 - Follow its selected native retained-collection direction with explicit schema
   conversions and a portable migration/recovery path for incompatible runtimes.
   Preserve M0 as a byte-defined evidence baseline; do not treat it as the new
-  native ABI or continue a parallel M0 collection architecture. Prove complete
-  layout/pointer admission and scoped ownership, then native lifecycle and the
-  incompatible-runtime portable path before application converters and broader
-  collection support. Follow the design's explicit transitional checkpoint
-  provider boundary without modifying the frozen sibling repository.
+  native ABI or continue a parallel M0 collection architecture. Initially support
+  one explicit runtime contract: qualify the representations actually retained,
+  pointer validity, scoped ownership and their lifecycle. Use planned portable
+  migration for incompatible runtimes; universal layout certificates, automatic
+  compatibility discovery and actual cross-compiler migration are not prerequisites
+  for records and application converters within the supported contract. Each new
+  stored type still needs its representation and tested portable path. Follow the
+  design's explicit transitional checkpoint provider boundary without modifying
+  the frozen sibling repository.
 - Treat its [pinned cdk-rsx-store reference](docs/DESIGN.md#pinned-cdk-rsx-store-design-basis)
   as an additional design basis; preserve the recorded review scope and pin.
 - Independently author the implementation from published behavior and interface
