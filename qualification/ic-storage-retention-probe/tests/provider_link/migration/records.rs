@@ -2,8 +2,9 @@
 use super::{
     LIMIT,
     artifact::{self, Post},
-    compile_native, native_source, wasm,
+    compile_native, native_source,
 };
+use ic_storage_retention_probe::artifact::validate_wasm;
 
 pub(super) fn prepare(
     raw: &[u8],
@@ -38,6 +39,6 @@ pub(super) fn prepare(
     );
     source.push(')');
     let bytes = artifact::combine(&compile_native(raw, &source), bridge, post);
-    wasm::validate(&bytes, LIMIT).unwrap();
+    validate_wasm(&bytes, LIMIT).unwrap();
     bytes
 }

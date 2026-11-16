@@ -1,8 +1,8 @@
 //! Execute only the admitted fixed-scalar foreign-allocation contract.
 
+use ic_storage_retention_probe::artifact::sha256_hex;
 use std::{fs, time::Duration};
 
-use ic_host_artifacts::artifact::Sha256Digest;
 use ic_testkit::{
     pic::PocketIcStartupConfig,
     pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking::PocketIc},
@@ -69,7 +69,7 @@ async fn scalar_access_settlement_upgrade_and_rollback() {
     let candidate = |profile| {
         let bytes = artifact::prepare(&raw, profile).unwrap();
         artifact::admit_final(&bytes, &raw, profile).unwrap();
-        let digest = Sha256Digest::compute(&bytes);
+        let digest = sha256_hex(&bytes);
         fs::write(directory.join(format!("{digest}.wasm")), &bytes).unwrap();
         println!(
             "native scalar {profile:?}: sha256={digest} bytes={}",

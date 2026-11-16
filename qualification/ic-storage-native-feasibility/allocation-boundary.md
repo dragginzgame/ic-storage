@@ -1,7 +1,8 @@
 # Live allocation boundary experiment
 
 This experiment covers live-host allocation custody, not IC retention. It uses
-bounded arenas and allocator-backed u64 vectors on Rust 1.100.0. Its private integration
+bounded arenas and allocator-backed u64 vectors on Rust 1.100.0. Fresh scalar-record
+vectors now use the same layout-limited allocator, as described below. Its private integration
 test kernel is separate from the unsafe-forbidden ownership model and M0 crate.
 No application API, stored format or native reopening permission is introduced.
 
@@ -47,10 +48,57 @@ owner. Empty vectors need no block and reconstruct through Vec::new_in.
 These conditions justify the private unsafe Allocator implementation, bounded
 pointer arithmetic and from_raw_parts_in call **within this live-host model**.
 Spare capacity remains MaybeUninit storage and is never read as initialized u64.
-Only u64 elements are admitted, so dropping a vector invokes no application Drop.
+Only u64 elements are admitted for parking/reopening, so dropping those vectors
+invokes no application Drop.
 Default allocator growth copies only the byte spans its contract permits.
 Here, u64 eligibility is enforced by the parking API and the fixture clients;
 the allocator's layout restrictions alone are not a general type-admission test.
+
+### Fresh scalar-record elements
+
+The private `arena::record_elements` tests also allocate fresh `Vec<V2, &Arena>`
+and `Vec<V3, &Arena>` using the existing concrete scalar declarations. Both are
+repr(C), sixteen bytes with eight-byte alignment on this host; their generated
+Copy requirement excludes application Drop and owning fields. These layouts fit
+the allocator's existing disjoint, exact-sized runs without changing allocation
+or pointer reconstruction code. No typed u64 access is made to runs occupied by
+records. The backing's MaybeUninit storage permits uninitialized record padding;
+std Vec moves records under its ordinary allocation contract, while export reads
+only initialized fields through the generated logical codec. Neither spare
+capacity nor native padding is serialized or hashed.
+
+The construction/recovery tests use ordinary fresh Vec allocation. They never call
+the u64-specific park/reopen API with records, retain a private Vec header or
+reconstruct a record from raw saved bytes. Their candidate conversion/import path
+keeps the existing root live until success, and ordinary destruction reclaims
+failed candidates. A forgotten vector leaves its run unavailable; no destructor
+is required to enforce that accounting. Reclaimed runs remain capacity of the
+same Box, not capacity returned to a platform.
+
+The [record collection experiment](records.md#fresh-record-vector-elements)
+owns the bounded test-only portable format, lifecycle checks and next gate.
+This is live-host evidence, not admission for retained record vectors on the IC.
+
+The later [V3 custody extension](records.md#same-live-domain-record-custody) consumes
+a live record vector into a private one-use token. It keeps the original arena
+borrow and captures the exact live allocation generation, initialized length and
+capacity, plus the concrete schema/layout contract. Reopening compares a supplied
+descriptor with that private witness and the whole validated live ledger before
+deriving a pointer from the same Box and calling `Vec::from_raw_parts_in` for V3.
+The allocation never ended, no old Vec/borrow remains, and its exact type, allocator,
+capacity, alignment and initialized prefix are unchanged. No saved integer pointer,
+private std header or new executable is involved.
+
+Record tokens leave the existing ledger's u64 `parked_len` unset. That field cannot
+describe record initialization: V3 padding may be uninitialized, so interpreting
+its occupied words as initialized u64s would be invalid. The private typed token
+is the sole record initialization witness; the existing u64 reopening path refuses
+that allocation. Allocation accounting continues to mark the entire run occupied.
+The token is neither Clone nor constructible from an external descriptor. Successful
+reopening consumes it; failure, dropping and forgetting leave the run unavailable.
+No destructor is needed to prevent duplicate owners or premature reuse. This adds
+one narrowly scoped raw-parts reconstruction to the private host experiment; it
+does not change the allocator implementation or supply IC cross-instance authority.
 
 The [scoped-owner clone tests](scoped-ownership.md) add a private forwarding
 allocator. Each wrapper borrows one unchanged arena and forwards allocation and

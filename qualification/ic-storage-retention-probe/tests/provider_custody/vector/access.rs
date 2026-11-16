@@ -1,8 +1,8 @@
 //! Exercise access helpers as WAT only, before linking any Rust vector body.
 
+use ic_storage_retention_probe::artifact::{compile_wat, validate_wasm};
 use std::time::Duration;
 
-use ic_host_artifacts::{wasm, wasm_text};
 use ic_testkit::{pic::PocketIcStartupConfig, pocket_ic::PocketIcBuilder};
 
 use super::super::{admit, record, update};
@@ -24,15 +24,8 @@ fn candidate(root: (u64, u64), operation: u32, claim: bool, body: &str) -> Vec<u
             ""
         },
     );
-    let bytes = wasm_text::compile(
-        &source,
-        wasm_text::CompileLimits {
-            source_bytes: 16384,
-            module_bytes: 8192,
-        },
-    )
-    .unwrap();
-    wasm::validate(&bytes, 8192).unwrap();
+    let bytes = compile_wat(&source, 16384, 8192).unwrap();
+    validate_wasm(&bytes, 8192).unwrap();
     admit(&bytes).unwrap();
     record("vector access helpers", &bytes);
     bytes

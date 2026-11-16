@@ -1,22 +1,20 @@
 //! Bounded artifact validation for ordinary (heap-discarding) upgrades.
 
+use ic_storage_retention_probe::artifact::{sha256_hex, validate_wasm};
 use std::{fs, path::PathBuf};
 
-use ic_host_artifacts::{
-    artifact::{Sha256Digest, read_reader},
-    wasm,
-};
 use wasmparser::{Parser, Payload};
 
 pub(super) fn input(variant: &str) -> Vec<u8> {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let path = root.join(format!("target/qualification/checkpoint-{variant}/wasm32-unknown-unknown/release/ic_storage_checkpoint_provider_probe.wasm"));
-    let bytes = read_reader(
+    let bytes = ic_host_artifacts::read(
         fs::File::open(path).expect("make checkpoint-provider-build"),
-        1024 * 1024,
+        ic_host_artifacts::Length::AtMost((1024 * 1024) as u64),
     )
-    .expect("bounded artifact");
-    wasm::validate(&bytes, 1024 * 1024).expect("valid Wasm");
+    .expect("bounded artifact")
+    .0;
+    validate_wasm(&bytes, 1024 * 1024).expect("valid Wasm");
     let mut memories = 0;
     let mut exports = Vec::new();
     for payload in Parser::new(0).parse_all(&bytes) {
@@ -70,11 +68,11 @@ pub(super) fn input(variant: &str) -> Vec<u8> {
     );
     let evidence = root.join("target/evidence/checkpoint-provider");
     fs::create_dir_all(&evidence).expect("evidence directory");
-    let digest = Sha256Digest::compute(&bytes);
+    let digest = sha256_hex(&bytes);
     fs::write(evidence.join(format!("{digest}.wasm")), &bytes).expect("artifact evidence");
     let report = format!(
         "ordinary-upgrade fixture {variant}\nsha256={}\nbytes={}\n",
-        Sha256Digest::compute(&bytes),
+        sha256_hex(&bytes),
         bytes.len()
     );
     fs::write(evidence.join(format!("{digest}.txt")), &report).expect("artifact identity");

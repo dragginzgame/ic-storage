@@ -2,6 +2,7 @@
 
 use super::artifact::{admit_graph, prepare_graph};
 use super::*;
+use ic_storage_retention_probe::artifact::{sha256, sha256_hex, validate_wasm};
 use wasm_encoder::{
     CodeSection, Encode, Instruction as I, MemArg,
     reencode::{Reencode, RoundtripReencoder},
@@ -11,11 +12,12 @@ fn input_graph(variant: &str) -> Vec<u8> {
     let path = root().join(format!(
         "target/qualification/graph-{variant}/wasm32-unknown-unknown/release/ic_storage_rust_startup_probe.wasm"
     ));
-    read_reader(
+    ic_host_artifacts::read(
         fs::File::open(path).expect("make managed-graph-build"),
-        1024 * 1024,
+        ic_host_artifacts::Length::AtMost((1024 * 1024) as u64),
     )
     .expect("bounded graph artifact")
+    .0
 }
 
 #[test]
@@ -68,7 +70,7 @@ fn graph_artifacts_have_a_separate_exact_profile() {
                 m.section(&RawSection { id, data });
             }
         });
-        ic_host_artifacts::wasm::validate(&altered, 1024 * 1024).expect("valid negative source");
+        validate_wasm(&altered, 1024 * 1024).expect("valid negative source");
         assert_eq!(
             prepare_graph(&altered).err(),
             Some(if mutate_table {
@@ -156,7 +158,7 @@ fn negative_upgrade(source: &[u8], incompatible: bool) -> Vec<u8> {
             m.section(&RawSection { id, data });
         }
     });
-    ic_host_artifacts::wasm::validate(&negative, 1024 * 1024).expect("negative Wasm");
+    validate_wasm(&negative, 1024 * 1024).expect("negative Wasm");
     negative
 }
 
@@ -176,7 +178,7 @@ async fn refused_upgrade(pic: &PocketIc, id: CanisterId, source: &[u8], destinat
             .expect("status")
             .module_hash
             .expect("module hash"),
-        Sha256Digest::compute(source).as_bytes()
+        &sha256(source)
     );
     pic.start_canister(id, None)
         .await
@@ -228,7 +230,7 @@ async fn managed_graph_survives_installed_upgrades_and_rolls_back_trapped_update
             "mutating-post-trap"
         };
         fs::write(evidence.join(format!("{name}.wasm")), &negative).expect("negative artifact");
-        println!("{name}={}", Sha256Digest::compute(&negative));
+        println!("{name}={}", sha256_hex(&negative));
         refused_upgrade(pic, id, &a.bytes, &negative).await;
     }
     upgrade(pic, id, &b.bytes).await;

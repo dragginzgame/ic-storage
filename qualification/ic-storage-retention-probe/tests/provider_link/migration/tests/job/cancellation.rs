@@ -1,4 +1,5 @@
 use super::*;
+use ic_storage_retention_probe::artifact::sha256_hex;
 
 async fn cancel(pic: &PocketIc, id: CanisterId, epoch: u64, target: u64) {
     pic.update_call(id, id, "cancel_checkpoint", args(epoch, target, 0))
@@ -28,7 +29,7 @@ async fn cancelled_jobs_resume_in_place_without_replaying_retired_epochs() {
     let (directory, raw, bridge) = job_inputs();
     let candidate = |relocated, root, recovery| {
         let bytes = prepare_job(&raw, &bridge, relocated, root, recovery);
-        let digest = Sha256Digest::compute(&bytes);
+        let digest = sha256_hex(&bytes);
         fs::write(
             directory.join(format!("cancellation-{digest}.wasm")),
             &bytes,

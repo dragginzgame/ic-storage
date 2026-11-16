@@ -2,39 +2,9 @@
 //! Only the repr(C) scalar payloads describe native layout; Record is a transient
 //! schema selection, never a retained enum or permission to cast stored bytes.
 //!
-//! Unsupported owners and references refuse during declaration:
-//! ```compile_fail
-//! use ic_storage_native::Store;
-//! #[repr(C)]
-//! #[derive(Store)]
-//! #[store(id = "BADOWNER", version = 1)]
-//! struct Bad { #[store(field = 1)] values: Vec<u64> }
-//! ```
-//! ```compile_fail
-//! use ic_storage_native::Store;
-//! #[repr(C)]
-//! #[derive(Clone, Copy, Store)]
-//! #[store(id = "BADBORRO", version = 1)]
-//! struct Bad { #[store(field = 1)] value: &'static u64 }
-//! ```
-//! The generated Copy requirement also excludes application destruction:
-//! ```compile_fail
-//! use ic_storage_native::Store;
-//! #[repr(C)]
-//! #[derive(Clone, Store)]
-//! #[store(id = "BADDROPP", version = 1)]
-//! struct Bad { #[store(field = 1)] value: u64 }
-//! impl Drop for Bad { fn drop(&mut self) {} }
-//! ```
-//! A misleading scalar name cannot hide another representation:
-//! ```compile_fail
-//! use ic_storage_native::Store;
-//! type u64 = &'static str;
-//! #[repr(C)]
-//! #[derive(Clone, Copy, Store)]
-//! #[store(id = "BADALIAS", version = 1)]
-//! struct Bad { #[store(field = 1)] value: u64 }
-//! ```
+//! Declaration and view-confinement compile-fail cases belong to the product
+//! [`ic_storage_native::Store`] API. This fixture owns conversion, mutation,
+//! retained-layout and recovery evidence for its concrete application schemas.
 
 pub mod narrow;
 
@@ -67,24 +37,6 @@ pub struct V1 {
 ///     view.counter()
 /// });
 /// assert_eq!(counter, 42);
-/// ```
-/// A view cannot leave the scope, including inside a future:
-/// ```compile_fail
-/// use ic_storage_native_feasibility::record::V2;
-/// let mut record = V2::new(41, 100).unwrap();
-/// let escaped = record.store_with(|view| view);
-/// ```
-/// ```compile_fail
-/// use ic_storage_native_feasibility::record::V2;
-/// let mut record = V2::new(41, 100).unwrap();
-/// let future = record.store_with(|view| async move { view.counter() });
-/// ```
-/// Nor can an outer capture retain the view:
-/// ```compile_fail
-/// use ic_storage_native_feasibility::record::V2;
-/// let mut record = V2::new(41, 100).unwrap();
-/// let mut escaped = None;
-/// record.store_with(|view| escaped = Some(view));
 /// ```
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ic_storage_native::Store)]

@@ -11,11 +11,8 @@ mod vector_link;
 mod vector_stack;
 
 use artifact::Profile;
+use ic_storage_retention_probe::artifact::{sha256_hex, validate_wasm};
 
-use ic_host_artifacts::{
-    artifact::{Sha256Digest, read_reader},
-    wasm,
-};
 use std::{collections::BTreeMap, fs, path::PathBuf};
 use wasm_encoder::{
     CodeSection, ConstExpr, DataSection, EntityType, GlobalSection, GlobalType, ImportSection,
@@ -30,11 +27,12 @@ fn input() -> (PathBuf, Vec<u8>) {
             .expect("make native-provider-probe supplies fresh inputs"),
     );
     assert!(directory.is_absolute());
-    let raw = read_reader(
+    let raw = ic_host_artifacts::read(
         fs::File::open(directory.join("provider_abi.wasm")).unwrap(),
-        artifact::LIMIT,
+        ic_host_artifacts::Length::AtMost((artifact::LIMIT) as u64),
     )
-    .unwrap();
+    .unwrap()
+    .0;
     (directory, raw)
 }
 
@@ -135,14 +133,10 @@ fn compiled_provider_boundary_resolves_the_actual_claim_without_execution() {
     assert_eq!(&post[1..], &[read[0], wat[1]]);
     assert_ne!(post[0], read[0]);
     fs::write(directory.join("combined.wasm"), &combined).unwrap();
-    println!(
-        "raw sha256={} bytes={}",
-        Sha256Digest::compute(&raw),
-        raw.len()
-    );
+    println!("raw sha256={} bytes={}", sha256_hex(&raw), raw.len());
     println!(
         "combined sha256={} bytes={}",
-        Sha256Digest::compute(&combined),
+        sha256_hex(&combined),
         combined.len()
     );
 }
@@ -221,7 +215,7 @@ fn raw_profile_refuses_overlap_initialization_imports_and_extra_code() {
             module.section(&RawSection { id, data: bytes });
         }
     });
-    wasm::validate(&growth, artifact::LIMIT).unwrap();
+    validate_wasm(&growth, artifact::LIMIT).unwrap();
     assert_eq!(artifact::admit_raw(&growth), Err("scalar code"));
 }
 
@@ -262,7 +256,7 @@ fn final_admission_rejects_unresolved_imports_and_a_different_provider() {
             module.section(&RawSection { id, data: bytes });
         }
     });
-    wasm::validate(&changed, artifact::LIMIT).unwrap();
+    validate_wasm(&changed, artifact::LIMIT).unwrap();
     assert_eq!(
         artifact::admit_final(&changed, &raw, Profile::A),
         Err("final mismatch")

@@ -1,8 +1,8 @@
 //! Closed composition used under the documented single-vector allocation contract.
 
+use ic_storage_retention_probe::artifact::{compile_wat, validate_wasm};
 use std::{borrow::Cow, collections::BTreeMap};
 
-use ic_host_artifacts::{wasm, wasm_text};
 use wasm_encoder::{
     CodeSection, CustomSection, ExportSection, FunctionSection, GlobalSection, ImportSection,
     MemorySection, Module, TypeSection, reencode::Reencode,
@@ -99,14 +99,8 @@ impl Reencode for Mapping {
 }
 
 pub(super) fn prepare(raw: &[u8], profile: Profile) -> Result<Vec<u8>> {
-    let provider = wasm_text::compile(
-        &source(profile)?,
-        wasm_text::CompileLimits {
-            source_bytes: LIMIT,
-            module_bytes: LIMIT,
-        },
-    )
-    .map_err(|_| "vector provider source")?;
+    let provider =
+        compile_wat(&source(profile)?, LIMIT, LIMIT).map_err(|_| "vector provider source")?;
     compose(raw, &provider)
 }
 
@@ -115,7 +109,7 @@ pub(super) fn compose(raw: &[u8], provider: &[u8]) -> Result<Vec<u8>> {
     // composition. An arbitrary "guarded" module is never an accepted input.
     let guarded = vector_access::prepare(raw).map_err(|_| "raw vector profile")?;
     let profile = vector_access::inspect(raw).map_err(|_| "raw vector profile")?;
-    wasm::validate(provider, LIMIT).map_err(|_| "vector provider validation")?;
+    validate_wasm(provider, LIMIT).map_err(|_| "vector provider validation")?;
     let mut provider_functions = 0;
     let mut bindings = BTreeMap::new();
     for payload in Parser::new(0).parse_all(provider) {
@@ -267,7 +261,7 @@ pub(super) fn compose(raw: &[u8], provider: &[u8]) -> Result<Vec<u8>> {
         module.section(&section);
     }
     let bytes = module.finish();
-    wasm::validate(&bytes, LIMIT).map_err(|_| "combined vector validation")?;
+    validate_wasm(&bytes, LIMIT).map_err(|_| "combined vector validation")?;
     Ok(bytes)
 }
 

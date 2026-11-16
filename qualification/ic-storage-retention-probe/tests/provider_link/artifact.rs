@@ -1,8 +1,8 @@
 //! Exact two-function diagnostic profile, not a general linker or admission ABI.
 
+use ic_storage_retention_probe::artifact::{compile_wat, validate_wasm};
 use std::borrow::Cow;
 
-use ic_host_artifacts::{wasm, wasm_text};
 use wasm_encoder::{
     BlockType, CodeSection, CustomSection, ExportSection, Function, FunctionSection, GlobalSection,
     ImportSection, Instruction as I, MemArg, MemorySection, Module, TypeSection, ValType,
@@ -78,7 +78,7 @@ pub(super) fn normalized(body: &wasmparser::FunctionBody<'_>) -> Result<Vec<u8>>
 }
 
 pub(super) fn admit_raw(raw: &[u8]) -> Result<()> {
-    wasm::validate(raw, LIMIT).map_err(|_| "malformed")?;
+    validate_wasm(raw, LIMIT).map_err(|_| "malformed")?;
     let mut types = Vec::new();
     let mut imports = Vec::new();
     let mut functions = Vec::new();
@@ -245,15 +245,8 @@ pub(super) fn prepare(raw: &[u8], profile: Profile) -> Result<Vec<u8>> {
             "(func $settle\n",
             "(func $settle (export \"__link_settle\")\n",
         );
-    let provider = wasm_text::compile(
-        &source,
-        wasm_text::CompileLimits {
-            source_bytes: LIMIT,
-            module_bytes: LIMIT,
-        },
-    )
-    .map_err(|_| "provider source")?;
-    wasm::validate(&provider, LIMIT).map_err(|_| "provider artifact")?;
+    let provider = compile_wat(&source, LIMIT, LIMIT).map_err(|_| "provider source")?;
+    validate_wasm(&provider, LIMIT).map_err(|_| "provider artifact")?;
     let mut types = TypeSection::new();
     let mut imports = ImportSection::new();
     let mut functions = FunctionSection::new();
@@ -383,7 +376,7 @@ pub(super) fn prepare(raw: &[u8], profile: Profile) -> Result<Vec<u8>> {
         module.section(&section);
     }
     let bytes = module.finish();
-    wasm::validate(&bytes, LIMIT).map_err(|_| "combined artifact")?;
+    validate_wasm(&bytes, LIMIT).map_err(|_| "combined artifact")?;
     Ok(bytes)
 }
 

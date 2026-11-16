@@ -185,7 +185,7 @@ in both allocation domains. The first scalar-only Store derive now generates met
 field codecs and scoped getters for V1/V2. Checked mutation, validation and
 conversion remain application policy. Host and installed fixtures exercise the
 generated code, including confinement, poisoning, rollback and recovery. General
-record ownership remains future work, and the vector still contains only u64
+record ownership remains future work, and the installed vector still contains only u64
 elements. See the [derive subset](../crates/ic-storage-native-derive/README.md).
 
 The derive also supports u32 fields with explicit scalar-kind metadata and packed
@@ -195,6 +195,15 @@ portable recovery through checkpoint envelope v4. Its unchanged outer native
 size does not hide the changed field representation. Native admission checks
 V3's four-byte counter and canonical reserved word. Logical widening is tested
 on the host; an installed V3→V2 converter is not implemented.
+
+A [fresh record-vector host experiment](../qualification/ic-storage-native-feasibility/records.md#fresh-record-vector-elements)
+now exercises scalar records as allocator-backed collection elements, checked
+whole-collection conversion, failed-candidate reclamation and bounded logical
+recovery after source teardown. A V3-only token also checks reopening in the same
+live host allocation, with exact schema/layout/initialized-length admission and
+refusal preserving allocation accounting. This does not admit retained record-vector
+reopening across an IC upgrade. Retained element descriptors, new-instance custody and installed
+rollback/recovery remain the next gate before a persistent collection API.
 
 Use ordinary-looking Rust records with a derive-based persistence declaration
 as the intended application surface. The following syntax and collection names
@@ -778,8 +787,8 @@ automatically qualify a later source revision:
 
 These do not qualify retained private allocator metadata or standard-library
 headers, arbitrary owning-element destruction, old Rust pointer retention,
-application schema conversion or an actual compiler/SDK transition. The native
-portable proof uses two incompatible allocation domains within one toolchain.
+arbitrary application schema conversion or an actual compiler/SDK transition.
+The native portable proof uses two incompatible allocation domains within one toolchain.
 M0 remains a regression/evidence baseline; it is not the new persistent ABI.
 The [frozen M0 format](design/m0-layout.md) remains unchanged.
 

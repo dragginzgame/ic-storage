@@ -1,9 +1,9 @@
 //! Installed custody protocol only; no Rust code executes in these canisters.
 #![forbid(unsafe_code)]
 
+use ic_storage_retention_probe::artifact::sha256_hex;
 use std::time::Duration;
 
-use ic_host_artifacts::artifact::Sha256Digest;
 use ic_testkit::pic::PocketIcStartupConfig;
 use ic_testkit::pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking::PocketIc};
 use wasmparser::{Operator, Parser, Payload, TypeRef};
@@ -28,7 +28,7 @@ fn variant(version: u64, extent: u64, trap: bool) -> Vec<u8> {
 }
 
 fn record(label: &str, bytes: &[u8]) {
-    let digest = Sha256Digest::compute(bytes);
+    let digest = sha256_hex(bytes);
     let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../target/evidence/provider-custody");
     std::fs::create_dir_all(&directory).unwrap();

@@ -1,6 +1,7 @@
 use super::super::installed::{export, logical, query, recover, refused, words};
 use super::*;
 use crate::installed_tests::{stopped_hash, update};
+use ic_storage_retention_probe::artifact::{sha256, sha256_hex, validate_wasm};
 use ic_testkit::{pic::PocketIcStartupConfig, pocket_ic::PocketIcBuilder};
 use std::time::Duration;
 use wasm_encoder::{BlockType, ExportKind, ExportSection, Function, FunctionSection, MemArg};
@@ -134,7 +135,7 @@ fn diagnostics(bytes: &[u8]) -> Vec<u8> {
             _ => unreachable!(),
         }
     });
-    wasm::validate(&result, LIMIT).unwrap();
+    validate_wasm(&result, LIMIT).unwrap();
     result
 }
 
@@ -179,7 +180,7 @@ fn trap_after_reset(bytes: &[u8]) -> Vec<u8> {
         }
         module.section(&code);
     });
-    wasm::validate(&result, LIMIT).unwrap();
+    validate_wasm(&result, LIMIT).unwrap();
     result
 }
 
@@ -191,7 +192,7 @@ async fn compatible_reopening_discards_transients_then_can_export_and_recover() 
         let clean = prepare_reopen(&raw, &bridge, relocated, root);
         assert_eq!(clean, prepare_reopen(&raw, &bridge, relocated, root));
         let bytes = diagnostics(&clean);
-        let digest = Sha256Digest::compute(&bytes);
+        let digest = sha256_hex(&bytes);
         fs::write(
             directory.join(format!("reopen-diagnostic-{digest}.wasm")),
             &bytes,
@@ -215,7 +216,7 @@ async fn compatible_reopening_discards_transients_then_can_export_and_recover() 
     let pic = owner.instance();
     let reopened = candidate(false, (0, 0));
     let failed = trap_after_reset(&reopened);
-    let digest = Sha256Digest::compute(&failed);
+    let digest = sha256_hex(&failed);
     fs::write(
         directory.join(format!("reopen-post-trap-{digest}.wasm")),
         &failed,
@@ -242,10 +243,7 @@ async fn compatible_reopening_discards_transients_then_can_export_and_recover() 
             pic.upgrade_eop_canister(id, reopened.clone(), vec![], None)
                 .await
                 .unwrap();
-            assert_eq!(
-                stopped_hash(pic, id).await,
-                Sha256Digest::compute(&reopened).as_bytes()
-            );
+            assert_eq!(stopped_hash(pic, id).await, &sha256(&reopened));
             pic.start_canister(id, None).await.unwrap();
             assert_eq!(query(pic, id, "observe").await, before);
             assert_eq!(pic.get_stable_memory(id).await, stable);

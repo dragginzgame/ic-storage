@@ -1,6 +1,7 @@
 //! Installed instruction benchmark. Fixed bounded matrix, no timing of host RPCs.
 #![forbid(unsafe_code)]
 
+use ic_storage_retention_probe::artifact::{sha256, sha256_hex, validate_wasm};
 use std::{
     collections::BTreeMap,
     fs,
@@ -9,20 +10,17 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use ic_host_artifacts::{
-    artifact::{Sha256Digest, read_reader},
-    wasm,
-};
 use ic_storage_retention_probe::startup::{prepare_benchmark, prepare_graph};
 use ic_storage_simple_benchmarks::OPERATIONS;
 use ic_testkit::{pic::PocketIcStartupConfig, pocket_ic::PocketIcBuilder};
 
 fn read(path: &Path) -> Vec<u8> {
-    read_reader(
+    ic_host_artifacts::read(
         fs::File::open(path).expect("run make benchmark-simple-build"),
-        1024 * 1024,
+        ic_host_artifacts::Length::AtMost((1024 * 1024) as u64),
     )
     .expect("bounded artifact")
+    .0
 }
 fn words(bytes: &[u8]) -> Vec<u64> {
     assert_eq!(bytes.len() % 8, 0, "malformed result length");
@@ -71,7 +69,7 @@ async fn main() {
         "benchmark imports require their own admission profile"
     );
     let storage=read(&root.join("target/qualification/bench-storage/wasm32-unknown-unknown/release/examples/storage_wasm.wasm"));
-    wasm::validate(&storage, 1024 * 1024).expect("Storage artifact");
+    validate_wasm(&storage, 1024 * 1024).expect("Storage artifact");
     let stamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
@@ -106,9 +104,11 @@ async fn main() {
         "qualification/ic-storage-simple-benchmarks/src/wire.rs",
         "qualification/ic-storage-simple-benchmarks/benches/storage/mod.rs",
         "qualification/ic-storage-simple-benchmarks/benches/runner.rs",
+        "qualification/ic-storage-retention-probe/src/artifact/mod.rs",
+        "qualification/ic-storage-retention-probe/src/startup/mod.rs",
     ] {
         let bytes = read(&root.join(path));
-        sources.insert(path, Sha256Digest::compute(&bytes).to_string());
+        sources.insert(path, sha256_hex(&bytes));
         let copy = output.join("sources").join(path);
         fs::create_dir_all(copy.parent().unwrap()).unwrap();
         fs::write(copy, bytes).unwrap();
@@ -122,9 +122,9 @@ async fn main() {
         "rust":"1.100.0","target":"wasm32-unknown-unknown","profile":"release; opt=3; lto=true; codegen-units=1; panic=abort; no post-link optimizer",
         "rows":[1,16,64],"batch":[1,8],"seeds":[1,2,3],"operations":OPERATIONS,
         "metric":"performance_counter(0) delta including backend entry/admission; excludes setup, wire and correctness queries",
-        "managed_sha256":Sha256Digest::compute(&managed.bytes).to_string(),
-        "storage_sha256":Sha256Digest::compute(&storage).to_string(),
-        "qualification_lock_sha256":Sha256Digest::compute(&fs::read(root.join("qualification/Cargo.lock")).unwrap()).to_string()
+        "managed_sha256":sha256_hex(&managed.bytes),
+        "storage_sha256":sha256_hex(&storage),
+        "qualification_lock_sha256":sha256_hex(&fs::read(root.join("qualification/Cargo.lock")).unwrap())
     })).unwrap()).unwrap();
     let mut csv = fs::File::create(output.join("samples.csv")).unwrap();
     writeln!(
@@ -164,7 +164,7 @@ async fn main() {
                         .unwrap()
                         .module_hash
                         .unwrap();
-                    assert_eq!(hash, Sha256Digest::compute(module).as_bytes());
+                    assert_eq!(hash, &sha256(module));
                     let mut state = vec![seed];
                     state.extend((0..rows).map(|i| seed * 100 + i));
                     assert_eq!(

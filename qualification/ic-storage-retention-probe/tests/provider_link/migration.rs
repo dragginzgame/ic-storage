@@ -1,7 +1,7 @@
 //! Native/governed bridge composition under a separate memory and custody contract.
 
 use super::vector_link;
-use ic_host_artifacts::{wasm, wasm_text};
+use ic_storage_retention_probe::artifact::{compile_wat, validate_wasm};
 
 mod artifact;
 mod records;
@@ -37,14 +37,7 @@ fn native_source(relocated: bool, root: (u64, u64), job: bool) -> String {
 }
 
 fn compile_native(raw: &[u8], source: &str) -> Vec<u8> {
-    let provider = wasm_text::compile(
-        source,
-        wasm_text::CompileLimits {
-            source_bytes: LIMIT,
-            module_bytes: LIMIT,
-        },
-    )
-    .unwrap();
+    let provider = compile_wat(source, LIMIT, LIMIT).unwrap();
     vector_link::compose(raw, &provider).unwrap()
 }
 
@@ -65,7 +58,7 @@ fn prepare(
         artifact::Post::Refuse
     };
     let bytes = artifact::combine(&native(raw, relocated, root, false), bridge, post);
-    wasm::validate(&bytes, LIMIT).unwrap();
+    validate_wasm(&bytes, LIMIT).unwrap();
     bytes
 }
 
@@ -75,7 +68,7 @@ fn prepare_reopen(raw: &[u8], bridge: &[u8], relocated: bool, root: (u64, u64)) 
         bridge,
         artifact::Post::Reopen,
     );
-    wasm::validate(&bytes, LIMIT).unwrap();
+    validate_wasm(&bytes, LIMIT).unwrap();
     bytes
 }
 
@@ -92,7 +85,7 @@ fn prepare_job(
         artifact::Post::Reopen
     };
     let bytes = artifact::combine(&native(raw, relocated, root, true), bridge, post);
-    wasm::validate(&bytes, LIMIT).unwrap();
+    validate_wasm(&bytes, LIMIT).unwrap();
     bytes
 }
 
@@ -102,7 +95,7 @@ fn prepare_frozen_job(raw: &[u8], bridge: &[u8], relocated: bool) -> Vec<u8> {
         bridge,
         artifact::Post::Frozen,
     );
-    wasm::validate(&bytes, LIMIT).unwrap();
+    validate_wasm(&bytes, LIMIT).unwrap();
     bytes
 }
 
@@ -113,7 +106,7 @@ fn prepare_staged_job(raw: &[u8], bridge: &[u8], relocated: bool, resume: bool) 
         artifact::Post::Stage
     };
     let bytes = artifact::combine(&native(raw, relocated, (0, 0), true), bridge, post);
-    wasm::validate(&bytes, LIMIT).unwrap();
+    validate_wasm(&bytes, LIMIT).unwrap();
     bytes
 }
 
@@ -123,7 +116,7 @@ fn prepare_restart_job(raw: &[u8], bridge: &[u8], relocated: bool) -> Vec<u8> {
         bridge,
         artifact::Post::Restart,
     );
-    wasm::validate(&bytes, LIMIT).unwrap();
+    validate_wasm(&bytes, LIMIT).unwrap();
     bytes
 }
 

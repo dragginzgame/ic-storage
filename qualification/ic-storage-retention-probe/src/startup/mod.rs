@@ -1,9 +1,9 @@
 //! Fixture-specific admission and bootstrap. This is not a general Wasm linker.
 
+use crate::artifact::{sha256_hex, validate_wasm};
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 
-use ic_host_artifacts::{artifact::Sha256Digest, wasm};
 use wasm_encoder::{
     BlockType, CodeSection, CustomSection, DataCountSection, DataSection, ExportKind,
     ExportSection, Function, FunctionSection, Instruction as I, MemArg, Module, RawSection,
@@ -89,7 +89,7 @@ pub fn prepare_benchmark(raw: &[u8]) -> Result<Artifact, Refusal> {
 }
 
 fn prepare_profile(raw: &[u8], managed: bool, benchmark: bool) -> Result<Artifact, Refusal> {
-    wasm::validate(raw, LIMIT).map_err(|_| Refusal::Malformed)?;
+    validate_wasm(raw, LIMIT).map_err(|_| Refusal::Malformed)?;
     let mut sections = Vec::new();
     let mut types = TypeSection::new();
     let mut signatures = Vec::new();
@@ -582,11 +582,11 @@ fn prepare_profile(raw: &[u8], managed: bool, benchmark: bool) -> Result<Artifac
         }),
     });
     let bytes = module.finish();
-    wasm::validate(&bytes, LIMIT).map_err(|_| Refusal::Malformed)?;
+    validate_wasm(&bytes, LIMIT).map_err(|_| Refusal::Malformed)?;
     let report = format!(
         "input={}\nfinal={}\nstack_top={}\ndata_end={}\nheap_base={}\nretained_base={}\ndata_segments={}\n",
-        Sha256Digest::compute(raw),
-        Sha256Digest::compute(&bytes),
+        sha256_hex(raw),
+        sha256_hex(&bytes),
         bounds[0],
         bounds[1],
         bounds[2],
@@ -599,7 +599,7 @@ fn prepare_profile(raw: &[u8], managed: bool, benchmark: bool) -> Result<Artifac
 /// Admission is tied to the reviewed raw module and deterministic transform,
 /// including exact startup instructions, lifecycle wrapper and passive segments.
 pub fn admit(final_bytes: &[u8], raw: &[u8]) -> Result<(), Refusal> {
-    wasm::validate(final_bytes, LIMIT).map_err(|_| Refusal::Malformed)?;
+    validate_wasm(final_bytes, LIMIT).map_err(|_| Refusal::Malformed)?;
     if prepare(raw)?.bytes != final_bytes {
         return Err(Refusal::FinalMismatch);
     }
@@ -608,7 +608,7 @@ pub fn admit(final_bytes: &[u8], raw: &[u8]) -> Result<(), Refusal> {
 
 /// Bind final graph bytes to their reviewed raw source artifact.
 pub fn admit_graph(final_bytes: &[u8], raw: &[u8]) -> Result<(), Refusal> {
-    wasm::validate(final_bytes, LIMIT).map_err(|_| Refusal::Malformed)?;
+    validate_wasm(final_bytes, LIMIT).map_err(|_| Refusal::Malformed)?;
     if prepare_graph(raw)?.bytes != final_bytes {
         return Err(Refusal::FinalMismatch);
     }

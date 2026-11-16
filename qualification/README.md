@@ -56,11 +56,34 @@ its canisters contain no Rust vector code.
 
 ## First experiment: retained scalar
 
-The Rust runner compiles independently authored WAT fixtures through
-`ic-host-artifacts` and installs them through `ic-testkit` on PocketIC. This
+The Rust runner compiles independently authored WAT fixtures through `wat`,
+validates complete core modules through `wasmparser`, and installs them through
+`ic-testkit` on PocketIC. Bounded byte reads and complete SHA-256 identities use
+the replacement `ic-host-artifacts` 0.80.1. This
 isolates the IC retention mechanism before introducing Rust canister startup,
 an allocator or a graph. WAT's explicit `ic0` imports are protocol fixtures, not
 a second Rust SDK; product bindings still belong to Platform Runtime.
+
+The qualification-owned artifact adapter preserves source/module byte limits,
+core-module refusal, full instruction/type validation and lowercase evidence
+digests. `wat` stays in the 1.263 patch line alongside the selected 0.263 parser
+and encoder. `make retention-lint` runs its focused contract tests. The provider
+collector retains these shared host sources along with the calling test sources.
+
+The simulator remains on `ic-testkit` 0.106.0 and its prepared server CLI. Its
+transitive Artifacts/FS/Process 0.79 dependencies remain locked to that supplier;
+this migration removes direct legacy Host use but does not migrate Testkit's
+server lifecycle or claim a completely legacy-free graph. The new Host byte API
+has no gzip or simulator CLI replacement. Do not force incompatible Host versions
+into Testkit or add direct FS/Process dependencies that these callers do not use.
+
+The 0.80.1 migration passed the artifact contract tests, strict runner/benchmark
+Clippy, dependency pins/graph boundaries and Rustdoc. Installed retention,
+startup, graph, ordinary checkpoint, native record, native checkpoint and migration
+job suites also passed locally. The final provider cohorts are
+`attempt.2aFwPS` (record), `attempt.gZsWLy` (checkpoint) and `attempt.M4OBEX` (job)
+under `target/evidence/provider-link/`, each with COMPLETE and the shared host
+source capture. These are local PocketIC outcomes, not native macOS evidence.
 
 The two-page wasm32 fixture layout is deliberately smaller than the proposed
 managed heap and is not its persistence ABI. Page zero is transient. At 65536

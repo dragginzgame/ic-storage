@@ -1,5 +1,6 @@
 //! Normal callback errors commit earlier writes; forgetting a view loses no owner.
 use super::*;
+use ic_storage_retention_probe::artifact::sha256_hex;
 
 #[tokio::test(flavor = "current_thread")]
 #[ignore = "make native-provider-test supplies fresh artifacts and the prepared server"]
@@ -9,7 +10,7 @@ async fn callback_errors_and_forgotten_views_finalize_custody_across_upgrades() 
     let candidate = |profile| {
         let bytes = prepare(&raw, profile).unwrap();
         admit_final(&bytes, &raw, profile).unwrap();
-        let digest = Sha256Digest::compute(&bytes);
+        let digest = sha256_hex(&bytes);
         fs::write(
             directory.join("vector").join(format!("{digest}.wasm")),
             &bytes,

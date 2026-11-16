@@ -1,11 +1,11 @@
 //! Inspect actual compiler composition without installing or executing it.
 
+use ic_storage_retention_probe::artifact::{sha256_hex, validate_wasm};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
 };
 
-use ic_host_artifacts::{artifact::Sha256Digest, wasm};
 use wasm_encoder::{
     CodeSection, Module, RawSection,
     reencode::{Reencode, RoundtripReencoder},
@@ -278,7 +278,7 @@ fn linked_vector_binds_guards_and_orders_custody_without_execution() {
         }
         module.section(&code);
     });
-    wasm::validate(&changed, super::LIMIT).unwrap();
+    validate_wasm(&changed, super::LIMIT).unwrap();
     assert_eq!(
         admit_final(&changed, &raw, Profile::A),
         Err("final vector mismatch")
@@ -293,6 +293,6 @@ fn linked_vector_binds_guards_and_orders_custody_without_execution() {
     println!(
         "linked vector bytes={} sha256={}; NOT executed",
         bytes.len(),
-        Sha256Digest::compute(&bytes)
+        sha256_hex(&bytes)
     );
 }

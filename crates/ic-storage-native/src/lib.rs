@@ -12,6 +12,107 @@ extern crate alloc;
 pub mod record;
 
 /// Declare a bounded scalar record; this does not grant persistence admission.
+///
+/// Requires `repr(C)`, `Copy`, one to sixteen u32/u64 fields, explicit nonzero
+/// field IDs, an eight-byte non-NUL ASCII schema ID and a nonzero version.
+/// Primitive types may use bare names or absolute `::core::primitive` paths.
+/// The optional validator checks logical encoding and decoding; `store_with`
+/// assumes an already valid record. Callers own admission and poison/trap policy.
+///
+/// ```
+/// use ic_storage_native::Store;
+/// #[repr(C)]
+/// #[derive(Clone, Copy, Store)]
+/// #[store(id = "APPVALUE", version = 1)]
+/// struct Value { #[store(field = 1)] count: ::core::primitive::u32 }
+/// let mut value = Value { count: 42 };
+/// assert_eq!(value.store_encode().unwrap(), [42, 0, 0, 0]);
+/// assert_eq!(Value::store_decode(&[42, 0, 0, 0]).unwrap().count, 42);
+/// assert_eq!(value.store_with(|view| view.count()), 42);
+/// ```
+///
+/// Borrowed fields refuse even if their record is Copy:
+/// ```compile_fail
+/// use ic_storage_native::Store;
+/// #[repr(C)]
+/// #[derive(Clone, Copy, Store)]
+/// #[store(id = "BADBORRO", version = 1)]
+/// struct Bad { #[store(field = 1)] value: &'static u64 }
+/// ```
+/// Owning fields are outside the admitted subset:
+/// ```compile_fail
+/// use ic_storage_native::Store;
+/// #[repr(C)]
+/// #[derive(Clone, Store)]
+/// #[store(id = "BADOWNER", version = 1)]
+/// struct Bad { #[store(field = 1)] values: Vec<u64> }
+/// ```
+/// Application Drop cannot bypass the generated Copy requirement:
+/// ```compile_fail
+/// use ic_storage_native::Store;
+/// #[repr(C)]
+/// #[derive(Clone, Store)]
+/// #[store(id = "BADDROPP", version = 1)]
+/// struct Bad { #[store(field = 1)] value: u64 }
+/// impl Drop for Bad { fn drop(&mut self) {} }
+/// ```
+/// Shadowing a scalar name cannot conceal a reference or a different width:
+/// ```compile_fail
+/// use ic_storage_native::Store;
+/// type u64 = &'static str;
+/// #[repr(C)]
+/// #[derive(Clone, Copy, Store)]
+/// #[store(id = "BADALIAS", version = 1)]
+/// struct Bad { #[store(field = 1)] value: u64 }
+/// ```
+/// ```compile_fail
+/// use ic_storage_native::Store;
+/// type u32 = u64;
+/// #[repr(C)]
+/// #[derive(Clone, Copy, Store)]
+/// #[store(id = "BADWIDTH", version = 1)]
+/// struct Bad { #[store(field = 1)] value: u32 }
+/// ```
+///
+/// Views cannot escape by return, outer capture or future:
+/// ```compile_fail
+/// use ic_storage_native::Store;
+/// #[repr(C)]
+/// #[derive(Clone, Copy, Store)]
+/// #[store(id = "APPVALUE", version = 1)]
+/// struct Value { #[store(field = 1)] count: u32 }
+/// let mut value = Value { count: 42 };
+/// let escaped = value.store_with(|view| view);
+/// ```
+/// ```compile_fail
+/// use ic_storage_native::Store;
+/// #[repr(C)]
+/// #[derive(Clone, Copy, Store)]
+/// #[store(id = "APPVALUE", version = 1)]
+/// struct Value { #[store(field = 1)] count: u32 }
+/// let mut value = Value { count: 42 };
+/// let mut escaped = None;
+/// value.store_with(|view| escaped = Some(view));
+/// ```
+/// ```compile_fail
+/// use ic_storage_native::Store;
+/// #[repr(C)]
+/// #[derive(Clone, Copy, Store)]
+/// #[store(id = "APPVALUE", version = 1)]
+/// struct Value { #[store(field = 1)] count: u32 }
+/// let mut value = Value { count: 42 };
+/// let future = value.store_with(|view| async move { view.count() });
+/// ```
+/// The view has no DerefMut route around reviewed application mutations:
+/// ```compile_fail
+/// use ic_storage_native::Store;
+/// #[repr(C)]
+/// #[derive(Clone, Copy, Store)]
+/// #[store(id = "APPVALUE", version = 1)]
+/// struct Value { #[store(field = 1)] count: u32 }
+/// let mut value = Value { count: 42 };
+/// value.store_with(|mut view| { let _: &mut Value = &mut *view; });
+/// ```
 #[cfg(feature = "derive")]
 pub use ic_storage_native_derive::Store;
 

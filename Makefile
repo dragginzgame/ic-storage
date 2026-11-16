@@ -73,7 +73,7 @@ help:
 	  'make lint / doc-check            Strict Clippy / Rustdoc for the library' \
 	  'make m0-test                     Run native M0 image and capability tests' \
 	  'make m0-lint-wasm                Check the no_std image library on wasm32' \
-	  'make native-core-test           Test the scoped native vector core' \
+	  'make native-core-test           Test scoped native operations and Store declarations' \
 	  'make retention-setup             Explicitly prepare the retention-test server' \
 	  'make retention-tools-check       Admit the prepared server offline' \
 	  'make retention-lint              Strict Clippy for the Rust test runner' \
@@ -150,7 +150,10 @@ m0-lint-wasm:
 
 native-core-test:
 	+cargo test -p ic-storage-native --locked --offline
+	+cargo test -p ic-storage-native --features derive --locked --offline
+	+cargo clippy -p ic-storage-native --all-targets --features derive --locked --offline -- -D warnings
 	+cargo clippy -p ic-storage-native --lib --target wasm32-unknown-unknown --locked --offline -- -D warnings
+	+cargo clippy -p ic-storage-native --lib --features derive --target wasm32-unknown-unknown --locked --offline -- -D warnings
 
 retention-setup:
 	+@server="$$($(RETENTION_TOOL))" && "$$server" setup
@@ -159,6 +162,8 @@ retention-tools-check:
 	+@server="$$($(RETENTION_TOOL) --check)" && "$$server" check
 
 retention-lint:
+	+cargo test $(RETENTION_CARGO) --lib
+	+cargo clippy $(RETENTION_CARGO) --lib -- -D warnings
 	+cargo clippy $(RETENTION_CARGO) --test retention -- -D warnings
 
 retention-test:

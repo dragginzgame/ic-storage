@@ -4,9 +4,9 @@
 mod artifacts;
 mod v2;
 
+use ic_storage_retention_probe::artifact::sha256;
 use std::time::Duration;
 
-use ic_host_artifacts::artifact::Sha256Digest;
 use ic_testkit::{
     pic::PocketIcStartupConfig,
     pocket_ic::{
@@ -50,10 +50,7 @@ async fn upgrade(pic: &PocketIc, id: CanisterId, target: &[u8], epoch: u64) {
     pic.upgrade_canister(id, target.to_vec(), encode(&[epoch, 0]), None)
         .await
         .expect("import");
-    assert_eq!(
-        module_hash(pic, id).await,
-        Sha256Digest::compute(target).as_bytes()
-    );
+    assert_eq!(module_hash(pic, id).await, &sha256(target));
     pic.start_canister(id, None).await.expect("start");
 }
 
@@ -87,10 +84,7 @@ async fn refused(pic: &PocketIc, id: CanisterId, target: &[u8], args: &[u64]) {
 async fn install(pic: &PocketIc, wasm: &[u8]) -> CanisterId {
     let id = pic.create_canister().await;
     pic.install_canister(id, wasm.to_vec(), vec![], None).await;
-    assert_eq!(
-        module_hash(pic, id).await,
-        Sha256Digest::compute(wasm).as_bytes()
-    );
+    assert_eq!(module_hash(pic, id).await, &sha256(wasm));
     id
 }
 
@@ -123,10 +117,7 @@ async fn fresh_heap_import_and_failed_upgrade_rollback() {
     assert_eq!(&checkpoint[56..64], &42_u64.to_le_bytes());
     assert_eq!(&checkpoint[80..112], encode(&[3, 5, 8, 13]));
     assert_eq!(&checkpoint[112..120], b"SEALED01");
-    assert_eq!(
-        &checkpoint[120..],
-        Sha256Digest::compute(&checkpoint[..120]).as_bytes()
-    );
+    assert_eq!(&checkpoint[120..], &sha256(&checkpoint[..120]));
     let error = pic
         .update_call(id, id, "append", encode(&[99]))
         .await

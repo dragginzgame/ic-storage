@@ -1,9 +1,9 @@
 //! Installed Wasm retention contract; this does not qualify Rust startup.
 #![forbid(unsafe_code)]
 
+use ic_storage_retention_probe::artifact::{compile_wat, validate_wasm};
 use std::time::Duration;
 
-use ic_host_artifacts::{wasm, wasm_text};
 use ic_testkit::pic::PocketIcStartupConfig;
 use ic_testkit::pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking::PocketIc};
 
@@ -16,15 +16,8 @@ const TRAPPING: &str = include_str!("fixtures/trapping.wat");
 mod provider_custody;
 
 fn module(source: &str) -> Vec<u8> {
-    let bytes = wasm_text::compile(
-        source,
-        wasm_text::CompileLimits {
-            source_bytes: 8192,
-            module_bytes: 8192,
-        },
-    )
-    .expect("compile the bounded protocol fixture");
-    wasm::validate(&bytes, 8192).expect("validate fixture instructions");
+    let bytes = compile_wat(source, 8192, 8192).expect("compile the bounded protocol fixture");
+    validate_wasm(&bytes, 8192).expect("validate fixture instructions");
     bytes
 }
 

@@ -9,6 +9,37 @@ enum Scalar {
 }
 
 impl Scalar {
+    fn parse(ty: &Type) -> syn::Result<Self> {
+        let fail = || {
+            syn::Error::new_spanned(
+                ty,
+                "Store supports only u32/u64 fields (bare or ::core::primitive paths)",
+            )
+        };
+        let Type::Path(ty) = ty else {
+            return Err(fail());
+        };
+        if ty.qself.is_some() {
+            return Err(fail());
+        }
+        let segments = &ty.path.segments;
+        let bare = ty.path.leading_colon.is_none() && segments.len() == 1;
+        let absolute_primitive = ty.path.leading_colon.is_some()
+            && segments.len() == 3
+            && segments[0].ident == "core"
+            && segments[1].ident == "primitive";
+        if !(bare || absolute_primitive)
+            || segments.iter().any(|segment| !segment.arguments.is_empty())
+        {
+            return Err(fail());
+        }
+        match segments.last() {
+            Some(segment) if segment.ident == "u32" => Ok(Self::U32),
+            Some(segment) if segment.ident == "u64" => Ok(Self::U64),
+            _ => Err(fail()),
+        }
+    }
+
     fn width(self) -> usize {
         match self {
             Self::U32 => 4,
@@ -87,16 +118,7 @@ pub(super) fn expand(input: &DeriveInput) -> syn::Result<TokenStream> {
     }
     let mut ordered = Vec::new();
     for field in &fields.named {
-        let scalar = match &field.ty {
-            Type::Path(ty) if ty.qself.is_none() && ty.path.is_ident("u32") => Scalar::U32,
-            Type::Path(ty) if ty.qself.is_none() && ty.path.is_ident("u64") => Scalar::U64,
-            _ => {
-                return Err(syn::Error::new_spanned(
-                    &field.ty,
-                    "Store supports only u32/u64 fields",
-                ));
-            }
-        };
+        let scalar = Scalar::parse(&field.ty)?;
         let mut number = None;
         for attr in field
             .attrs
@@ -157,15 +179,15 @@ pub(super) fn expand(input: &DeriveInput) -> syn::Result<TokenStream> {
         };
         impl #name {
             /// Owner-assigned logical identity; not a runtime admission token.
-            pub const STORE_ID: &'static [u8; 8] = #schema;
+            pub const STORE_ID: &'static [::core::primitive::u8; 8] = #schema;
             /// Explicit application schema version.
-            pub const STORE_VERSION: u32 = #version;
+            pub const STORE_VERSION: ::core::primitive::u32 = #version;
             /// Exact bounded logical payload size.
-            pub const STORE_BYTES: usize = #length;
+            pub const STORE_BYTES: ::core::primitive::usize = #length;
             /// Size of this concrete repr(C) payload, not a private-layout certificate.
-            pub const STORE_SIZE: usize = ::core::mem::size_of::<Self>();
+            pub const STORE_SIZE: ::core::primitive::usize = ::core::mem::size_of::<Self>();
             /// Alignment of this concrete repr(C) payload.
-            pub const STORE_ALIGN: usize = ::core::mem::align_of::<Self>();
+            pub const STORE_ALIGN: ::core::primitive::usize = ::core::mem::align_of::<Self>();
             /// Scalar field IDs and native offsets, ordered by field identity.
             pub const STORE_FIELDS: [::ic_storage_native::record::Field; #count] = [
                 #(::ic_storage_native::record::Field {
@@ -173,19 +195,19 @@ pub(super) fn expand(input: &DeriveInput) -> syn::Result<TokenStream> {
                     scalar: #kinds,
                 }),*
             ];
-            fn store_valid(&self) -> bool { #validate }
+            fn store_valid(&self) -> ::core::primitive::bool { #validate }
             /// Encode only logical fields in field-ID order, each little endian.
             /// Schema identity/version belong to the enclosing checked envelope.
-            pub fn store_encode(&self) -> ::core::result::Result<[u8; #length], ::ic_storage_native::record::Error> {
-                if !self.store_valid() { return Err(::ic_storage_native::record::Error::Invariant); }
+            pub fn store_encode(&self) -> ::core::result::Result<[::core::primitive::u8; #length], ::ic_storage_native::record::Error> {
+                if !self.store_valid() { return ::core::result::Result::Err(::ic_storage_native::record::Error::Invariant); }
                 let mut bytes = [0; #length];
                 #(bytes[#starts..#ends].copy_from_slice(&self.#field_names.to_le_bytes());)*
-                Ok(bytes)
+                ::core::result::Result::Ok(bytes)
             }
             /// Decode an exact-size logical payload and validate application rules.
             /// This constructs a fresh value; it never reopens native memory.
-            pub fn store_decode(bytes: &[u8]) -> ::core::result::Result<Self, ::ic_storage_native::record::Error> {
-                if bytes.len() != #length { return Err(::ic_storage_native::record::Error::Length); }
+            pub fn store_decode(bytes: &[::core::primitive::u8]) -> ::core::result::Result<Self, ::ic_storage_native::record::Error> {
+                if bytes.len() != #length { return ::core::result::Result::Err(::ic_storage_native::record::Error::Length); }
                 let value = Self {
                     #(#field_names: {
                         let mut word = [0; #widths];
@@ -193,8 +215,8 @@ pub(super) fn expand(input: &DeriveInput) -> syn::Result<TokenStream> {
                         #primitives::from_le_bytes(word)
                     }),*
                 };
-                if !value.store_valid() { return Err(::ic_storage_native::record::Error::Invariant); }
-                Ok(value)
+                if !value.store_valid() { return ::core::result::Result::Err(::ic_storage_native::record::Error::Invariant); }
+                ::core::result::Result::Ok(value)
             }
             /// Lend a scoped view of an already valid record, with scalar getters.
             /// Callers own admission and poison/trap policy; errors do not undo writes.
@@ -206,7 +228,7 @@ pub(super) fn expand(input: &DeriveInput) -> syn::Result<TokenStream> {
         #vis struct #view<'scope> { record: &'scope mut #name }
         impl #view<'_> {
             #(
-                #[doc = concat!("Copy the scalar field `", stringify!(#field_names), "`.")]
+                #[doc = ::core::concat!("Copy the scalar field `", ::core::stringify!(#field_names), "`.")]
                 #[must_use]
                 pub fn #field_names(&self) -> #primitives { self.record.#field_names }
             )*

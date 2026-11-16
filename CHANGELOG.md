@@ -2,8 +2,17 @@
 
 ## [0.1.13] - Unreleased
 
+### 🔧 Changed
+
+- Migrate direct Host artifact use to published `ic-host-artifacts` 0.80.1.
+  Use its bounded read/complete-identity API and explicit `wat`/`wasmparser`
+  fixture admission, preserving limits, validation and evidence digest text.
+  Testkit 0.106.0 retains its own legacy Host dependencies and prepared server CLI.
+
 ### ✨ Added
 
+- Accept absolute `::core::primitive::u32`/`u64` field paths in Store declarations,
+  preserving the existing representation and codec contracts.
 - Add scoped access and checked updates for V2 scalar records, with host poison
   handling and installed IC mutation, rollback and recovery checks.
 - Add an unpublished scalar-only `Store` derive for explicit schema/field IDs,
@@ -19,6 +28,19 @@
 
 ### 🧪 Testing
 
+- Add V3-only host reopening through original live allocation authority. Reject
+  schema/layout/length changes, substituted allocations, conflicting u64 claims
+  and ledger corruption; forgotten/refused tokens keep their runs unavailable.
+  Verify continued mutation/reclamation and portable recovery after refusal.
+- Exercise fresh scalar-record vectors in the live host arena: growth/refusal,
+  scoped mutation, destruction and run reuse, checked collection conversion and
+  bounded portable recovery after source teardown. Failed candidates preserve
+  existing roots; retained record-vector reopening remains unimplemented.
+- Fix generated Store names resolving through application imports. Add direct
+  `no_std` consumer checks for shadowed names, absent implicit prelude, metadata,
+  field ordering and malformed/invariant-invalid codecs to `make native-core-test`.
+- Move Store declaration and scoped-view compile failures beside the product API;
+  add refusal of unrestricted mutable record access and explicit-path equivalence.
 - Reject escaping record views at compile time. Exercise ordinary errors,
   forgotten views, panic poisoning and checkpoint replacement on the host.
 - Preserve record updates across compatible reopening and portable recovery;

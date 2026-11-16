@@ -1,5 +1,6 @@
 use super::*;
 use crate::installed_tests::{stopped_hash, update};
+use ic_storage_retention_probe::artifact::{sha256, sha256_hex};
 use ic_testkit::{
     pic::PocketIcStartupConfig,
     pocket_ic::{
@@ -51,7 +52,7 @@ pub(super) async fn replace_heap_with_options(
     );
     pic.clear_chunk_store(id, sender).await?;
     let hash = pic.upload_chunk(id, sender, target.to_vec()).await?;
-    assert_eq!(hash, Sha256Digest::compute(target).as_bytes());
+    assert_eq!(hash, &sha256(target));
     pic.install_chunked_canister(id, sender, mode, id, vec![hash.clone()], hash, arguments)
         .await
 }
@@ -92,10 +93,7 @@ pub(super) async fn export(pic: &PocketIc, id: CanisterId, epoch: u64) -> Vec<u8
     );
     let end = bytes.len() - 32;
     assert_eq!(&bytes[end - 8..end], b"SEALED01");
-    assert_eq!(
-        &bytes[end..],
-        Sha256Digest::compute(&bytes[..end]).as_bytes()
-    );
+    assert_eq!(&bytes[end..], &sha256(&bytes[..end]));
     bytes
 }
 
@@ -170,10 +168,7 @@ pub(super) async fn recover(pic: &PocketIc, id: CanisterId, target: &[u8], epoch
     let checkpoint = query(pic, id, "checkpoint_bytes").await;
     stopped_hash(pic, id).await;
     replace_heap(pic, id, target, args(epoch, 0)).await.unwrap();
-    assert_eq!(
-        stopped_hash(pic, id).await,
-        Sha256Digest::compute(target).as_bytes()
-    );
+    assert_eq!(stopped_hash(pic, id).await, &sha256(target));
     pic.start_canister(id, None).await.unwrap();
     let snapshot = query(pic, id, "observe").await;
     assert_eq!(logical(&snapshot), before);
@@ -192,7 +187,7 @@ async fn native_export_and_incompatible_domain_reconstruction() {
         assert!(admit_final(
             &bytes, &raw, &bridge, relocated, root, recovery
         ));
-        let digest = Sha256Digest::compute(&bytes);
+        let digest = sha256_hex(&bytes);
         fs::write(directory.join(format!("migration-{digest}.wasm")), &bytes).unwrap();
         println!(
             "migration base={} root={root:?} recovery={recovery} bytes={} sha256={digest}",

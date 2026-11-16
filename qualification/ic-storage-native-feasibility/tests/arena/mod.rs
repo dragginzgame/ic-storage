@@ -1,4 +1,5 @@
-//! Private, u64-only live allocator experiment. See allocation-boundary.md.
+//! Private live allocator experiment with u64-only parking/reopening.
+//! V3 record custody is exercised separately; see allocation-boundary.md.
 
 use std::{
     alloc::{AllocError, Allocator, Layout},
@@ -375,3 +376,6 @@ mod scoped_tests;
 
 #[cfg(test)]
 mod allocator_clone_tests;
+
+#[cfg(test)]
+mod record_elements;

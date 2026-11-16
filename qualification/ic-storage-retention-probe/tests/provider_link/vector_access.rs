@@ -1,7 +1,7 @@
 //! Instrument the bounded vector diagnostic; guard imports remain unresolved.
 //! This transformation is not source identity, Rust validity or final admission.
 
-use ic_host_artifacts::wasm;
+use ic_storage_retention_probe::artifact::validate_wasm;
 use wasm_encoder::{
     CodeSection, EntityType, ExportSection, FunctionSection, GlobalSection, ImportSection,
     Instruction as I, MemorySection, Module, TypeSection, ValType, reencode::Reencode,
@@ -41,7 +41,7 @@ fn checked<T, E>(value: std::result::Result<T, E>) -> Result<T> {
 }
 
 pub(super) fn inspect(raw: &[u8]) -> Result<Profile> {
-    wasm::validate(raw, super::artifact::LIMIT).map_err(|_| Error::Malformed)?;
+    validate_wasm(raw, super::artifact::LIMIT).map_err(|_| Error::Malformed)?;
     let mut types = Vec::new();
     let mut imports = Vec::new();
     let mut functions = Vec::new();
@@ -328,7 +328,7 @@ pub(super) fn prepare(raw: &[u8]) -> Result<Vec<u8>> {
         .section(&exports)
         .section(&code);
     let bytes = module.finish();
-    wasm::validate(&bytes, super::artifact::LIMIT).map_err(|_| Error::Encoding)?;
+    validate_wasm(&bytes, super::artifact::LIMIT).map_err(|_| Error::Encoding)?;
     Ok(bytes)
 }
 

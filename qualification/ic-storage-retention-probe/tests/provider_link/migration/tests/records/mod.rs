@@ -4,6 +4,7 @@ use super::{
     *,
 };
 use crate::installed_tests::{stopped_hash, update};
+use ic_storage_retention_probe::artifact::{sha256, sha256_hex, validate_wasm};
 use ic_testkit::{
     pic::PocketIcStartupConfig,
     pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking::PocketIc},
@@ -159,7 +160,7 @@ fn conversion_artifact_orders_source_admission_before_rust() {
             }
             module.section(&code);
         });
-        wasm::validate(&changed, LIMIT).unwrap();
+        validate_wasm(&changed, LIMIT).unwrap();
         assert_ne!(changed, prepare(&raw, &bridge, false, (0, 0), schema, mode));
     }
 }
@@ -171,7 +172,7 @@ async fn installed_conversion_rollback_and_portable_recovery() {
     let candidate = |relocated, root, schema, post| {
         let bytes = prepare(&raw, &bridge, relocated, root, schema, post);
         assert_eq!(bytes, prepare(&raw, &bridge, relocated, root, schema, post));
-        let digest = Sha256Digest::compute(&bytes);
+        let digest = sha256_hex(&bytes);
         fs::write(directory.join(format!("record-{digest}.wasm")), &bytes).unwrap();
         println!(
             "record schema={schema} relocated={relocated} root={root:?} post={post:?} sha256={digest}"
@@ -209,10 +210,7 @@ async fn installed_conversion_rollback_and_portable_recovery() {
         pic.upgrade_eop_canister(id, convert.clone(), args(100, 0), None)
             .await
             .unwrap();
-        assert_eq!(
-            stopped_hash(pic, id).await,
-            Sha256Digest::compute(&convert).as_bytes()
-        );
+        assert_eq!(stopped_hash(pic, id).await, &sha256(&convert));
         pic.start_canister(id, None).await.unwrap();
         assert_eq!(query(pic, id, "observe").await, before);
         assert_eq!(pic.get_stable_memory(id).await, stable);
@@ -242,10 +240,7 @@ async fn installed_conversion_rollback_and_portable_recovery() {
                 .collect::<Vec<_>>()
         );
         let end = checkpoint.len() - 32;
-        assert_eq!(
-            &checkpoint[end..],
-            Sha256Digest::compute(&checkpoint[..end]).as_bytes()
-        );
+        assert_eq!(&checkpoint[end..], &sha256(&checkpoint[..end]));
         refused(pic, id, &recover, args(7, 0), true).await;
         refused(pic, id, &wrong_schema, args(7, 0), false).await;
         for arguments in [args(8, 0), args(7, 1)] {
@@ -257,10 +252,7 @@ async fn installed_conversion_rollback_and_portable_recovery() {
         let stable = pic.get_stable_memory(id).await;
         stopped_hash(pic, id).await;
         replace_heap(pic, id, &recover, args(7, 0)).await.unwrap();
-        assert_eq!(
-            stopped_hash(pic, id).await,
-            Sha256Digest::compute(&recover).as_bytes()
-        );
+        assert_eq!(stopped_hash(pic, id).await, &sha256(&recover));
         pic.start_canister(id, None).await.unwrap();
         let restored = query(pic, id, "observe").await;
         assert_eq!(logical(&restored), values);

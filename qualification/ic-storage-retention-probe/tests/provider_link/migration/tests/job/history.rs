@@ -1,5 +1,6 @@
 //! Independent logical oracle across repeated native use and portable cutovers.
 use super::*;
+use ic_storage_retention_probe::artifact::sha256_hex;
 use std::collections::VecDeque;
 
 struct Model {
@@ -69,7 +70,7 @@ async fn mixed_native_histories_match_a_model_across_repeated_domain_migrations(
     let (directory, raw, bridge) = job_inputs();
     let save = |relocated, root, recovery| {
         let bytes = prepare_job(&raw, &bridge, relocated, root, recovery);
-        let digest = Sha256Digest::compute(&bytes);
+        let digest = sha256_hex(&bytes);
         fs::write(directory.join(format!("history-{digest}.wasm")), &bytes).unwrap();
         println!(
             "history relocated={relocated} root={root:?} recovery={recovery} bytes={} sha256={digest}",

@@ -17,7 +17,9 @@ validate retained bytes, reopen pointers, certify private layouts or implement
 a persistence runtime. Its safe constructor accepts live Rust vectors, not saved
 descriptors. Native owners and scalar record conversion remain runtime work.
 
-Run `make native-core-test` for host behavior and ownership compile-fail tests;
+Run `make native-core-test` for host behavior, ownership compile-fail tests and
+the optional derive's application-facing codec/layout tests, plus strict host and
+Wasm lint checks with and without that feature;
 `make native-provider-test` exercises the library through the installed provider.
 The existing checkpoint/job gates additionally exercise portable reconstruction.
 Installed scope cases cover normal callback errors, full-capacity refusal and
@@ -34,3 +36,9 @@ Its support types describe scalar fields and codec errors; the macro generates
 metadata, logical codecs and scoped getters. These are not retained-memory
 admission or a general persistence runtime. The macro runs at compile time and
 is disabled for the standalone raw-vector diagnostic build.
+The generated API also runs in a `no_std` consumer with no implicit prelude and
+with application names shadowing primitive aliases and result constructors.
+The `Store` API's compile-fail examples check owning/borrowed fields, custom Drop,
+misleading scalar widths, escaped views and attempts to obtain a mutable record.
+These declaration rules are tested here; qualification fixtures own their
+application-specific retained layouts, conversion, rollback and recovery cases.

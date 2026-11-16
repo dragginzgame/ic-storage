@@ -1,4 +1,5 @@
 use super::*;
+use ic_storage_retention_probe::artifact::{sha256, sha256_hex, validate_wasm};
 
 #[test]
 #[ignore = "native-job-test supplies the compiled job bridge"]
@@ -67,7 +68,7 @@ fn blocked_bootstrap_precedes_transient_reset_and_job_admission() {
             }
             module.section(&code);
         });
-        wasm::validate(&changed, LIMIT).unwrap();
+        validate_wasm(&changed, LIMIT).unwrap();
         assert_ne!(changed, bytes);
     }
 }
@@ -115,10 +116,7 @@ async fn resume(pic: &PocketIc, id: CanisterId, target: &[u8], epoch: u64, desti
     pic.upgrade_eop_canister(id, target.to_vec(), args(epoch, destination, 0), None)
         .await
         .unwrap();
-    assert_eq!(
-        stopped_hash(pic, id).await,
-        Sha256Digest::compute(target).as_bytes()
-    );
+    assert_eq!(stopped_hash(pic, id).await, &sha256(target));
     pic.start_canister(id, None).await.unwrap();
     assert_eq!(query(pic, id, "observe").await, native);
     assert_eq!(pic.get_stable_memory(id).await, stable);
@@ -139,7 +137,7 @@ async fn resume(pic: &PocketIc, id: CanisterId, target: &[u8], epoch: u64, desti
 async fn frozen_sources_survive_compatible_upgrades_without_releasing_writes() {
     let (directory, raw, bridge) = job_inputs();
     let save = |bytes: Vec<u8>| {
-        let digest = Sha256Digest::compute(&bytes);
+        let digest = sha256_hex(&bytes);
         fs::write(directory.join(format!("frozen-{digest}.wasm")), &bytes).unwrap();
         println!("frozen artifact bytes={} sha256={digest}", bytes.len());
         bytes
@@ -235,7 +233,7 @@ async fn frozen_sources_survive_compatible_upgrades_without_releasing_writes() {
             let bytes = query(pic, id, "checkpoint_bytes").await;
             let cp = envelope(&bytes, 1, 1, 131072, 147456);
             let end = cp.len() - 32;
-            assert_eq!(&cp[end..], Sha256Digest::compute(&cp[..end]).as_bytes());
+            assert_eq!(&cp[end..], &sha256(&cp[..end]));
         }
         refused_resume(pic, id, &frozen_a, args(1, 147456, 0), message).await;
     }

@@ -1,6 +1,7 @@
 use super::installed::{logical, query, refused_update, replace_heap, words};
 use super::*;
 use crate::installed_tests::{stopped_hash, update};
+use ic_storage_retention_probe::artifact::{sha256, sha256_hex};
 use ic_testkit::{
     pic::PocketIcStartupConfig,
     pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking::PocketIc},
@@ -39,10 +40,7 @@ fn envelope(bytes: &[u8], phase: u16, epoch: u64, source: u64, target: u64) -> &
     assert_eq!(len, bytes.len() - 104);
     assert_eq!(&bytes[44..64], &[0; 20]);
     assert_eq!(&bytes[64 + len..72 + len], b"JOBDONE1");
-    assert_eq!(
-        &bytes[72 + len..],
-        Sha256Digest::compute(&bytes[..72 + len]).as_bytes()
-    );
+    assert_eq!(&bytes[72 + len..], &sha256(&bytes[..72 + len]));
     &bytes[64..64 + len]
 }
 
@@ -81,10 +79,7 @@ async fn publish(pic: &PocketIc, id: CanisterId, epoch: u64, source: u64, target
     assert_eq!(checkpoint.len(), 120 + values.len() * 8);
     assert_eq!(words(&checkpoint[80..80 + values.len() * 8]), values);
     let end = checkpoint.len() - 32;
-    assert_eq!(
-        &checkpoint[end..],
-        Sha256Digest::compute(&checkpoint[..end]).as_bytes()
-    );
+    assert_eq!(&checkpoint[end..], &sha256(&checkpoint[..end]));
     bytes
 }
 
@@ -101,10 +96,7 @@ async fn import(
     replace_heap(pic, id, target_wasm, args(epoch, source, 0))
         .await
         .unwrap();
-    assert_eq!(
-        stopped_hash(pic, id).await,
-        Sha256Digest::compute(target_wasm).as_bytes()
-    );
+    assert_eq!(stopped_hash(pic, id).await, &sha256(target_wasm));
     pic.start_canister(id, None).await.unwrap();
     let after = query(pic, id, "checkpoint_bytes").await;
     assert_eq!(
@@ -123,7 +115,7 @@ async fn controller_authority_domains_epochs_and_single_use_survive_upgrades() {
     let candidate = |relocated, root, recovery| {
         let bytes = prepare_job(&raw, &bridge, relocated, root, recovery);
         assert_eq!(bytes, prepare_job(&raw, &bridge, relocated, root, recovery));
-        let digest = Sha256Digest::compute(&bytes);
+        let digest = sha256_hex(&bytes);
         fs::write(directory.join(format!("job-{digest}.wasm")), &bytes).unwrap();
         println!(
             "job relocated={relocated} root={root:?} recovery={recovery} bytes={} sha256={digest}",

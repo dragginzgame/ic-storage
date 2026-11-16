@@ -14,9 +14,11 @@ See the [current design](docs/DESIGN.md#supported-runtime-contract).
 
 The implementation is partial: an unpublished [scoped native vector core](crates/ic-storage-native/README.md)
 and installed scalar/vector lifecycle and migration fixtures provide the current
-native foundation. General records, derive support and application converters
-remain planned. The byte-defined M0 memory-image model remains an evidence
-baseline, not the native collection ABI or a
+native foundation. A bounded scalar `Store` derive supplies metadata, logical
+codecs and scoped getters; qualification fixtures exercise explicit field addition
+and checked scalar narrowing, including rollback and portable recovery. Owning
+records and general application conversion remain planned. The byte-defined M0
+memory-image model remains an evidence baseline, not the native collection ABI or a
 complete persistence system. Its [earlier research plan](docs/design/m0-research-plan.md)
 is archived; its format and historical results remain scoped to that experiment.
 
@@ -140,7 +142,8 @@ general runtime migration and production authority remain open.
 The [governed job fixture](qualification/ic-storage-native-feasibility/migration-job.md)
 adds guarded jobs, cancellation, frozen-source upgrades and staged import.
 The shared [native core](crates/ic-storage-native/README.md) now supplies scoped
-vector operations to that fixture; `make native-core-test` checks ownership limits.
+vector operations to that fixture; `make native-core-test` checks ownership limits
+and the optional scalar derive's application-facing contract.
 
 Library code lives in `crates/`. See [qualification/](qualification/README.md)
 for fixture contracts, commands and evidence scope. Production canister

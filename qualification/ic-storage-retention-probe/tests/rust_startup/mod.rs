@@ -4,9 +4,9 @@
 mod graph_tests;
 mod growth_tests;
 
+use ic_storage_retention_probe::artifact::sha256;
 use std::{fs, path::PathBuf, time::Duration};
 
-use ic_host_artifacts::artifact::{Sha256Digest, read_reader};
 use ic_testkit::{
     pic::PocketIcStartupConfig,
     pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking::PocketIc},
@@ -29,7 +29,12 @@ fn input(variant: &str) -> Vec<u8> {
         "target/qualification/rust-{variant}/wasm32-unknown-unknown/release/ic_storage_rust_startup_probe.wasm"
     ));
     let file = fs::File::open(path).expect("build the fixtures with make rust-startup-build");
-    read_reader(file, 1024 * 1024).expect("bounded input artifact")
+    ic_host_artifacts::read(
+        file,
+        ic_host_artifacts::Length::AtMost((1024 * 1024) as u64),
+    )
+    .expect("bounded input artifact")
+    .0
 }
 
 fn rewrite(raw: &[u8], mut section: impl FnMut(&mut Module, u8, &[u8])) -> Vec<u8> {
@@ -148,7 +153,7 @@ async fn upgrade(pic: &PocketIc, id: CanisterId, bytes: &[u8]) {
         .expect("status")
         .module_hash
         .expect("hash");
-    assert_eq!(hash, Sha256Digest::compute(bytes).as_bytes());
+    assert_eq!(hash, &sha256(bytes));
     pic.start_canister(id, None).await.expect("restart");
 }
 
@@ -198,7 +203,7 @@ async fn rust_startup_restores_transients_without_touching_retained_bytes() {
             .expect("status")
             .module_hash
             .expect("hash"),
-        Sha256Digest::compute(&a.bytes).as_bytes()
+        &sha256(&a.bytes)
     );
     pic.start_canister(id, None).await.expect("restart A");
     assert_eq!(

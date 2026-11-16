@@ -206,7 +206,7 @@ also exclude application Drop and misleading scalar aliases. Generated decoding
 checks exact length and application validation before returning a fresh record;
 it does not reconstruct saved pointers or private runtime headers.
 
-`make native-feasibility-test` now includes three macro tests (including the
+At the initial derive checkpoint, `make native-feasibility-test` passed three macro tests (including the
 declaration-refusal matrix), 32 library tests, 18 provider-region tests and 19
 doctests. The existing view-escape cases exercise generated views, and four new
 compile-fail cases cover owners, borrows, Drop and scalar-name shadowing.
@@ -311,3 +311,117 @@ entrypoint orders), `attempt.GEZ4JZ` (14 artifact and four checkpoint checks), a
 `attempt.tWSKkB` (14 artifact and seven job checks, plus nine host job tests in the
 gate). These are qualification results for one current implementation, not a
 promise to maintain pre-1.0 release branches or formats.
+
+## Declaration API checks
+
+The product `make native-core-test` gate now owns Store declaration and view-scope
+compile failures, including the cases previously housed in this fixture. They
+cover owners, borrows, Drop, misleading scalar aliases, escaping views and access
+to an unrestricted mutable record. Conversion, concrete retained-layout, host
+poisoning and checkpoint recovery tests remain in qualification.
+
+Bare u32/u64 declarations and explicit `::core::primitive` spellings produce the
+same layout descriptors and logical bytes. Direct `no_std` consumer tests check
+this equivalence even when an application shadows primitive names. This extends
+accepted Rust syntax, not retained-type coverage or the persistence contract.
+
+Validation for this declaration change: five direct consumer tests and nineteen
+native-core doctests with the derive feature (seventeen compile failures), four
+macro tests, and the existing host feasibility suites passed. The qualification
+doctest count is now twelve after moving eight cases to the product crate. Strict
+host/Wasm Clippy remains part of the core gate. Installed fixtures are unchanged;
+the earlier artifact cohorts above remain historical evidence, not a new IC run.
+
+## Fresh record-vector elements
+
+The private `tests/arena/record_elements` experiment now stores V2/V3 records as
+elements of real allocator-backed vectors. It uses the existing live-host arena;
+the [allocation argument](allocation-boundary.md#fresh-scalar-record-elements)
+extends fresh clients to these concrete Copy scalar records without changing the
+unsafe allocator implementation. The u64-only parking/reopening interface stays
+unchanged. No record-vector header or saved element pointer is reopened.
+
+The experiment exercises growth, allocation exhaustion and retry, scoped element
+mutation, ordinary Err preserving earlier writes, removal, truncation, shrink,
+clear, release and run reuse. Forgetting a record-vector owner leaves its allocation
+accounted for. Whole-collection V2→V3 conversion creates a distinct candidate,
+preserves order and each ceiling, and checks every counter. Range refusal or an
+injected interruption after earlier elements leaves the source and existing target
+unchanged and reclaims the candidate. Equal native element sizes never justify
+casting a Vec between schemas.
+
+A private bounded portable envelope tests recovery after the source vector,
+allocator and backing Box have all ended. It is a new test fixture, not an installed
+provider format, a public codec API or another supported release line:
+
+| Bytes | Meaning |
+| --- | --- |
+| 0..8 | `RECVEC01` fixture identity |
+| 8..16 | V3 schema identity `RECU64V1` |
+| 16..20 | Schema version 3, little-endian u32 |
+| 20..24 | Element count, little-endian u32, at most 16 |
+| 24..32 | Caller-selected source epoch, little-endian u64 |
+| 32..payload end | Ordered generated V3 payloads, twelve bytes each |
+| Last 32 | SHA-256 of the preceding header and payload |
+
+The maximum envelope is 256 bytes. It contains initialized logical values only,
+not vector capacity or the four padding bytes in each native V3. The digest binds
+the whole ordered collection; it is not author authentication. The decoder checks
+identity, schema, count, exact framing, epoch, integrity and every record invariant
+into a bounded transient scalar array before requesting any destination arena
+allocation. A source exporter must be able to read its own schema; this fixture
+does not directly import a V2 collection into V3 without explicit conversion.
+
+Seven host cases cover empty, one-element and maximum-count restoration, independent
+expected bytes, malformed/truncated/oversized inputs, resealed invalid records,
+allocation failure, partial construction cleanup and continued allocation after
+recovery. `make native-feasibility-test` passed with all seven new cases, bringing
+the live-arena suite to 68 passing tests; its strict Clippy and remaining host
+suites also passed. Existing installed
+checkpoint formats and tests are unaffected; no installed record-vector claim is
+made. The next gate is an explicit retained element descriptor and initialized-span
+contract, followed by installed admission, rollback and portable recovery before
+exposing a persistent record-vector API.
+
+## Same-live-domain record custody
+
+The V3-only `record_elements::custody` experiment now checks direct reopening
+while the original live arena remains borrowed. A private one-use token consumes
+the original Vec and retains its initialization and allocation authority. A copied
+descriptor is insufficient: reopening requires that token, an exactly matching
+descriptor and the original live ledger entry. Neither the descriptor nor token
+is a persisted format, and this mechanism does not survive executable replacement.
+
+The transient descriptor binds schema ID/version, concrete size/alignment and
+every generated field ID/offset/scalar kind, plus allocation offset, generation,
+length and capacity. V2 and V3's matching outer sizes cannot bypass the scalar-kind
+and version checks. Empty roots also require valid metadata. The token preserves
+the original initialized-prefix bound independently of the caller's descriptor;
+larger or smaller lengths, altered capacity, overflow-sized counts and another
+live allocation all refuse before creating a typed owner.
+
+The [unsafe argument](allocation-boundary.md#fresh-scalar-record-elements) relies
+on the original live allocation and token, not metadata agreement alone. The whole
+ledger is checked, including corruption outside the requested span. Changed
+generations, suspension and a conflicting u64 parking claim refuse. The existing
+u64 reopen path cannot consume record initialization or read record padding.
+Failure consumes the token and leaves its allocation unavailable; a saved logical
+checkpoint still permits recovery after the old arena is explicitly discarded.
+
+Eight cases exercise empty/spare/full roots, repeated reopening, continued scoped
+mutation, growth/refusal, reclamation, schema/layout/root corruption, wrong-type
+reopening, forgotten authority and independent checkpoint recovery after refusal.
+The full-root case also records the allocator's coexistence cost: growing sixteen
+records to seventeen requires more than this 512-byte arena can supply while the
+old block remains live. That refusal preserves the original root; removal and
+reuse continue normally.
+
+`make native-feasibility-test` passed all eight new custody cases, bringing the
+live-arena suite to 76 passing tests. Strict Clippy and the remaining host suites
+also passed; the compiled-layout diagnostic remains separately gated as before.
+
+These are host custody checks. The remaining installed gate must define how the
+new IC executable obtains allocation and initialization authority, encode and
+admit its retained element descriptor before references exist, and exercise
+installed rollback and portable recovery. It cannot copy this live token across
+an upgrade or treat the host result as cross-instance pointer evidence.

@@ -1,6 +1,7 @@
 //! Full retained-vector wire capacity through the existing governed provider.
 
 use super::*;
+use ic_storage_retention_probe::artifact::sha256;
 
 async fn refused_update(pic: &PocketIc, id: CanisterId, method: &str, words: &[u64]) {
     let before = query(pic, id, "state").await;
@@ -24,10 +25,7 @@ fn checkpoint(bytes: &[u8], values: &[u64], counter: u64, epoch: u64) {
     let seal = 80 + values.len() * 8;
     assert_eq!(&bytes[80..seal], encode(values));
     assert_eq!(&bytes[seal..seal + 8], b"SEALED01");
-    assert_eq!(
-        &bytes[seal + 8..],
-        Sha256Digest::compute(&bytes[..seal + 8]).as_bytes()
-    );
+    assert_eq!(&bytes[seal + 8..], &sha256(&bytes[..seal + 8]));
 }
 
 #[tokio::test(flavor = "current_thread")]

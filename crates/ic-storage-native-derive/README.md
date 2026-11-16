@@ -28,8 +28,11 @@ unique nonzero u32 field IDs, an eight-byte non-NUL ASCII schema ID and a nonzer
 u32 version. The record must implement Copy, excluding arbitrary application
 Drop. Generated code requires actual primitive values of the declared width, so shadowing a name
 cannot hide a borrowed or owning representation. Generics, enums, tuple records,
-other field types, alternate repr options and skipped fields refuse. The literal
-field type spelling is deliberately restricted to `u32` and `u64` in this prototype.
+other field types, alternate repr options and skipped fields refuse. Field types
+accept bare `u32`/`u64` or absolute `::core::primitive::u32`/`::core::primitive::u64`
+paths. The explicit paths are useful in modules that shadow primitive names.
+Relative paths, user-defined aliases and generic path arguments are excluded;
+these spellings do not add a new retained representation or change codec bytes.
 
 Generated items are:
 
@@ -74,6 +77,13 @@ checkpoint envelope v4. Logical widening is tested separately on the host.
 These schemas are test cases, not maintained pre-1.0 product releases.
 
 Run `make native-feasibility-test` for macro refusal tests, generated layout and
-codec checks, scope compile failures and the host lifecycle. Run
+codec checks and the host lifecycle. Run
 `make native-record-test` for the installed conversion/update/recovery matrix.
 Both legacy checkpoint/job suites remain regression gates for the shared codec.
+`make native-core-test` exercises the feature directly in a `no_std` application,
+including field order, exact-length decoding, invariant refusal, missing implicit
+prelude, explicit primitive paths and application names shadowing generated-code
+dependencies. It also owns the compile-fail tests for unsupported fields, custom
+Drop, misleading scalar aliases, escaping views and unrestricted record mutation.
+Generated standard-library paths, primitives, result constructors and documentation macros
+are fully qualified; callers need no supporting imports.

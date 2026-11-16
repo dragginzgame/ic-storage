@@ -1,6 +1,7 @@
 use super::super::installed::{refused_update, replace_heap_with_options};
 use super::updates::{add, trapped_add};
 use super::*;
+use ic_storage_retention_probe::artifact::{sha256, sha256_hex};
 
 #[tokio::test(flavor = "current_thread")]
 #[ignore = "native-record-test supplies fresh inputs and the prepared server"]
@@ -8,7 +9,7 @@ async fn installed_narrowing_preserves_vector_and_recovers_schema_three() {
     let (directory, raw, bridge) = inputs();
     let candidate = |relocated, root, schema, post| {
         let bytes = prepare(&raw, &bridge, relocated, root, schema, post);
-        let digest = Sha256Digest::compute(&bytes);
+        let digest = sha256_hex(&bytes);
         fs::write(directory.join(format!("narrow-{digest}.wasm")), &bytes).unwrap();
         println!(
             "narrow schema={schema} relocated={relocated} root={root:?} post={post:?} sha256={digest}"
@@ -51,10 +52,7 @@ async fn installed_narrowing_preserves_vector_and_recovers_schema_three() {
         pic.upgrade_eop_canister(id, narrow.clone(), args(0, 0), None)
             .await
             .unwrap();
-        assert_eq!(
-            stopped_hash(pic, id).await,
-            Sha256Digest::compute(&narrow).as_bytes()
-        );
+        assert_eq!(stopped_hash(pic, id).await, &sha256(&narrow));
         pic.start_canister(id, None).await.unwrap();
         assert_eq!(query(pic, id, "observe").await, native);
         assert_eq!(
@@ -95,10 +93,7 @@ async fn installed_narrowing_preserves_vector_and_recovers_schema_three() {
                 .collect::<Vec<_>>()
         );
         let end = checkpoint.len() - 32;
-        assert_eq!(
-            &checkpoint[end..],
-            Sha256Digest::compute(&checkpoint[..end]).as_bytes()
-        );
+        assert_eq!(&checkpoint[end..], &sha256(&checkpoint[..end]));
         trapped_add(pic, id, args(1, 0)).await;
         refused(pic, id, &old_recover, args(7, 0), false).await;
         refused(pic, id, &recover, args(7, 0), true).await;
@@ -110,10 +105,7 @@ async fn installed_narrowing_preserves_vector_and_recovers_schema_three() {
         let stable = pic.get_stable_memory(id).await;
         stopped_hash(pic, id).await;
         replace_heap(pic, id, &recover, args(7, 0)).await.unwrap();
-        assert_eq!(
-            stopped_hash(pic, id).await,
-            Sha256Digest::compute(&recover).as_bytes()
-        );
+        assert_eq!(stopped_hash(pic, id).await, &sha256(&recover));
         pic.start_canister(id, None).await.unwrap();
         assert_eq!(pic.get_stable_memory(id).await, stable);
         let restored = query(pic, id, "observe").await;

@@ -1,5 +1,31 @@
-use super::expand;
+use super::{Scalar, expand};
 use syn::{DeriveInput, parse_quote};
+
+#[test]
+fn scalar_paths_are_exact_and_do_not_admit_aliases_or_type_arguments() {
+    for ty in [
+        parse_quote!(u32),
+        parse_quote!(u64),
+        parse_quote!(::core::primitive::u32),
+        parse_quote!(::core::primitive::u64),
+    ] {
+        assert!(Scalar::parse(&ty).is_ok());
+    }
+    for ty in [
+        parse_quote!(::u32),
+        parse_quote!(core::primitive::u32),
+        parse_quote!(application::u32),
+        parse_quote!(::core::primitive::usize),
+        parse_quote!(::core::primitive::u32::Associated),
+        parse_quote!(::core::primitive::u32<u64>),
+        parse_quote!(::core::primitive::<u32>::u64),
+        parse_quote!(<Record as Trait>::u32),
+        parse_quote!(&::core::primitive::u32),
+        parse_quote!([::core::primitive::u32; 1]),
+    ] {
+        assert!(Scalar::parse(&ty).is_err());
+    }
+}
 
 #[test]
 fn bounded_scalar_declaration_accepts_explicit_identity_and_reordered_fields() {

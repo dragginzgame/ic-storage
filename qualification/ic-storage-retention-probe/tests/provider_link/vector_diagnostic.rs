@@ -1,23 +1,21 @@
 //! Inventory vector compiler output, without linking or admitting native access.
 
+use ic_storage_retention_probe::artifact::{sha256_hex, validate_wasm};
 use std::{collections::BTreeMap, fmt::Write, fs};
 
-use ic_host_artifacts::{
-    artifact::{Sha256Digest, read_reader},
-    wasm,
-};
 use wasmparser::{DataKind, ExternalKind, Operator, Parser, Payload, TypeRef};
 
 #[test]
 #[ignore = "make native-provider-probe supplies fresh vector compiler output"]
 fn compiled_vector_has_bounded_transient_storage_but_is_not_scalar_admitted() {
     let (directory, _) = super::input();
-    let raw = read_reader(
+    let raw = ic_host_artifacts::read(
         fs::File::open(directory.join("vector/provider_vector.wasm")).unwrap(),
-        super::artifact::LIMIT,
+        ic_host_artifacts::Length::AtMost((super::artifact::LIMIT) as u64),
     )
-    .unwrap();
-    wasm::validate(&raw, super::artifact::LIMIT).unwrap();
+    .unwrap()
+    .0;
+    validate_wasm(&raw, super::artifact::LIMIT).unwrap();
     assert!(super::artifact::admit_raw(&raw).is_err());
     let mut imports = Vec::new();
     let mut exports = BTreeMap::new();
@@ -142,11 +140,11 @@ fn compiled_vector_has_bounded_transient_storage_but_is_not_scalar_admitted() {
     println!(
         "vector access rewrite: sites={coverage:?} bytes={} sha256={}; unresolved helpers, NOT executed",
         guarded.len(),
-        Sha256Digest::compute(&guarded)
+        sha256_hex(&guarded)
     );
     println!(
         "vector diagnostic sha256={} bytes={} functions={bodies} data_bytes={data_bytes} global_sets={stack_updates} memory_copies={copies}; NOT admitted or executed",
-        Sha256Digest::compute(&raw),
+        sha256_hex(&raw),
         raw.len(),
     );
 }

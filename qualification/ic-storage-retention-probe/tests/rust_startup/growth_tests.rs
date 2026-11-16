@@ -1,6 +1,7 @@
 //! Installed memory extent, growth rollback and retention-mode boundaries.
 
 use super::*;
+use ic_storage_retention_probe::artifact::{sha256, sha256_hex, validate_wasm};
 use wasm_encoder::{CodeSection, Function, Instruction as I};
 
 async fn grow(pic: &PocketIc, id: CanisterId, method: &str) -> u64 {
@@ -39,7 +40,7 @@ async fn refused(
             .expect("status")
             .module_hash
             .expect("hash"),
-        Sha256Digest::compute(source).as_bytes()
+        &sha256(source)
     );
     pic.start_canister(id, None)
         .await
@@ -103,7 +104,7 @@ fn upgrade_growth_trap(bytes: &[u8]) -> Vec<u8> {
             m.section(&RawSection { id, data });
         }
     });
-    ic_host_artifacts::wasm::validate(&negative, 1024 * 1024).expect("valid negative hook");
+    validate_wasm(&negative, 1024 * 1024).expect("valid negative hook");
     negative
 }
 
@@ -156,7 +157,7 @@ async fn grown_memory_survives_upgrades_and_refusals_preserve_state() {
     let evidence = root().join("target/evidence/rust-startup");
     fs::create_dir_all(&evidence).expect("evidence directory");
     fs::write(evidence.join("upgrade-growth-trap.wasm"), &trapping).expect("negative artifact");
-    println!("upgrade-growth-trap={}", Sha256Digest::compute(&trapping));
+    println!("upgrade-growth-trap={}", sha256_hex(&trapping));
     assert_eq!(admit(&trapping, &raw_b), Err(Refusal::FinalMismatch));
     refused(
         pic,
@@ -182,7 +183,7 @@ async fn grown_memory_survives_upgrades_and_refusals_preserve_state() {
         }
     });
     fs::write(evidence.join("stripped-marker.wasm"), &stripped).expect("negative artifact");
-    println!("stripped-marker={}", Sha256Digest::compute(&stripped));
+    println!("stripped-marker={}", sha256_hex(&stripped));
     assert_eq!(admit(&stripped, &raw_b), Err(Refusal::FinalMismatch));
     // Deliberately submit the unadmitted negative fixture to verify IC's own
     // marker requirement, separately from the host's earlier artifact refusal.

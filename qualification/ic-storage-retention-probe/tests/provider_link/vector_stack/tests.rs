@@ -1,6 +1,6 @@
 //! Small valid Wasm counterexamples to the transient-stack proof obligations.
 
-use ic_host_artifacts::{wasm, wasm_text};
+use ic_storage_retention_probe::artifact::{compile_wat, validate_wasm};
 use wasmparser::{Parser, Payload};
 
 use super::{Error, Report};
@@ -30,17 +30,10 @@ fn inspect(source: &str) -> Result<Report, Error> {
 }
 
 fn inspect_at(source: &str, stack_top: u32) -> Result<Report, Error> {
-    let bytes = wasm_text::compile(
-        source,
-        wasm_text::CompileLimits {
-            source_bytes: 65536,
-            module_bytes: 65536,
-        },
-    )
-    .unwrap();
+    let bytes = compile_wat(source, 65536, 65536).unwrap();
     // These must be valid modules. Otherwise parser rejection would mask the
     // stack/call contract being tested independently of ordinary Wasm validity.
-    wasm::validate(&bytes, 65536).unwrap();
+    validate_wasm(&bytes, 65536).unwrap();
     let mut bodies = Vec::new();
     for payload in Parser::new(0).parse_all(&bytes) {
         if let Payload::CodeSectionEntry(body) = payload.unwrap() {

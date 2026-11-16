@@ -1,4 +1,5 @@
 use super::*;
+use ic_storage_retention_probe::artifact::{sha256, sha256_hex};
 
 pub(super) fn batch_args(epoch: u64, source: u64, offset: u64, limit: u64, fault: u64) -> Vec<u8> {
     [epoch, source, offset, limit, fault]
@@ -33,10 +34,7 @@ pub(super) fn progress(
     assert_eq!(fields, [cursor, start, limit]);
     assert_eq!(&bytes[56..64], &[0; 8]);
     assert_eq!(&bytes[64 + len..72 + len], b"JOBDONE1");
-    assert_eq!(
-        &bytes[72 + len..],
-        Sha256Digest::compute(&bytes[..72 + len]).as_bytes()
-    );
+    assert_eq!(&bytes[72 + len..], &sha256(&bytes[..72 + len]));
     &bytes[64..64 + len]
 }
 
@@ -58,10 +56,7 @@ pub(super) async fn resume(pic: &PocketIc, id: CanisterId, wasm: &[u8], source: 
         .unwrap();
     assert_eq!(pic.get_stable_memory(id).await, stable);
     assert_eq!(query(pic, id, "observe").await, native);
-    assert_eq!(
-        stopped_hash(pic, id).await,
-        Sha256Digest::compute(wasm).as_bytes()
-    );
+    assert_eq!(stopped_hash(pic, id).await, &sha256(wasm));
     pic.start_canister(id, None).await.unwrap();
 }
 
@@ -70,7 +65,7 @@ pub(super) async fn resume(pic: &PocketIc, id: CanisterId, wasm: &[u8], source: 
 async fn bounded_imports_resume_retry_and_publish_only_complete_vectors() {
     let (directory, raw, bridge) = job_inputs();
     let save = |bytes: Vec<u8>| {
-        let digest = Sha256Digest::compute(&bytes);
+        let digest = sha256_hex(&bytes);
         fs::write(directory.join(format!("staged-{digest}.wasm")), &bytes).unwrap();
         println!("staged artifact bytes={} sha256={digest}", bytes.len());
         bytes
@@ -122,10 +117,7 @@ async fn bounded_imports_resume_retry_and_publish_only_complete_vectors() {
             replace_heap(pic, id, &stage, args(1, source, 0))
                 .await
                 .unwrap();
-            assert_eq!(
-                stopped_hash(pic, id).await,
-                Sha256Digest::compute(&stage).as_bytes()
-            );
+            assert_eq!(stopped_hash(pic, id).await, &sha256(&stage));
             pic.start_canister(id, None).await.unwrap();
             let bytes = query(pic, id, "checkpoint_bytes").await;
             assert_eq!(progress(&bytes, 4, source, target, 0, 0, 0), checkpoint);

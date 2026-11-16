@@ -1,6 +1,6 @@
 //! Binding checks and valid-Wasm refusals for the access instrumentation boundary.
 
-use ic_host_artifacts::{wasm, wasm_text};
+use ic_storage_retention_probe::artifact::{compile_wat, validate_wasm};
 use wasmparser::{Operator as Op, Parser, Payload};
 
 use super::{Error, HELPERS, prepare};
@@ -24,15 +24,8 @@ fn fixture(body: &str, extra: &str) -> Vec<u8> {
             unreachable)
         {extra})"#
     );
-    let bytes = wasm_text::compile(
-        &source,
-        wasm_text::CompileLimits {
-            source_bytes: 8192,
-            module_bytes: 8192,
-        },
-    )
-    .unwrap();
-    wasm::validate(&bytes, 8192).unwrap();
+    let bytes = compile_wat(&source, 8192, 8192).unwrap();
+    validate_wasm(&bytes, 8192).unwrap();
     bytes
 }
 

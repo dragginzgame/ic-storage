@@ -1,5 +1,6 @@
 use super::super::installed::refused_update;
 use super::*;
+use ic_storage_retention_probe::artifact::sha256_hex;
 
 pub(super) async fn add(pic: &PocketIc, id: CanisterId, delta: u64, status: u64, counter: u64) {
     let native = query(pic, id, "observe").await;
@@ -32,7 +33,7 @@ async fn checked_updates_survive_reopen_and_migration_with_trap_rollback() {
     let (directory, raw, bridge) = inputs();
     let candidate = |relocated, root, schema, post| {
         let bytes = prepare(&raw, &bridge, relocated, root, schema, post);
-        let digest = Sha256Digest::compute(&bytes);
+        let digest = sha256_hex(&bytes);
         fs::write(
             directory.join(format!("record-update-{digest}.wasm")),
             &bytes,

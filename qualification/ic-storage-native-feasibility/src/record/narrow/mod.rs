@@ -1,16 +1,6 @@
 //! Checked scalar-width conversion. The installed V3 profile and checkpoint v4
 //! use the same explicit range and application-invariant checks.
 //! A matching outer size does not make V2's u64 counter a V3 u32 counter.
-//!
-//! A scalar-name alias cannot conceal an unsupported width:
-//! ```compile_fail
-//! use ic_storage_native::Store;
-//! type u32 = u64;
-//! #[repr(C)]
-//! #[derive(Clone, Copy, Store)]
-//! #[store(id = "BADWIDTH", version = 1)]
-//! struct Bad { #[store(field = 1)] value: u32 }
-//! ```
 
 use super::V2;
 

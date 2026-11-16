@@ -14,9 +14,10 @@ toko-tooling.workspace = true
 category = "tests"
 
 [dependencies]
-ic-host-artifacts = { workspace = true, features = ["wasm-text", "wasm-validation"] }
+ic-host-artifacts.workspace = true
 wasm-encoder = { workspace = true, features = ["std", "wasmparser"] }
 wasmparser = { workspace = true, features = ["std", "validate", "features"] }
+wat.workspace = true
 
 [dev-dependencies]
 ic-testkit.workspace = true

@@ -1,8 +1,8 @@
 //! Execute only the reviewed u64-vector foreign allocation and ownership contract.
 
+use ic_storage_retention_probe::artifact::{sha256, sha256_hex};
 use std::{fs, time::Duration};
 
-use ic_host_artifacts::artifact::Sha256Digest;
 use ic_testkit::{
     pic::PocketIcStartupConfig,
     pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking::PocketIc},
@@ -88,10 +88,7 @@ async fn upgrade(pic: &PocketIc, id: CanisterId, target: &[u8], version: u64) {
     pic.upgrade_eop_canister(id, target.to_vec(), vec![], None)
         .await
         .unwrap();
-    assert_eq!(
-        stopped_hash(pic, id).await,
-        Sha256Digest::compute(target).as_bytes()
-    );
+    assert_eq!(stopped_hash(pic, id).await, &sha256(target));
     pic.start_canister(id, None).await.unwrap();
     let after = observe(pic, id).await;
     after.settled();
@@ -108,7 +105,7 @@ async fn native_vector_lifecycle_reclamation_and_rollback() {
     let candidate = |profile| {
         let bytes = prepare(&raw, profile).unwrap();
         admit_final(&bytes, &raw, profile).unwrap();
-        let digest = Sha256Digest::compute(&bytes);
+        let digest = sha256_hex(&bytes);
         fs::write(
             directory.join("vector").join(format!("{digest}.wasm")),
             &bytes,

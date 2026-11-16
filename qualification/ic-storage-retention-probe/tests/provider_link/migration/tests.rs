@@ -1,5 +1,5 @@
 use super::*;
-use ic_host_artifacts::artifact::Sha256Digest;
+use ic_storage_retention_probe::artifact::{sha256_hex, validate_wasm};
 use std::{fs, path::PathBuf};
 use wasm_encoder::{
     CodeSection, ConstExpr, DataSection, Instruction as I, Module, RawSection,
@@ -86,7 +86,7 @@ fn bridge_artifact_has_disjoint_initialization_and_resolved_calls() {
         }
         module.section(&code);
     });
-    wasm::validate(&changed, LIMIT).unwrap();
+    validate_wasm(&changed, LIMIT).unwrap();
     assert!(!admit_final(&changed, &raw, &bridge, true, (0, 0), true));
     assert!(!admit_final(&recovery, &raw, &bridge, false, (0, 0), true));
     let overlap = crate::rewrite(&bridge, |module, id, bytes| {
@@ -109,13 +109,13 @@ fn bridge_artifact_has_disjoint_initialization_and_resolved_calls() {
         }
         module.section(&data);
     });
-    wasm::validate(&overlap, LIMIT).unwrap();
+    validate_wasm(&overlap, LIMIT).unwrap();
     assert!(std::panic::catch_unwind(|| prepare(&raw, &overlap, false, (3, 4), false)).is_err());
     fs::write(directory.join("native-checkpoint.wasm"), &bytes).unwrap();
     println!(
         "native checkpoint bytes={} sha256={}",
         bytes.len(),
-        Sha256Digest::compute(&bytes)
+        sha256_hex(&bytes)
     );
 }
 

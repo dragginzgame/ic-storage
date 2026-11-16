@@ -2,6 +2,7 @@
 use super::super::installed::replace_heap_with_options;
 use super::staged::{batch_args, progress, resume};
 use super::*;
+use ic_storage_retention_probe::artifact::{sha256, sha256_hex};
 
 async fn refused_restart(
     pic: &PocketIc,
@@ -33,7 +34,7 @@ async fn refused_restart(
 async fn explicit_restart_recovers_partial_heaps_but_never_completed_or_corrupt_jobs() {
     let (directory, raw, bridge) = job_inputs();
     let save = |bytes: Vec<u8>| {
-        let digest = Sha256Digest::compute(&bytes);
+        let digest = sha256_hex(&bytes);
         fs::write(directory.join(format!("restart-{digest}.wasm")), &bytes).unwrap();
         println!("restart artifact bytes={} sha256={digest}", bytes.len());
         bytes
@@ -127,10 +128,7 @@ async fn explicit_restart_recovers_partial_heaps_but_never_completed_or_corrupt_
             replace_heap_with_options(pic, id, &restart, args(1, source, 0), true, None)
                 .await
                 .unwrap();
-            assert_eq!(
-                stopped_hash(pic, id).await,
-                Sha256Digest::compute(&restart).as_bytes()
-            );
+            assert_eq!(stopped_hash(pic, id).await, &sha256(&restart));
             pic.start_canister(id, None).await.unwrap();
             let bytes = query(pic, id, "checkpoint_bytes").await;
             assert_eq!(progress(&bytes, 4, source, target, 0, 0, 0), checkpoint);

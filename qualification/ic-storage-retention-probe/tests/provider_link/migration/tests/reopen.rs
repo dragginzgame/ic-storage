@@ -1,4 +1,5 @@
 use super::*;
+use ic_storage_retention_probe::artifact::{sha256_hex, validate_wasm};
 use wasm_encoder::{GlobalSection, GlobalType, ValType};
 
 #[test]
@@ -112,7 +113,7 @@ fn reopening_rebuilds_only_the_admitted_transient_domain() {
         }
         module.section(&code);
     });
-    wasm::validate(&changed, LIMIT).unwrap();
+    validate_wasm(&changed, LIMIT).unwrap();
     assert_ne!(changed, prepare_reopen(&raw, &bridge, false, (3, 4)));
 
     // A second private mutable global has no admitted reset contract.
@@ -139,7 +140,7 @@ fn reopening_rebuilds_only_the_admitted_transient_domain() {
         );
         module.section(&globals);
     });
-    wasm::validate(&mutable, LIMIT).unwrap();
+    validate_wasm(&mutable, LIMIT).unwrap();
     assert!(std::panic::catch_unwind(|| prepare_reopen(&raw, &mutable, false, (3, 4))).is_err());
     // Even a valid, zero-length table write exceeds this profile's contract.
     let table_write = crate::rewrite(&bridge, |module, id, data| {
@@ -166,11 +167,11 @@ fn reopening_rebuilds_only_the_admitted_transient_domain() {
         }
         module.section(&code);
     });
-    wasm::validate(&table_write, LIMIT).unwrap();
+    validate_wasm(&table_write, LIMIT).unwrap();
     assert!(
         std::panic::catch_unwind(|| prepare_reopen(&raw, &table_write, false, (3, 4))).is_err()
     );
-    let digest = Sha256Digest::compute(&bytes);
+    let digest = sha256_hex(&bytes);
     fs::write(directory.join(format!("reopen-{digest}.wasm")), &bytes).unwrap();
     println!("reopen bytes={} sha256={digest}", bytes.len());
 }

@@ -135,15 +135,23 @@ private unsafe kernel; no unsafe permission is added to the ownership library
 or product crate.
 The [ledger image](ledger-format.md) avoids Rust struct layout. [Suspension](suspension.md)
 checks sole-root custody; [transfer](transfer.md) replaces the controller over live backing.
+The [record-vector experiment](records.md#fresh-record-vector-elements) adds fresh
+scalar-record elements, whole-collection conversion and bounded recovery after
+source teardown. It does not extend the u64-only parking API or admit retained
+record vectors.
+Its later [V3 custody checks](records.md#same-live-domain-record-custody) reopen
+records using a one-use token over the same original live allocation, while
+rejecting altered descriptors and wrong-type claims. This remains host evidence.
 
 ```sh
 make native-feasibility-test
 make native-layout-probe
 ```
 
-The first command runs strict Clippy, nine ownership tests, five checkpoint
-tests, sixty-one arena/allocation/import tests, six metadata-reader tests, ten
-compile-fail and one positive documentation case, locked and offline. The compiled
+The first command runs strict Clippy, macro and library tests, live-arena allocation
+and import cases, metadata-reader tests and documentation checks, locked and
+offline. Product declaration/view compile failures run in `make native-core-test`.
+The compiled
 metadata test is ignored in ordinary Cargo tests: the second command supplies
 fresh inputs and explicitly runs it. `make ci` includes both on the host matrix.
 Cases cover return/capture/future escape, cross-frame tickets, take/replace,

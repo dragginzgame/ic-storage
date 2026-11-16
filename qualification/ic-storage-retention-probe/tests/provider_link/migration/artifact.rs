@@ -1,6 +1,6 @@
 //! Compose two reviewed compiler domains. Only scalar callbacks cross domains.
 
-use ic_host_artifacts::wasm;
+use ic_storage_retention_probe::artifact::validate_wasm;
 use std::collections::{BTreeMap, BTreeSet};
 use wasm_encoder::{
     CodeSection, DataCountSection, DataSection, ElementSection, ExportKind, ExportSection,
@@ -18,7 +18,7 @@ struct Inventory {
 }
 
 fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
-    wasm::validate(bytes, super::LIMIT).unwrap();
+    validate_wasm(bytes, super::LIMIT).unwrap();
     let mut result = Inventory {
         imports: vec![],
         functions: 0,
