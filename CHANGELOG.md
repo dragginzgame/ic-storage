@@ -24,6 +24,10 @@
 
 ### ✨ Added
 
+- Qualify explicit installed scalar V3→V2 widening with destination-only source
+  refusal, unchanged vector storage and ceiling, publication rollback, repeated
+  narrowing/widening, and full-width updates plus portable recovery.
+
 - Qualify controller-authorized V3 record-vector migration with durable epochs,
   cancellation, single-use recovery, frozen resumption and staged import/restart.
   Share the existing job state machine and authority adapter; use a distinct

@@ -30,6 +30,13 @@
       (if (i64.gt_u (call $record_source (i32.const 0)) (i64.const 4294967295)) (then unreachable))
       (i32.store (i32.const 65600) (i32.wrap_i64 (call $record_source (i32.const 0))))
       (i32.store (i32.const 65604) (i32.const 0))))
+  ;; Exact V3 -> V2 widening. Preserve the admitted ceiling and explicitly
+  ;; publish a full-width counter before selecting the target schema.
+  (if (i32.eq (i32.const __SOURCE__) (i32.const 3))
+    (then
+      (if (i32.ne (i32.const __SCHEMA__) (i32.const 2)) (then unreachable))
+      (if (i64.ne (call $record_source (i32.const 1)) (local.get $ceiling)) (then unreachable))
+      (i64.store (i32.const 65600) (i64.extend_i32_u (i32.load (i32.const 65600))))))
   (i64.store (i32.const 65608) (local.get $ceiling))
   (i64.store (i32.const 65592) (i64.const __SCHEMA__)))
 (func (export "ncp_record_schema") (result i32)

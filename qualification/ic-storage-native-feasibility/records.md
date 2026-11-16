@@ -478,3 +478,52 @@ an actual native V2 source and converts its scalar fields under keep mode while
 preserving allocation/capacity. V2 also has independent full-width recovery when
 narrowing refuses. Migration authority remains separate; none of these fixtures
 is a public product API.
+
+## Installed exact widening
+
+The scalar profile's explicit `Post::Widen` upgrade binds a V3 source to a V2
+target. The host `From<V3> for V2` policy now runs in transient checkpoint Rust:
+WAT first checks schema 3, canonical zero upper counter bytes, the counter/ceiling
+invariant, vector geometry and exclusive settled custody. Only scalar copies
+cross into Rust. The converter constructs V3 and then V2; WAT publishes an
+explicit zero-extended u64 counter, preserves the exact ceiling, and selects
+schema 2 last. Native V2 post-admission runs only after publication. No old Rust
+record reference, vector owner or private layout crosses the conversion boundary.
+
+Arguments are a zero reserved u64 and a fault selector: 0 normally, 1 before
+publication, 2 after publication. Conversion is private to the chosen upgrade
+artifact. Repeated widening, source schema 1 or 2, invalid V3 padding, nonzero
+reserved input and fresh replacement memory refuse. Negative source artifacts
+omit their old pre-upgrade export so destination checks independently establish
+source refusal. Failed upgrades preserve the old module hash, complete vector
+observation, scalar metadata and stable bytes.
+
+Installed cases cover empty, reserved-empty, spare and full 512-element u64
+vectors. Exact widening at u32::MAX leaves vector backing, capacity and contents
+unchanged and preserves the ceiling. Explicit narrowing/widening cycles succeed
+while the value fits. Subsequent V2 mutations can exceed u32::MAX and reach
+u64::MAX; overflow refuses, and narrowing those enlarged counters refuses without
+mutation. A separate tight-ceiling case confirms widening does not relax the
+application invariant. Compatible V2 reopening remains available.
+
+Portable recovery uses the existing schema-2 checkpoint v3 without changing its
+bytes. Independent observations check the schema, epoch, full-width counter and
+ceiling, ordered vector payload and digest. Heap-replacement recovery in both
+allocation domains preserves these values, permits continued reclamation and
+allocation, and rolls back injected restore failures. This scalar experiment
+neither changes record-vector/job schemas nor provides automatic downgrade,
+arbitrary application conversion, a product support matrix or actual compiler
+migration.
+
+On 16 November 2026, `make native-record-test` passed eighteen raw/link artifact
+checks, one conversion artifact test (covering all three conversion directions)
+and four installed cases with workspace version 0.75.0 on x86_64 Linux and the
+prepared PocketIC 16.1.0 server. Cohort
+`target/evidence/provider-link/attempt.1uaXiV/` records COMPLETE, compiler/source
+inputs, composed artifacts (including sources without pre-upgrade hooks) and
+`records.txt`; the selected group took 9.18 seconds excluding preparation.
+The affected native-checkpoint regression passed four cases in `attempt.3fGUeJ`;
+record-vector conversion/recovery passed ten cases plus three codec tests in
+`attempt.mO9xn6`. Both cohorts also passed eighteen raw/link checks and have
+COMPLETE. Selected Wasm and host-test Clippy passed. These recorded source
+snapshots precede only the documentation updates reporting their results.

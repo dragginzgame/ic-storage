@@ -193,6 +193,10 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
             callbacks.contains(&"record_schema")
         );
         assert_eq!(
+            result.exports.contains_key("checkpoint_widen"),
+            callbacks.contains(&"record_schema")
+        );
+        assert_eq!(
             result.exports.contains_key("checkpoint_record_add"),
             callbacks.contains(&"record_schema")
         );
@@ -237,6 +241,7 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
                     | "checkpoint_stage_damage"
                     | "checkpoint_convert"
                     | "checkpoint_narrow"
+                    | "checkpoint_widen"
                     | "checkpoint_record_add"
                     | "checkpoint_vector_narrow"
                     | "checkpoint_vector_convert"
@@ -363,6 +368,7 @@ pub(super) enum Post {
     Importing,
     Convert,
     Narrow,
+    Widen,
     NarrowVector,
     ConvertVector,
 }
@@ -415,6 +421,7 @@ pub(super) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
             | Post::Importing
             | Post::Convert
             | Post::Narrow
+            | Post::Widen
             | Post::ConvertVector
     )
     .then(|| super::transient::Plan::read(bridge));
@@ -579,6 +586,12 @@ pub(super) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
                     ncall("__bridge_record_source"),
                     reset_index,
                     pcall("checkpoint_narrow"),
+                    ncall("__bridge_post"),
+                ],
+                Post::Widen => vec![
+                    ncall("__bridge_record_source"),
+                    reset_index,
+                    pcall("checkpoint_widen"),
                     ncall("__bridge_post"),
                 ],
                 Post::Frozen => vec![

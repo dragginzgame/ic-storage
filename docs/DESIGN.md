@@ -194,8 +194,12 @@ logical encoding. V2→V3 counter narrowing now runs in the installed fixture,
 with checked range refusal, unchanged vector storage, publication rollback and
 portable recovery through checkpoint envelope v4. Its unchanged outer native
 size does not hide the changed field representation. Native admission checks
-V3's four-byte counter and canonical reserved word. Logical widening is tested
-on the host; an installed V3→V2 converter is not implemented.
+V3's four-byte counter and canonical reserved word. An explicit installed
+[V3→V2 widening converter](../qualification/ic-storage-native-feasibility/records.md#installed-exact-widening)
+now preserves vector storage and the ceiling, validates the source before Rust
+entry, and exercises publication rollback and full-width portable recovery.
+This closed scalar conversion does not authorize automatic downgrade or a
+record-vector/job schema change.
 
 A [fresh record-vector host experiment](../qualification/ic-storage-native-feasibility/records.md#fresh-record-vector-elements)
 now exercises scalar records as allocator-backed collection elements, checked

@@ -10,6 +10,8 @@ Its controller/epoch/consumption contract does not change the ordinary fixture.
 
 The separate `native-record` feature reuses the scalar bridge for
 [installed record conversion and versioned checkpoints](../ic-storage-native-feasibility/records.md#installed-record-profile).
+It includes explicit V1→V2 field addition, checked V2→V3 narrowing and exact
+V3→V2 widening; conversion policy is bound by the selected upgrade artifact.
 Run `make native-record-test`. Select it separately from `native-job`; the job
 profile remains schema 1 and takes precedence when both features are enabled.
 

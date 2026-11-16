@@ -13,6 +13,7 @@ use std::time::Duration;
 
 mod narrow;
 mod updates;
+mod widen;
 
 fn inputs() -> (PathBuf, Vec<u8>, Vec<u8>) {
     let (directory, _) = super::super::super::input();
@@ -90,7 +91,7 @@ async fn refused_with_message(
 #[ignore = "native-record-test supplies fresh compiler inputs"]
 fn conversion_artifact_orders_source_admission_before_rust() {
     let (_, raw, bridge) = inputs();
-    for (schema, mode) in [(2, Post::Convert), (3, Post::Narrow)] {
+    for (schema, mode) in [(2, Post::Convert), (3, Post::Narrow), (2, Post::Widen)] {
         let bytes = prepare(&raw, &bridge, false, (0, 0), schema, mode);
         let mut exports = std::collections::BTreeMap::new();
         let mut bodies = Vec::new();

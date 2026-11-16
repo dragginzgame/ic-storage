@@ -123,3 +123,23 @@ extern "C" fn checkpoint_narrow() {
         ic0::trap(b"record narrowing after publication");
     }
 }
+
+#[expect(
+    unsafe_code,
+    reason = "private exact widening entry bound only to an upgrade"
+)]
+#[unsafe(no_mangle)]
+extern "C" fn checkpoint_widen() {
+    let [reserved, fault] = args();
+    assert_eq!(reserved, 0);
+    assert!(fault <= 2);
+    let source = V3::new(u32::try_from(record_source(0)).unwrap(), record_source(1)).unwrap();
+    let target = V2::from(source);
+    if fault == 1 {
+        ic0::trap(b"record widening before publication");
+    }
+    record_publish(target.ceiling());
+    if fault == 2 {
+        ic0::trap(b"record widening after publication");
+    }
+}

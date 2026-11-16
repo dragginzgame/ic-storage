@@ -73,7 +73,9 @@ Scalar width changes require explicit conversion, never a cast of retained bytes
 The [V2→V3 narrowing probe](../../qualification/ic-storage-native-feasibility/records.md#checked-scalar-width-conversion)
 checks the u64→u32 range and preserves the ceiling. The installed qualification
 profile now exercises conversion, publication rollback and reconstruction through
-checkpoint envelope v4. Logical widening is tested separately on the host.
+checkpoint envelope v4. Explicit scalar V3→V2 widening now also has
+[installed admission, rollback and recovery evidence](../../qualification/ic-storage-native-feasibility/records.md#installed-exact-widening);
+it leaves the vector unchanged and reuses schema-2 checkpoint encoding.
 These schemas are test cases, not maintained pre-1.0 product releases.
 
 Run `make native-feasibility-test` for macro refusal tests, generated layout and

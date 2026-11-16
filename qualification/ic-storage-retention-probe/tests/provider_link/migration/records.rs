@@ -17,13 +17,15 @@ pub(super) fn prepare(
     assert!(matches!(schema, 1..=3));
     assert!(matches!(
         post,
-        Post::Reopen | Post::Convert | Post::Narrow | Post::Recover
+        Post::Reopen | Post::Convert | Post::Narrow | Post::Widen | Post::Recover
     ));
     assert!(post != Post::Convert || schema == 2);
     assert!(post != Post::Narrow || schema == 3);
+    assert!(post != Post::Widen || schema == 2);
     let source_schema = match post {
         Post::Convert => 1,
         Post::Narrow => 2,
+        Post::Widen => 3,
         _ => 0,
     };
     let mut source = native_source(relocated, root, false)
