@@ -92,7 +92,7 @@ for my $selection (@roots) {
         }
         return if -l $path || !-f $path;
         # Explicit log/marker selection includes hidden attempt directories.
-        return unless $relative =~ m{(?:^|/)(?:[A-Za-z0-9_.-]+\.(?:log|status)|COMPLETE|ADMITTED|RECOVERED|JOB_RECOVERED)$};
+        return unless $relative =~ m{(?:^|/)(?:[A-Za-z0-9_.-]+\.(?:log|status)|COMPLETE|ADMITTED|RECOVERED|JOB_RECOVERED|STAGED_MAP_RECOVERED|STAGED_MAP_RESTARTED)$};
         return if $label eq 'tool-attempts' && $relative !~ m{^rust-[A-Za-z0-9_-]+/(?:set\.|\.attempt\.)[A-Za-z0-9]+/install\.log$};
         return unless regular_path($path);
         push @selected, ["$label/$relative", $path];

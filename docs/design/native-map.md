@@ -220,6 +220,8 @@ profile does not yet cover recovery of the larger growing-pool workload.
 The [durable map-job profile](../../qualification/ic-storage-native-feasibility/native-map-jobs.md)
 adds controller checks, sequential epochs, cancellation, frozen resumption and
 atomic consumption through the shared migration state machine for that bound.
+It also qualifies private native prefixes across bounded import batches,
+compatible interruption and explicit restart from the independent checkpoint.
 
 The [provider pool host experiment](../../qualification/ic-storage-native-feasibility/provider-region.md#multiple-root-host-pool)
 now supports disjoint runs for multiple maps and simultaneous growth candidates.
@@ -229,8 +231,8 @@ host cases cover refusal, reclamation and custody boundaries. The same allocator
 now serves the installed two-root contract above; no allocator object or private
 collection header is retained across entrypoints.
 
-- Extend durable map jobs to bounded import batches, interruption/restart and
-  recovery workloads matching the larger growing pool.
+- Extend durable map recovery to workloads matching the larger growing pool,
+  with bounded checkpoint storage, validation and instruction costs.
 - Connect bounded provider growth to consumer-facing root custody and a larger
   operational budget. Current installed execution grows to five Wasm pages;
   it does not establish million-record IC throughput or automatic elasticity.

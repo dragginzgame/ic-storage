@@ -1,5 +1,59 @@
 # Changelog
 
+## [0.75.2] - 2026-11-16
+
+### ➕ Added
+
+- Extend durable map jobs with batches of up to 64 records, exact retries,
+  compatible interruption and explicit restart of unfinished imports. Validate
+  both native prefixes against the checkpoint and keep application writes blocked
+  until both maps are complete; completed retries preserve subsequent writes.
+  Total recovery remains bounded to 64 records per map.
+
+### 🔧 Changed
+
+- Adopt Testkit 0.107.4 in the qualification lockfile. Its library sources are
+  unchanged from 0.107.3; installed checks retain the separately prepared 0.106.0
+  server launcher.
+
+### ⚡ Performance
+
+- Read native map checkpoints with one forward bucket scan per root, replacing
+  repeated scans for every key and value. Enforce ordered scalar reads and
+  preserve the existing checkpoint bytes and recovery limits.
+- Store durable map-job progress separately from checkpoint bytes. Progress
+  writes are fixed at 104 bytes and identical retries write nothing; full
+  checkpoint reads and validation remain bounded to the existing map limits.
+
+### 🧪 Testing
+
+- Qualify staged map publication rollback, corruption refusal and recovery after
+  native-header loss. The private job fixture now uses native format 8 and
+  refuses older native formats; scalar callbacks remain non-reentrant.
+- Check sequential reads on empty, full and deletion-sparse maps and unfinished
+  import prefixes, including callback-order refusals and bucket-visit bounds.
+- Meter the actual governed two-cell adapter and test missing/mixed/corrupt
+  parts, plus IC rollback between checkpoint and metadata publication. Older
+  single-cell jobs are rejected without automatic migration or reset.
+
+### ▶️ Try it
+
+From the repository root after the [documented bootstrap](README.md), prepare
+tools once with network access and local installation:
+
+```sh
+make install-tools retention-setup
+```
+
+Run the locked offline atomic, staged and restart checks on the local server:
+
+```sh
+make native-map-job-test
+```
+
+Successful attempts contain `JOB_RECOVERED`, `STAGED_MAP_RECOVERED` and
+`STAGED_MAP_RESTARTED` under `target/evidence/native-map-provider/`.
+
 ## [0.75.1] - 2026-11-16
 
 ### ▶️ Try it

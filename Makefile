@@ -7,8 +7,8 @@ NATIVE_FEASIBILITY_CARGO := --manifest-path qualification/Cargo.toml -p ic-stora
 CHECKPOINT_CARGO := --manifest-path qualification/Cargo.toml -p ic-storage-checkpoint-provider-probe --target wasm32-unknown-unknown --locked --offline --release
 CHECKPOINT_LINK := -C link-arg=--stack-first -C link-arg=-zstack-size=1048576 -C link-arg=--initial-memory=2097152 -C link-arg=--max-memory=16777216
 NATIVE_CHECKPOINT_LINK := -C link-arg=--stack-first -C link-arg=-zstack-size=65536 -C link-arg=--global-base=196608 -C link-arg=--initial-memory=2097152 -C link-arg=--max-memory=16777216 -C link-arg=--export=__stack_pointer -C link-arg=--export=__data_end -C link-arg=--export=__heap_base
-# Testkit 0.107.1 has no launcher. Keep the existing prepared server tool outside
-# the consumer Cargo graph; installed tests require its explicitly owned URL.
+# Keep the separately prepared launcher outside the consumer Cargo graph;
+# installed tests require its explicitly owned server URL.
 RETENTION_TOOL := bash vendor/toko-tooling/scripts/dev/install-rust-tools.sh --consumer "$(CURDIR)" --package ic-testkit --version 0.106.0 --bin ic-testkit-server --profile release --features cli
 RUST_STARTUP_CARGO := --manifest-path qualification/Cargo.toml -p ic-storage-rust-startup-probe --target wasm32-unknown-unknown --locked --offline --release
 RUST_STARTUP_LINK := -C link-arg=--stack-first -C link-arg=-zstack-size=1048576 -C link-arg=--initial-memory=8454144 -C link-arg=--max-memory=16777216 -C link-arg=--export=__stack_pointer -C link-arg=--export=__data_end -C link-arg=--export=__heap_base
@@ -202,6 +202,7 @@ native-map-test:
 native-map-job-build:
 	@test -z "$${RUSTFLAGS}$${CARGO_ENCODED_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_LINKER}" || { echo 'Map job probe requires the pinned compiler without overrides' >&2; exit 1; }
 	+cargo test $(NATIVE_FEASIBILITY_CARGO) --lib migration_job
+	+cargo test --manifest-path qualification/Cargo.toml -p ic-storage-checkpoint-provider-probe --target-dir target/qualification --features native-map-job --lib provider::map_job::tests --locked --offline
 	+cargo clippy $(CHECKPOINT_CARGO) --target-dir target/qualification --features native-map-job -- -D warnings
 	+cargo rustc $(CHECKPOINT_CARGO) --target-dir target/qualification/checkpoint-map-job --features native-map-job -- $(NATIVE_CHECKPOINT_LINK)
 

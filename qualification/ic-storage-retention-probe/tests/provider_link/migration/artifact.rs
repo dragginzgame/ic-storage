@@ -157,6 +157,14 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
                     "stage_finish",
                     "stage_ready",
                 ]);
+            } else {
+                expected.extend([
+                    "map_stage_start",
+                    "map_stage_prepare",
+                    "map_stage_state",
+                    "map_stage_damage",
+                    "stage_ready",
+                ]);
             }
             if callbacks.contains(&"record_value") {
                 expected.retain(|name| *name != "stage_counter");
@@ -241,7 +249,7 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
         ] {
             assert_eq!(
                 result.exports.contains_key(name),
-                callbacks.contains(&"domain") && !callbacks.contains(&"map_count")
+                callbacks.contains(&"domain")
             );
         }
         for name in result.exports.keys() {
@@ -315,7 +323,7 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
             pending.len(),
             if result.exports.contains_key("ncp_domain") {
                 if result.exports.contains_key("ncp_map_count") {
-                    9
+                    14
                 } else if result.exports.contains_key("ncp_record_value") {
                     17
                 } else {
@@ -415,8 +423,23 @@ pub(crate) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
         .any(|(module, name)| module == "native_checkpoint" && name == "map_count");
     assert_eq!(maps, n.exports.contains_key("__bridge_export"));
     assert_eq!(maps, n.exports.contains_key("ncp_map_count"));
-    assert!(!maps || matches!(post, Post::Recover | Post::Reopen | Post::Frozen));
-    assert!(!maps || post != Post::Frozen || n.exports.contains_key("ncp_domain"));
+    assert!(
+        !maps
+            || matches!(
+                post,
+                Post::Recover
+                    | Post::Reopen
+                    | Post::Frozen
+                    | Post::Stage
+                    | Post::Restart
+                    | Post::Importing
+            )
+    );
+    assert!(
+        !maps
+            || matches!(post, Post::Recover | Post::Reopen)
+            || n.exports.contains_key("ncp_domain")
+    );
     assert_eq!(
         p.exports.contains_key("checkpoint_convert"),
         n.exports.contains_key("ncp_record_schema")
@@ -437,7 +460,7 @@ pub(crate) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
     );
     assert_eq!(
         n.exports.contains_key("__bridge_importing"),
-        n.exports.contains_key("ncp_domain") && !maps
+        n.exports.contains_key("ncp_domain")
     );
     assert_eq!(
         p.imports
@@ -659,8 +682,20 @@ pub(crate) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
                     reset_index,
                     pcall("checkpoint_resume"),
                 ],
-                Post::Stage => vec![ncall("ncp_fresh"), pcall("checkpoint_stage")],
-                Post::Restart => vec![ncall("ncp_fresh"), pcall("checkpoint_stage_restart")],
+                Post::Stage | Post::Restart => {
+                    let mut calls = vec![
+                        ncall("ncp_fresh"),
+                        pcall(if post == Post::Stage {
+                            "checkpoint_stage"
+                        } else {
+                            "checkpoint_stage_restart"
+                        }),
+                    ];
+                    if maps {
+                        calls.push(ncall("__bridge_stage_apply"));
+                    }
+                    calls
+                }
                 Post::Importing => vec![
                     ncall("__bridge_importing"),
                     reset_index,
@@ -705,7 +740,15 @@ pub(crate) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
     if p.exports.contains_key("checkpoint_batch") {
         entrypoints.push((
             "canister_update import_batch",
-            vec![pcall("checkpoint_batch")],
+            if maps {
+                vec![
+                    ncall("__bridge_batch_before"),
+                    pcall("checkpoint_batch"),
+                    ncall("__bridge_batch_after"),
+                ]
+            } else {
+                vec![pcall("checkpoint_batch")]
+            },
         ));
         entrypoints.push((
             "canister_update damage_import",

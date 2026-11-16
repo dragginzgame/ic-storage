@@ -18,6 +18,52 @@ fn maps() -> [Map; 2] {
 }
 
 #[test]
+fn split_storage_preserves_canonical_bytes_and_binds_both_parts() {
+    fn check(job: &MapJob) {
+        let canonical = job.encode().unwrap();
+        let (metadata, payload) = job.encode_split().unwrap();
+        assert_eq!(metadata.len(), 104);
+        assert_eq!(&metadata[..64], &canonical[..64]);
+        assert_eq!(payload, &canonical[64..canonical.len() - 40]);
+        assert_eq!(&metadata[64..], &canonical[canonical.len() - 40..]);
+        assert_eq!(&MapJob::decode_split(&metadata, payload).unwrap(), job);
+        for length in 0..metadata.len() {
+            assert!(MapJob::decode_split(&metadata[..length], payload).is_err());
+        }
+        for index in 0..metadata.len() {
+            let mut damaged = metadata;
+            damaged[index] ^= 1;
+            assert!(MapJob::decode_split(&damaged, payload).is_err());
+        }
+        if !payload.is_empty() {
+            assert!(MapJob::decode_split(&metadata, &payload[..payload.len() - 1]).is_err());
+            let mut damaged = payload.to_vec();
+            damaged[64] ^= 1;
+            assert!(MapJob::decode_split(&metadata, &damaged).is_err());
+        }
+        let mut extra = metadata.to_vec();
+        extra.push(0);
+        assert!(MapJob::decode_split(&extra, payload).is_err());
+        assert!(
+            MapJob::decode_split(&metadata, &vec![0; checkpoint::maps::MAX_BYTES + 1]).is_err()
+        );
+    }
+    let ready = MapJob::initial(A).unwrap();
+    check(&ready);
+    let mut job = ready.export(A, B, 1, &maps()).unwrap();
+    check(&job);
+    job.cancel(A, B, 1).unwrap();
+    check(&job);
+    job = job.export(A, B, 2, &maps()).unwrap();
+    job.begin_import(B, A, 2).unwrap();
+    check(&job);
+    job.batch(B, A, 2, 0, 64).unwrap();
+    check(&job);
+    job.batch(B, A, 2, 64, 64).unwrap();
+    check(&job);
+}
+
+#[test]
 fn map_jobs_bind_domains_epochs_and_both_payloads() {
     let mut source = maps();
     let ready = MapJob::initial(A).unwrap();
@@ -75,4 +121,42 @@ fn map_jobs_bind_domains_epochs_and_both_payloads() {
     assert!(!cancelled.cancel(A, B, 1).unwrap());
     assert!(matches!(cancelled.consume(B, A, 1), Err(Error::State)));
     assert!(cancelled.export(A, B, 2, &recovered).is_ok());
+}
+
+#[test]
+fn map_progress_crosses_roots_retries_restarts_and_consumes_once() {
+    let source = maps();
+    let mut job = MapJob::initial(A)
+        .unwrap()
+        .export(A, B, 1, &source)
+        .unwrap();
+    job.begin_import(B, A, 1).unwrap();
+    assert_eq!(job.cancel(A, B, 1), Err(Error::State));
+    assert_eq!(job.export(A, B, 2, &source), Err(Error::State));
+    for (start, limit, end) in [(0, 63, 63), (63, 2, 65)] {
+        let batch = job.batch(B, A, 1, start, limit).unwrap();
+        assert_eq!(
+            (batch.start, batch.end, batch.complete, batch.retry),
+            (start, end, false, false)
+        );
+        job = MapJob::decode(&job.encode().unwrap()).unwrap();
+        let saved = job.encode().unwrap();
+        assert!(job.batch(B, A, 1, start, limit).unwrap().retry);
+        assert_eq!(job.encode().unwrap(), saved);
+        assert!(matches!(
+            job.batch(B, A, 1, start, limit + 1),
+            Err(Error::State)
+        ));
+    }
+    assert!(matches!(job.batch(B, A, 1, 0, 63), Err(Error::State)));
+    job.restart_import(B, A, 1).unwrap();
+    assert_eq!(job.importing(B, A, 1).unwrap().1, 0);
+    job = MapJob::decode(&job.encode().unwrap()).unwrap();
+    assert!(!job.batch(B, A, 1, 0, 64).unwrap().complete);
+    assert!(job.batch(B, A, 1, 64, 64).unwrap().complete);
+    let mut job = MapJob::decode(&job.encode().unwrap()).unwrap();
+    assert!(job.batch(B, A, 1, 64, 64).unwrap().retry);
+    assert!(matches!(job.restart_import(B, A, 1), Err(Error::State)));
+    assert!(matches!(job.consume(B, A, 1), Err(Error::State)));
+    assert!(job.export(B, A, 2, &source).is_ok());
 }

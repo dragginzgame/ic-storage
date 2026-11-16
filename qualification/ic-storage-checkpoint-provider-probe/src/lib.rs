@@ -5,9 +5,11 @@
     feature = "native-record-vector-job",
     feature = "native-map-job"
 ))]
+#[cfg(target_arch = "wasm32")]
 mod job_control;
 
 #[cfg(feature = "native-map")]
+#[cfg(target_arch = "wasm32")]
 mod native_map;
 
 #[cfg(all(
@@ -18,6 +20,7 @@ mod native_map;
         feature = "native-map"
     ))
 ))]
+#[cfg(target_arch = "wasm32")]
 mod native_bridge;
 #[cfg(any(
     all(feature = "native-job", not(feature = "native-record-vector")),
@@ -31,9 +34,12 @@ mod native_bridge;
     )
 ))]
 #[cfg(not(feature = "native-map"))]
+#[cfg(target_arch = "wasm32")]
 mod native_job;
 #[cfg(not(feature = "native-bridge"))]
+#[cfg(target_arch = "wasm32")]
 mod ordinary;
+#[cfg(any(target_arch = "wasm32", all(test, feature = "native-map-job")))]
 mod provider;
 #[cfg(all(
     feature = "native-record-vector",
@@ -45,9 +51,11 @@ mod provider;
     )
 ))]
 #[cfg(not(feature = "native-map"))]
+#[cfg(target_arch = "wasm32")]
 mod record_vector;
 #[cfg(feature = "native-record-vector-source")]
 #[cfg(not(feature = "native-map"))]
+#[cfg(target_arch = "wasm32")]
 mod record_vector_source;
 
 #[cfg(all(
@@ -58,4 +66,5 @@ mod record_vector_source;
     ))
 ))]
 #[cfg(not(feature = "native-map"))]
+#[cfg(target_arch = "wasm32")]
 mod record_vector_convert;

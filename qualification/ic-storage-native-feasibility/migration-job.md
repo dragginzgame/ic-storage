@@ -13,8 +13,11 @@ The [record-vector job profile](#record-vector-job-profile) shares these
 transitions with a distinct V3 payload, locator and native identity. The scalar
 layout and historical evidence below retain their original scope.
 The [two-map job profile](native-map-jobs.md) now shares the same transition owner
-with its own payload, allocation domains and locator. Its installed evidence
-covers atomic recovery; staged map import/restart remains unqualified.
+with its own payload, allocation domains and two governed locators. Its installed evidence
+covers atomic recovery and staged prefix validation, retry, interruption and
+explicit restart within the 64-record-per-map bound.
+Its adapter separates fixed 104-byte metadata from the checkpoint using the
+shared envelope codec; scalar and record jobs retain their existing single cells.
 
 ## Contract and bytes
 

@@ -38,9 +38,14 @@ The installed workload retains 4,608 records across both roots and checks growth
 refusal, fragmentation and reuse. A host pool also grows and reopens
 three maps containing over one million records within a shared 96 MiB allocation.
 A separate [governed map recovery profile](qualification/ic-storage-native-feasibility/native-map-recovery.md)
-now restores two maps of up to 64 records each after full heap loss. Larger recovery
-budgets, durable job governance, consumer-facing root custody and application
-record values remain next; the million-key figures are host measurements.
+now restores two maps of up to 64 records each after full heap loss. Its
+[durable jobs](qualification/ic-storage-native-feasibility/native-map-jobs.md)
+add controller authorization, epochs, cancellation, bounded import batches,
+compatible interruption, explicit restart and single-use completion. Progress
+writes use a separate 104-byte governed record while retaining the checkpoint;
+each batch still reads and validates the complete bounded payload. Larger
+recovery budgets, consumer-facing root custody and application record values
+remain next; the million-key figures are host measurements.
 
 This is the intended successor to `ic-storage`, aiming to subsume the persistence
 capabilities our applications need. The [legacy repository](https://github.com/dragginzgame/ic-storage-legacy)

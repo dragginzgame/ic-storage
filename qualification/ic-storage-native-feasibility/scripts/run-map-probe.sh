@@ -70,5 +70,7 @@ if [[ "$mode" == job ]]; then
         -p ic-storage-retention-probe --target-dir target/qualification --locked --offline \
         --test provider_link map::recovery::job_installed_tests -- --ignored --nocapture 2>&1 | tee "$output/job.log"
     test -f "$output/JOB_RECOVERED"
+    test -f "$output/STAGED_MAP_RECOVERED"
+    test -f "$output/STAGED_MAP_RESTARTED"
 fi
 printf 'Closed native map %s checks passed.\n' "$mode" > "$output/COMPLETE"

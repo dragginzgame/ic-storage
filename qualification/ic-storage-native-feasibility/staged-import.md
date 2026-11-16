@@ -4,6 +4,10 @@ This qualification extension of the [governed job](migration-job.md) reconstruct
 one native u64 vector across messages. It uses the same governed Storage cell,
 two native allocation domains and 512-element logical checkpoint. It introduces
 neither a product API nor arbitrary Rust graph migration.
+The [two-map adapter](native-map-jobs.md#staged-import-interruption-and-restart)
+now reuses these progress transitions with canonical key ordering, native prefix
+validation and deferred product-map construction. Its geometry and 64-record
+per-map limit are independent of the scalar profile described below.
 
 ## Versioned progress
 

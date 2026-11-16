@@ -86,6 +86,17 @@ checkpoint stack/data/heap with the existing transient reset plan. Frozen roots
 remain frozen across compatible upgrades. Neither private Rust headers nor a
 Global allocator image are treated as retained objects.
 
+The scalar reader uses one transient forward cursor. `map_count(root)` starts or
+restarts that root; `map_word(root, index, field)` requires consecutive indices,
+each key (field 0) immediately followed by its value (field 1). Switching roots
+requires another count call. Unstarted, wrong-root, skipped, repeated, invalid-field
+and past-end reads trap. Every call rechecks readable custody and root bounds.
+The key read advances through buckets once; the value read reuses that occupied
+slot. A complete read visits at most the root's bucket count instead of rescanning
+from bucket zero for every scalar. No cursor is stored in the checkpoint or native
+header; compatible upgrade and retry reconstruct it. Logical checkpoint bytes,
+native formats and recovery limits are unchanged.
+
 If native metadata is corrupted after a valid independent export, ordinary source
 admission refuses. An explicitly selected recovery operation can skip the source
 hook and Replace the heap. It still validates the complete checkpoint and expected
@@ -93,6 +104,20 @@ epoch; it neither reads nor drops the corrupt old native objects. This is an
 explicit salvage path, never an automatic reset on admission failure.
 
 ## Qualification and limits
+
+The sequential reader passed installed recovery in
+`target/evidence/native-map-provider/attempt.m3VZJj/` on 16 November 2026
+(three artifact checks, one installed matrix, 3.18 seconds). Independent native
+slot decoding verifies copied record order, all value bits and the bucket-visit
+bound. The 64+64-record case visited 126+125 buckets; the previous per-scalar
+rescan would visit 9,232+8,986 on that same layout (a calculated baseline, not a
+wall-clock comparison). Empty maps visit none. Deleting 62 entries from each
+map leaves two records in each 128-bucket table; both sparse checkpoints recover
+correctly. Invalid callback sequences trap without changing native/stable state,
+and a new count restarts a partial read. Compatible frozen reopening preserves
+the same observations. Host codec tests, provider/integration Clippy and formatting
+also passed. The [job profile](native-map-jobs.md#qualification-evidence) exercises
+the same reader on unfinished import prefixes.
 
 `make native-map-checkpoint-test` builds the dedicated `native-map` provider
 feature with locked offline inputs, uses the prepared local PocketIC server,

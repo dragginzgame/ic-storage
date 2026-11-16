@@ -74,8 +74,10 @@ A separate governed checkpoint profile now freezes and exports two maps of up
 to 64 records each, then reconstructs them after whole-heap replacement in another
 allocation domain, including explicit recovery after corrupt native metadata.
 A distinct durable map-job profile now adds controller-authorized export,
-sequential epochs, cancellation, frozen resumption and atomic single-use recovery.
-Recovery for the larger growing pool, multi-message map imports, consumer-facing
+sequential epochs, cancellation, frozen resumption and single-use recovery. Bounded
+map imports now span messages with prefix validation, exact retries, compatible
+interruption and explicit restart of unfinished imports from the checkpoint.
+Recovery for the larger growing pool, consumer-facing
 root custody and general record values remain incomplete.
 These are shared native collection components, not a complete Store API.
 Keep the existing M0 format, tests and evidence; do not reinterpret those bytes
@@ -703,8 +705,17 @@ source-hook bypass when native metadata is corrupt. Its separate
 [durable map-job profile](../qualification/ic-storage-native-feasibility/native-map-jobs.md)
 shares the existing job transition owner, adding controller checks, domain-bound
 epochs, cancellation, frozen-source continuity and single-use consumption in the
-same transaction as native reconstruction. It does not qualify multi-message map
-import/restart or the larger growing-pool workload.
+same transaction as native reconstruction. Its staged path imports at most 64
+records per message, validates both retained prefixes against the checkpoint,
+survives compatible interruptions and explicitly restarts only unfinished jobs.
+Completed retries preserve subsequent application writes. Total recovery remains
+bounded to 64 records per map; the larger growing-pool workload is unqualified.
+Scalar copying scans each map's buckets once, while every import batch still
+decodes the whole checkpoint and validates the complete committed prefix.
+The map-job adapter stores metadata and checkpoint in separate governed cells,
+so progress updates write only 104 metadata bytes. The shared job digest binds
+both parts, and installed rollback must cover publication between the cells.
+This does not yet bound checkpoint reads or validation independently of total state.
 
 The [governed job](../qualification/ic-storage-native-feasibility/migration-job.md)
 adds controller authority, durable epochs, consumption, pre-cutover cancellation

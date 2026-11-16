@@ -10,6 +10,7 @@ use crate::{
 use ic_storage_retention_probe::artifact::{sha256, sha256_hex};
 use ic_testkit::pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking::PocketIc};
 use std::fs;
+mod staged;
 const A: u64 = 131072;
 const B: u64 = 163840;
 fn args(epoch: u64, domain: u64, fault: u64) -> Vec<u8> {
@@ -149,6 +150,7 @@ async fn durable_map_jobs_authorize_cancel_resume_and_consume_atomically() {
         args(1, A, 0),
         args(1, 147456, 0),
         args(1, B, 1),
+        args(1, B, 2),
         vec![],
     ] {
         refused_update(pic, id, "export_checkpoint", arguments).await;
@@ -259,7 +261,7 @@ async fn durable_map_jobs_authorize_cancel_resume_and_consume_atomically() {
         );
     }
     // A correctly checksummed but changed payload cannot resume a frozen source.
-    for mode in 0..=1 {
+    for mode in 0..=2 {
         let damaged = install(pic, &source).await;
         authorize(pic, damaged).await;
         update(pic, damaged, "full_width").await;
@@ -268,16 +270,16 @@ async fn durable_map_jobs_authorize_cancel_resume_and_consume_atomically() {
             damaged,
             damaged,
             "damage_checkpoint",
-            if mode == 0 {
-                args(0, 0, 0)
-            } else {
+            if mode == 1 {
                 args(1, 1, B)
+            } else {
+                args(mode, 0, 0)
             },
         )
         .await
         .unwrap();
         refused_upgrade(pic, damaged, &frozen, args(1, B, 0), true).await;
-        if mode == 0 {
+        if mode != 1 {
             refused_upgrade(pic, damaged, &target, args(1, A, 0), false).await;
         }
     }

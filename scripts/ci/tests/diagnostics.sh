@@ -9,6 +9,9 @@ mkdir -p "$fixture/scripts/ci" "$fixture/runner" "$fixture/store/rust-fixture/.a
 cp "$root/scripts/ci/diagnostics.pl" "$root/scripts/ci/setup-step.sh" "$fixture/scripts/ci/"
 printf 'compiler fixture: missing header\n' > "$fixture/store/rust-fixture/.attempt.123/install.log"
 printf 'attempt: early preparation\nTOKEN=fixture-secret\n' > "$fixture/target/toko-tooling/.attempt.early/install.log"
+mkdir -p "$fixture/target/evidence/map/attempt.test"
+printf 'staged map passed\n' > "$fixture/target/evidence/map/attempt.test/STAGED_MAP_RECOVERED"
+printf 'restart passed\n' > "$fixture/target/evidence/map/attempt.test/STAGED_MAP_RESTARTED"
 printf 'outside selected boundary\n' > "$fixture/outside.log"
 ln -s "$fixture/outside.log" "$fixture/target/toko-tooling/escape.log"
 ln -s "$fixture/store" "$fixture/target/toko-tooling/escape-directory"
@@ -21,6 +24,8 @@ if grep -q 'fixture-secret' "$fixture/console"; then exit 1; fi
 perl "$fixture/scripts/ci/diagnostics.pl" collect "$fixture" "$fixture/runner" "$fixture/store" "$fixture/collected" > "$fixture/index"
 grep -q '.attempt.early/install.log' "$fixture/index"
 grep -q '.attempt.123/install.log' "$fixture/index"
+grep -q 'STAGED_MAP_RECOVERED' "$fixture/index"
+grep -q 'STAGED_MAP_RESTARTED' "$fixture/index"
 grep -q 'Missing evidence' "$fixture/index"
 if grep -R -q 'fixture-secret\|outside selected boundary' "$fixture/collected"; then exit 1; fi
 # Finite log bound and PEM omission.

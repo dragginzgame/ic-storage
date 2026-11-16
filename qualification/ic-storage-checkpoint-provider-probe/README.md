@@ -11,11 +11,19 @@ Its locator is `native.checkpoint.maps.v1`, with a 2256-byte load limit and at m
 by actual native construction after checkpoint Rust returns. Run
 `make native-map-checkpoint-test`. Select fixture features independently;
 `native-map-job` takes precedence in an all-features build. The additional
-`native-map-job` feature uses `native.checkpoint.maps.job.v1` and native format 6
+`native-map-job` feature uses native format 8 and two governed cells
 for [durable two-map jobs](../ic-storage-native-feasibility/native-map-jobs.md),
-with a 2360-byte load limit, controller authority, epochs, cancellation, frozen
-resumption and atomic consumption. Run `make native-map-job-test`. Bare map
-checkpoints are not silently enrolled; staged map import/restart remains unqualified.
+at `native.checkpoint.maps.job.metadata.v1` (104-byte limit) and
+`native.checkpoint.maps.job.checkpoint.v1` (2256-byte limit). Progress updates write
+only metadata; checkpoint bytes remain unchanged until a new export. The shared
+job digest binds both parts. The profile retains controller authority, epochs,
+cancellation, frozen
+resumption, atomic consumption and staged import/restart. Batches validate both
+private prefixes and commit at most 64 records together with durable progress;
+completed retries preserve newer writes. Run `make native-map-job-test`. Bare map
+checkpoints, the former single-cell job locator and previous native formats are
+not silently enrolled. The Make target includes host tests of this actual adapter
+using Storage's metered backing; installed tests supply IC transaction evidence.
 
 The separately selected `native-job` feature uses the same governed provider
 under `native.checkpoint.job.v1` for [durable migration admission](../ic-storage-native-feasibility/migration-job.md).

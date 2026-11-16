@@ -14,7 +14,7 @@ category = "tests"
 
 [lib]
 crate-type = ["cdylib"]
-test = false
+test = true
 doctest = false
 
 [features]
@@ -35,6 +35,9 @@ ic-platform-runtime = { workspace = true, features = ["system-raw"] }
 ic-storage-legacy.workspace = true
 ic-storage-native = { workspace = true, features = ["map"], optional = true }
 ic-storage-native-feasibility.workspace = true
+
+[dev-dependencies]
+ic-storage-legacy = { workspace = true, features = ["test-support"] }
 
 [lints]
 workspace = true

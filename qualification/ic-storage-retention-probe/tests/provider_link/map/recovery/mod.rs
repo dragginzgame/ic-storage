@@ -8,6 +8,7 @@ use ic_storage_retention_probe::artifact::{compile_wat, validate_wasm};
 
 mod installed_tests;
 mod job_installed_tests;
+mod read_tests;
 const LIMIT: usize = 1024 * 1024;
 
 fn replace(source: &mut String, from: &str, to: &str) {
@@ -81,22 +82,36 @@ fn prepare_mode(raw: &[u8], bridge: &[u8], relocated: bool, post: Post, job: boo
     );
     source.truncate(source.rfind(')').unwrap());
     source.push_str(include_str!("callbacks.wat"));
+    source.push_str(include_str!("read_tests.wat"));
     source.push(')');
     if job {
         replace(
             &mut source,
             "(i64.load (i32.const 65544)) (i64.const 5)",
-            "(i64.load (i32.const 65544)) (i64.const 6)",
+            "(i64.load (i32.const 65544)) (i64.const 8)",
         );
         replace(
             &mut source,
             "(i64.store (i32.const 65544) (i64.const 5))",
-            "(i64.store (i32.const 65544) (i64.const 6))",
+            "(i64.store (i32.const 65544) (i64.const 8))",
         );
         replace(
             &mut source,
             "(else (call $boundary))))",
             "(else (if (i64.ne (i64.load (i32.const 65584)) (i64.const 1)) (then unreachable)) (call $boundary))))",
+        );
+        let start = source.find("(func $boundary (local $frozen i32)").unwrap();
+        let end = source.find("(func (export \"__bridge_export\")").unwrap();
+        source.replace_range(start..end, "");
+        replace(
+            &mut source,
+            "(func $read_root (param $id i32) (result i64)\n  (call $frozen)",
+            "(func $read_root (param $id i32) (result i64)\n  (call $readable)",
+        );
+        replace(
+            &mut source,
+            "(func (export \"__bridge_export\")\n  (call $boundary)",
+            "(func (export \"__bridge_export\")\n  (call $boundary)\n  (if (i32.eq (global.get $phase) (i32.const 6)) (then unreachable))",
         );
         let end = source.rfind(')').unwrap();
         source.insert_str(end, include_str!("job.wat"));

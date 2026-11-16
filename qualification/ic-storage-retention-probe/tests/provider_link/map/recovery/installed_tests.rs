@@ -21,7 +21,7 @@ pub(super) async fn query(pic: &PocketIc, id: CanisterId, method: &str) -> Vec<u
 }
 pub(super) fn records(bytes: &[u8], id: usize) -> BTreeMap<u64, u64> {
     assert_eq!(bytes.len(), 104 + 24576);
-    assert!(matches!(word(bytes, 32), 5 | 6));
+    assert!(matches!(word(bytes, 32), 5 | 8));
     let root = word(bytes, 56 + id * 8);
     let start = 104 + (root >> 16) as usize * 24;
     let buckets = 1usize << ((root >> 12) & 15);
@@ -186,6 +186,8 @@ async fn maps_recover_from_governed_checkpoint_after_heap_loss() {
     pic.update_call(empty, empty, "export_checkpoint", args(0, 0))
         .await
         .unwrap();
+    read_tests::check(pic, empty).await;
+    refused_update(pic, empty, "scan_past_end", vec![]).await;
     replace_heap(pic, empty, &target, args(0, 0)).await.unwrap();
     assert!(records(&query(pic, empty, "observe").await, 0).is_empty());
     update(pic, empty, "full_width").await;
@@ -198,6 +200,11 @@ async fn maps_recover_from_governed_checkpoint_after_heap_loss() {
     let expected = [records(&observed, 0), records(&observed, 1)];
     assert_eq!((expected[0].len(), expected[1].len()), (64, 64));
     assert_eq!(expected[0].get(&u64::MAX), Some(&(u64::MAX - 1)));
+    let error = pic
+        .query_call(id, id, "scan_records", vec![])
+        .await
+        .unwrap_err();
+    assert_eq!(error.error_code, ErrorCode::CanisterTrapped);
     update(pic, id, "grow_a").await;
     refused_update(pic, id, "export_checkpoint", args(17, 0)).await;
     update(pic, id, "remove_growth_a").await;
@@ -207,6 +214,22 @@ async fn maps_recover_from_governed_checkpoint_after_heap_loss() {
         .unwrap();
     let saved = query(pic, id, "checkpoint_bytes").await;
     assert_eq!(checkpoint(&saved, 17), expected);
+    read_tests::check(pic, id).await;
+    assert!(query(pic, id, "scan_restart").await.is_empty());
+    for method in [
+        "scan_unstarted",
+        "scan_wrong_root",
+        "scan_invalid_root",
+        "scan_value_first",
+        "scan_invalid_field",
+        "scan_skip",
+        "scan_repeat_key",
+        "scan_repeat_record",
+        "scan_past_end",
+    ] {
+        refused_update(pic, id, method, vec![]).await;
+    }
+    read_tests::check(pic, id).await;
     refused_update(pic, id, "insert_a", vec![]).await;
     refused_recovery(pic, id, &target, 17, 0, true).await;
     refused_recovery(pic, id, &target, 18, 0, false).await;
@@ -219,6 +242,7 @@ async fn maps_recover_from_governed_checkpoint_after_heap_loss() {
         .unwrap();
     assert_eq!(query(pic, id, "observe").await, frozen);
     assert_eq!(query(pic, id, "checkpoint_bytes").await, saved);
+    read_tests::check(pic, id).await;
     replace_heap(pic, id, &target, args(17, 0)).await.unwrap();
     let recovered = query(pic, id, "observe").await;
     assert_eq!(word(&recovered, 40), 163840);
@@ -281,6 +305,29 @@ async fn maps_recover_from_governed_checkpoint_after_heap_loss() {
     )
     .await;
     refused_recovery(pic, missing, &target, 17, 0, false).await;
+    let sparse = pic.create_canister().await;
+    pic.install_canister(sparse, source.clone(), vec![], None)
+        .await;
+    update(pic, sparse, "fill_checkpoint").await;
+    update(pic, sparse, "full_width").await;
+    update(pic, sparse, "sparsify_checkpoint").await;
+    let native = query(pic, sparse, "observe").await;
+    let expected = [records(&native, 0), records(&native, 1)];
+    assert_eq!((expected[0].len(), expected[1].len()), (2, 2));
+    pic.update_call(sparse, sparse, "export_checkpoint", args(20, 0))
+        .await
+        .unwrap();
+    read_tests::check(pic, sparse).await;
+    assert_eq!(
+        checkpoint(&query(pic, sparse, "checkpoint_bytes").await, 20),
+        expected
+    );
+    replace_heap(pic, sparse, &target, args(20, 0))
+        .await
+        .unwrap();
+    let recovered = query(pic, sparse, "observe").await;
+    assert_eq!([records(&recovered, 0), records(&recovered, 1)], expected);
+
     let lost = pic.create_canister().await;
     pic.install_canister(lost, source, vec![], None).await;
     update(pic, lost, "full_width").await;

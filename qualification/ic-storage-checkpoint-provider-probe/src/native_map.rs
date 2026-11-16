@@ -53,15 +53,15 @@ extern "C" fn checkpoint_export() {
 fn read_source() -> [Map; 2] {
     let mut source = [Map::new(maps::LIMIT), Map::new(maps::LIMIT)];
     for (id, map) in source.iter_mut().enumerate() {
+        // Starts a fresh transient cursor. The callback contract requires each
+        // key immediately followed by its value, with increasing record indices.
         let count = map_count(id as u32);
         assert!(count <= maps::LIMIT as u32);
         map.with(|mut view| {
             for index in 0..count {
-                assert!(
-                    view.insert(map_word(id as u32, index, 0), map_word(id as u32, index, 1))
-                        .unwrap()
-                        .is_none()
-                );
+                let key = map_word(id as u32, index, 0);
+                let value = map_word(id as u32, index, 1);
+                assert!(view.insert(key, value).unwrap().is_none());
             }
         })
         .unwrap();

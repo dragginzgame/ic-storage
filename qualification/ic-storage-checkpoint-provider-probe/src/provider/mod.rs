@@ -1,20 +1,16 @@
 //! Single owner of the governed locator and reader for both fixture profiles.
 
 use ic_storage_legacy::{
-    AllocationGrants, DefaultMemoryImpl, GenericAllocationPolicy, MemoryAuthority, MemoryRequest,
-    MemoryRuntime, SealedDeclarationSnapshot, StableKey, adapter::StableCell,
+    AllocationGrants, GenericAllocationPolicy, MemoryAuthority, MemoryBacking, MemoryRequest,
+    MemoryRuntime, SealedDeclarationSnapshot, StableKey,
 };
+#[cfg(not(feature = "native-map-job"))]
+use ic_storage_legacy::{DefaultMemoryImpl, adapter::StableCell};
 
 const OWNER: &str = "native-checkpoint";
 const PREFIX: &str = "native.checkpoint.";
 #[cfg(feature = "native-map-job")]
-pub(crate) fn map_job_cell(create: bool) -> StableCell<Vec<u8>> {
-    open(
-        "native.checkpoint.maps.job.v1",
-        create,
-        ic_storage_native_feasibility::migration_job::MAP_MAX_BYTES,
-    )
-}
+pub(crate) mod map_job;
 #[cfg(not(any(
     feature = "native-job",
     feature = "native-record-vector",
@@ -82,6 +78,7 @@ pub(crate) fn record_vector_cell(create: bool) -> StableCell<Vec<u8>> {
         feature = "native-record-vector-convert"
     ))
 ))]
+#[cfg(not(feature = "native-map"))]
 pub(crate) fn job_cell(create: bool) -> StableCell<Vec<u8>> {
     open(
         "native.checkpoint.record_vector.job.v1",
@@ -90,27 +87,45 @@ pub(crate) fn job_cell(create: bool) -> StableCell<Vec<u8>> {
     )
 }
 
+#[cfg(not(feature = "native-map-job"))]
 fn open(key: &str, create: bool, limit: usize) -> StableCell<Vec<u8>> {
-    // Every open constructs new runtime/lease ownership. Import never creates
-    // a missing locator or relies on a handle retained from the previous heap.
-    let mut runtime = MemoryRuntime::new(DefaultMemoryImpl::default()).unwrap();
-    let parsed = StableKey::parse(key).unwrap();
-    if !create {
-        assert!(
-            runtime.allocation_id(&parsed).is_some(),
-            "missing checkpoint locator"
-        );
-    }
-    let declarations =
-        SealedDeclarationSnapshot::new(vec![MemoryRequest::new(OWNER, key).unwrap()]).unwrap();
-    let grants = AllocationGrants::new(vec![MemoryAuthority::new(OWNER, PREFIX).unwrap()]).unwrap();
-    runtime
-        .bootstrap(&declarations, &grants, &GenericAllocationPolicy)
+    let runtime = runtime(DefaultMemoryImpl::default(), &[key], create);
+    let memory = runtime
+        .open_memory(&StableKey::parse(key).unwrap())
         .unwrap();
-    let memory = runtime.open_memory(&parsed).unwrap();
     if create {
         StableCell::create(memory, Vec::new()).unwrap()
     } else {
         StableCell::load(memory, limit).unwrap()
     }
+}
+
+fn runtime<M: MemoryBacking>(memory: M, keys: &[&str], create: bool) -> MemoryRuntime<M> {
+    // Every open constructs new runtime/lease ownership. Import never creates
+    // a missing locator or relies on a handle retained from the previous heap.
+    if !create {
+        assert!(memory.size() != 0, "missing checkpoint provider");
+    }
+    let mut runtime = MemoryRuntime::new(memory).unwrap();
+    if !create {
+        for key in keys {
+            assert!(
+                runtime
+                    .allocation_id(&StableKey::parse(key).unwrap())
+                    .is_some(),
+                "missing checkpoint locator"
+            );
+        }
+    }
+    let declarations = SealedDeclarationSnapshot::new(
+        keys.iter()
+            .map(|key| MemoryRequest::new(OWNER, key).unwrap())
+            .collect(),
+    )
+    .unwrap();
+    let grants = AllocationGrants::new(vec![MemoryAuthority::new(OWNER, PREFIX).unwrap()]).unwrap();
+    runtime
+        .bootstrap(&declarations, &grants, &GenericAllocationPolicy)
+        .unwrap();
+    runtime
 }

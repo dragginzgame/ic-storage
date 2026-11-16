@@ -20,6 +20,8 @@ pub use staged::Batch;
 
 const HEADER: usize = 64;
 const OVERHEAD: usize = HEADER + 8 + 32;
+/// Fixed metadata size when the unchanged nested checkpoint is stored separately.
+pub const METADATA_BYTES: usize = OVERHEAD;
 /// Maximum governed cell payload, including the nested version-2 checkpoint.
 pub const MAX_BYTES: usize = OVERHEAD + ScalarVector::MAX_BYTES;
 /// Maximum record job, including sixteen V3 records.
@@ -213,6 +215,35 @@ impl<P: Payload> MigrationJob<P> {
         let digest = Sha256::digest(&bytes);
         bytes.extend_from_slice(&digest);
         Ok(bytes)
+    }
+
+    /// Separate the existing envelope into fixed metadata and checkpoint bytes.
+    /// Metadata contains the header followed by the completeness marker/digest;
+    /// its digest still covers the complete canonical envelope, including payload.
+    /// Both parts must be published atomically by the storage adapter.
+    pub fn encode_split(&self) -> Result<([u8; METADATA_BYTES], &[u8]), Error> {
+        let bytes = self.encode()?;
+        let mut metadata = [0; METADATA_BYTES];
+        metadata[..HEADER].copy_from_slice(&bytes[..HEADER]);
+        metadata[HEADER..].copy_from_slice(&bytes[bytes.len() - (OVERHEAD - HEADER)..]);
+        Ok((metadata, &self.checkpoint))
+    }
+
+    /// Reassemble and validate separately stored metadata and checkpoint bytes.
+    /// This is the same envelope admission as `decode`, including cross-part
+    /// integrity and nested validation. It still reads the complete checkpoint.
+    pub fn decode_split(metadata: &[u8], checkpoint: &[u8]) -> Result<Self, Error> {
+        if metadata.len() != METADATA_BYTES || checkpoint.len() > P::MAX_BYTES {
+            return Err(Error::Framing);
+        }
+        let mut bytes = Vec::new();
+        bytes
+            .try_reserve_exact(OVERHEAD + checkpoint.len())
+            .map_err(|_| Error::Allocation)?;
+        bytes.extend_from_slice(&metadata[..HEADER]);
+        bytes.extend_from_slice(checkpoint);
+        bytes.extend_from_slice(&metadata[HEADER..]);
+        Self::decode(&bytes)
     }
 
     /// Check framing, domain, phase and nested integrity before returning state.
