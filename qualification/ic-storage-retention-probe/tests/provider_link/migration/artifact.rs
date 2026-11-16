@@ -146,6 +146,9 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
                 "stage_finish",
                 "stage_ready",
             ]);
+            if callbacks.contains(&"record_value") {
+                expected.retain(|name| *name != "stage_counter");
+            }
             expected.sort_unstable();
         }
         if callbacks.contains(&"record_schema") {
@@ -161,10 +164,25 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
             ]);
             expected.sort_unstable();
         }
-        assert_eq!(callbacks, expected);
+        if callbacks.contains(&"convert_count") {
+            assert!(callbacks.contains(&"record_value"));
+            expected.extend([
+                "convert_count",
+                "convert_value",
+                "convert_begin",
+                "convert_put",
+                "convert_finish",
+            ]);
+            expected.sort_unstable();
+        }
         assert_eq!(
-            result.exports.contains_key("checkpoint_vector_narrow"),
-            callbacks.contains(&"record_value")
+            result.exports.contains_key("checkpoint_vector_convert"),
+            callbacks.contains(&"convert_count")
+        );
+        assert_eq!(callbacks, expected);
+        assert!(
+            !result.exports.contains_key("checkpoint_vector_narrow")
+                || callbacks.contains(&"record_value")
         );
         assert_eq!(
             result.exports.contains_key("checkpoint_convert"),
@@ -221,6 +239,7 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
                     | "checkpoint_narrow"
                     | "checkpoint_record_add"
                     | "checkpoint_vector_narrow"
+                    | "checkpoint_vector_convert"
             ));
         }
     } else {
@@ -236,7 +255,9 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
             })
             .collect();
         let imported = result.imports.len() as u32;
-        let native_functions = if result.exports.contains_key("ncp_record_value") {
+        let native_functions = if result.exports.contains_key("__bridge_record_v2") {
+            6 // Explicit six-body V2 compiler profile.
+        } else if result.exports.contains_key("ncp_record_value") {
             2 // Closed record profile, checked by compose_record before this inventory.
         } else {
             super::super::vector_access::NATIVE_FUNCTIONS
@@ -249,7 +270,10 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
                 name.starts_with("ncp_")
                     || matches!(
                         name.as_str(),
-                        "__bridge_frozen" | "__bridge_importing" | "__bridge_record_source"
+                        "__bridge_frozen"
+                            | "__bridge_importing"
+                            | "__bridge_record_source"
+                            | "__bridge_vector_source"
                     )
             })
             .map(|(_, (_, index))| *index)
@@ -257,9 +281,15 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
         assert_eq!(
             pending.len(),
             if result.exports.contains_key("ncp_domain") {
-                19
+                if result.exports.contains_key("ncp_record_value") {
+                    17
+                } else {
+                    19
+                }
             } else if result.exports.contains_key("ncp_record_schema") {
                 15
+            } else if result.exports.contains_key("ncp_convert_count") {
+                12
             } else if result.exports.contains_key("ncp_record_value") {
                 6
             } else {
@@ -334,6 +364,7 @@ pub(super) enum Post {
     Convert,
     Narrow,
     NarrowVector,
+    ConvertVector,
 }
 
 pub(super) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
@@ -367,9 +398,24 @@ pub(super) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
             .any(|(m, n)| m == "native_checkpoint" && n == "domain"),
         n.exports.contains_key("ncp_domain")
     );
+    if n.exports.contains_key("ncp_record_value") {
+        assert_eq!(
+            p.exports.contains_key("checkpoint_vector_narrow"),
+            !n.exports.contains_key("__bridge_record_v2") && !n.exports.contains_key("ncp_domain")
+        );
+        assert_eq!(
+            p.exports.contains_key("checkpoint_vector_convert"),
+            n.exports.contains_key("__bridge_vector_source")
+        );
+    }
     let reset = matches!(
         post,
-        Post::Reopen | Post::Frozen | Post::Importing | Post::Convert | Post::Narrow
+        Post::Reopen
+            | Post::Frozen
+            | Post::Importing
+            | Post::Convert
+            | Post::Narrow
+            | Post::ConvertVector
     )
     .then(|| super::transient::Plan::read(bridge));
     let ic: Vec<_> = p
@@ -507,6 +553,12 @@ pub(super) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
                 Post::Recover => vec![
                     ncall("ncp_fresh"),
                     pcall("checkpoint_restore"),
+                    ncall("__bridge_post"),
+                ],
+                Post::ConvertVector => vec![
+                    ncall("__bridge_vector_source"),
+                    reset_index,
+                    pcall("checkpoint_vector_convert"),
                     ncall("__bridge_post"),
                 ],
                 Post::NarrowVector => vec![

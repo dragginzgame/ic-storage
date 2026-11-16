@@ -3,7 +3,15 @@
 
 use crate::checkpoint;
 use alloc::{vec, vec::Vec};
+use core::marker::PhantomData;
 use sha2::{Digest, Sha256};
+
+mod payload;
+pub use payload::{Payload, RecordVector, ScalarVector};
+/// Scalar counter/u64-vector job under the original envelope.
+pub type Job = MigrationJob<ScalarVector>;
+/// V3 record-vector job under its distinct envelope.
+pub type RecordJob = MigrationJob<RecordVector>;
 
 mod staged;
 pub use staged::Batch;
@@ -11,7 +19,9 @@ pub use staged::Batch;
 const HEADER: usize = 64;
 const OVERHEAD: usize = HEADER + 8 + 32;
 /// Maximum governed cell payload, including the nested version-2 checkpoint.
-pub const MAX_BYTES: usize = OVERHEAD + checkpoint::MAX_CHECKPOINT_BYTES;
+pub const MAX_BYTES: usize = OVERHEAD + ScalarVector::MAX_BYTES;
+/// Maximum record job, including sixteen V3 records.
+pub const RECORD_MAX_BYTES: usize = OVERHEAD + RecordVector::MAX_BYTES;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Phase {
@@ -24,7 +34,8 @@ enum Phase {
 
 /// Validated job; fields cannot be changed without the transition checks.
 #[derive(Debug, PartialEq, Eq)]
-pub struct Job {
+pub struct MigrationJob<P: Payload> {
+    payload: PhantomData<P>,
     phase: Phase,
     epoch: u64,
     source: u64,
@@ -48,6 +59,8 @@ pub enum Error {
     State,
     /// Nested logical checkpoint refusal.
     Checkpoint(checkpoint::Error),
+    /// V3 record checkpoint refusal.
+    RecordCheckpoint(checkpoint::record_vector::Error),
     /// Bounded allocation failed.
     Allocation,
 }
@@ -60,11 +73,12 @@ fn domain(value: u64) -> Result<(), Error> {
     }
 }
 
-impl Job {
+impl<P: Payload> MigrationJob<P> {
     /// Fresh governed locator only; never used as fallback after decode failure.
     pub fn initial(source: u64) -> Result<Self, Error> {
         domain(source)?;
         Ok(Self {
+            payload: PhantomData,
             phase: Phase::Ready,
             epoch: 0,
             source,
@@ -74,15 +88,14 @@ impl Job {
         })
     }
 
-    /// Seal the next sequential epoch, or repeat the identical frozen export.
-    /// The adapter must freeze the native source and authorize its caller first.
-    pub fn export(
+    // One transition owner for both concrete payload encoders. Encode only after
+    // phase/domain/epoch admission, preserving the original refusal ordering.
+    fn export_payload(
         &self,
         source: u64,
         target: u64,
         epoch: u64,
-        counter: u64,
-        values: &[u64],
+        encode: impl FnOnce() -> Result<Vec<u8>, Error>,
     ) -> Result<Self, Error> {
         if self.phase == Phase::Importing {
             return Err(Error::State);
@@ -110,12 +123,12 @@ impl Job {
         } else if self.epoch.checked_add(1) != Some(epoch) {
             return Err(Error::Epoch);
         }
-        let checkpoint =
-            checkpoint::encode_v2(counter, values, epoch).map_err(Error::Checkpoint)?;
+        let checkpoint = encode()?;
         if self.phase == Phase::Sealed && checkpoint != self.checkpoint {
             return Err(Error::State);
         }
         Ok(Self {
+            payload: PhantomData,
             phase: Phase::Sealed,
             epoch,
             source,
@@ -128,12 +141,7 @@ impl Job {
     /// Admit a sealed source for frozen resumption without changing the job.
     /// The caller must separately compare these logical values with its retained
     /// frozen source; matching job metadata alone does not establish continuity.
-    pub fn frozen(
-        &self,
-        source: u64,
-        target: u64,
-        epoch: u64,
-    ) -> Result<checkpoint::Checkpoint, Error> {
+    pub fn frozen(&self, source: u64, target: u64, epoch: u64) -> Result<P::Decoded, Error> {
         if self.phase != Phase::Sealed {
             return Err(Error::State);
         }
@@ -143,17 +151,12 @@ impl Job {
         if self.epoch != epoch {
             return Err(Error::Epoch);
         }
-        checkpoint::decode(&self.checkpoint, epoch).map_err(Error::Checkpoint)
+        P::decode(&self.checkpoint, epoch)
     }
 
     /// Admit and consume exactly one sealed job in transient state. The adapter
     /// publishes this record atomically with successful native reconstruction.
-    pub fn consume(
-        &mut self,
-        target: u64,
-        source: u64,
-        epoch: u64,
-    ) -> Result<checkpoint::Checkpoint, Error> {
+    pub fn consume(&mut self, target: u64, source: u64, epoch: u64) -> Result<P::Decoded, Error> {
         let decoded = self.frozen(source, target, epoch)?;
         self.phase = Phase::Consumed;
         Ok(decoded)
@@ -183,7 +186,7 @@ impl Job {
         bytes
             .try_reserve_exact(OVERHEAD + self.checkpoint.len())
             .map_err(|_| Error::Allocation)?;
-        bytes.extend_from_slice(b"ICJOB001");
+        bytes.extend_from_slice(P::MAGIC);
         bytes.extend_from_slice(&if self.progress.is_some() { 2u16 } else { 1 }.to_le_bytes());
         bytes.extend_from_slice(&(self.phase as u16).to_le_bytes());
         bytes.extend_from_slice(&(HEADER as u32).to_le_bytes());
@@ -208,7 +211,7 @@ impl Job {
 
     /// Check framing, domain, phase and nested integrity before returning state.
     pub fn decode(bytes: &[u8]) -> Result<Self, Error> {
-        if !(OVERHEAD..=MAX_BYTES).contains(&bytes.len()) {
+        if !(OVERHEAD..=OVERHEAD + P::MAX_BYTES).contains(&bytes.len()) {
             return Err(Error::Framing);
         }
         let word = |offset| {
@@ -219,7 +222,7 @@ impl Job {
         };
         let len =
             u32::from_le_bytes(bytes[40..44].try_into().map_err(|_| Error::Framing)?) as usize;
-        if &bytes[..8] != b"ICJOB001"
+        if &bytes[..8] != P::MAGIC
             || !matches!(bytes[8..10], [1, 0] | [2, 0])
             || bytes[12..16] != (HEADER as u32).to_le_bytes()
             || bytes[56..64] != [0; 8]
@@ -253,13 +256,7 @@ impl Job {
             if epoch == 0 || source == target {
                 return Err(Error::State);
             }
-            if payload.get(8..10) != Some(2u16.to_le_bytes().as_slice()) {
-                return Err(Error::Framing);
-            }
-            checkpoint::decode(payload, epoch)
-                .map_err(Error::Checkpoint)?
-                .values
-                .len() as u32
+            P::len(&P::decode(payload, epoch)?) as u32
         };
         let progress = staged::Progress::decode(bytes, phase, count)?;
         let mut checkpoint = Vec::new();
@@ -268,6 +265,7 @@ impl Job {
             .map_err(|_| Error::Allocation)?;
         checkpoint.extend_from_slice(payload);
         Ok(Self {
+            payload: PhantomData,
             phase,
             epoch,
             source,
@@ -278,5 +276,40 @@ impl Job {
     }
 }
 
+impl Job {
+    /// Seal scalar state at the next epoch, or retry the identical frozen export.
+    /// The adapter must freeze the native source and authorize its caller first.
+    pub fn export(
+        &self,
+        source: u64,
+        target: u64,
+        epoch: u64,
+        counter: u64,
+        values: &[u64],
+    ) -> Result<Self, Error> {
+        self.export_payload(source, target, epoch, || {
+            checkpoint::encode_v2(counter, values, epoch).map_err(Error::Checkpoint)
+        })
+    }
+}
+
+impl RecordJob {
+    /// Seal the complete V3 collection at the next epoch, or retry identically.
+    /// The adapter must freeze the native source and authorize its caller first.
+    pub fn export(
+        &self,
+        source: u64,
+        target: u64,
+        epoch: u64,
+        values: &[crate::record::narrow::V3],
+    ) -> Result<Self, Error> {
+        self.export_payload(source, target, epoch, || {
+            checkpoint::record_vector::encode(values, epoch).map_err(Error::RecordCheckpoint)
+        })
+    }
+}
+
+#[cfg(test)]
+mod record_tests;
 #[cfg(test)]
 mod tests;

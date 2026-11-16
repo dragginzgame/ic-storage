@@ -9,6 +9,10 @@ The [staged import extension](staged-import.md) adds an explicit version-2 job
 envelope and unpublished native construction across bounded updates/upgrades,
 with explicit checkpoint-based restart after an interrupted import.
 
+The [record-vector job profile](#record-vector-job-profile) shares these
+transitions with a distinct V3 payload, locator and native identity. The scalar
+layout and historical evidence below retain their original scope.
+
 ## Contract and bytes
 
 The allocation-domain identity is the native provider's actual base, obtained
@@ -257,3 +261,124 @@ frozen-resume B is 141795 bytes, SHA-256
 The four original native checkpoint/reopening checks also passed (3.91 seconds)
 in `target/evidence/provider-link/attempt.xhxIJ8/`. Strict host/wasm Clippy and
 formatting passed. Earlier cohorts retain their original scope and identities.
+
+
+## Record-vector job profile
+
+`make native-record-job-test` qualifies the same controller/epoch/phase protocol
+for at most sixteen V3 records (`u32 counter`, `u64 ceiling`, counter ≤ ceiling).
+`MigrationJob<P>` has exactly two sealed payload implementations; scalar `Job`
+and `RecordJob` share transition, progress, envelope and retry validation. The
+installed `native_job` adapter likewise owns controller checks and lifecycle
+ordering once. Only logical-field extraction, encoding and bounded reconstruction
+are payload-specific. This is qualification code, not a general public job API.
+
+The record job uses `ICJRV001`, including its empty Ready envelope, and the same
+64-byte header, phase codes, versions 1/2, progress words, footer and SHA-256 as
+the scalar job. The nested payload is the existing V3 `RECVEC01` checkpoint:
+64 bytes plus twelve bytes per record, including its independent digest. The
+complete job is at most 360 bytes. Unknown schemas, V2 payloads, another job's
+magic, invalid fields and inconsistent progress are rejected before construction.
+There is no schema inference or automatic narrowing in this profile.
+
+The published Storage reader opens `native.checkpoint.record_vector.job.v1`;
+failed loads never create or reset it. The native provider marker is
+`0x4e5650524f563035`, distinct from standalone record-vector and recovery fixtures.
+Domains remain the actual bases 131072 and 147456, now with a 256-byte allocation
+extent. Existing plain checkpoints and retained-conversion heaps are not silently
+adopted by this job. An enrollment/cutover path would need its own qualification.
+
+Frozen resume checks length and both logical fields against the complete sealed
+checkpoint. Cancellation retires the epoch and returns original custody; exact
+retry preserves later native writes. Atomic recovery validates the complete job,
+requires fresh replacement memory, reconstructs records, settles custody and marks
+the job consumed in one upgrade transaction. Replaying a consumed job is refused.
+
+Staged import reuses settlement 3 and the durable progress protocol. Admission
+checks geometry, length/capacity, custody, schema and every initialized prefix
+record before reading fields. It never constructs a native Vec during partial
+copying. Native access stays closed until the final batch publishes the root.
+Exact latest-batch retries cannot duplicate records; completed retries preserve
+subsequent mutations. Compatible interruption validates both prefix fields.
+Explicit fresh-heap restart resets only an Importing cursor from its independent
+checkpoint; a damaged old hook may be skipped explicitly, but a corrupt checkpoint
+or consumed job cannot be reset by that operation.
+
+The installed suite covers empty, reserved-empty, spare and full roots; live
+controller checks and revocation; epochs and repeated A→B→A recovery; export,
+cancellation, restore and batch rollback; frozen mismatches in counter, ceiling
+and length; exact retries; compatible interruption; prefix corruption and fresh
+restart. Failure checks compare the complete native observation and stable bytes,
+and also the module hash for upgrades. Independent byte assertions check outer
+framing/progress and nested record order/fields/digests. Artifact admission keeps
+callbacks private, closes their WAT-only call graph and rejects V2 native code.
+
+These fixtures retain the scalar protocol's limits: controller installation is
+trusted, whole-canister snapshot restoration can rewind history, checkpoints are
+fully decoded for each bounded batch, and transient runtime clearing is fixture
+machinery. No production recovery authority, arbitrary owning records, native
+macOS execution or cross-compiler migration is established.
+
+
+On 16 November 2026, `make native-record-job-test` passed twelve host job tests,
+eighteen raw/link artifact checks, one record-job artifact check and three
+installed lifecycle cases on x86_64 Linux with prepared PocketIC 16.1.0. Cohort
+`target/evidence/provider-link/attempt.akTaxe/` contains COMPLETE, compiler and
+lock identities, bridge/raw/composed Wasm, source snapshots, build recipe,
+collector and `record-job.txt`. Installed cases took 9.25 seconds, excluding
+preparation. This cohort predates only trailing-whitespace cleanup and API
+comment additions and removal of a redundant host-test clone, which do not
+change the composed Wasm.
+
+The affected regression cohorts also completed: scalar jobs `attempt.kYJbew`
+(twelve host, eighteen raw/link and seven job cases); record-vector conversion
+and recovery `attempt.18cxhF` (three codec, eighteen raw/link and ten record
+cases); native checkpoints `attempt.D0L1cX` and scalar records `attempt.t7NitE`
+(eighteen raw/link plus four cases each). The retained-conversion evidence above
+remains separate from governed job qualification.
+
+Strict host/test and selected/all-feature Wasm Clippy, strict feasibility
+Rustdoc, workspace formatting, shell syntax and ShellCheck passed.
+
+
+### Mixed record-job histories
+
+The installed [independent history model](../ic-storage-retention-probe/tests/provider_link/migration/record_vector/tests/job/history.rs)
+now exercises four initial roots: empty with spare capacity, three initialized
+records, nine records at capacity, and a full sixteen-record region. Fixed seeds
+17, 41, 73 and 97 each schedule 96 native operations. Every history covers all ten
+operation/failure variants: mutation, append, ordered removal, shrink, clear,
+reuse, an ordinary business error, a forgotten scoped view, and traps both before
+and during settlement. The model independently tracks ordered `(counter, ceiling)`
+values and capacity; it checks the complete schema, domain, extent and ready
+custody/settlement after each successful operation. Update failures compare the
+complete native observation and stable bytes against their pre-call state.
+
+Each history interleaves four frozen resumes/cancellations, four compatible ready
+upgrades, two atomic cutovers and two staged cutovers, alternating A→B→A twice.
+Epochs finish at eight, including the cancelled jobs. Cancellation retry follows
+an additional mutation; it must preserve that write. Each staged migration is
+prepared with at least four records so it necessarily crosses an interruption
+boundary. Varying batch limits, exact retries, compatible prefix reopening,
+publication failures and retired-epoch replay are checked along the way. Portable
+recovery preserves logical fields while rebuilding capacity from length; subsequent
+operations must continue allocating. These are four reproducible histories, not
+exhaustive state-space coverage or a performance benchmark.
+
+Capacity expectations belong to the pinned compiler fixture. Its record Vec uses
+amortized `try_reserve`, unlike the scalar core's exact reservation. At length and
+capacity nine, a one-element append requests eighteen slots and refuses the
+sixteen-slot region. The business-error path retains its preceding field mutation
+when reservation refuses; the trap paths roll the entire message back. The model
+checks this distinction explicitly instead of assuming physical free space implies
+an admissible allocation. No general Rust growth-policy guarantee is inferred.
+
+On 16 November 2026, `make native-record-job-test` passed twelve host tests,
+eighteen raw/link checks, one job artifact check and four installed cases,
+including all 384 scheduled history operations, sixteen cancellations and sixteen
+cutovers. The completed cohort is
+`target/evidence/provider-link/attempt.Kc8enm/`; `record-job.txt` records each seed,
+initial root and coverage result. The installed group took 44.68 seconds excluding
+preparation. Strict selected Wasm and host test Clippy and workspace formatting
+passed. Runtime implementation and compiled artifact identities are unchanged by
+this increment; the collector includes the new model source.

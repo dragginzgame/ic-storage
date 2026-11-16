@@ -1,5 +1,5 @@
 //! Version-2 progress is meaningful only with the adapter's atomic native writes.
-use super::{Error, Job, Phase, checkpoint};
+use super::{Error, MigrationJob, Payload, Phase, ScalarVector};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct Progress {
@@ -48,9 +48,9 @@ impl Progress {
 
 /// Bounded prefix transition; the adapter validates the old prefix and publishes
 /// native writes together with the new envelope in a single IC message.
-pub struct Batch {
-    /// Logical checkpoint, still bounded to the qualification fixture's 512 values.
-    pub checkpoint: checkpoint::Checkpoint,
+pub struct Batch<P: Payload = ScalarVector> {
+    /// Logical checkpoint bounded by the selected scalar or record profile.
+    pub checkpoint: P::Decoded,
     /// Prefix length before a new batch (or before the acknowledged retry).
     pub start: u32,
     /// Prefix length after this batch.
@@ -61,14 +61,14 @@ pub struct Batch {
     pub complete: bool,
 }
 
-impl Job {
+impl<P: Payload> MigrationJob<P> {
     /// Begin explicit fresh-target construction; no source cancellation afterward.
     pub fn begin_import(
         &mut self,
         target: u64,
         source: u64,
         epoch: u64,
-    ) -> Result<checkpoint::Checkpoint, Error> {
+    ) -> Result<P::Decoded, Error> {
         let decoded = self.frozen(source, target, epoch)?;
         self.phase = Phase::Importing;
         self.progress = Some(Progress {
@@ -98,7 +98,7 @@ impl Job {
         target: u64,
         source: u64,
         epoch: u64,
-    ) -> Result<checkpoint::Checkpoint, Error> {
+    ) -> Result<P::Decoded, Error> {
         let (decoded, _) = self.importing(target, source, epoch)?;
         self.progress = Some(Progress {
             next: 0,
@@ -114,16 +114,13 @@ impl Job {
         target: u64,
         source: u64,
         epoch: u64,
-    ) -> Result<(checkpoint::Checkpoint, u32), Error> {
+    ) -> Result<(P::Decoded, u32), Error> {
         self.import_binding(target, source, epoch)?;
         if self.phase != Phase::Importing {
             return Err(Error::State);
         }
         let progress = self.progress.ok_or(Error::State)?;
-        Ok((
-            checkpoint::decode(&self.checkpoint, epoch).map_err(Error::Checkpoint)?,
-            progress.next,
-        ))
+        Ok((P::decode(&self.checkpoint, epoch)?, progress.next))
     }
 
     /// Advance at most 64 elements. Only the exact latest (offset, limit) request
@@ -135,14 +132,14 @@ impl Job {
         epoch: u64,
         start: u32,
         limit: u32,
-    ) -> Result<Batch, Error> {
+    ) -> Result<Batch<P>, Error> {
         self.import_binding(target, source, epoch)?;
         if !matches!(self.phase, Phase::Importing | Phase::Consumed) || !(1..=64).contains(&limit) {
             return Err(Error::State);
         }
         let progress = self.progress.ok_or(Error::State)?;
-        let decoded = checkpoint::decode(&self.checkpoint, epoch).map_err(Error::Checkpoint)?;
-        let total = decoded.values.len() as u32;
+        let decoded = P::decode(&self.checkpoint, epoch)?;
+        let total = P::len(&decoded) as u32;
         let retry = progress.limit != 0 && start == progress.start && limit == progress.limit;
         if !retry && (self.phase != Phase::Importing || start != progress.next) {
             return Err(Error::State);

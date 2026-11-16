@@ -28,12 +28,36 @@ pub(crate) fn job_cell(create: bool) -> StableCell<Vec<u8>> {
     )
 }
 
-#[cfg(feature = "native-record-vector")]
+#[cfg(all(
+    feature = "native-record-vector",
+    any(
+        not(feature = "native-record-vector-job"),
+        feature = "native-record-vector-source",
+        feature = "native-record-vector-v2",
+        feature = "native-record-vector-convert"
+    )
+))]
 pub(crate) fn record_vector_cell(create: bool) -> StableCell<Vec<u8>> {
     open(
         "native.checkpoint.record_vector.v1",
         create,
         ic_storage_native_feasibility::checkpoint::record_vector::MAX_BYTES,
+    )
+}
+
+#[cfg(all(
+    feature = "native-record-vector-job",
+    not(any(
+        feature = "native-record-vector-source",
+        feature = "native-record-vector-v2",
+        feature = "native-record-vector-convert"
+    ))
+))]
+pub(crate) fn job_cell(create: bool) -> StableCell<Vec<u8>> {
+    open(
+        "native.checkpoint.record_vector.job.v1",
+        create,
+        ic_storage_native_feasibility::migration_job::RECORD_MAX_BYTES,
     )
 }
 

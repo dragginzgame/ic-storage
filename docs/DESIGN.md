@@ -185,8 +185,9 @@ in both allocation domains. The first scalar-only Store derive now generates met
 field codecs and scoped getters for V1/V2. Checked mutation, validation and
 conversion remain application policy. Host and installed fixtures exercise the
 generated code, including confinement, poisoning, rollback and recovery. General
-record ownership remains future work, and the installed vector still contains only u64
-elements. See the [derive subset](../crates/ic-storage-native-derive/README.md).
+record ownership remains future work. This scalar-record profile preserves its
+u64 vector; separate record-element profiles follow below. See the
+[derive subset](../crates/ic-storage-native-derive/README.md).
 
 The derive also supports u32 fields with explicit scalar-kind metadata and packed
 logical encoding. V2→V3 counter narrowing now runs in the installed fixture,
@@ -221,9 +222,13 @@ rollback and continued-allocation evidence. The portable path also performs
 explicit whole-collection V2→V3 narrowing from an ordinary Rust source, validating
 every predecessor before publishing any target records. Installed tests preserve
 the source and checkpoint on range failures and allow explicit repair/re-export
-and retry. This is checkpoint-based conversion with heap replacement; retained
-record conversion without replacement, migration authority and broader type/scale
-coverage remain required before a persistent collection API or production cutover.
+and retry. A subsequent retained V2-to-V3 profile converts under keep mode,
+preserving backing, capacity and logical order. It validates the entire source
+and a transient candidate before replacing non-owning scalar fields and publishing
+the target schema; no old Rust owner exists during replacement. V2 has its own
+full-width portable recovery when narrowing refuses. Migration authority and
+broader type/scale coverage remain required before a persistent collection API
+or production cutover.
 
 Use ordinary-looking Rust records with a derive-based persistence declaration
 as the intended application surface. The following syntax and collection names
@@ -660,11 +665,16 @@ replay a completed job or silently discard subsequent application writes.
 
 The scalar/job profiles cover one counter and at most 512 u64 values. A separate
 [record-vector checkpoint](../qualification/ic-storage-retention-probe/record-vector-recovery.md)
-covers sixteen V3 records and explicit narrowing from V2, sharing its codec with
+covers sixteen V2/V3 records and explicit narrowing, sharing its codec with
 host recovery and its governed reader with the existing checkpoint provider.
-It proves full heap replacement, portable collection conversion and repeated
-domain migrations, but does not yet integrate the durable job's
-authority, consumption or resumable import protocol. These proofs do not qualify a real
+It proves full heap replacement, portable and retained collection conversion,
+full-width predecessor recovery and repeated domain migrations. A separate
+[V3 record job](../qualification/ic-storage-native-feasibility/migration-job.md#record-vector-job-profile)
+now shares the durable job state machine and controller adapter, covering
+authority, cancellation, consumption, frozen resumption and staged import/restart
+for sixteen records. Its envelope, locator and native format are distinct; this
+does not automatically enroll an existing checkpoint or converted heap.
+These proofs do not qualify a real
 compiler transition, arbitrary graphs or production recovery authority. Each
 staged batch still validates the complete bounded checkpoint; whole-transient-
 domain clearing is fixture machinery, not a production cost commitment. Detailed

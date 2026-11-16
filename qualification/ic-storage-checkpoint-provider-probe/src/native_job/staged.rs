@@ -1,29 +1,13 @@
 //! Bounded native construction; no Rust collection owner exists until publication.
+use super::payload;
 use super::{Job, args, controller, domain, ic0, job_cell};
-use ic_storage_native_feasibility::checkpoint::Checkpoint;
 
 #[expect(unsafe_code, reason = "scalar imports bound to reviewed WAT callbacks")]
 #[link(wasm_import_module = "native_checkpoint")]
 unsafe extern "C" {
-    safe fn stage_begin(counter: u64);
-    safe fn stage_count() -> u32;
-    safe fn stage_counter() -> u64;
-    safe fn stage_value(index: u32) -> u64;
-    safe fn stage_put(index: u32, value: u64);
     safe fn stage_finish(length: u32);
     safe fn stage_ready();
     safe fn stage_damage(mode: u32);
-}
-
-fn validate(checkpoint: &Checkpoint, prefix: u32) {
-    if stage_count() != prefix || checkpoint.counter != stage_counter() {
-        ic0::trap(b"import prefix metadata mismatch");
-    }
-    for (i, expected) in checkpoint.values[..prefix as usize].iter().enumerate() {
-        if stage_value(i as u32) != *expected {
-            ic0::trap(b"import prefix values mismatch");
-        }
-    }
 }
 
 #[expect(
@@ -56,7 +40,7 @@ fn start(restart: bool) {
         job.begin_import(domain(), source, epoch)
     }
     .unwrap();
-    stage_begin(decoded.counter);
+    payload::start(&decoded);
     cell.set(job.encode().unwrap());
     if fault == 1 {
         ic0::trap(b"import start after publication");
@@ -74,7 +58,7 @@ extern "C" fn checkpoint_stage_resume() {
     let cell = job_cell(false);
     let job = Job::decode(cell.get()).unwrap();
     let (decoded, prefix) = job.importing(domain(), source, epoch).unwrap();
-    validate(&decoded, prefix);
+    payload::validate(&decoded, prefix);
     if fault == 1 {
         ic0::trap(b"import resume after validation");
     }
@@ -108,7 +92,7 @@ extern "C" fn checkpoint_batch() {
         // A successful final retry must preserve subsequent ordinary native writes.
         stage_ready();
     } else {
-        validate(
+        payload::validate(
             &batch.checkpoint,
             if batch.retry { batch.end } else { batch.start },
         );
@@ -119,7 +103,7 @@ extern "C" fn checkpoint_batch() {
             ic0::trap(b"import batch after stable write");
         }
         for i in batch.start..batch.end {
-            stage_put(i, batch.checkpoint.values[i as usize]);
+            payload::append(&batch.checkpoint, i);
             if fault == 2 {
                 ic0::trap(b"import batch during native copy");
             }

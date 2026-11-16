@@ -17,7 +17,11 @@ and installed scalar/vector lifecycle and migration fixtures provide the current
 native foundation. A bounded scalar `Store` derive supplies metadata, logical
 codecs and scoped getters; qualification fixtures exercise explicit field addition
 and checked scalar narrowing, including rollback and portable recovery. Owning
-records and general application conversion remain planned. The byte-defined M0
+records and general application conversion remain planned. Closed native V2/V3
+record-vector fixtures additionally exercise retained conversion with allocation
+reuse and full-width predecessor recovery when narrowing refuses. A separate V3
+record job shares controller authorization, durable epochs, cancellation and
+resumable import with the scalar job. The byte-defined M0
 memory-image model remains an evidence baseline, not the native collection ABI or a
 complete persistence system. Its [earlier research plan](docs/design/m0-research-plan.md)
 is archived; its format and historical results remain scoped to that experiment.
@@ -141,6 +145,8 @@ now tests compatible reopening, governed export and relocated native recovery;
 general runtime migration and production authority remain open.
 The [governed job fixture](qualification/ic-storage-native-feasibility/migration-job.md)
 adds guarded jobs, cancellation, frozen-source upgrades and staged import.
+`make native-record-job-test` qualifies those transitions for bounded V3 record
+vectors through the same state machine and controller adapter.
 The shared [native core](crates/ic-storage-native/README.md) now supplies scoped
 vector operations to that fixture; `make native-core-test` checks ownership limits
 and the optional scalar derive's application-facing contract.

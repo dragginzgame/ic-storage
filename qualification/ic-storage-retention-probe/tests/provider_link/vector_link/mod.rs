@@ -114,6 +114,12 @@ pub(super) fn compose_record(raw: &[u8], provider: &[u8]) -> Result<Vec<u8>> {
     compose_admitted(&guarded, &profile, provider)
 }
 
+pub(super) fn compose_record_v2(raw: &[u8], provider: &[u8]) -> Result<Vec<u8>> {
+    let guarded = vector_access::prepare_record_v2(raw).map_err(|_| "raw V2 record profile")?;
+    let profile = vector_access::inspect_record_v2(raw).map_err(|_| "raw V2 record profile")?;
+    compose_admitted(&guarded, &profile, provider)
+}
+
 fn compose_admitted(
     guarded: &[u8],
     profile: &vector_access::Profile,

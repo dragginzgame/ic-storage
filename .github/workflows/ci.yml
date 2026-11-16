@@ -68,6 +68,8 @@ jobs:
         run: make native-checkpoint-test 2>&1 | tee target/evidence/native-checkpoint-test.log
       - name: Installed native record conversion
         run: make native-record-test 2>&1 | tee target/evidence/native-record-test.log
+      - name: Governed record-vector migration
+        run: make native-record-job-test 2>&1 | tee target/evidence/native-record-job-test.log
       - name: Installed record-vector recovery
         run: make native-record-vector-test 2>&1 | tee target/evidence/native-record-vector-test.log
       - name: Validate governed native migration jobs

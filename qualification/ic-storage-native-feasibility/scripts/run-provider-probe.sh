@@ -3,8 +3,8 @@
 set -euo pipefail
 
 mode="${1:-artifact}"
-if [[ $# -gt 1 || ( "$mode" != artifact && "$mode" != installed && "$mode" != migration && "$mode" != job && "$mode" != record && "$mode" != record-vector ) ]]; then
-    echo 'usage: run-provider-probe.sh [artifact|installed|migration|job|record|record-vector]' >&2
+if [[ $# -gt 1 || ( "$mode" != artifact && "$mode" != installed && "$mode" != migration && "$mode" != job && "$mode" != record && "$mode" != record-vector && "$mode" != record-job ) ]]; then
+    echo 'usage: run-provider-probe.sh [artifact|installed|migration|job|record|record-vector|record-job]' >&2
     exit 1
 fi
 
@@ -20,6 +20,8 @@ mkdir -p target/evidence/provider-link
 output="$(mktemp -d "$root/target/evidence/provider-link/attempt.XXXXXX")"
 printf 'Provider artifact diagnostics: %s\n' "$output"
 rustc --version --verbose > "$output/compiler.txt"
+cp "$0" "$output/run-provider-probe.sh"
+cp Makefile "$output/build-Makefile"
 cp qualification/ic-storage-native-feasibility/tests/fixtures/provider_abi.rs "$output/"
 cp qualification/ic-storage-retention-probe/tests/provider_custody/provider.wat "$output/"
 cp -R qualification/ic-storage-retention-probe/tests/provider_link "$output/admission-source"
@@ -41,7 +43,7 @@ cp qualification/ic-storage-retention-probe/record-vector-recovery.md "$output/v
 cp -R qualification/ic-storage-native-feasibility/src "$output/feasibility-source"
 cp qualification/ic-storage-native-feasibility/Cargo.toml "$output/feasibility-source/"
 cp -R crates/ic-storage-native-derive "$output/derive-source"
-if [[ "$mode" == migration || "$mode" == job || "$mode" == record || "$mode" == record-vector ]]; then
+if [[ "$mode" == migration || "$mode" == job || "$mode" == record || "$mode" == record-vector || "$mode" == record-job ]]; then
     cp -R qualification/ic-storage-checkpoint-provider-probe/src "$output/checkpoint-source"
     cp qualification/ic-storage-checkpoint-provider-probe/Cargo.toml "$output/checkpoint-source/"
     cp qualification/ic-storage-native-feasibility/native-checkpoint-contract.md "$output/"
@@ -49,9 +51,14 @@ if [[ "$mode" == migration || "$mode" == job || "$mode" == record || "$mode" == 
         cp qualification/ic-storage-native-feasibility/migration-job.md "$output/"
         cp qualification/ic-storage-native-feasibility/staged-import.md "$output/"
         cp target/qualification/checkpoint-job/wasm32-unknown-unknown/release/ic_storage_checkpoint_provider_probe.wasm "$output/checkpoint-job.wasm"
+    elif [[ "$mode" == record-job ]]; then
+        cp qualification/ic-storage-native-feasibility/migration-job.md qualification/ic-storage-native-feasibility/staged-import.md "$output/"
+        cp target/qualification/checkpoint-record-vector-job/wasm32-unknown-unknown/release/ic_storage_checkpoint_provider_probe.wasm "$output/checkpoint-record-vector-job.wasm"
     elif [[ "$mode" == record-vector ]]; then
         cp target/qualification/checkpoint-record-vector/wasm32-unknown-unknown/release/ic_storage_checkpoint_provider_probe.wasm "$output/checkpoint-record-vector.wasm"
         cp target/qualification/checkpoint-record-vector-source/wasm32-unknown-unknown/release/ic_storage_checkpoint_provider_probe.wasm "$output/checkpoint-record-vector-source.wasm"
+        cp target/qualification/checkpoint-record-vector-v2/wasm32-unknown-unknown/release/ic_storage_checkpoint_provider_probe.wasm "$output/checkpoint-record-vector-v2.wasm"
+        cp target/qualification/checkpoint-record-vector-convert/wasm32-unknown-unknown/release/ic_storage_checkpoint_provider_probe.wasm "$output/checkpoint-record-vector-convert.wasm"
     elif [[ "$mode" == record ]]; then
         cp qualification/ic-storage-native-feasibility/records.md "$output/"
         cp target/qualification/checkpoint-record/wasm32-unknown-unknown/release/ic_storage_checkpoint_provider_probe.wasm "$output/checkpoint-record.wasm"
@@ -87,7 +94,7 @@ rustc --edition 2024 --crate-type cdylib --target wasm32-unknown-unknown \
     --out-dir "$output/vector" "$output/vector/provider_vector.rs" \
     > "$output/vector/compiler.log" 2>&1
 
-# Reuse the exact V3 declaration and derive, now without std on wasm32. This
+# Reuse the exact V2/V3 declarations and derive without std on wasm32. This
 # compiler artifact has its own diagnostic; the u64 admission profile refuses it.
 cargo build --manifest-path qualification/Cargo.toml -p ic-storage-native-feasibility \
     --lib --release --target wasm32-unknown-unknown \
@@ -102,16 +109,26 @@ record_search=()
 while IFS= read -r record_directory; do
     record_search+=("-L" "dependency=$record_directory")
 done < "$output/vector/record-search-paths.txt"
-rustc --edition 2024 --crate-type cdylib --target wasm32-unknown-unknown \
-    -C panic=abort -C codegen-units=1 -C lto=fat -C opt-level=3 \
-    -C link-arg=--stack-first -C link-arg=-zstack-size=32768 \
-    -C link-arg=--initial-memory=196608 -C link-arg=--max-memory=196608 \
-    -C link-arg=--export=__stack_pointer -C link-arg=--export=__data_end \
-    -C link-arg=--export=__heap_base -D warnings --emit=link,llvm-ir \
-    --extern "ic_storage_native_feasibility=$record_deps/libic_storage_native_feasibility.rlib" \
-    "${record_search[@]}" \
-    --out-dir "$output/vector" "$output/vector/provider_record_vector.rs" \
-    > "$output/vector/record-compiler.log" 2>&1
+for record_schema in v3 v2; do
+    record_flags=(--check-cfg 'cfg(record_v2,test)')
+    record_output="$output/vector"
+    if [[ "$record_schema" == v2 ]]; then
+        record_flags+=(--cfg record_v2)
+        record_output="$output/vector/v2"
+        mkdir "$record_output"
+    fi
+    rustc --edition 2024 --crate-type cdylib --target wasm32-unknown-unknown \
+        -C panic=abort -C codegen-units=1 -C lto=fat -C opt-level=3 \
+        -C link-arg=--stack-first -C link-arg=-zstack-size=32768 \
+        -C link-arg=--initial-memory=196608 -C link-arg=--max-memory=196608 \
+        -C link-arg=--export=__stack_pointer -C link-arg=--export=__data_end \
+        -C link-arg=--export=__heap_base -D warnings --emit=link,llvm-ir \
+        --extern "ic_storage_native_feasibility=$record_deps/libic_storage_native_feasibility.rlib" \
+        "${record_search[@]}" \
+        "${record_flags[@]}" \
+        --out-dir "$record_output" "$output/vector/provider_record_vector.rs" \
+        > "$record_output/record-compiler.log" 2>&1
+done
 
 NATIVE_PROVIDER_INPUTS="$output" cargo test --manifest-path qualification/Cargo.toml \
     -p ic-storage-retention-probe --target-dir target/qualification --locked --offline \
@@ -139,6 +156,11 @@ fi
 if [[ "$mode" == record-vector ]]; then
     NATIVE_PROVIDER_INPUTS="$output" cargo test --manifest-path qualification/Cargo.toml \
         -p ic-storage-retention-probe --target-dir target/qualification --locked --offline \
-        --test provider_link migration::record_vector -- --ignored --nocapture 2>&1 | tee "$output/record-vector.txt"
+        --test provider_link migration::record_vector -- --ignored --skip migration::record_vector::tests::job --nocapture 2>&1 | tee "$output/record-vector.txt"
+fi
+if [[ "$mode" == record-job ]]; then
+    NATIVE_PROVIDER_INPUTS="$output" cargo test --manifest-path qualification/Cargo.toml \
+        -p ic-storage-retention-probe --target-dir target/qualification --locked --offline \
+        --test provider_link migration::record_vector::tests::job -- --ignored --nocapture 2>&1 | tee "$output/record-job.txt"
 fi
 printf 'Bounded provider %s checks passed; only this mode and its recorded inputs are covered, not general native persistence.\n' "$mode" > "$output/COMPLETE"

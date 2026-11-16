@@ -8,6 +8,27 @@ mod installed_tests;
 pub(super) mod link;
 
 #[test]
+#[ignore = "provider collector supplies V2 compiler output"]
+fn retained_v2_compiler_contract() {
+    let (directory, _) = super::input();
+    let raw = fs::read(directory.join("vector/v2/provider_record_vector.wasm")).unwrap();
+    let profile = super::vector_access::inspect_record_v2(&raw).unwrap();
+    assert_eq!((profile.functions, profile.entry), (6, 4));
+    assert!(super::vector_access::inspect_record(&raw).is_err());
+    assert!(super::vector_access::inspect(&raw).is_err());
+    let v3 = fs::read(directory.join("vector/provider_record_vector.wasm")).unwrap();
+    assert!(super::vector_access::inspect_record_v2(&v3).is_err());
+    let guarded = super::vector_access::prepare_record_v2(&raw).unwrap();
+    let coverage = super::vector_access::tests::verify_coverage(&raw, &guarded);
+    assert_eq!(coverage, [28, 1, 6, 27, 2, 8, 1]);
+    println!(
+        "V2 guarded coverage {coverage:?}; raw sha256={}",
+        sha256_hex(&raw)
+    );
+    fs::write(directory.join("vector/v2/guarded.wasm"), &guarded).unwrap();
+}
+
+#[test]
 #[ignore = "make native-provider-probe supplies fresh record compiler output"]
 fn record_link_keeps_native_entry_private_and_settles_only_after_return() {
     use Operator as Op;

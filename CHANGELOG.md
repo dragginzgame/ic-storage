@@ -1,8 +1,13 @@
 # Changelog
 
-## [0.1.13] - Unreleased
+## [0.75.0] - Unreleased
 
 ### 🔧 Changed
+
+- Advance the unpublished product workspace to 0.75.0, above the latest published
+  `ic-storage` 0.74.1. Preserve package identities, historical evidence and the
+  independently pinned checkpoint reader; this does not establish compatibility
+  with the published package or authorize publication.
 
 - Adopt Toko Tooling 0.44.5 through the canonical exporter in both workspaces.
   Its dependency checker now admits the required exact tooling pin directly;
@@ -18,6 +23,15 @@
   installed provider/retention checks pass with that selection.
 
 ### ✨ Added
+
+- Qualify controller-authorized V3 record-vector migration with durable epochs,
+  cancellation, single-use recovery, frozen resumption and staged import/restart.
+  Share the existing job state machine and authority adapter; use a distinct
+  bounded envelope, governed locator and native fixture identity.
+- Add independent installed record-job histories covering repeated cancellation,
+  atomic/staged cutovers, retained mutations and allocation refusal before the
+  fixed region is full. Check fields, capacity, custody and retired epochs across
+  four deterministic 96-operation histories.
 
 - Accept absolute `::core::primitive::u32`/`u64` field paths in Store declarations,
   preserving the existing representation and codec contracts.
@@ -36,6 +50,10 @@
 
 ### 🧪 Testing
 
+- Qualify retained V2→V3 record-vector conversion while preserving backing and
+  capacity. Check whole-source admission, range refusal and publication rollback;
+  retain a full-width V2 recovery path and exercise continued V3 allocation and
+  portable recovery after conversion.
 - Qualify explicit portable V2→V3 record-vector conversion from an ordinary
   Rust source. Validate the complete predecessor before narrowing and publish
   only a complete target; range failures preserve the source and checkpoint for

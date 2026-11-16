@@ -473,6 +473,8 @@ payloads and a 320-byte bound; V3 readers still refuse it unless the narrowing
 entrypoint was selected. All predecessors decode before checked conversion, and
 all conversions finish before target publication. Out-of-range counters preserve
 the installed source and checkpoint for explicit repair and retry. These are
-schema fixtures, not maintained pre-1.0 release lines. Conversion of retained
-records without heap replacement and migration-authority integration remain
-separate gates; none of these fixtures is a public product API.
+schema fixtures, not maintained pre-1.0 release lines. The subsequent retained-conversion profile in that same recovery contract admits
+an actual native V2 source and converts its scalar fields under keep mode while
+preserving allocation/capacity. V2 also has independent full-width recovery when
+narrowing refuses. Migration authority remains separate; none of these fixtures
+is a public product API.

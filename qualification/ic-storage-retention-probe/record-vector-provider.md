@@ -117,6 +117,15 @@ and a forgotten scalar view. Checked V3 updates preserve the ceiling invariant;
 unexpected input/allocation failures trap. Operation 6 finalizes preceding writes
 even after a normal error, including full-capacity reserve refusal. Only packed
 length/capacity leaves the entrypoint; no owning header or pointer is retained.
+
+This raw record fixture uses amortized `try_reserve`, whereas the scalar core
+uses exact reservation. Under its pinned compiler, a vector at length/capacity
+nine requests eighteen slots when appending and therefore refuses the bounded
+sixteen-slot region. Physical unused slots alone do not guarantee successful
+reservation. The [mixed record-job histories](../ic-storage-native-feasibility/migration-job.md#mixed-record-job-histories)
+cover this early refusal, preserved preceding writes on a business error, and
+whole-message rollback on traps. This growth policy is a fixture/compiler
+observation, not a promised general application allocation policy.
 This is source-level lifecycle logic, not installed execution evidence.
 
 The raw artifact has two defined functions, no data bytes and one unresolved
@@ -174,6 +183,11 @@ to `make native-feasibility-lint`, since these freestanding entries are outside
 Cargo's ordinary formatting target discovery.
 
 ## Closed native allocation and linked entrypoint contract
+
+The concrete V2 extension, its separate compiler profile, full-width recovery and
+retained conversion to V3 are specified in the
+[record-vector recovery contract](record-vector-recovery.md#retained-v2-to-v3-conversion).
+The original V3 evidence below retains its recorded scope and identities.
 
 The linked experiment is limited to the reviewed Rust V3 entrypoint, shared
 controller/runtime, record provider and deterministic access rewrite on Rust

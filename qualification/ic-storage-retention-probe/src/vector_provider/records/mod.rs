@@ -1,4 +1,4 @@
-//! Closed V3 record provider built on the shared vector custody transitions.
+//! Closed V2/V3 record providers built on the shared vector custody transitions.
 
 /// Byte-defined ID/version/stride/alignment/count and (ID, offset, width) fields.
 /// Width tags belong to this fixture, not Rust enum discriminants.
@@ -15,6 +15,14 @@ pub const SCHEMA: [u64; 11] = [
     8,
     8,
 ];
+/// Concrete V2 predecessor: full-width counter, otherwise the same geometry.
+pub const SCHEMA_V2: [u64; 11] = {
+    let mut schema = SCHEMA;
+    schema[1] = 2;
+    schema[7] = 8;
+    schema
+};
+
 /// Complete retained metadata size in u64 words.
 pub const HEADER_WORDS: usize = 18;
 /// Complete native record backing extent.
@@ -35,6 +43,27 @@ fn replace(source: &mut String, from: &str, to: &str, count: usize) {
 /// Panics for invalid root geometry or changed internal fixture anchors.
 #[must_use]
 pub fn source(version: u64, root: (u64, u64), trap: bool, fault: &str, guard: bool) -> String {
+    source_schema(version, root, trap, fault, guard, false)
+}
+
+/// Build the concrete V2 predecessor with full-width initialized fields.
+///
+/// # Panics
+/// Panics for invalid geometry or changed fixture anchors.
+#[must_use]
+pub fn source_v2(version: u64, root: (u64, u64), trap: bool, fault: &str, guard: bool) -> String {
+    source_schema(version, root, trap, fault, guard, true)
+}
+
+fn source_schema(
+    version: u64,
+    root: (u64, u64),
+    trap: bool,
+    fault: &str,
+    guard: bool,
+    v2: bool,
+) -> String {
+    let schema = if v2 { SCHEMA_V2 } else { SCHEMA };
     assert!(root.0 <= root.1 && root.1 <= 16);
     let mut wat = super::source(version, root, 256, trap, "__RECORD_FAULT__", guard);
     // Retain the existing claim/settle and upgrade ordering. Only this closed
@@ -91,7 +120,7 @@ pub fn source(version: u64, root: (u64, u64), trap: bool, fault: &str, guard: bo
         "(call $element_init)",
         1,
     );
-    let writes: String = SCHEMA
+    let writes: String = schema
         .iter()
         .enumerate()
         .map(|(i, value)| {
@@ -101,7 +130,7 @@ pub fn source(version: u64, root: (u64, u64), trap: bool, fault: &str, guard: bo
             )
         })
         .collect();
-    let checks: String = SCHEMA
+    let checks: String = schema
         .iter()
         .enumerate()
         .map(|(i, value)| {
@@ -115,6 +144,19 @@ pub fn source(version: u64, root: (u64, u64), trap: bool, fault: &str, guard: bo
         .replace("__SCHEMA_WRITES__", &writes)
         .replace("__SCHEMA_CHECKS__", &checks)
         .replace("__LENGTH__", &root.0.to_string());
+    let elements = if v2 {
+        elements
+            .replace(
+                "(i32.store (local.get $address) (i32.wrap_i64 (local.get $counter)))",
+                "(i64.store (local.get $address) (local.get $counter))",
+            )
+            .replace(
+                "(i64.extend_i32_u (i32.load (local.get $address)))",
+                "(i64.load (local.get $address))",
+            )
+    } else {
+        elements
+    };
     let end = wat.rfind(')').unwrap();
     wat.insert_str(end, &elements);
     replace(&mut wat, "__RECORD_FAULT__", fault, 1);

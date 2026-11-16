@@ -1,7 +1,19 @@
 //! Controller-authorized, single-use native migration job fixture.
 use crate::provider::job_cell;
 use ic_platform_runtime::ic0;
+#[cfg(not(feature = "native-record-vector-job"))]
 use ic_storage_native_feasibility::migration_job::Job;
+#[cfg(feature = "native-record-vector-job")]
+use ic_storage_native_feasibility::migration_job::RecordJob as Job;
+#[cfg_attr(
+    feature = "native-record-vector-job",
+    path = "native_job/payload/records.rs"
+)]
+#[cfg_attr(
+    not(feature = "native-record-vector-job"),
+    path = "native_job/payload/scalar.rs"
+)]
+mod payload;
 
 mod staged;
 
@@ -10,11 +22,7 @@ mod staged;
 unsafe extern "C" {
     safe fn domain() -> u64;
     safe fn freeze() -> u32;
-    safe fn counter() -> u64;
-    safe fn value(index: u32) -> u64;
     safe fn fresh();
-    safe fn begin(counter: u64);
-    safe fn put(index: u32, value: u64);
     safe fn finish(length: u32);
     safe fn thaw(retry: u32);
 }
@@ -51,11 +59,8 @@ extern "C" fn checkpoint_export() {
     let mut cell = job_cell(false);
     let job = Job::decode(cell.get()).unwrap();
     let count = freeze();
-    assert!(count <= 512);
-    let values: Vec<_> = (0..count).map(|i| value(i)).collect();
-    let next = job
-        .export(domain(), target, epoch, counter(), &values)
-        .unwrap();
+    let values = payload::read(count, epoch);
+    let next = payload::seal(&job, domain(), target, epoch, &values);
     cell.set(next.encode().unwrap());
     if fault == 1 {
         ic0::trap(b"job export after stable write");
@@ -76,14 +81,14 @@ extern "C" fn checkpoint_restore() {
         cell.set(job.encode().unwrap());
         ic0::trap(b"job restore after consumed write");
     }
-    begin(decoded.counter);
-    for (i, value) in decoded.values.iter().enumerate() {
-        put(i as u32, *value);
+    payload::restore_begin(&decoded);
+    for i in 0..payload::len(&decoded) {
+        payload::restore_put(&decoded, i);
         if fault == 2 {
             ic0::trap(b"job restore during construction");
         }
     }
-    finish(decoded.values.len() as u32);
+    finish(payload::len(&decoded));
     cell.set(job.encode().unwrap());
     if fault == 3 {
         ic0::trap(b"job restore after native publication");
@@ -104,17 +109,7 @@ extern "C" fn checkpoint_resume() {
     // The WAT bootstrap has already restored phase 3 from an admitted frozen
     // header. This call checks it again and cannot thaw or create a native owner.
     let count = freeze();
-    if decoded.values.len() != count as usize {
-        ic0::trap(b"frozen job length mismatch");
-    }
-    if decoded.counter != counter() {
-        ic0::trap(b"frozen job counter mismatch");
-    }
-    for (index, expected) in decoded.values.iter().enumerate() {
-        if value(index as u32) != *expected {
-            ic0::trap(b"frozen job values mismatch");
-        }
-    }
+    payload::frozen(&decoded, count);
     if fault == 1 {
         ic0::trap(b"frozen resume after validation");
     }
@@ -160,7 +155,7 @@ extern "C" fn checkpoint_damage() {
     let [mode, epoch, target] = args();
     assert!(mode <= 3);
     let count = freeze();
-    assert!(count <= 512);
+    assert!(count <= payload::LIMIT);
     let mut cell = job_cell(false);
     if mode == 0 {
         assert_eq!([epoch, target], [0, 0]);
@@ -170,20 +165,15 @@ extern "C" fn checkpoint_damage() {
     } else {
         // Deliberate, correctly encoded disagreement with the frozen native
         // source, using the real codec/provider rather than host stable writes.
-        let mut values: Vec<_> = (0..count).map(|i| value(i)).collect();
-        let mut record_counter = counter();
-        match mode {
-            1 => record_counter ^= 1,
-            2 => values[0] ^= 1,
-            3 => {
-                values.pop().unwrap();
-            }
-            _ => unreachable!(),
-        }
-        let job = Job::initial(domain())
-            .unwrap()
-            .export(domain(), target, epoch, record_counter, &values)
-            .unwrap();
+        let mut state = payload::read(count, epoch);
+        payload::damage(&mut state, mode);
+        let job = payload::seal(
+            &Job::initial(domain()).unwrap(),
+            domain(),
+            target,
+            epoch,
+            &state,
+        );
         cell.set(job.encode().unwrap());
     }
     ic0::msg_reply();

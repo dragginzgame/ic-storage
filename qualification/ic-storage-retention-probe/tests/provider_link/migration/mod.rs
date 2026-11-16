@@ -25,7 +25,8 @@ fn native_source(relocated: bool, root: (u64, u64), job: bool) -> String {
     if job {
         source = source.replace("(else (call $provider_pre))", "(else (if (i32.eq (global.get $phase) (i32.const 5)) (then (call $staged)) (else (call $provider_pre))))");
         source.push_str(include_str!("job-callbacks.wat"));
-        source.push_str(include_str!("staged-callbacks.wat"));
+        source.push_str(&include_str!("staged-callbacks.wat").replace("__STAGE_SCHEMA__", ""));
+        source.push_str(include_str!("staged-values.wat"));
     }
     source.push(')');
     if relocated {

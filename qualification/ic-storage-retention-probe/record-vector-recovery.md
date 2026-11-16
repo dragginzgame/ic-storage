@@ -2,8 +2,8 @@
 
 This closed profile extends the [native record-vector proof](record-vector-provider.md)
 with installed export/import independent of the discarded native heap. It is
-qualification code, limited to sixteen V3 records under Rust 1.100.0 on wasm32,
-with an explicit portable V2→V3 collection-conversion path.
+qualification code, limited to sixteen V2/V3 records under Rust 1.100.0 on wasm32,
+with explicit portable and retained V2→V3 collection-conversion paths.
 The incompatible target changes the allocation domain; this does not claim an
 actual compiler upgrade, arbitrary Rust graph recovery or a production API.
 
@@ -125,8 +125,8 @@ checks and a completion receipt under the same provider-link evidence directory.
 This bounded, single-message profile does not implement durable checkpoint
 consumption, controller authorization, resumable batches or replay
 prevention. Those existing scalar/u64 migration-job proofs do not automatically
-apply to record vectors. Retained collection conversion, job integration and
-larger workloads remain required before consumer cutover. No production subnet,
+apply to record vectors. Job integration and larger workloads remain required
+before consumer cutover. No production subnet,
 native macOS or cross-compiler transition is claimed.
 
 ## Explicit portable collection narrowing
@@ -186,6 +186,93 @@ cases in `attempt.lfM8gn/` and four scalar-record cases in `attempt.wpBkd2/`, ea
 with seventeen native artifact checks. Strict Clippy, Rustdoc, formatting and
 local documentation links passed after the conversion change.
 
-This proves schema conversion together with portable reconstruction. It does not
-yet convert a retained native V2 record vector, preserve its allocation in place,
-or implement general collection converters or durable migration authority.
+This portable profile proves schema conversion together with reconstruction.
+The retained-conversion profile below separately preserves native backing. Neither
+implements general collection converters or durable migration authority.
+
+## Retained V2-to-V3 conversion
+
+The `native-record-vector-v2` bridge and `record_v2` build of the shared native
+entrypoint admit the concrete predecessor. Both fields are initialized u64 values
+at offsets zero and eight, with sixteen-byte stride and eight-byte alignment;
+every initialized record satisfies counter <= ceiling. The descriptor differs
+from V3 in schema version (2) and counter width (8). No padding, private Vec
+header, allocator header or old pointer is retained by V2. These are qualification
+schemas, not separate supported product versions.
+
+The [record provider's foreign-allocation argument](record-vector-provider.md#closed-native-allocation-and-linked-entrypoint-contract)
+applies separately to V2: the external provider establishes exclusive live backing,
+checks all eleven schema words and the initialized prefix before returning an
+opaque pointer, and ends every native owner before settlement. Reconstruction
+issues the exact allocation through the existing controller and public Vec API.
+The actual Copy V2 declaration has no application Drop or owning fields. Full-width
+counters cannot be admitted as V3 merely because sizes and offsets match.
+
+The pinned V2 compiler profile has six functions, entry index four and an
+80-byte peak stack in `[32688,32768)`. Its 73 guarded memory sites comprise 28/1/6
+i32/byte/i64 loads, 27/2/8 stores and one overlapping copy. Separate import identity,
+exact signatures, stack checks and memory-site inventories reject interchange
+with V3 or u64 artifacts. The final native entry stays private. Both allocation
+domains use the same closed source-level argument.
+
+V2 exports through the shared full-width logical codec and governed locator. Its
+explicit recovery profile decodes V2 before creating any target and can discard
+the source heap and relocate backing while preserving u64::MAX. V3 recovery still
+refuses V2 unless explicit portable narrowing is selected. This supplies lossless
+recovery even when the new schema cannot represent the old values.
+
+The `native-record-vector-convert` destination uses keep mode in this order:
+
+1. Trusted WAT admits the entire V2 schema, settled custody, allocation domain,
+   full-width length/capacity and all initialized invariants before resetting
+   transient memory or entering checkpoint Rust.
+2. Scalar callbacks construct bounded transient V2 records. Rust validates all
+   predecessors and applies the existing checked conversion to a complete V3
+   candidate. No old Rust Vec or reference exists during conversion.
+3. The provider becomes unavailable, replaces initialized scalar fields in order,
+   validates the whole target and publishes the V3 schema and settlement. Base,
+   length, capacity, order, ceilings and unused slots remain unchanged. The high
+   counter word becomes zero; it is then V3 padding, not logical data.
+4. Only after conversion returns does normal V3 admission issue its first Vec.
+   Checkpoint Rust and native Rust are never live simultaneously. The complete
+   scalar callback call graph excludes Rust re-entry, host calls, memory growth
+   and indirect control.
+
+This is logical replacement of non-owning scalar records, not a Vec cast. There
+is no source destructor or retained candidate allocation to reclaim. Successful
+conversion reuses backing; subsequent clear, shrink and reallocation exercise V3
+reclamation. No physical Wasm-page reclamation is claimed.
+
+Range refusal and traps before replacement, during writes and after publication
+must roll back the whole upgrade, including module identity, all observed header
+and payload bytes and complete stable memory. Wrong schemas, domains, frozen
+sources, fresh replacement and repeated conversion refuse. Explicit application
+repair after recovery may create a representable source for retry. The previous
+checkpoint remains recovery data. The separate
+[record job profile](../ic-storage-native-feasibility/migration-job.md#record-vector-job-profile)
+adds authority, consumption and staged import for V3 under a distinct locator and
+native identity; it does not implicitly enroll this fixture's checkpoint or heap.
+
+`make native-record-vector-test` covers empty, reserved-empty, singleton, spare and
+full roots; actual V2 native access; u32::MAX success; first/middle/last range
+failure; u64::MAX recovery; failure rollback; compatible V3 reopen; independent
+recovery and continued allocation. Corrupt-source cases omit the old pre-upgrade
+hook so destination admission independently rejects unknown schema, changed width,
+fabricated length/capacity, lost custody and an invalid later element.
+
+On 16 November 2026, `make native-record-vector-test` passed three codec tests,
+eighteen raw/link artifact checks, three recovery/conversion artifact checks and
+seven installed cases on x86_64 Linux with the prepared PocketIC 16.1.0 server.
+The completed cohort is `target/evidence/provider-link/attempt.ubvSla/`. It records
+both native compiler profiles, all four checkpoint/source builds, current source,
+locks, compiler identity, build recipe and collector. Successful conversion also
+preserves stable bytes exactly and reclaims/reissues the converted allocation
+before any heap replacement.
+
+The directly affected shared-linker regressions passed: four checkpoint cases in
+`attempt.Irjb4S`, four scalar-record cases in `attempt.v0QzGO`, and nine host plus
+seven installed job cases in `attempt.D3TKJ7`. Each installed cohort includes
+eighteen raw/link artifact checks and COMPLETE. Strict selected Wasm/host Clippy,
+Rustdoc for the changed provider library, formatting and shell checks passed.
+These remain bounded local evidence, not a public collection API, production
+recovery authority, native macOS execution or an actual compiler transition.

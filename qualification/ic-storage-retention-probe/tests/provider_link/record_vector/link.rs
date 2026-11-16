@@ -68,11 +68,23 @@ pub(super) fn guards() -> Result<String> {
 }
 
 pub(crate) fn source(profile: Profile) -> Result<String> {
+    source_schema(profile, false)
+}
+
+pub(crate) fn source_v2(profile: Profile) -> Result<String> {
+    source_schema(profile, true)
+}
+
+fn source_schema(profile: Profile, v2: bool) -> Result<String> {
     profile.check()?;
     let fault = profile.fault.map_or(String::new(), |(offset, value)| {
         format!("(i64.store (i32.const {offset}) (i64.const {value}))")
     });
-    let mut source = records::source(profile.version, profile.root, false, &fault, true);
+    let mut source = if v2 {
+        records::source_v2(profile.version, profile.root, false, &fault, true)
+    } else {
+        records::source(profile.version, profile.root, false, &fault, true)
+    };
     replace(
         &mut source,
         "(func $reply))",
@@ -93,7 +105,12 @@ pub(crate) fn source(profile: Profile) -> Result<String> {
     )?;
     let end = source.rfind(')').ok_or("provider closing delimiter")?;
     source.truncate(end);
-    source.push_str(&guards()?);
+    let guards = guards()?;
+    source.push_str(&if v2 {
+        guards.replace("(i64.const 32704)", "(i64.const 32688)")
+    } else {
+        guards
+    });
     let mut glue = include_str!("../vector_link/entrypoints.wat").replace(
         "__POST_FAILURE__",
         if profile.post_trap {

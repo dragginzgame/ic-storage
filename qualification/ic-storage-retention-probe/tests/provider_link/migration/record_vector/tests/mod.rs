@@ -9,7 +9,9 @@ use ic_testkit::{
 use std::{fs, path::PathBuf, time::Duration};
 use wasmparser::{Operator, Parser, Payload};
 
+mod job;
 mod narrow;
+mod retained;
 
 fn inputs() -> (PathBuf, Vec<u8>, Vec<u8>) {
     let (directory, _) = crate::input();

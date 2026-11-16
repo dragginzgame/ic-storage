@@ -56,6 +56,10 @@ native-record-build native-record-test: | toko-execution-check
 .PHONY: native-job-build native-job-test
 native-job-build native-job-test: export CARGO_NET_OFFLINE := true
 native-job-build native-job-test: | toko-execution-check
+
+.PHONY: native-record-job-build native-record-job-test
+native-record-job-build native-record-job-test: export CARGO_NET_OFFLINE := true
+native-record-job-build native-record-job-test: | toko-execution-check
 native-checkpoint-build native-checkpoint-test: export CARGO_NET_OFFLINE := true
 native-checkpoint-build native-checkpoint-test: | toko-execution-check
 native-provider-probe native-provider-test: export CARGO_NET_OFFLINE := true
@@ -99,7 +103,8 @@ help:
 	  'make checkpoint-provider-test   Test fresh-heap recovery and import rollback' \
 	  'make native-checkpoint-test     Test native export and incompatible-domain recovery' \
 	  'make native-record-test         Test installed record conversion and recovery' \
-	  'make native-record-vector-test  Test portable record-vector recovery' \
+	  'make native-record-vector-test  Test retained record conversion and recovery' \
+	  'make native-record-job-test     Test governed record-vector migration' \
 	  'make native-job-test            Test controller authority and single-use migration' \
 	  'make ci                          Aggregate hosted validation gate' \
 	  'make install-hooks               Activate the canonical formatting hook' \
@@ -274,6 +279,10 @@ native-record-vector-build:
 	+cargo rustc $(CHECKPOINT_CARGO) --target-dir target/qualification/checkpoint-record-vector --features native-record-vector -- $(NATIVE_CHECKPOINT_LINK)
 	+cargo clippy $(CHECKPOINT_CARGO) --target-dir target/qualification --features native-record-vector-source -- -D warnings
 	+cargo rustc $(CHECKPOINT_CARGO) --target-dir target/qualification/checkpoint-record-vector-source --features native-record-vector-source -- $(subst --global-base=196608,--global-base=65536,$(NATIVE_CHECKPOINT_LINK))
+	+cargo clippy $(CHECKPOINT_CARGO) --target-dir target/qualification --features native-record-vector-v2 -- -D warnings
+	+cargo rustc $(CHECKPOINT_CARGO) --target-dir target/qualification/checkpoint-record-vector-v2 --features native-record-vector-v2 -- $(NATIVE_CHECKPOINT_LINK)
+	+cargo clippy $(CHECKPOINT_CARGO) --target-dir target/qualification --features native-record-vector-convert -- -D warnings
+	+cargo rustc $(CHECKPOINT_CARGO) --target-dir target/qualification/checkpoint-record-vector-convert --features native-record-vector-convert -- $(NATIVE_CHECKPOINT_LINK)
 
 native-record-vector-test: native-record-vector-build
 	+cargo test $(NATIVE_FEASIBILITY_CARGO) --lib checkpoint::record_vector
@@ -289,3 +298,13 @@ native-job-test: native-job-build
 	+cargo test $(NATIVE_FEASIBILITY_CARGO) --lib migration_job
 	+cargo clippy $(RETENTION_CARGO) --test provider_link -- -D warnings
 	+@server="$$($(RETENTION_TOOL) --check)" && "$$server" run -- bash qualification/ic-storage-native-feasibility/scripts/run-provider-probe.sh job
+
+native-record-job-build:
+	@test -z "$${RUSTFLAGS}$${CARGO_ENCODED_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_LINKER}" || { echo 'Native job probe requires no environment flag/linker overrides' >&2; exit 1; }
+	+cargo clippy $(CHECKPOINT_CARGO) --target-dir target/qualification --features native-record-vector-job -- -D warnings
+	+cargo rustc $(CHECKPOINT_CARGO) --target-dir target/qualification/checkpoint-record-vector-job --features native-record-vector-job -- $(NATIVE_CHECKPOINT_LINK)
+
+native-record-job-test: native-record-job-build
+	+cargo test $(NATIVE_FEASIBILITY_CARGO) --lib migration_job
+	+cargo clippy $(RETENTION_CARGO) --test provider_link -- -D warnings
+	+@server="$$($(RETENTION_TOOL) --check)" && "$$server" run -- bash qualification/ic-storage-native-feasibility/scripts/run-provider-probe.sh record-job

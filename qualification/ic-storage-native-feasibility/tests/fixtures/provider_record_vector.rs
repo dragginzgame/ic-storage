@@ -1,4 +1,4 @@
-//! Closed V3 compiler fixture; installed use still requires its own admission.
+//! Closed V2/V3 compiler fixtures; each installed schema has its own admission.
 #![no_std]
 #![deny(unsafe_code, unsafe_op_in_unsafe_fn, missing_docs, dead_code)]
 
@@ -9,43 +9,60 @@ mod runtime;
 
 use alloc::vec::Vec;
 use core::ptr::NonNull;
-use ic_storage_native_feasibility::record::narrow::V3;
+#[cfg(record_v2)]
+use ic_storage_native_feasibility::record::V2 as Element;
+#[cfg(not(record_v2))]
+use ic_storage_native_feasibility::record::narrow::V3 as Element;
 use region::{Descriptor, Region};
 use runtime::abort;
 
-impl region::sealed::Sealed for V3 {}
-impl region::Element for V3 {}
+impl region::sealed::Sealed for Element {}
+impl region::Element for Element {}
 
 // This is the actual shared derive declaration compiled for wasm32, not a
 // matching host size or a second hand-written representation.
 const _: () = {
     let mut index = 0;
     while index < 8 {
-        assert!(V3::STORE_ID[index] == b"RECU64V1"[index]);
+        assert!(Element::STORE_ID[index] == b"RECU64V1"[index]);
         index += 1;
     }
-    assert!(V3::STORE_VERSION == 3);
-    assert!(V3::STORE_SIZE == 16 && V3::STORE_ALIGN == 8 && V3::STORE_BYTES == 12);
-    assert!(V3::STORE_FIELDS[0].id == 1 && V3::STORE_FIELDS[0].offset == 0);
-    assert!(V3::STORE_FIELDS[1].id == 2 && V3::STORE_FIELDS[1].offset == 8);
+    assert!(Element::STORE_VERSION == if cfg!(record_v2) { 2 } else { 3 });
+    assert!(Element::STORE_SIZE == 16 && Element::STORE_ALIGN == 8);
+    assert!(Element::STORE_BYTES == if cfg!(record_v2) { 16 } else { 12 });
+    assert!(Element::STORE_FIELDS[0].id == 1 && Element::STORE_FIELDS[0].offset == 0);
+    assert!(Element::STORE_FIELDS[1].id == 2 && Element::STORE_FIELDS[1].offset == 8);
 };
 
 #[expect(
     unsafe_code,
-    reason = "exclusive foreign record backing in compiler fixture"
+    reason = "exclusive foreign scalar-record backing in compiler fixture"
 )]
-#[link(wasm_import_module = "native_record_vector_diagnostic")]
+#[cfg_attr(
+    not(record_v2),
+    link(wasm_import_module = "native_record_vector_diagnostic")
+)]
+#[cfg_attr(
+    record_v2,
+    link(wasm_import_module = "native_record_vector_v2_diagnostic")
+)]
 unsafe extern "C" {
     fn claim_region() -> *mut u8;
 }
 
-fn element(value: u64) -> V3 {
+fn element(value: u64) -> Element {
+    #[cfg(not(record_v2))]
     let counter = u32::try_from(value).unwrap_or_else(|_| abort());
-    V3::new(counter, 1000).unwrap_or_else(|_| abort())
+    #[cfg(record_v2)]
+    let counter = value;
+    Element::new(counter, 1000).unwrap_or_else(|_| abort())
 }
 
-fn add_first(values: &mut [V3], value: u64) {
+fn add_first(values: &mut [Element], value: u64) {
+    #[cfg(not(record_v2))]
     let delta = u32::try_from(value).unwrap_or_else(|_| abort());
+    #[cfg(record_v2)]
+    let delta = value;
     if let Some(first) = values.first_mut() {
         first
             .store_with(|mut view| view.add(delta))
@@ -57,7 +74,7 @@ fn add_first(values: &mut [V3], value: u64) {
 ///
 /// # Safety
 /// Requires one exclusive live aligned 256-byte provider allocation. Its first
-/// `length` elements must be initialized valid V3 values, with admitted schema
+/// `length` elements must be initialized valid selected-schema values, with admitted schema
 /// and `length <= capacity <= 16`. Prior owners must have ended. The trusted
 /// wrapper settles after return; any trap must abort the entire transaction.
 #[expect(
@@ -78,7 +95,7 @@ pub unsafe extern "C" fn provider_record_vector_step(
     // foreign loan. No owner/header survives this entrypoint or its controller.
     let controller = unsafe {
         let base = NonNull::new(claim_region()).unwrap_or_else(|| abort());
-        Region::<V3>::claim(
+        Region::<Element>::claim(
             base,
             16,
             Descriptor {
@@ -125,7 +142,10 @@ pub unsafe extern "C" fn provider_record_vector_step(
             }
         }
         7 => {
+            #[cfg(not(record_v2))]
             let delta = u32::try_from(value).unwrap_or_else(|_| abort());
+            #[cfg(record_v2)]
+            let delta = value;
             if let Some(first) = values.first_mut() {
                 first.store_with(|mut view| {
                     view.add(delta).unwrap_or_else(|_| abort());

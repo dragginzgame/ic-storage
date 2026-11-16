@@ -23,6 +23,19 @@ features independently. `native-record-vector-source` selects an ordinary Rust
 `Vec<V2>` source for portable narrowing into V3; it takes precedence in an
 all-features build. The target never implicitly converts V2 during V3 recovery.
 The same Make target builds and qualifies both source and target profiles.
+It also builds `native-record-vector-v2` for full-width native predecessor
+export/recovery and `native-record-vector-convert` for explicit retained conversion
+under keep mode. The latter adds five scalar conversion callbacks and a cold
+source-admission gate; its new Rust runtime never opens an old V2 pointer or Vec.
+Full-width V2 recovery remains available when narrowing refuses. These features
+are separate closed fixtures, not an automatically selected migration mechanism.
+
+The `native-record-vector-job` feature selects the shared job adapter with V3
+record fields, under `native.checkpoint.record_vector.job.v1` (360-byte maximum).
+Run `make native-record-job-test`. Its envelope is `ICJRV001`; no V2 conversion
+or adoption of the ordinary record checkpoint is implicit. Source, V2 and
+conversion fixture features take precedence when combined; qualify this job
+feature independently. See the [record job contract](../ic-storage-native-feasibility/migration-job.md#record-vector-job-profile).
 
 ## Frozen provider boundary
 

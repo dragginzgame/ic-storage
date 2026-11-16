@@ -41,16 +41,20 @@ fn checked<T, E>(value: std::result::Result<T, E>) -> Result<T> {
 }
 
 pub(super) fn inspect(raw: &[u8]) -> Result<Profile> {
-    inspect_element(raw, false)
+    inspect_element(raw, 0)
 }
 
 pub(super) fn inspect_record(raw: &[u8]) -> Result<Profile> {
-    inspect_element(raw, true)
+    inspect_element(raw, 3)
 }
 
-// Closed profiles, not caller-configurable layout admission. The record profile
-// binds the distinct import/export identity and exact current two-body shape.
-fn inspect_element(raw: &[u8], record: bool) -> Result<Profile> {
+pub(super) fn inspect_record_v2(raw: &[u8]) -> Result<Profile> {
+    inspect_element(raw, 2)
+}
+
+// Closed profiles, not caller-configurable layout admission: 0 selects u64,
+// 2 and 3 select the concrete record schemas and their exact compiler shapes.
+fn inspect_element(raw: &[u8], record: u32) -> Result<Profile> {
     validate_wasm(raw, super::artifact::LIMIT).map_err(|_| Error::Malformed)?;
     let mut types = Vec::new();
     let mut imports = Vec::new();
@@ -129,14 +133,18 @@ fn inspect_element(raw: &[u8], record: bool) -> Result<Profile> {
     if memories != 1
         || globals != 3
         || bodies.len() != functions.len()
-        || if record {
+        || if record == 2 {
+            functions.len() != 6
+        } else if record == 3 {
             functions.len() != 2
         } else {
             !matches!(functions.len(), 2 | 8)
         }
         || imports.len() != 1
         || imports[0].0
-            != if record {
+            != if record == 2 {
+                "native_record_vector_v2_diagnostic"
+            } else if record == 3 {
                 "native_record_vector_diagnostic"
             } else {
                 "native_vector_diagnostic"
@@ -148,7 +156,16 @@ fn inspect_element(raw: &[u8], record: bool) -> Result<Profile> {
     let TypeRef::Func(import_type) = imports[0].2 else {
         return Err(Error::Profile);
     };
-    let expected = if functions.len() == 2 {
+    let expected = if record == 2 {
+        vec![
+            FuncType::new([I32], []),
+            FuncType::new([I32, I32, I32], []),
+            FuncType::new([I32, I32], []),
+            FuncType::new([I32, I32, I32, I64], [I64]),
+            FuncType::new([], []),
+            FuncType::new([], []),
+        ]
+    } else if functions.len() == 2 {
         vec![
             FuncType::new([I32, I32, I32], []),
             FuncType::new([I32, I32, I32, I64], [I64]),
@@ -173,7 +190,9 @@ fn inspect_element(raw: &[u8], record: bool) -> Result<Profile> {
     {
         return Err(Error::Profile);
     }
-    let (entry, peak) = if functions.len() == 2 {
+    let (entry, peak) = if record == 2 {
+        (4, 80)
+    } else if functions.len() == 2 {
         (2, 64)
     } else {
         (6, 80)
@@ -186,7 +205,7 @@ fn inspect_element(raw: &[u8], record: bool) -> Result<Profile> {
             ("__stack_pointer", ExternalKind::Global, 0),
             ("memory", ExternalKind::Memory, 0),
             (
-                if record {
+                if record != 0 {
                     "provider_record_vector_step"
                 } else {
                     "provider_vector_step"
@@ -235,6 +254,11 @@ pub(super) fn prepare(raw: &[u8]) -> Result<Vec<u8>> {
 
 pub(super) fn prepare_record(raw: &[u8]) -> Result<Vec<u8>> {
     inspect_record(raw)?;
+    rewrite_accesses(raw)
+}
+
+pub(super) fn prepare_record_v2(raw: &[u8]) -> Result<Vec<u8>> {
+    inspect_record_v2(raw)?;
     rewrite_accesses(raw)
 }
 

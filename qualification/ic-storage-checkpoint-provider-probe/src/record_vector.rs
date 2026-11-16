@@ -2,7 +2,15 @@
 
 use crate::provider::record_vector_cell as cell;
 use ic_platform_runtime::ic0;
-use ic_storage_native_feasibility::{checkpoint::record_vector as codec, record::narrow::V3};
+use ic_storage_native_feasibility::checkpoint::record_vector as codec;
+#[cfg(feature = "native-record-vector-v2")]
+use ic_storage_native_feasibility::record::V2 as Record;
+#[cfg(not(feature = "native-record-vector-v2"))]
+use ic_storage_native_feasibility::record::narrow::V3 as Record;
+#[cfg(not(feature = "native-record-vector-v2"))]
+type Counter = u32;
+#[cfg(feature = "native-record-vector-v2")]
+type Counter = u64;
 
 #[expect(
     unsafe_code,
@@ -14,11 +22,11 @@ unsafe extern "C" {
     safe fn record_value(index: u32, field: u32) -> u64;
     safe fn fresh();
     safe fn begin();
-    safe fn record_put(index: u32, counter: u32, ceiling: u64);
+    safe fn record_put(index: u32, counter: Counter, ceiling: u64);
     safe fn finish(length: u32);
 }
 
-fn args() -> [u64; 2] {
+pub(super) fn args() -> [u64; 2] {
     assert_eq!(ic0::msg_arg_data_size(), 16);
     let mut bytes = [0; 16];
     ic0::msg_arg_data_copy(&mut bytes, 0);
@@ -46,14 +54,18 @@ extern "C" fn checkpoint_export() {
     assert!(count <= codec::LIMIT as u32);
     let records: Vec<_> = (0..count)
         .map(|index| {
-            V3::new(
-                u32::try_from(record_value(index, 0)).unwrap(),
+            Record::new(
+                Counter::try_from(record_value(index, 0)).unwrap(),
                 record_value(index, 1),
             )
             .unwrap()
         })
         .collect();
-    cell(false).set(codec::encode(&records, epoch).unwrap());
+    #[cfg(not(feature = "native-record-vector-v2"))]
+    let encoded = codec::encode(&records, epoch);
+    #[cfg(feature = "native-record-vector-v2")]
+    let encoded = codec::encode_v2(&records, epoch);
+    cell(false).set(encoded.unwrap());
     if fault == 1 {
         ic0::trap(b"record vector export after stable write");
     }
@@ -66,6 +78,7 @@ extern "C" fn checkpoint_restore() {
     restore(false);
 }
 
+#[cfg(not(feature = "native-record-vector-v2"))]
 #[expect(
     unsafe_code,
     reason = "explicit vector conversion bound by the final linker"
@@ -80,12 +93,18 @@ fn restore(narrow: bool) {
     assert!(fault <= 3);
     fresh();
     let mut cell = cell(false);
-    let (records, count) = if narrow {
+    #[cfg(not(feature = "native-record-vector-v2"))]
+    let decoded = if narrow {
         codec::decode_narrow_v2(cell.get(), epoch)
     } else {
         codec::decode(cell.get(), epoch)
-    }
-    .unwrap_or_else(|error| match error {
+    };
+    #[cfg(feature = "native-record-vector-v2")]
+    let decoded = {
+        assert!(!narrow);
+        codec::decode_v2(cell.get(), epoch)
+    };
+    let (records, count) = decoded.unwrap_or_else(|error| match error {
         codec::Error::Conversion { .. } => ic0::trap(b"record vector narrowing out of range"),
         other => panic!("record vector checkpoint: {other:?}"),
     });
