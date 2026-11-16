@@ -13,6 +13,17 @@ The separate `native-record` feature reuses the scalar bridge for
 Run `make native-record-test`. Select it separately from `native-job`; the job
 profile remains schema 1 and takes precedence when both features are enabled.
 
+The separate `native-record-vector` feature stores the bounded
+[record-vector envelope](../ic-storage-retention-probe/record-vector-recovery.md)
+under `native.checkpoint.record_vector.v1`, with a 320-byte loaded-value limit
+(256 bytes for V3, 320 for the explicit V2 conversion source).
+It reuses the governed reader and scalar-only bridge composition, with six
+record-specific callbacks. Run `make native-record-vector-test`. Select fixture
+features independently. `native-record-vector-source` selects an ordinary Rust
+`Vec<V2>` source for portable narrowing into V3; it takes precedence in an
+all-features build. The target never implicitly converts V2 during V3 recovery.
+The same Make target builds and qualifies both source and target profiles.
+
 ## Frozen provider boundary
 
 - Reader/writer: published `ic-storage` **0.74.1**, selected by the qualification

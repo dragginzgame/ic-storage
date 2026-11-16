@@ -48,6 +48,9 @@ native-feasibility-test native-feasibility-lint native-layout-probe: | toko-exec
 .PHONY: native-provider-probe native-provider-test
 .PHONY: native-checkpoint-build native-checkpoint-test
 .PHONY: native-record-build native-record-test
+.PHONY: native-record-vector-build native-record-vector-test
+native-record-vector-build native-record-vector-test: export CARGO_NET_OFFLINE := true
+native-record-vector-build native-record-vector-test: | toko-execution-check
 native-record-build native-record-test: export CARGO_NET_OFFLINE := true
 native-record-build native-record-test: | toko-execution-check
 .PHONY: native-job-build native-job-test
@@ -96,6 +99,7 @@ help:
 	  'make checkpoint-provider-test   Test fresh-heap recovery and import rollback' \
 	  'make native-checkpoint-test     Test native export and incompatible-domain recovery' \
 	  'make native-record-test         Test installed record conversion and recovery' \
+	  'make native-record-vector-test  Test portable record-vector recovery' \
 	  'make native-job-test            Test controller authority and single-use migration' \
 	  'make ci                          Aggregate hosted validation gate' \
 	  'make install-hooks               Activate the canonical formatting hook' \
@@ -263,6 +267,18 @@ native-record-build:
 native-record-test: native-record-build
 	+cargo clippy $(RETENTION_CARGO) --test provider_link -- -D warnings
 	+@server="$$($(RETENTION_TOOL) --check)" && "$$server" run -- bash qualification/ic-storage-native-feasibility/scripts/run-provider-probe.sh record
+
+native-record-vector-build:
+	@test -z "$${RUSTFLAGS}$${CARGO_ENCODED_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_LINKER}" || { echo 'Native checkpoint probe requires no environment flag/linker overrides' >&2; exit 1; }
+	+cargo clippy $(CHECKPOINT_CARGO) --target-dir target/qualification --features native-record-vector -- -D warnings
+	+cargo rustc $(CHECKPOINT_CARGO) --target-dir target/qualification/checkpoint-record-vector --features native-record-vector -- $(NATIVE_CHECKPOINT_LINK)
+	+cargo clippy $(CHECKPOINT_CARGO) --target-dir target/qualification --features native-record-vector-source -- -D warnings
+	+cargo rustc $(CHECKPOINT_CARGO) --target-dir target/qualification/checkpoint-record-vector-source --features native-record-vector-source -- $(subst --global-base=196608,--global-base=65536,$(NATIVE_CHECKPOINT_LINK))
+
+native-record-vector-test: native-record-vector-build
+	+cargo test $(NATIVE_FEASIBILITY_CARGO) --lib checkpoint::record_vector
+	+cargo clippy $(RETENTION_CARGO) --test provider_link -- -D warnings
+	+@server="$$($(RETENTION_TOOL) --check)" && "$$server" run -- bash qualification/ic-storage-native-feasibility/scripts/run-provider-probe.sh record-vector
 
 native-job-build:
 	@test -z "$${RUSTFLAGS}$${CARGO_ENCODED_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_LINKER}" || { echo 'Native job probe requires no environment flag/linker overrides' >&2; exit 1; }

@@ -123,6 +123,16 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
         let mut expected = vec![
             "begin", "counter", "finish", "freeze", "fresh", "put", "value",
         ];
+        if callbacks.contains(&"record_value") {
+            expected = vec![
+                "begin",
+                "finish",
+                "freeze",
+                "fresh",
+                "record_put",
+                "record_value",
+            ];
+        }
         if callbacks.contains(&"domain") {
             expected.insert(2, "domain");
             expected.insert(7, "thaw");
@@ -152,6 +162,10 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
             expected.sort_unstable();
         }
         assert_eq!(callbacks, expected);
+        assert_eq!(
+            result.exports.contains_key("checkpoint_vector_narrow"),
+            callbacks.contains(&"record_value")
+        );
         assert_eq!(
             result.exports.contains_key("checkpoint_convert"),
             callbacks.contains(&"record_schema")
@@ -206,6 +220,7 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
                     | "checkpoint_convert"
                     | "checkpoint_narrow"
                     | "checkpoint_record_add"
+                    | "checkpoint_vector_narrow"
             ));
         }
     } else {
@@ -221,8 +236,12 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
             })
             .collect();
         let imported = result.imports.len() as u32;
-        let first_rust =
-            imported + result.functions - super::super::vector_access::NATIVE_FUNCTIONS;
+        let native_functions = if result.exports.contains_key("ncp_record_value") {
+            2 // Closed record profile, checked by compose_record before this inventory.
+        } else {
+            super::super::vector_access::NATIVE_FUNCTIONS
+        };
+        let first_rust = imported + result.functions - native_functions;
         let mut pending: Vec<_> = result
             .exports
             .iter()
@@ -241,6 +260,8 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
                 19
             } else if result.exports.contains_key("ncp_record_schema") {
                 15
+            } else if result.exports.contains_key("ncp_record_value") {
+                6
             } else {
                 7
             }
@@ -312,6 +333,7 @@ pub(super) enum Post {
     Importing,
     Convert,
     Narrow,
+    NarrowVector,
 }
 
 pub(super) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
@@ -320,6 +342,12 @@ pub(super) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
     assert_eq!(
         p.exports.contains_key("checkpoint_convert"),
         n.exports.contains_key("ncp_record_schema")
+    );
+    assert_eq!(
+        p.imports
+            .iter()
+            .any(|(module, name)| module == "native_checkpoint" && name == "record_value"),
+        n.exports.contains_key("ncp_record_value")
     );
     assert_eq!(
         n.exports.contains_key("ncp_thaw"),
@@ -479,6 +507,11 @@ pub(super) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
                 Post::Recover => vec![
                     ncall("ncp_fresh"),
                     pcall("checkpoint_restore"),
+                    ncall("__bridge_post"),
+                ],
+                Post::NarrowVector => vec![
+                    ncall("ncp_fresh"),
+                    pcall("checkpoint_vector_narrow"),
                     ncall("__bridge_post"),
                 ],
                 // Native admission runs first without entering checkpoint Rust.

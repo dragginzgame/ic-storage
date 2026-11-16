@@ -19,7 +19,7 @@ fn args(epoch: u64, fault: u64) -> Vec<u8> {
         .flat_map(u64::to_le_bytes)
         .collect()
 }
-pub(super) async fn replace_heap(
+pub(in crate::migration) async fn replace_heap(
     pic: &PocketIc,
     id: CanisterId,
     target: &[u8],
@@ -30,7 +30,7 @@ pub(super) async fn replace_heap(
 
 // Recovery tests explicitly skip the old hook only after a checkpoint exists.
 // Management authorization still applies, including to the chunk-store calls.
-pub(super) async fn replace_heap_with_options(
+pub(in crate::migration) async fn replace_heap_with_options(
     pic: &PocketIc,
     id: CanisterId,
     target: &[u8],

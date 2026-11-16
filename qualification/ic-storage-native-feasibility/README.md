@@ -14,7 +14,9 @@ as retained state. `make native-provider-probe` includes a
 [V3 vector compiler/access diagnostic](../ic-storage-retention-probe/record-vector-provider.md#rust-compiler-and-access-rewrite);
 `make native-provider-test` now also executes its closed linked record profile,
 including retained upgrades and refusal/rollback. This is not a public collection
-API; installed record-vector portable recovery remains a separate gate.
+API. `make native-record-vector-test` now checks its
+[portable recovery](../ic-storage-retention-probe/record-vector-recovery.md)
+after explicit heap replacement, using the same generated field codec as the host.
 
 ## Ownership boundary
 

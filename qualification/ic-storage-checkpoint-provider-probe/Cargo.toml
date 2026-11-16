@@ -21,6 +21,8 @@ doctest = false
 native-bridge = []
 native-job = ["native-bridge"]
 native-record = ["native-bridge"]
+native-record-vector = ["native-bridge"]
+native-record-vector-source = ["native-record-vector"]
 version-b = []
 
 [dependencies]

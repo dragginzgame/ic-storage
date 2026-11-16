@@ -36,6 +36,17 @@
 
 ### 🧪 Testing
 
+- Qualify explicit portable V2→V3 record-vector conversion from an ordinary
+  Rust source. Validate the complete predecessor before narrowing and publish
+  only a complete target; range failures preserve the source and checkpoint for
+  explicit repair and retry. Keep V3 recovery and V2 conversion separate, and
+  exercise continued native V3 operations and checkpoint recovery afterward.
+- Qualify portable record-vector recovery through governed Storage checkpoints.
+  Share the host V3 codec, discard the native heap, reconstruct in a relocated
+  domain and continue allocating. Check frozen mutation, failed-export/import
+  rollback, corrupt checkpoints and explicit recovery from a damaged old header.
+  Run `make native-record-vector-test`; retained collection conversion and migration-job
+  authority remain separate work.
 - Qualify a closed native V3 record vector through installed mutation/reclamation,
   retained upgrades, ordinary errors, rollback and schema/custody refusal. Test
   record-specific guard bounds and reuse the shared provider/linker. Installed

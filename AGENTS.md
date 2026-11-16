@@ -2,7 +2,9 @@
 
 This is a fresh research repository for Rust Orthogonal Persistence inspired by
 Motoko. The user authorized this directory on 2026-11-15 and put development of
-`../ic-storage` on hold. Do not modify that repository as part of this experiment.
+the [legacy Storage repository](https://github.com/dragginzgame/ic-storage-legacy)
+on hold. Do not modify that repository as part of this experiment. This research
+repository was renamed from `ic-storage-new` to `ic-storage` on 2026-11-16.
 
 This repository adopts [TOKO-TOOLING.md](TOKO-TOOLING.md) and its revision-bound
 references. The canonical exporter owns the Toko 0.44.5 snapshot under

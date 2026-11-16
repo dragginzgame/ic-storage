@@ -4,6 +4,7 @@ use super::vector_link;
 use ic_storage_retention_probe::artifact::{compile_wat, validate_wasm};
 
 mod artifact;
+mod record_vector;
 mod records;
 mod tests;
 mod transient;
@@ -20,11 +21,11 @@ fn native_source(relocated: bool, root: (u64, u64), job: bool) -> String {
         .replace("(i64.load (i32.const 65544)) (i64.const 1)", "(i64.load (i32.const 65544)) (i64.const 2)")
         .replace("(i64.store (i32.const 65544) (i64.const 1))", "(i64.store (i32.const 65544) (i64.const 2))\n(i64.store (i32.const 65600) (i64.const 41))");
     source.truncate(source.rfind(')').unwrap());
-    source.push_str(include_str!("migration/callbacks.wat"));
+    source.push_str(include_str!("callbacks.wat"));
     if job {
         source = source.replace("(else (call $provider_pre))", "(else (if (i32.eq (global.get $phase) (i32.const 5)) (then (call $staged)) (else (call $provider_pre))))");
-        source.push_str(include_str!("migration/job-callbacks.wat"));
-        source.push_str(include_str!("migration/staged-callbacks.wat"));
+        source.push_str(include_str!("job-callbacks.wat"));
+        source.push_str(include_str!("staged-callbacks.wat"));
     }
     source.push(')');
     if relocated {

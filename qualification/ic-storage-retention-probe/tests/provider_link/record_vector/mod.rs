@@ -5,7 +5,7 @@ use std::{collections::BTreeMap, fmt::Write, fs};
 use wasmparser::{ExternalKind, Operator, Parser, Payload, TypeRef, ValType};
 
 mod installed_tests;
-mod link;
+pub(super) mod link;
 
 #[test]
 #[ignore = "make native-provider-probe supplies fresh record compiler output"]

@@ -350,9 +350,12 @@ injected interruption after earlier elements leaves the source and existing targ
 unchanged and reclaims the candidate. Equal native element sizes never justify
 casting a Vec between schemas.
 
-A private bounded portable envelope tests recovery after the source vector,
-allocator and backing Box have all ended. It is a new test fixture, not an installed
-provider format, a public codec API or another supported release line:
+A bounded portable envelope first tested recovery after the source vector,
+allocator and backing Box had all ended. Its codec now lives in
+[`checkpoint::record_vector`](src/checkpoint/record_vector/mod.rs), shared with the
+[installed recovery profile](../ic-storage-retention-probe/record-vector-recovery.md).
+It remains qualification code, not a public product API or another supported
+release line:
 
 | Bytes | Meaning |
 | --- | --- |
@@ -364,7 +367,7 @@ provider format, a public codec API or another supported release line:
 | 32..payload end | Ordered generated V3 payloads, twelve bytes each |
 | Last 32 | SHA-256 of the preceding header and payload |
 
-The maximum envelope is 256 bytes. It contains initialized logical values only,
+The V3 envelope is at most 256 bytes. It contains initialized logical values only,
 not vector capacity or the four padding bytes in each native V3. The digest binds
 the whole ordered collection; it is not author authentication. The decoder checks
 identity, schema, count, exact framing, epoch, integrity and every record invariant
@@ -377,11 +380,10 @@ expected bytes, malformed/truncated/oversized inputs, resealed invalid records,
 allocation failure, partial construction cleanup and continued allocation after
 recovery. `make native-feasibility-test` passed with all seven new cases, bringing
 the live-arena suite to 68 passing tests; its strict Clippy and remaining host
-suites also passed. Existing installed
-checkpoint formats and tests are unaffected; no installed record-vector claim is
-made. The next gate is an explicit retained element descriptor and initialized-span
-contract, followed by installed admission, rollback and portable recovery before
-exposing a persistent record-vector API.
+suites also passed. That host-only result did not qualify installed record-vector
+recovery. The later profiles below add retained element admission, initialized-span
+custody, installed rollback and governed portable recovery; the existing scalar
+checkpoint formats remain unchanged.
 
 ## Same-live-domain record custody
 
@@ -420,7 +422,7 @@ reuse continue normally.
 live-arena suite to 76 passing tests. Strict Clippy and the remaining host suites
 also passed; the compiled-layout diagnostic remains separately gated as before.
 
-These are host custody checks. The remaining installed gate must define how the
+These are host custody checks. The subsequent installed profiles must define how the
 new IC executable obtains allocation and initialization authority, encode and
 admit its retained element descriptor before references exist, and exercise
 installed rollback and portable recovery. It cannot copy this live token across
@@ -462,5 +464,15 @@ The subsequent [closed installed profile](../ic-storage-retention-probe/record-v
 now binds them and executes the Rust vector through mutations, reclamation,
 retained A→B→A upgrades, ordinary errors and trap rollback. Invalid metadata,
 record invariants, unsettled custody and wrong formats refuse. It uses the explicit
-foreign-allocation argument; installed portable record-vector recovery remains
-unimplemented, so this is still a bounded qualification fixture, not a product API.
+foreign-allocation argument. The subsequent
+[portable recovery proof](../ic-storage-retention-probe/record-vector-recovery.md)
+now reconstructs from governed logical checkpoints after discarding that native
+heap. It now also performs explicit portable V2→V3 collection conversion from an
+ordinary Rust `Vec<V2>` source. The V2 checkpoint uses sixteen-byte generated
+payloads and a 320-byte bound; V3 readers still refuse it unless the narrowing
+entrypoint was selected. All predecessors decode before checked conversion, and
+all conversions finish before target publication. Out-of-range counters preserve
+the installed source and checkpoint for explicit repair and retry. These are
+schema fixtures, not maintained pre-1.0 release lines. Conversion of retained
+records without heap replacement and migration-authority integration remain
+separate gates; none of these fixtures is a public product API.

@@ -2,8 +2,9 @@
 
 The closed native profile now executes the Rust V3 vector across installed
 retained upgrades under the [allocation contract below](#closed-native-allocation-and-linked-entrypoint-contract).
-The earlier WAT-only and compiler-only results remain separate evidence; installed
-portable record-vector recovery is still outstanding.
+The earlier WAT-only and compiler-only results remain separate evidence. The
+[portable recovery profile](record-vector-recovery.md) now also exercises export,
+heap replacement and reconstruction in another native allocation domain.
 
 This installed WAT experiment extends the [vector custody protocol](vector-provider.md)
 to a closed sixteen-element V3 record profile. It reuses claim, settlement and
@@ -281,4 +282,5 @@ under `target/evidence/provider-link/` and have completed receipts.
 
 These are bounded local PocketIC results on x86_64 Linux, not production-subnet
 or native macOS execution evidence. The next implementation gate is installed
-record-vector logical export/import independent of the discarded native heap.
+record-vector logical export/import independent of the discarded native heap;
+that subsequent gate is now covered by the [recovery profile](record-vector-recovery.md).

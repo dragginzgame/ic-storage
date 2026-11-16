@@ -5,6 +5,8 @@ use crate::record::{self, Record};
 use alloc::vec::Vec;
 use sha2::{Digest, Sha256};
 
+pub mod record_vector;
+
 // Wire limit: independent of the ownership model's operational capacity.
 const MAX_VALUES: usize = 16;
 /// Version-2 wire limit, covering the retained-vector fixture's complete extent.

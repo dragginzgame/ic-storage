@@ -7,23 +7,23 @@ use super::super::{artifact::LIMIT, vector_access, vector_link};
 type Result<T> = std::result::Result<T, &'static str>;
 
 #[derive(Clone, Copy, Debug)]
-pub(super) struct Profile {
-    pub(super) version: u64,
-    pub(super) root: (u64, u64),
-    pub(super) post_trap: bool,
-    pub(super) fault: Option<(u32, u64)>,
-    pub(super) source_guard: bool,
+pub(crate) struct Profile {
+    pub(crate) version: u64,
+    pub(crate) root: (u64, u64),
+    pub(crate) post_trap: bool,
+    pub(crate) fault: Option<(u32, u64)>,
+    pub(crate) source_guard: bool,
 }
 
 impl Profile {
-    pub(super) const A: Self = Self {
+    pub(crate) const A: Self = Self {
         version: 1,
         root: (3, 4),
         post_trap: false,
         fault: None,
         source_guard: true,
     };
-    pub(super) const B: Self = Self {
+    pub(crate) const B: Self = Self {
         version: 2,
         ..Self::A
     };
@@ -67,7 +67,7 @@ pub(super) fn guards() -> Result<String> {
     Ok(source)
 }
 
-pub(super) fn source(profile: Profile) -> Result<String> {
+pub(crate) fn source(profile: Profile) -> Result<String> {
     profile.check()?;
     let fault = profile.fault.map_or(String::new(), |(offset, value)| {
         format!("(i64.store (i32.const {offset}) (i64.const {value}))")

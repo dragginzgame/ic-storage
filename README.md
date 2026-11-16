@@ -1,4 +1,4 @@
-# IC Storage New
+# IC Storage
 
 A fresh experiment in **Rust Orthogonal Persistence**, inspired by Motoko's
 persistence model on the Internet Computer.
@@ -23,8 +23,8 @@ complete persistence system. Its [earlier research plan](docs/design/m0-research
 is archived; its format and historical results remain scoped to that experiment.
 
 This is the intended successor to `ic-storage`, aiming to subsume the persistence
-capabilities our applications need. The existing repository is on hold and stays
-unchanged. Replacement requires capability and migration qualification; there is
+capabilities our applications need. The [legacy repository](https://github.com/dragginzgame/ic-storage-legacy)
+is on hold and stays unchanged. Replacement requires capability and migration qualification; there is
 no current package, API or stored-format compatibility claim. See the
 [successor rule](docs/DESIGN.md#successor-rule).
 
@@ -149,7 +149,7 @@ Library code lives in `crates/`. See [qualification/](qualification/README.md)
 for fixture contracts, commands and evidence scope. Production canister
 qualification, publication and deployment are not configured. The package
 remains `publish = false`. The GitHub repository is
-[`dragginzgame/ic-storage-new`](https://github.com/dragginzgame/ic-storage-new).
+[`dragginzgame/ic-storage`](https://github.com/dragginzgame/ic-storage).
 
 Read [AGENTS.md](AGENTS.md) and the
 [research architecture](docs/DESIGN.md) before implementation.

@@ -213,9 +213,17 @@ reuses the actual V3 declaration, checks its wasm32 representation and bounded
 stack, and rewrites all 58 memory sites through access guards. Its closed native
 profile now links those guards to the record provider and passes installed
 mutation/reclamation, A→B→A retained upgrades, full observed rollback and corrupt
-source refusal under the explicit foreign-allocation contract. Installed portable
-record-vector recovery and broader type/scale coverage remain required before a
-persistent collection API or production cutover.
+source refusal under the explicit foreign-allocation contract. Its
+[portable recovery profile](../qualification/ic-storage-retention-probe/record-vector-recovery.md)
+now exports the generated logical record fields through governed Storage, discards
+the native heap and reconstructs in a different allocation domain, with installed
+rollback and continued-allocation evidence. The portable path also performs
+explicit whole-collection V2→V3 narrowing from an ordinary Rust source, validating
+every predecessor before publishing any target records. Installed tests preserve
+the source and checkpoint on range failures and allow explicit repair/re-export
+and retry. This is checkpoint-based conversion with heap replacement; retained
+record conversion without replacement, migration authority and broader type/scale
+coverage remain required before a persistent collection API or production cutover.
 
 Use ordinary-looking Rust records with a derive-based persistence declaration
 as the intended application surface. The following syntax and collection names
@@ -650,8 +658,13 @@ adds bounded batches, exact retries, compatible interruption and explicit restar
 from the independent checkpoint. Restart replaces the unfinished heap; it cannot
 replay a completed job or silently discard subsequent application writes.
 
-These are installed proofs for one counter and at most 512 u64 values, including
-refusal, rollback and repeated domain migrations. They do not qualify a real
+The scalar/job profiles cover one counter and at most 512 u64 values. A separate
+[record-vector checkpoint](../qualification/ic-storage-retention-probe/record-vector-recovery.md)
+covers sixteen V3 records and explicit narrowing from V2, sharing its codec with
+host recovery and its governed reader with the existing checkpoint provider.
+It proves full heap replacement, portable collection conversion and repeated
+domain migrations, but does not yet integrate the durable job's
+authority, consumption or resumable import protocol. These proofs do not qualify a real
 compiler transition, arbitrary graphs or production recovery authority. Each
 staged batch still validates the complete bounded checkpoint; whole-transient-
 domain clearing is fixture machinery, not a production cost commitment. Detailed

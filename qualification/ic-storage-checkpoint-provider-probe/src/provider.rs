@@ -7,10 +7,10 @@ use ic_storage::{
 
 const OWNER: &str = "native-checkpoint";
 const PREFIX: &str = "native.checkpoint.";
-#[cfg(not(feature = "native-job"))]
+#[cfg(not(any(feature = "native-job", feature = "native-record-vector")))]
 const KEY: &str = "native.checkpoint.scalar.v1";
 
-#[cfg(not(feature = "native-job"))]
+#[cfg(not(any(feature = "native-job", feature = "native-record-vector")))]
 pub(crate) fn cell(create: bool) -> StableCell<Vec<u8>> {
     open(
         KEY,
@@ -19,12 +19,21 @@ pub(crate) fn cell(create: bool) -> StableCell<Vec<u8>> {
     )
 }
 
-#[cfg(feature = "native-job")]
+#[cfg(all(feature = "native-job", not(feature = "native-record-vector")))]
 pub(crate) fn job_cell(create: bool) -> StableCell<Vec<u8>> {
     open(
         "native.checkpoint.job.v1",
         create,
         ic_storage_native_feasibility::migration_job::MAX_BYTES,
+    )
+}
+
+#[cfg(feature = "native-record-vector")]
+pub(crate) fn record_vector_cell(create: bool) -> StableCell<Vec<u8>> {
+    open(
+        "native.checkpoint.record_vector.v1",
+        create,
+        ic_storage_native_feasibility::checkpoint::record_vector::MAX_BYTES,
     )
 }
 

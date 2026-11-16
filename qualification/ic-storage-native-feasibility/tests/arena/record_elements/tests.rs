@@ -153,18 +153,18 @@ fn malformed_record_batches_refuse_before_destination_allocation() {
     let before = arena.ledger.get();
     let mut cases = Vec::new();
     for length in 0..bytes.len() {
-        cases.push((bytes[..length].to_vec(), Error::Framing));
+        cases.push((bytes[..length].to_vec(), CheckpointError::Framing));
     }
     let mut trailing = bytes.clone();
     trailing.push(0);
-    cases.push((trailing, Error::Framing));
+    cases.push((trailing, CheckpointError::Framing));
     for (offset, byte, expected) in [
-        (0, b'X', Error::Framing),
-        (8, b'X', Error::Schema),
-        (16, 2, Error::Schema),
-        (20, 17, Error::Limit),
-        (20, 1, Error::Framing),
-        (24, 8, Error::Epoch),
+        (0, b'X', CheckpointError::Framing),
+        (8, b'X', CheckpointError::Schema),
+        (16, 2, CheckpointError::Schema),
+        (20, 17, CheckpointError::Limit),
+        (20, 1, CheckpointError::Framing),
+        (24, 8, CheckpointError::Epoch),
     ] {
         let mut invalid = bytes.clone();
         invalid[offset] = byte;
@@ -173,17 +173,23 @@ fn malformed_record_batches_refuse_before_destination_allocation() {
     }
     let mut damaged = bytes.clone();
     damaged[HEADER] ^= 1;
-    cases.push((damaged, Error::Integrity));
+    cases.push((damaged, CheckpointError::Integrity));
     let mut invalid = bytes;
     invalid[HEADER + V3::STORE_BYTES + 4..HEADER + 2 * V3::STORE_BYTES].fill(0);
     reseal(&mut invalid); // Last record violates counter <= ceiling.
-    cases.push((invalid, Error::Record(CodecError::Invariant)));
-    cases.push((vec![0; MAX_BYTES + 1], Error::Limit));
+    cases.push((invalid, CheckpointError::Record(CodecError::Invariant)));
+    cases.push((vec![0; MAX_BYTES + 1], CheckpointError::Limit));
     for (input, expected) in cases {
-        assert_eq!(import(&input, 7, &arena, None), Err(expected));
+        assert_eq!(
+            import(&input, 7, &arena, None),
+            Err(Error::Checkpoint(expected))
+        );
         assert_eq!(arena.ledger.get(), before);
     }
-    assert_eq!(encode(&[value(0); LIMIT + 1], 7), Err(Error::Limit));
+    assert_eq!(
+        encode(&[value(0); LIMIT + 1], 7),
+        Err(CheckpointError::Limit)
+    );
 }
 
 #[test]
