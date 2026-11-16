@@ -53,7 +53,20 @@ The unpublished [`ic-storage-native`](../crates/ic-storage-native/README.md) cra
 now supplies a safe, reusable scoped scalar-vector interface used by the installed
 provider fixture. It accepts an already valid live Vec under the caller's
 allocator authority; it does not admit retained bytes or expose an owning carrier.
-This is the first shared native operations component, not a complete Store API.
+Its optional `map` feature now implements a reusable allocator-owned u64-key/u64-value
+hash table, scoped access, poisoning and streaming portable export/recovery.
+Its synchronous reader path uses a bounded record buffer and validates a private
+candidate before returning it; a million-record file-backed host round trip
+avoids holding the complete checkpoint in memory. This does not implement a
+durable import job or installed map recovery.
+The [map contract](design/native-map.md) records its controlled slot representation,
+host region-controller admission, sustained public-API workload and integration
+limits. A closed installed map profile now exercises retained slots, compatible
+upgrades, custody and rollback for up to 384 entries. It now grows through six
+capacity doublings within two preallocated banks using the product's native
+candidate-rebuild API. General allocation pools, governed map checkpoint
+integration and general record values remain incomplete.
+These are shared native collection components, not a complete Store API.
 Keep the existing M0 format, tests and evidence; do not reinterpret those bytes
 as native Rust values or expand M0 into a competing collection architecture.
 This direction does not select an upstream dependency or adoption of cdk-rsx
@@ -231,7 +244,11 @@ rollback and continued-allocation evidence. The portable path also performs
 explicit whole-collection V2→V3 narrowing from an ordinary Rust source, validating
 every predecessor before publishing any target records. Installed tests preserve
 the source and checkpoint on range failures and allow explicit repair/re-export
-and retry. A subsequent retained V2-to-V3 profile converts under keep mode,
+and retry. An explicit portable V3-to-V2 widening path now reconstructs full-width
+records after heap replacement, preserving ordered fields and ceilings. It checks
+the complete V3 checkpoint before construction, retains schema-exact ordinary
+recovery, and qualifies rollback plus continued full-width updates and recovery.
+A subsequent retained V2-to-V3 profile converts under keep mode,
 preserving backing, capacity and logical order. It validates the entire source
 and a transient candidate before replacing non-owning scalar fields and publishing
 the target schema; no old Rust owner exists during replacement. V2 has its own

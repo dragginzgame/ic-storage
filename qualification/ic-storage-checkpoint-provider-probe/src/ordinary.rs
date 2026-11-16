@@ -8,7 +8,7 @@ use std::{
 
 use crate::provider::cell;
 use ic_platform_runtime::raw as ic0;
-use ic_storage::adapter::StableCell;
+use ic_storage_legacy::adapter::StableCell;
 use ic_storage_native_feasibility::checkpoint;
 
 const BUILD: u64 = if cfg!(feature = "version-b") {

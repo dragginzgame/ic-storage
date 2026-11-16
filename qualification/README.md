@@ -13,6 +13,14 @@ Its `make native-layout-probe` diagnostic compiles host/wasm32 record variants,
 inspects private Vec debug metadata and rejects equal-size layout equivalence;
 it does not grant retained-state admission.
 
+The [native map profile](ic-storage-native-feasibility/native-map-provider.md)
+compiles the reusable product table against the same region-controller custody
+direction. `make native-map-probe` admits artifacts; `make native-map-test` adds
+installed retained upgrades, growth between two banks, refusal and rollback for
+up to 384 live entries, starting from capacity for six entries.
+The frozen published `ic-storage` 0.74.1 checkpoint/benchmark oracle is imported
+as `ic-storage-legacy`; the local unpublished `ic-storage` package is independent.
+
 The [checkpoint provider experiment](ic-storage-checkpoint-provider-probe/README.md) uses
 published Storage 0.74.1 through governed handles. Ordinary installed upgrades
 discard the source heap and reconstruct scalar/vector values from the bounded
@@ -145,7 +153,8 @@ belongs under `target/evidence/`. `make fmt` and `make fmt-check` include this
 workspace. `make deps-list` and `make deps-update` discover it through Toko's
 canonical inventory. Testkit 0.107.1 was verified as the latest stable, non-yanked
 release on 16 November 2026. The lock selects Host Artifacts 0.80.2 and Tokio
-1.54.1; Tooling remains the admitted exact 0.44.6 pin. Earlier evidence retains
+1.54.1; Tooling remains the admitted exact 0.44.9 pin. The current lock selects
+Runtime 0.23.13 and Testkit 0.107.2 under their compatible requirements. Earlier evidence retains
 its original dependency versions.
 
 ## Evidence boundary

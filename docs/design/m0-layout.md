@@ -132,6 +132,9 @@ The metadata digest is SHA-256 of the concatenation of:
 1. ASCII `ic-storage-new/m0/metadata/v1` followed by one zero byte.
 2. All 65536 metadata bytes, with offsets 160 through 191 replaced by zero.
 
+The historical digest-domain bytes stay unchanged after the package rename to
+`ic-storage`; package identity does not revise the frozen M0 format.
+
 Digest bytes are the standard 32-byte SHA-256 output, without integer endian
 conversion. Coverage includes descriptors, root, counters, committed extent,
 every active/inactive index entry and reserved bytes. Recompute after every
@@ -169,7 +172,7 @@ SHA-256 of the complete page with that digest stored is
 `62820b481cd4519884d2283fef29a53abb4cc0b49516c9a63cb5077300125a33`.
 These are specification vectors, independently assembled from the tables, not
 runtime qualification. The independently assembled page is retained as a
-[test fixture](../../crates/ic-storage-new/src/m0/tests/fixtures/empty-metadata.bin).
+[test fixture](../../crates/ic-storage/src/m0/tests/fixtures/empty-metadata.bin).
 
 For the first graph, grow one arena page, allocate Node at
 offset 0 with identity 1 (span 72), then CounterState at offset 72 with identity

@@ -9,6 +9,7 @@ use wasmparser::{Operator, Parser, Payload};
 mod job;
 mod narrow;
 mod retained;
+mod widen;
 
 fn inputs() -> (PathBuf, Vec<u8>, Vec<u8>) {
     let (directory, _) = crate::input();

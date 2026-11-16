@@ -1,7 +1,9 @@
-# Scoped native vector core
+# Native collection core
 
 Unpublished experimental `no_std` + `alloc` library for operations over an
-already valid `Vec<u64, A>`. It forbids unsafe code and has no runtime dependencies.
+already valid `Vec<u64, A>`. It forbids unsafe code. The default vector core has
+no runtime dependencies; the optional `map` feature uses the root-owned SHA-256
+dependency for portable checkpoint integrity.
 The caller retains the owning vector; `with_vector` lends a restricted scoped
 view for scalar reads/writes, append, ordered removal, clear and shrink.
 
@@ -42,3 +44,53 @@ The `Store` API's compile-fail examples check owning/borrowed fields, custom Dro
 misleading scalar widths, escaped views and attempts to obtain a mutable record.
 These declaration rules are tested here; qualification fixtures own their
 application-specific retained layouts, conversion, rollback and recovery cases.
+
+## Keyed collections
+
+Enable `features = ["map"]` for `map::Map`: a reusable `u64 → u64` native hash
+table with scoped lookup, insertion/replacement, deletion, reservation and clear.
+It accepts an explicit allocator, grows geometrically, and reclaims deleted
+slots without tombstones. A configured live-entry limit bounds growth. Expected
+allocation/limit refusals preserve earlier writes; callback unwinds poison the
+owner until explicit checkpoint replacement succeeds.
+
+```rust
+use ic_storage_native::map::{Error, Map};
+
+let mut records = Map::new(1_000_000);
+records.with(|mut table| {
+    table.reserve(10_000)?;
+    table.insert(42, 100)?;
+    assert_eq!(table.get(42), Some(100));
+    table.remove(42);
+    Ok::<_, Error>(())
+}).unwrap().unwrap();
+```
+
+The map owns a native array of controlled scalar slots. It never persists private
+Vec headers or allocator objects. A provider can release/admit the live slot
+allocation; admission validates the complete table and preserves rejected input.
+The existing region controller now exercises this path on the host, including
+fresh issuance and growth refusal. A separate
+[closed installed map profile](../../qualification/ic-storage-native-feasibility/native-map-provider.md)
+now grows from 8 to 512 slots/384 entries across compatible IC upgrades and tests
+custody, malformed-data refusal and rollback. `Map::rebuild_in` constructs a
+candidate under another allocator while preserving the source. The installed
+provider uses two disjoint retained banks and publishes the candidate only after
+construction and owner release; tests trap during construction and on both sides
+of publication. General allocation pools and installed portable map recovery
+remain outside this bounded profile.
+`checkpoint`/`export` and `from_checkpoint`/`recover` provide a bounded logical
+path into fresh storage. `from_reader`/`from_reader_in` additionally recover from
+an exact-length stream using a 4 KiB record buffer, returning a candidate only
+after complete validation and integrity checks. The streaming encoder needs
+constant scratch space; its caller owns buffering, complete-publication,
+checkpoint custody and freshness. These synchronous APIs do not implement
+resumable cross-message recovery.
+
+Run `make native-core-test` for behavior, compile-fail and host/Wasm lint checks.
+Run `make native-map-firehose` for one million live keys, 256 million mixed
+operations, native readmission and full portable recovery. The workload uses
+the public API and verifies every operation. See the
+[native map contract and results](../../docs/design/native-map.md) for retained
+representation, memory cost, performance scope and remaining integration work.

@@ -1,6 +1,6 @@
 //! Single owner of the governed locator and reader for both fixture profiles.
 
-use ic_storage::{
+use ic_storage_legacy::{
     AllocationGrants, DefaultMemoryImpl, GenericAllocationPolicy, MemoryAuthority, MemoryRequest,
     MemoryRuntime, SealedDeclarationSnapshot, StableKey, adapter::StableCell,
 };

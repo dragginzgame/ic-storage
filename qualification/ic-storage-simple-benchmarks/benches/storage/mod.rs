@@ -3,7 +3,7 @@
 use std::{cell::RefCell, convert::Infallible};
 
 use ic_platform_runtime::raw as ic0;
-use ic_storage::{
+use ic_storage_legacy::{
     AllocationGrants, DefaultMemoryImpl, GenericAllocationPolicy, MemoryAuthority, MemoryRequest,
     MemoryRuntime, SealedDeclarationSnapshot, StableKey,
     adapter::{StableCell, StableVec},

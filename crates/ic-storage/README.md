@@ -1,12 +1,13 @@
 # IC Orthogonal Persistence
 
-An unpublished research crate for independently implemented Rust orthogonal
+The unpublished `ic-storage` package, for independently implemented Rust orthogonal
 persistence inspired by Motoko.
 
 This crate currently implements the M0 evidence baseline. The
 [selected native-collection and migration direction](../../docs/DESIGN.md)
 is not implemented here; its native heap will require a separate admitted
-representation. The existing M0 byte contract remains unchanged.
+representation. The existing M0 byte contract remains unchanged, including its
+historical digest domain after the package rename from `ic-storage-new`.
 
 `m0::inspect(&memory_image)` performs read-only admission of the complete
 experimental M0 v1 image and returns accounting/root identity or a typed refusal.

@@ -188,8 +188,16 @@ fn unsupported_memory_operators_and_initialization_refuse() {
 // Independent inventory of source access kinds and rewritten import call sites.
 // Every rewritten body must be free of direct memory operations from this profile.
 pub(crate) fn verify_coverage(raw: &[u8], guarded: &[u8]) -> [usize; 7] {
-    let mut expected = [0; 7];
-    let mut observed = [0; 7];
+    verify_counts(raw, guarded)
+}
+
+pub(crate) fn verify_map_coverage(raw: &[u8], guarded: &[u8]) -> [usize; 8] {
+    verify_counts(raw, guarded)
+}
+
+fn verify_counts<const N: usize>(raw: &[u8], guarded: &[u8]) -> [usize; N] {
+    let mut expected = [0; N];
+    let mut observed = [0; N];
     for (bytes, rewritten) in [(raw, false), (guarded, true)] {
         for payload in Parser::new(0).parse_all(bytes) {
             if let Payload::CodeSectionEntry(body) = payload.unwrap() {
@@ -197,12 +205,14 @@ pub(crate) fn verify_coverage(raw: &[u8], guarded: &[u8]) -> [usize; 7] {
                     let op = op.unwrap();
                     let kind = match op {
                         Op::I32Load { .. } => Some(0),
+                        Op::I64Load32U { .. } if N == 8 => Some(0),
                         Op::I32Load8U { .. } => Some(1),
                         Op::I64Load { .. } => Some(2),
                         Op::I32Store { .. } => Some(3),
                         Op::I32Store8 { .. } => Some(4),
                         Op::I64Store { .. } => Some(5),
                         Op::MemoryCopy { .. } => Some(6),
+                        Op::MemoryFill { .. } if N == 8 => Some(7),
                         _ => None,
                     };
                     if let Some(kind) = kind {
@@ -211,8 +221,10 @@ pub(crate) fn verify_coverage(raw: &[u8], guarded: &[u8]) -> [usize; 7] {
                     }
                     if rewritten
                         && let Op::Call {
-                            function_index: index @ 1..=7,
+                            function_index: index,
                         } = op
+                        && index > 0
+                        && index as usize <= N
                     {
                         observed[index as usize - 1] += 1;
                     }

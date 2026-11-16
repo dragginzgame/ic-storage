@@ -85,11 +85,11 @@ async fn main() {
         "Cargo.lock",
         "qualification/Cargo.toml",
         "qualification/Cargo.lock",
-        "crates/ic-storage-new/Cargo.toml",
-        "crates/ic-storage-new/src/lib.rs",
-        "crates/ic-storage-new/src/m0/mod.rs",
-        "crates/ic-storage-new/src/m0/layout.rs",
-        "crates/ic-storage-new/src/m0/image/mod.rs",
+        "crates/ic-storage/Cargo.toml",
+        "crates/ic-storage/src/lib.rs",
+        "crates/ic-storage/src/m0/mod.rs",
+        "crates/ic-storage/src/m0/layout.rs",
+        "crates/ic-storage/src/m0/image/mod.rs",
         "qualification/ic-storage-rust-startup-probe/Cargo.toml",
         "qualification/ic-storage-rust-startup-probe/src/lib.rs",
         "qualification/ic-storage-rust-startup-probe/src/graph/mod.rs",
@@ -118,7 +118,7 @@ async fn main() {
     fs::write(output.join("storage.wasm"), &storage).unwrap();
     fs::write(output.join("managed-admission.txt"), &managed.report).unwrap();
     fs::write(output.join("configuration.json"),serde_json::to_vec_pretty(&serde_json::json!({
-        "schema":1,"completion_marker":"COMPLETE","storage":"0.74.1","runtime":"0.23.11","runtime_features":["system-raw"],"storage_transitive_runtime":"0.22.5","testkit":"0.107.1","server_launcher":"ic-testkit 0.106.0","sources_sha256":sources,
+        "schema":1,"completion_marker":"COMPLETE","storage":"0.74.1","runtime":"0.23.12","runtime_features":["system-raw"],"storage_transitive_runtime":"0.22.5","testkit":"0.107.1","server_launcher":"ic-testkit 0.106.0","sources_sha256":sources,
         "rust":"1.100.0","target":"wasm32-unknown-unknown","profile":"release; opt=3; lto=true; codegen-units=1; panic=abort; no post-link optimizer",
         "rows":[1,16,64],"batch":[1,8],"seeds":[1,2,3],"operations":OPERATIONS,
         "metric":"performance_counter(0) delta including backend entry/admission; excludes setup, wire and correctness queries",

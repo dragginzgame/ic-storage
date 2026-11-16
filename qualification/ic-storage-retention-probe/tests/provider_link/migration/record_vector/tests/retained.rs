@@ -1,7 +1,7 @@
 //! Actual retained V2 owners, explicit keep conversion, and independent recovery.
 use super::*;
 
-fn v2_values(bytes: &[u8]) -> Vec<(u64, u64)> {
+pub(super) fn v2_values(bytes: &[u8]) -> Vec<(u64, u64)> {
     assert_eq!(bytes.len(), 416);
     let count = u64::from_le_bytes(bytes[48..56].try_into().unwrap()) as usize;
     bytes[160..160 + count * 16]
@@ -17,7 +17,7 @@ fn v2_values(bytes: &[u8]) -> Vec<(u64, u64)> {
         .collect()
 }
 
-fn save(directory: &std::path::Path, bytes: Vec<u8>) -> Vec<u8> {
+pub(super) fn save(directory: &std::path::Path, bytes: Vec<u8>) -> Vec<u8> {
     let digest = sha256_hex(&bytes);
     fs::write(
         directory.join(format!("retained-vector-{digest}.wasm")),
@@ -28,7 +28,7 @@ fn save(directory: &std::path::Path, bytes: Vec<u8>) -> Vec<u8> {
     bytes
 }
 
-fn v2_inputs(directory: &std::path::Path) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
+pub(super) fn v2_inputs(directory: &std::path::Path) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
     (
         fs::read(directory.join("vector/v2/provider_record_vector.wasm")).unwrap(),
         fs::read(directory.join("checkpoint-record-vector-v2.wasm")).unwrap(),

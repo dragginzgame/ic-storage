@@ -31,6 +31,48 @@ pub(super) fn inspect(
     stack_global: u32,
     stack_top: u32,
 ) -> Result<Report, Error> {
+    inspect_profile(bodies, entry, stack_global, stack_top, false)
+}
+
+pub(super) fn inspect_map(
+    bodies: &[FunctionBody<'_>],
+    entry: u32,
+    stack_global: u32,
+    stack_top: u32,
+) -> Result<Report, Error> {
+    inspect_profile(bodies, entry, stack_global, stack_top, true)
+}
+
+// Map-only extension: loops cannot change the one immutable frame local and
+// the call graph remains acyclic. This bounds stack space, not execution time.
+// Scalar arithmetic has no memory effects; fill/load32 get explicit guards.
+pub(super) fn map_operator(op: &Op<'_>) -> bool {
+    matches!(
+        op,
+        Op::Loop {
+            blockty: BlockType::Empty
+        } | Op::I32Mul
+            | Op::I32Popcnt
+            | Op::I32RemU
+            | Op::I32ShrU
+            | Op::I32Xor
+            | Op::I64And
+            | Op::I64Eq
+            | Op::I64Eqz
+            | Op::I64Mul
+            | Op::I64Ne
+            | Op::I64ShrU
+            | Op::I64Xor
+    )
+}
+
+fn inspect_profile(
+    bodies: &[FunctionBody<'_>],
+    entry: u32,
+    stack_global: u32,
+    stack_top: u32,
+    map: bool,
+) -> Result<Report, Error> {
     if !stack_top.is_multiple_of(16) {
         return Err(Error::Stack);
     }
@@ -59,6 +101,9 @@ pub(super) fn inspect(
         let mut depth = 0_u32;
         for (position, op) in ops.iter().enumerate() {
             match op {
+                Op::Loop {
+                    blockty: BlockType::Empty,
+                } if map => depth += 1,
                 Op::Block {
                     blockty: BlockType::Empty,
                 } => depth += 1,
@@ -122,6 +167,8 @@ pub(super) fn inspect(
                         edges[index].push(*function_index as usize - 1);
                     }
                 }
+                Op::I64Load32U { .. } | Op::MemoryFill { mem: 0 } if map => {}
+                op if map && map_operator(op) => {}
                 Op::Unreachable
                 | Op::LocalGet { .. }
                 | Op::I32Const { .. }

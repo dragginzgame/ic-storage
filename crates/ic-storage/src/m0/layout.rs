@@ -10,6 +10,7 @@ pub(super) const CAPACITY: usize = 1024;
 pub(super) const INDEX_END: usize = INDEX_BASE + CAPACITY * INDEX_STRIDE;
 pub(super) const COUNTER: &[u8; 16] = b"op.m0.counter.v1";
 pub(super) const NODE: &[u8; 16] = b"op.m0.node.v1\0\0\0";
+// Frozen format identity predates the package rename; changing it changes M0 bytes.
 pub(super) const DOMAIN: &[u8] = b"ic-storage-new/m0/metadata/v1\0";
 
 const fn copy<const N: usize>(dst: &mut [u8; 256], offset: usize, src: &[u8; N]) {

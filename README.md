@@ -12,19 +12,30 @@ changes may use planned downtime and an operator-run export/import procedure;
 general compiler portability is not a prerequisite for the application API.
 See the [current design](docs/DESIGN.md#supported-runtime-contract).
 
-The implementation is partial: an unpublished [scoped native vector core](crates/ic-storage-native/README.md)
+The primary unpublished package is `ic-storage` at `crates/ic-storage/`.
+The implementation is partial: an unpublished [native collection core](crates/ic-storage-native/README.md)
 and installed scalar/vector lifecycle and migration fixtures provide the current
 native foundation. A bounded scalar `Store` derive supplies metadata, logical
 codecs and scoped getters; qualification fixtures exercise explicit field addition
 and checked scalar narrowing, including rollback and portable recovery. Owning
 records and general application conversion remain planned. Closed native V2/V3
 record-vector fixtures additionally exercise retained conversion with allocation
-reuse and full-width predecessor recovery when narrowing refuses. A separate V3
+reuse, full-width predecessor recovery when narrowing refuses, and explicit
+portable V3→V2 widening with continued full-width updates. A separate V3
 record job shares controller authorization, durable epochs, cancellation and
 resumable import with the scalar job. The byte-defined M0
 memory-image model remains an evidence baseline, not the native collection ABI or a
 complete persistence system. Its [earlier research plan](docs/design/m0-research-plan.md)
 is archived; its format and historical results remain scoped to that experiment.
+
+The reusable core now also provides a scoped `u64 → u64` native hash table with
+growth, deletion, host poisoning and portable recovery. Its
+[million-key workload](docs/design/native-map.md) exercises sustained mixed
+operations through the public API. A separate closed installed IC map profile
+now qualifies retained slots, compatible upgrades, custody and rollback with up
+to 384 entries. It grows from 8 to 512 slots by rebuilding into a second retained
+bank before publication. General allocation pools, governed map recovery and application
+record values remain next; the million-key figures are host measurements.
 
 This is the intended successor to `ic-storage`, aiming to subsume the persistence
 capabilities our applications need. The [legacy repository](https://github.com/dragginzgame/ic-storage-legacy)
@@ -38,7 +49,7 @@ Use the pinned Rust 1.100.0 toolchain (also the support floor). The M0 library i
 `no_std` and allocation-free; the native core uses `no_std` plus `alloc` with a
 caller-supplied allocator. M0's root-owned SHA-256 dependency is `sha2` 0.11.1
 with defaults disabled, selected from the latest stable registry release on
-15 November 2026. The root selects Toko Tooling 0.44.5 exactly as a
+15 November 2026. The root selects Toko Tooling 0.44.9 exactly as a
 development dependency. Its authenticated snapshot is installed through the
 canonical exporter under `vendor/toko-tooling/`; [TOKO-TOOLING.md](TOKO-TOOLING.md)
 owns the common rules and links to immutable upstream references.
@@ -65,6 +76,9 @@ make fmt-check
 make lint
 make m0-test
 make m0-lint-wasm
+make native-core-test
+make native-map-firehose
+make native-map-probe
 make native-feasibility-test
 make native-layout-probe
 make doc-check
@@ -77,6 +91,7 @@ make toko-tooling-check
 cargo fetch --manifest-path qualification/Cargo.toml --locked
 make retention-setup
 make retention-tools-check
+make native-map-test
 make retention-lint
 make retention-test
 make rust-startup-lint

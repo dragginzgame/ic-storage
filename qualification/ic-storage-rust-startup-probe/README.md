@@ -13,7 +13,7 @@ implementation consultation and makes no clean-room claim.
 
 ## Selected contract
 
-The canister uses Platform Runtime 0.23.11 with only `system-raw`, defaults disabled.
+The canister uses Platform Runtime 0.23.12 with only `system-raw`, defaults disabled.
 The fixture links std. This experiment therefore selects a std-linked,
 allocation-free path rather than claiming a no_std dependency graph. Its source
 uses scalar atomics, fixed stack buffers and replies, with no allocator, executor,

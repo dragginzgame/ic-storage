@@ -3,7 +3,7 @@
 This closed profile extends the [native record-vector proof](record-vector-provider.md)
 with installed export/import independent of the discarded native heap. It is
 qualification code, limited to sixteen V2/V3 records under Rust 1.100.0 on wasm32,
-with explicit portable and retained V2→V3 collection-conversion paths.
+with explicit portable V2↔V3 and retained V2→V3 collection-conversion paths.
 The incompatible target changes the allocation domain; this does not claim an
 actual compiler upgrade, arbitrary Rust graph recovery or a production API.
 
@@ -276,3 +276,48 @@ eighteen raw/link artifact checks and COMPLETE. Strict selected Wasm/host Clippy
 Rustdoc for the changed provider library, formatting and shell checks passed.
 These remain bounded local evidence, not a public collection API, production
 recovery authority, native macOS execution or an actual compiler transition.
+
+## Portable V3-to-V2 widening
+
+`Post::WidenVector` selects the private `checkpoint_vector_widen` entry of the
+existing V2 bridge. The final artifact requires a V2 provider/compiler pair and
+an initially empty destination. Its post-upgrade sequence checks freshness,
+executes checkpoint conversion and only then enters native V2 Rust. Keep-mode
+use refuses; no old native pointer or Vec participates in the conversion.
+
+`decode_widen_v3` validates the complete V3 envelope, expected epoch, digest and
+all element invariants before converting through the existing exact `From<V3>`
+implementation. Scalar fields stay ordered, counters widen without truncation,
+and each ceiling remains unchanged. Target construction shares the ordinary
+recovery callbacks; capacity is rebuilt from length. The source checkpoint is
+unchanged on success and failure. Subsequent explicit V2 export writes the
+existing schema-2 envelope; exact recovery never chooses a schema conversion.
+
+The installed tests cover empty, reserved-empty, spare and full roots with both
+allocation-domain destinations, u32::MAX source counters and subsequent V2
+updates beyond u32::MAX. Independent wire assertions verify full-width V2 fields,
+epoch, order and digest before exact recovery to the other domain. Wrong epochs,
+missing checkpoints, keep mode, repeated conversion of V2 and implicit V3
+recovery of V2 refuse. Failure injections after a stable write, during construction
+and after publication preserve the module, observed heap and complete stable
+memory. Corrupt checkpoints refuse without reset and remain repairable by the
+source. A valid checkpoint also restores after source metadata damage with an
+explicit skip of the unusable old hook. Continued mutation, reuse, append
+and shrink exercise the recovered allocation; application-invariant traps still
+roll back prior writes in the same message.
+
+On 16 November 2026, `make native-record-vector-test` passed five codec tests,
+eighteen raw/link checks and thirteen selected cases (four artifact checks and
+nine installed cases) in `target/evidence/provider-link/attempt.YBFEkS/`.
+The selected group took 10.25 seconds; the cohort records COMPLETE, exact sources,
+compiler/lock identities and composed Wasm. Selected Wasm and host Clippy passed.
+This is bounded portable widening, not retained in-place widening, governed-job
+schema conversion, consumer migration authority or general downgrade support.
+
+The shared scalar-record regression passed seven selected cases in
+`target/evidence/provider-link/attempt.zsjAwJ/` (8.98 seconds). Governed V3
+record-vector jobs passed twelve state-machine tests and five installed cases,
+including four seeded 96-operation histories, in `attempt.eJtENz/` (42.77 seconds).
+Both cohorts also passed eighteen raw/link checks and have COMPLETE. Full native
+feasibility Clippy and formatting passed. Job schemas and consumption semantics
+remain unchanged; this widening path is deliberately outside that protocol.

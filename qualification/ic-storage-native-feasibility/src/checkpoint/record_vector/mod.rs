@@ -1,4 +1,4 @@
-//! Bounded V2/V3 record-vector checkpoints and explicit checked narrowing.
+//! Bounded V2/V3 record-vector checkpoints and explicit scalar-width conversion.
 //! The wire payload uses generated field codecs, never native padding or pointers.
 
 use crate::record::{
@@ -102,6 +102,13 @@ pub fn decode_narrow_v2(bytes: &[u8], epoch: u64) -> Result<([Option<V3>; LIMIT]
         );
     }
     Ok((target, count))
+}
+
+/// Explicit exact widening. Validate the complete V3 envelope before converting
+/// its ordered fields to transient V2 records; no retained owner is constructed.
+pub fn decode_widen_v3(bytes: &[u8], epoch: u64) -> Result<([Option<V2>; LIMIT], usize), Error> {
+    let (source, count) = decode(bytes, epoch)?;
+    Ok((source.map(|record| record.map(V2::from)), count))
 }
 
 fn decode_records<T: Copy, const WIDTH: usize>(

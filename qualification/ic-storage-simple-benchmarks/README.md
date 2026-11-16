@@ -54,7 +54,7 @@ checks installed module hashes and alternates backend order between seeds.
 A trap, malformed reply or state mismatch aborts the run; failed measurements
 are never silently omitted or retried.
 
-Both callers use Runtime 0.23.11 with only `system-raw`; the frozen Storage 0.74.1
+Both callers use Runtime 0.23.12 with only `system-raw`; the frozen Storage 0.74.1
 backend retains its transitive Runtime 0.22.5 `ic0` bindings. Neither path selects
 an executor or passes Runtime Rust types across that boundary.
 Both backends use the same Rust release settings: optimization

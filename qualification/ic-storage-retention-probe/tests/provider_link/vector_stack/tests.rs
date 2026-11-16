@@ -43,6 +43,47 @@ fn inspect_at(source: &str, stack_top: u32) -> Result<Report, Error> {
     super::inspect(&bodies, 2, 0, stack_top)
 }
 
+fn inspect_map(source: &str) -> Result<Report, Error> {
+    let bytes = compile_wat(source, 65536, 65536).unwrap();
+    validate_wasm(&bytes, 65536).unwrap();
+    let bodies = Parser::new(0)
+        .parse_all(&bytes)
+        .filter_map(|payload| match payload.unwrap() {
+            Payload::CodeSectionEntry(body) => Some(body),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    super::inspect_map(&bodies, 2, 0, 32768)
+}
+
+#[test]
+fn map_loops_preserve_frames_and_do_not_expand_vector_admission() {
+    let looped = source(
+        &helper_frame(16, "", ""),
+        "loop call 1 i32.const 0 br_if 0 end",
+        48,
+        48,
+    );
+    assert_eq!(inspect(&looped), Err(Error::Unsupported));
+    assert_eq!(inspect_map(&looped).unwrap().frame_bytes, 64);
+    for (body, error) in [
+        ("loop i32.const 1 local.set 0 end", Error::Stack),
+        ("loop i64.const 1 br 2 end", Error::Control),
+        ("loop call 2 i32.wrap_i64 local.set 1 end", Error::Cycle),
+        (
+            "loop i32.const 1 memory.grow local.set 1 end",
+            Error::Unsupported,
+        ),
+    ] {
+        let input = source("", body, 32, 32).replace("(local i32)", "(local i32 i32)");
+        assert_eq!(inspect_map(&input), Err(error));
+    }
+    let memory = source("", "i32.const 32688 i32.const 0 i32.const 4 memory.fill i32.const 32688 i64.load32_u local.set 1", 80, 80)
+        .replace("(local i32)", "(local i32 i64)");
+    assert_eq!(inspect(&memory), Err(Error::Unsupported));
+    assert!(inspect_map(&memory).is_ok());
+}
+
 #[test]
 fn balanced_frame_and_acyclic_calls_have_a_bounded_floor() {
     let report = inspect(&source("", "call 0 call 1 call 1", 64, 64)).unwrap();

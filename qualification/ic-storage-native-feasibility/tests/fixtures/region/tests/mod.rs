@@ -10,6 +10,7 @@ use std::{
 const SENTINEL: u64 = 0xfedc_ba98_7654_3210;
 
 mod host;
+mod map;
 mod records;
 
 #[test]

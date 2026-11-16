@@ -132,11 +132,11 @@ done
 
 NATIVE_PROVIDER_INPUTS="$output" cargo test --manifest-path qualification/Cargo.toml \
     -p ic-storage-retention-probe --target-dir target/qualification --locked --offline \
-    --test provider_link -- --include-ignored --skip installed_tests --skip migration --nocapture 2>&1 | tee "$output/report.txt"
+    --test provider_link -- --include-ignored --skip installed_tests --skip migration --skip map:: --nocapture 2>&1 | tee "$output/report.txt"
 if [[ "$mode" == installed ]]; then
     NATIVE_PROVIDER_INPUTS="$output" cargo test --manifest-path qualification/Cargo.toml \
         -p ic-storage-retention-probe --target-dir target/qualification --locked --offline \
-        --test provider_link installed_tests -- --ignored --nocapture 2>&1 | tee "$output/installed.txt"
+        --test provider_link installed_tests -- --ignored --skip map:: --nocapture 2>&1 | tee "$output/installed.txt"
 fi
 if [[ "$mode" == migration ]]; then
     NATIVE_PROVIDER_INPUTS="$output" cargo test --manifest-path qualification/Cargo.toml \

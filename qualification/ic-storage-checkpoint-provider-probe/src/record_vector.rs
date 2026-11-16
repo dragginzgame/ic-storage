@@ -88,20 +88,32 @@ extern "C" fn checkpoint_vector_narrow() {
     restore(true);
 }
 
-fn restore(narrow: bool) {
+#[cfg(feature = "native-record-vector-v2")]
+#[expect(
+    unsafe_code,
+    reason = "explicit vector widening bound by the final linker"
+)]
+#[unsafe(no_mangle)]
+extern "C" fn checkpoint_vector_widen() {
+    restore(true);
+}
+
+// The selected artifact fixes the target schema and conversion direction.
+fn restore(convert: bool) {
     let [epoch, fault] = args();
     assert!(fault <= 3);
     fresh();
     let mut cell = cell(false);
     #[cfg(not(feature = "native-record-vector-v2"))]
-    let decoded = if narrow {
+    let decoded = if convert {
         codec::decode_narrow_v2(cell.get(), epoch)
     } else {
         codec::decode(cell.get(), epoch)
     };
     #[cfg(feature = "native-record-vector-v2")]
-    let decoded = {
-        assert!(!narrow);
+    let decoded = if convert {
+        codec::decode_widen_v3(cell.get(), epoch)
+    } else {
         codec::decode_v2(cell.get(), epoch)
     };
     let (records, count) = decoded.unwrap_or_else(|error| match error {

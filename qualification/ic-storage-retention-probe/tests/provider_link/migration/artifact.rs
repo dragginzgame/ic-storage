@@ -184,6 +184,10 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
             !result.exports.contains_key("checkpoint_vector_narrow")
                 || callbacks.contains(&"record_value")
         );
+        assert!(
+            !result.exports.contains_key("checkpoint_vector_widen")
+                || callbacks.contains(&"record_value")
+        );
         assert_eq!(
             result.exports.contains_key("checkpoint_convert"),
             callbacks.contains(&"record_schema")
@@ -254,6 +258,7 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
                     | "checkpoint_widen"
                     | "checkpoint_record_add"
                     | "checkpoint_vector_narrow"
+                    | "checkpoint_vector_widen"
                     | "checkpoint_vector_convert"
             ));
         }
@@ -382,6 +387,7 @@ pub(super) enum Post {
     Narrow,
     Widen,
     NarrowVector,
+    WidenVector,
     ConvertVector,
 }
 
@@ -417,6 +423,10 @@ pub(super) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
         n.exports.contains_key("ncp_domain")
     );
     if n.exports.contains_key("ncp_record_value") {
+        assert_eq!(
+            p.exports.contains_key("checkpoint_vector_widen"),
+            n.exports.contains_key("__bridge_record_v2")
+        );
         assert_eq!(
             p.exports.contains_key("checkpoint_vector_narrow"),
             !n.exports.contains_key("__bridge_record_v2") && !n.exports.contains_key("ncp_domain")
@@ -593,6 +603,11 @@ pub(super) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
                 Post::NarrowVector => vec![
                     ncall("ncp_fresh"),
                     pcall("checkpoint_vector_narrow"),
+                    ncall("__bridge_post"),
+                ],
+                Post::WidenVector => vec![
+                    ncall("ncp_fresh"),
+                    pcall("checkpoint_vector_widen"),
                     ncall("__bridge_post"),
                 ],
                 // Native admission runs first without entering checkpoint Rust.

@@ -23,9 +23,9 @@ m0-test m0-lint-wasm: export CARGO_NET_OFFLINE := true
 
 .PHONY: m0-test m0-lint-wasm
 m0-test m0-lint-wasm: | toko-execution-check
-.PHONY: native-core-test
-native-core-test: export CARGO_NET_OFFLINE := true
-native-core-test: | toko-execution-check
+.PHONY: native-core-test native-map-firehose
+native-core-test native-map-firehose: export CARGO_NET_OFFLINE := true
+native-core-test native-map-firehose: | toko-execution-check
 retention-test retention-lint retention-tools-check: export CARGO_NET_OFFLINE := true
 
 .PHONY: retention-setup retention-tools-check retention-lint retention-test
@@ -48,6 +48,9 @@ native-feasibility-test native-feasibility-lint native-layout-probe: export CARG
 native-feasibility-test native-feasibility-lint native-layout-probe: | toko-execution-check
 
 .PHONY: native-provider-probe native-provider-test
+.PHONY: native-map-probe native-map-test
+native-map-probe native-map-test: export CARGO_NET_OFFLINE := true
+native-map-probe native-map-test: | toko-execution-check
 .PHONY: native-checkpoint-build native-checkpoint-test
 .PHONY: native-record-build native-record-test
 .PHONY: native-record-vector-build native-record-vector-test
@@ -83,6 +86,8 @@ help:
 	  'make m0-test                     Run native M0 image and capability tests' \
 	  'make m0-lint-wasm                Check the no_std image library on wasm32' \
 	  'make native-core-test           Test scoped native operations and Store declarations' \
+	  'make native-map-firehose        Exercise one million keyed records through the public API' \
+	  'make native-map-test            Qualify installed map upgrades, custody and rollback' \
 	  'make retention-setup             Explicitly prepare the retention-test server' \
 	  'make retention-tools-check       Admit the prepared server offline' \
 	  'make retention-lint              Strict Clippy for the Rust test runner' \
@@ -131,7 +136,7 @@ doc-check:
 	+cargo doc $(RUST_STARTUP_CARGO) --target-dir target/qualification --features managed-graph --no-deps
 
 # Host setup and locked dependency fetching happen explicitly before this gate.
-ci: fmt-check deps-check lint doc-check m0-test m0-lint-wasm native-core-test retention-lint rust-startup-lint managed-graph-lint benchmark-simple-lint native-feasibility-test native-layout-probe native-provider-probe checkpoint-provider-lint
+ci: fmt-check deps-check lint doc-check m0-test m0-lint-wasm native-core-test retention-lint rust-startup-lint managed-graph-lint benchmark-simple-lint native-feasibility-test native-layout-probe native-provider-probe native-map-probe checkpoint-provider-lint
 
 deps-check: toko-tooling-check deps-pins deps-boundaries
 
@@ -139,36 +144,50 @@ deps-pins:
 	+bash "$(TOKO_TOOLING_ROOT)/scripts/ci/check-dependency-pins.sh" --consumer "$(CURDIR)" --cargo-inheritance
 
 # The frozen Storage 0.74.1 oracle retains Runtime 0.22.5/ic0; our callers use
-# 0.23.11/system-raw. Neither selects an executor or shares Runtime Rust types.
+# 0.23.13/system-raw (requirement 0.23.12). Neither selects an executor or shares Runtime Rust types.
 # Admit both only for oracle-bearing fixtures; startup still requires one.
 deps-boundaries:
 	+bash "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-dependency-boundaries.sh" --consumer "$(CURDIR)" --external-ic
 	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)/qualification" --package ic-testkit --target all --require pocket-ic=1 --forbid ic-host-artifacts --forbid ic-host-fs --forbid ic-host-process --forbid ic-platform --forbid ic-platform-types --forbid ic-platform-protocol --forbid toko-tooling --forbid-feature ic-testkit/held-reply-fixtures
-	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)" --package ic-storage-new --target all --forbid toko-tooling
+	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)" --package ic-storage --target all --forbid toko-tooling
 	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)" --package ic-storage-native --target all --forbid toko-tooling
 	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)/qualification" --package ic-storage-retention-probe --target all --forbid toko-tooling
 	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)/qualification" --package ic-storage-native-feasibility --target all --forbid toko-tooling
 	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)/qualification" --package ic-storage-checkpoint-provider-probe --target wasm32-unknown-unknown --all-features --require ic-storage=1 --require ic-platform-runtime=2 --forbid ic-platform --forbid ic-platform-types --forbid ic-platform-runtime-guard --forbid toko-tooling
 	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)/qualification" --package ic-storage-rust-startup-probe --target wasm32-unknown-unknown --require ic-platform-runtime=1 --forbid ic-platform --forbid ic-platform-types --forbid ic-platform-runtime-guard --forbid toko-tooling
-	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)/qualification" --package ic-storage-rust-startup-probe --target wasm32-unknown-unknown --all-features --require ic-storage-new=1 --require ic-platform-runtime=1 --forbid ic-platform --forbid ic-platform-types --forbid ic-platform-runtime-guard --forbid toko-tooling
+	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)/qualification" --package ic-storage-rust-startup-probe --target wasm32-unknown-unknown --all-features --require ic-storage=1 --require ic-platform-runtime=1 --forbid ic-platform --forbid ic-platform-types --forbid ic-platform-runtime-guard --forbid toko-tooling
 	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)/qualification" --package ic-storage-simple-benchmarks --target wasm32-unknown-unknown --all-features --require ic-storage=1 --require ic-platform-runtime=2 --forbid ic-platform --forbid ic-platform-types --forbid ic-platform-runtime-guard --forbid toko-tooling
 
 deps-tree:
-	+cargo tree -p ic-storage-new --locked --offline
+	+cargo tree -p ic-storage --locked --offline
 
 m0-test:
-	+cargo test -p ic-storage-new --lib --locked --offline m0::
-	+cargo test -p ic-storage-new --doc --locked --offline
+	+cargo test -p ic-storage --lib --locked --offline m0::
+	+cargo test -p ic-storage --doc --locked --offline
 
 m0-lint-wasm:
-	+cargo clippy -p ic-storage-new --lib --target wasm32-unknown-unknown --locked --offline -- -D warnings
+	+cargo clippy -p ic-storage --lib --target wasm32-unknown-unknown --locked --offline -- -D warnings
 
 native-core-test:
 	+cargo test -p ic-storage-native --locked --offline
-	+cargo test -p ic-storage-native --features derive --locked --offline
-	+cargo clippy -p ic-storage-native --all-targets --features derive --locked --offline -- -D warnings
+	+cargo test -p ic-storage-native --features derive,map --locked --offline
+	+cargo clippy -p ic-storage-native --all-targets --features derive,map --locked --offline -- -D warnings
 	+cargo clippy -p ic-storage-native --lib --target wasm32-unknown-unknown --locked --offline -- -D warnings
-	+cargo clippy -p ic-storage-native --lib --features derive --target wasm32-unknown-unknown --locked --offline -- -D warnings
+	+cargo clippy -p ic-storage-native --lib --features derive,map --target wasm32-unknown-unknown --locked --offline -- -D warnings
+	+RUSTDOCFLAGS='-D warnings' cargo doc -p ic-storage-native --features derive,map --no-deps --locked --offline
+
+native-map-firehose:
+	+cargo test -p ic-storage-native --features map --release --test map_firehose --locked --offline -- --ignored --nocapture
+
+native-map-probe:
+	rustfmt --edition 2024 --check qualification/ic-storage-native-feasibility/tests/fixtures/provider_map.rs
+	+cargo clippy $(RETENTION_CARGO) --test provider_link -- -D warnings
+	+bash qualification/ic-storage-native-feasibility/scripts/run-map-probe.sh
+
+native-map-test:
+	rustfmt --edition 2024 --check qualification/ic-storage-native-feasibility/tests/fixtures/provider_map.rs
+	+cargo clippy $(RETENTION_CARGO) --test provider_link -- -D warnings
+	+@server="$$($(RETENTION_TOOL) --check)" && "$$server" run -- bash qualification/ic-storage-native-feasibility/scripts/run-map-probe.sh installed
 
 retention-setup:
 	+@server="$$($(RETENTION_TOOL))" && "$$server" setup

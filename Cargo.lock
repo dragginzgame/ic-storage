@@ -55,10 +55,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ic-storage"
+version = "0.75.0"
+dependencies = [
+ "sha2",
+ "toko-tooling",
+]
+
+[[package]]
 name = "ic-storage-native"
 version = "0.75.0"
 dependencies = [
  "ic-storage-native-derive",
+ "sha2",
  "toko-tooling",
 ]
 
@@ -69,14 +78,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
- "toko-tooling",
-]
-
-[[package]]
-name = "ic-storage-new"
-version = "0.75.0"
-dependencies = [
- "sha2",
  "toko-tooling",
 ]
 
@@ -128,9 +129,9 @@ dependencies = [
 
 [[package]]
 name = "toko-tooling"
-version = "0.44.6"
+version = "0.44.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c27413bf2875a061354aff385a92c66bdf9f058ac372d28b062aaf982c4229c8"
+checksum = "bdfd5bc761f55ede02e82f8af36ca82415696209b3ff45e8f080e82cab85c418"
 
 [[package]]
 name = "typenum"

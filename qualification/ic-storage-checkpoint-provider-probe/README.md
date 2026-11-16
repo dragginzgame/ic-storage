@@ -34,6 +34,9 @@ under keep mode. The latter adds five scalar conversion callbacks and a cold
 source-admission gate; its new Rust runtime never opens an old V2 pointer or Vec.
 Full-width V2 recovery remains available when narrowing refuses. These features
 are separate closed fixtures, not an automatically selected migration mechanism.
+The V2 bridge also exposes a private portable widening entry selected explicitly
+by the linker: it accepts only a complete V3 checkpoint, reconstructs fresh V2
+records, and leaves the checkpoint unchanged. Exact V2 recovery still rejects V3.
 
 The `native-record-vector-job` feature selects the shared job adapter with V3
 record fields, under `native.checkpoint.record_vector.job.v1` (360-byte maximum).
@@ -162,7 +165,7 @@ ordinary Global-owned application state. It exports inside the canister and
 reconstructs under a relocated native domain; the host does not copy observed
 values into the target. Ordinary-profile evidence above keeps its original scope.
 
-## Platform Runtime adoption (16 November 2026)
+## Platform Runtime 0.23.11 adoption (16 November 2026)
 
 Runtime 0.23.11 supplies the synchronous surface requested in
 [Platform #6](https://github.com/dragginzgame/ic-platform/issues/6).
@@ -224,3 +227,35 @@ use the final cohort for adoption provenance. Compared with historical cohort
 36,878/136,314 bytes (previously 36,870/136,132); complete code-section sizes remain
 34,265/105,199 bytes. This bounds observed artifact cost for these fixtures and
 is not a general performance or production-persistence claim.
+
+## Platform Runtime 0.23.12 adoption (16 November 2026)
+
+The current direct requirement and lock select Runtime 0.23.12 with only
+`system-raw`, defaults disabled. The official registry archive SHA-256 is
+`6fa7c8ed9f3a84ba059ea06d2a9b21f6d77061ca33056c50bff2e58468337184`;
+its source pin is `2881ded6c0206f191df386901101fc7f4d5fa949`.
+The synchronous implementation is byte-identical to 0.23.11. The changed timer,
+canister-version and executor code is behind unselected `call-ic0` features.
+The selected Runtime normal graph has no dependency edges. No additional Platform
+crate is used directly by this repository; the frozen Storage 0.74.1 oracle
+continues to select its own 0.22.5 Runtime as described above.
+
+The existing lockfile already selected 0.23.12 before this adoption; this work
+aligns the declared requirement, current documentation and benchmark provenance,
+and qualifies the selected release. Earlier 0.23.11 cohorts retain their original
+scope. Focused validation covers dependency boundaries and host/Wasm Clippy,
+then installed startup, native checkpoint recovery, record-vector governed jobs
+and benchmark replies. These exercise raw replies, arguments, traps, live
+controller checks and instruction observations under the current selected
+features; they do not qualify the newly added executor/timer API.
+
+These focused checks passed under Rust 1.100.0 with locked offline Cargo:
+formatting, dependency boundaries, selected host/Wasm Clippy, installed startup
+(3 cases), native checkpoint recovery (4 cases), record-vector governed jobs
+(5 cases) and the job state machine (12 cases). Provider cohorts
+`target/evidence/provider-link/attempt.KHjyod/` and `attempt.LfgXJc/` each also
+passed 18 raw artifact checks and have completion markers. Benchmark cohort
+`target/evidence/simple-benchmarks/1794854246588/` contains 216 validated samples
+and records Runtime 0.23.12. Registry/source comparison, selected graph, locks
+and logs are retained under
+`target/evidence/dependency-adoption/platform-0.23.12/`.

@@ -30,7 +30,7 @@ version-b = []
 
 [dependencies]
 ic-platform-runtime = { workspace = true, features = ["system-raw"] }
-ic-storage.workspace = true
+ic-storage-legacy.workspace = true
 ic-storage-native-feasibility.workspace = true
 
 [lints]

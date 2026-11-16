@@ -18,12 +18,24 @@ pub(super) const HELPERS: [&str; 7] = [
     "copy",
 ];
 
+pub(super) const MAP_HELPERS: [&str; 8] = [
+    "load_i32",
+    "load_u8",
+    "load_i64",
+    "store_i32",
+    "store_u8",
+    "store_i64",
+    "copy",
+    "fill",
+];
+
 /// Current pinned compiler output; historical two-body fixtures remain test inputs.
 pub(super) const NATIVE_FUNCTIONS: u32 = 8;
 
 pub(super) struct Profile {
     pub(super) functions: u32,
     pub(super) entry: u32,
+    pub(super) map: bool,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -52,8 +64,12 @@ pub(super) fn inspect_record_v2(raw: &[u8]) -> Result<Profile> {
     inspect_element(raw, 2)
 }
 
+pub(super) fn inspect_map(raw: &[u8]) -> Result<Profile> {
+    inspect_element(raw, 4)
+}
+
 // Closed profiles, not caller-configurable layout admission: 0 selects u64,
-// 2 and 3 select the concrete record schemas and their exact compiler shapes.
+// 2 and 3 select concrete record schemas; 4 selects the scalar-map compiler shape.
 fn inspect_element(raw: &[u8], record: u32) -> Result<Profile> {
     validate_wasm(raw, super::artifact::LIMIT).map_err(|_| Error::Malformed)?;
     let mut types = Vec::new();
@@ -133,7 +149,7 @@ fn inspect_element(raw: &[u8], record: u32) -> Result<Profile> {
     if memories != 1
         || globals != 3
         || bodies.len() != functions.len()
-        || if record == 2 {
+        || if matches!(record, 2 | 4) {
             functions.len() != 6
         } else if record == 3 {
             functions.len() != 2
@@ -142,7 +158,9 @@ fn inspect_element(raw: &[u8], record: u32) -> Result<Profile> {
         }
         || imports.len() != 1
         || imports[0].0
-            != if record == 2 {
+            != if record == 4 {
+                "native_map_diagnostic"
+            } else if record == 2 {
                 "native_record_vector_v2_diagnostic"
             } else if record == 3 {
                 "native_record_vector_diagnostic"
@@ -156,7 +174,16 @@ fn inspect_element(raw: &[u8], record: u32) -> Result<Profile> {
     let TypeRef::Func(import_type) = imports[0].2 else {
         return Err(Error::Profile);
     };
-    let expected = if record == 2 {
+    let expected = if record == 4 {
+        vec![
+            FuncType::new([I32, I32], [I32]),
+            FuncType::new([I32, I32, I32], []),
+            FuncType::new([I32, I32, I64, I64], []),
+            FuncType::new([I32, I32], []),
+            FuncType::new([I32, I32, I32, I64], [I64]),
+            FuncType::new([], []),
+        ]
+    } else if record == 2 {
         vec![
             FuncType::new([I32], []),
             FuncType::new([I32, I32, I32], []),
@@ -190,7 +217,9 @@ fn inspect_element(raw: &[u8], record: u32) -> Result<Profile> {
     {
         return Err(Error::Profile);
     }
-    let (entry, peak) = if record == 2 {
+    let (entry, peak) = if record == 4 {
+        (5, 176)
+    } else if record == 2 {
         (4, 80)
     } else if functions.len() == 2 {
         (2, 64)
@@ -205,7 +234,9 @@ fn inspect_element(raw: &[u8], record: u32) -> Result<Profile> {
             ("__stack_pointer", ExternalKind::Global, 0),
             ("memory", ExternalKind::Memory, 0),
             (
-                if record != 0 {
+                if record == 4 {
+                    "provider_map_step"
+                } else if record != 0 {
                     "provider_record_vector_step"
                 } else {
                     "provider_vector_step"
@@ -219,18 +250,25 @@ fn inspect_element(raw: &[u8], record: u32) -> Result<Profile> {
     }
     // This closed operator profile refuses unhandled memory operations before
     // rewriting. A new opcode must qualify both stack/control and access handling.
-    let report =
-        super::vector_stack::inspect(&bodies, entry, 0, 32768).map_err(|_| Error::Stack)?;
+    let report = if record == 4 {
+        super::vector_stack::inspect_map(&bodies, entry, 0, 32768)
+    } else {
+        super::vector_stack::inspect(&bodies, entry, 0, 32768)
+    }
+    .map_err(|_| Error::Stack)?;
     if report.frame_bytes != peak || report.lowest_stack_pointer != 32768 - peak {
         return Err(Error::Stack);
     }
     Ok(Profile {
         functions: functions.len() as u32,
         entry,
+        map: record == 4,
     })
 }
 
-struct Mapping;
+struct Mapping {
+    helpers: u32,
+}
 
 impl Reencode for Mapping {
     type Error = std::convert::Infallible;
@@ -239,30 +277,31 @@ impl Reencode for Mapping {
         &mut self,
         index: u32,
     ) -> std::result::Result<u32, wasm_encoder::reencode::Error<Self::Error>> {
-        Ok(if index == 0 {
-            0
-        } else {
-            index + HELPERS.len() as u32
-        })
+        Ok(if index == 0 { 0 } else { index + self.helpers })
     }
 }
 
 pub(super) fn prepare(raw: &[u8]) -> Result<Vec<u8>> {
     inspect(raw)?;
-    rewrite_accesses(raw)
+    rewrite_accesses(raw, false)
 }
 
 pub(super) fn prepare_record(raw: &[u8]) -> Result<Vec<u8>> {
     inspect_record(raw)?;
-    rewrite_accesses(raw)
+    rewrite_accesses(raw, false)
 }
 
 pub(super) fn prepare_record_v2(raw: &[u8]) -> Result<Vec<u8>> {
     inspect_record_v2(raw)?;
-    rewrite_accesses(raw)
+    rewrite_accesses(raw, false)
 }
 
-fn rewrite_accesses(raw: &[u8]) -> Result<Vec<u8>> {
+pub(super) fn prepare_map(raw: &[u8]) -> Result<Vec<u8>> {
+    inspect_map(raw)?;
+    rewrite_accesses(raw, true)
+}
+
+fn rewrite_accesses(raw: &[u8], map: bool) -> Result<Vec<u8>> {
     let mut types = TypeSection::new();
     let mut imports = ImportSection::new();
     let mut functions = FunctionSection::new();
@@ -270,7 +309,10 @@ fn rewrite_accesses(raw: &[u8]) -> Result<Vec<u8>> {
     let mut globals = GlobalSection::new();
     let mut exports = ExportSection::new();
     let mut code = CodeSection::new();
-    let mut mapping = Mapping;
+    let helpers: &[&str] = if map { &MAP_HELPERS } else { &HELPERS };
+    let mut mapping = Mapping {
+        helpers: helpers.len() as u32,
+    };
     let mut helper_types = 0;
     for payload in Parser::new(0).parse_all(raw) {
         match checked(payload)? {
@@ -289,10 +331,13 @@ fn rewrite_accesses(raw: &[u8]) -> Result<Vec<u8>> {
                 ] {
                     types.ty().function(parameters, results);
                 }
+                if map {
+                    types.ty().function([ValType::I32; 3], []);
+                }
             }
             Payload::ImportSection(r) => {
                 checked(mapping.parse_import_section(&mut imports, r))?;
-                for (index, name) in HELPERS.iter().enumerate() {
+                for (index, name) in helpers.iter().enumerate() {
                     imports.import(
                         "native_vector_access",
                         name,
@@ -312,6 +357,7 @@ fn rewrite_accesses(raw: &[u8]) -> Result<Vec<u8>> {
                     let op = checked(op)?;
                     let access = match &op {
                         Op::I32Load { memarg } => Some((1, memarg)),
+                        Op::I64Load32U { memarg } if map => Some((1, memarg)),
                         Op::I32Load8U { memarg } => Some((2, memarg)),
                         Op::I64Load { memarg } => Some((3, memarg)),
                         Op::I32Store { memarg } => Some((4, memarg)),
@@ -329,46 +375,53 @@ fn rewrite_accesses(raw: &[u8]) -> Result<Vec<u8>> {
                         // stack operands remain address/value in their original order.
                         function.instruction(&I::I64Const(memarg.offset as i64));
                         function.instruction(&I::Call(helper));
+                        if matches!(op, Op::I64Load32U { .. }) {
+                            function.instruction(&I::I64ExtendI32U);
+                        }
+                    } else if map && matches!(op, Op::MemoryFill { mem: 0 }) {
+                        function.instruction(&I::Call(8));
                     } else if matches!(op, Op::MemoryCopy { .. }) {
                         function.instruction(&I::Call(7));
-                    } else if matches!(
-                        op,
-                        Op::Block { .. }
-                            | Op::End
-                            | Op::Br { .. }
-                            | Op::BrIf { .. }
-                            | Op::BrTable { .. }
-                            | Op::Return
-                            | Op::Unreachable
-                            | Op::Call { .. }
-                            | Op::GlobalGet { .. }
-                            | Op::GlobalSet { .. }
-                            | Op::LocalGet { .. }
-                            | Op::LocalSet { .. }
-                            | Op::LocalTee { .. }
-                            | Op::I32Const { .. }
-                            | Op::I64Const { .. }
-                            | Op::I32Add
-                            | Op::I32Sub
-                            | Op::I32And
-                            | Op::I32Shl
-                            | Op::I32Eq
-                            | Op::I32Eqz
-                            | Op::I32Ne
-                            | Op::I32GeU
-                            | Op::I32GtU
-                            | Op::I32LeU
-                            | Op::I32LtU
-                            | Op::I32WrapI64
-                            | Op::Select
-                            | Op::I64Add
-                            | Op::I64ExtendI32U
-                            | Op::I64Or
-                            | Op::I64Shl
-                            | Op::I64GeU
-                            | Op::I64GtU
-                            | Op::I64LtU
-                    ) {
+                    } else if map && super::vector_stack::map_operator(&op)
+                        || matches!(
+                            op,
+                            Op::Block { .. }
+                                | Op::End
+                                | Op::Br { .. }
+                                | Op::BrIf { .. }
+                                | Op::BrTable { .. }
+                                | Op::Return
+                                | Op::Unreachable
+                                | Op::Call { .. }
+                                | Op::GlobalGet { .. }
+                                | Op::GlobalSet { .. }
+                                | Op::LocalGet { .. }
+                                | Op::LocalSet { .. }
+                                | Op::LocalTee { .. }
+                                | Op::I32Const { .. }
+                                | Op::I64Const { .. }
+                                | Op::I32Add
+                                | Op::I32Sub
+                                | Op::I32And
+                                | Op::I32Shl
+                                | Op::I32Eq
+                                | Op::I32Eqz
+                                | Op::I32Ne
+                                | Op::I32GeU
+                                | Op::I32GtU
+                                | Op::I32LeU
+                                | Op::I32LtU
+                                | Op::I32WrapI64
+                                | Op::Select
+                                | Op::I64Add
+                                | Op::I64ExtendI32U
+                                | Op::I64Or
+                                | Op::I64Shl
+                                | Op::I64GeU
+                                | Op::I64GtU
+                                | Op::I64LtU
+                        )
+                    {
                         function.instruction(&checked(mapping.instruction(op))?);
                     } else {
                         return Err(Error::Profile);

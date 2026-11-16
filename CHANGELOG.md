@@ -4,7 +4,21 @@
 
 ### 🔧 Changed
 
-- Adopt Testkit 0.107.1 and its original PocketIC client types. Qualification
+- Rename the primary unpublished package and directory from `ic-storage-new`
+  to `ic-storage`. Update consumers and keep the frozen registry oracle under
+  the explicit `ic-storage-legacy` dependency alias. Preserve M0's byte format.
+
+- Advance the direct Platform Runtime requirement to 0.23.12 with only
+  `system-raw`; the lock selects 0.23.13. Existing synchronous operations are
+  unchanged; new stable-memory/cycle APIs and executor/timer features remain
+  unused. Preserve the frozen Storage oracle dependency.
+
+- Adopt Toko Tooling 0.44.9 through the canonical exporter in both workspaces.
+  Retain the flat qualification package layout rule and remove the superseded
+  fleet-wide thiserror hold; PocketIC constrains only its own dependency graph.
+
+- Adopt Testkit 0.107.1 and its original PocketIC client types; the lock selects
+  0.107.2, whose source changes only unselected held-fixture tests. Qualification
   callers require the externally prepared server URL and explicitly delete their
   own instances; preserve request limits and manual simulation progression.
   Keep the 0.106.0 launcher as a separate pinned tool, outside the consumer graph.
@@ -39,6 +53,25 @@
   installed provider/retention checks pass with that selection.
 
 ### ✨ Added
+
+- Add `Map::from_reader` and `from_reader_in` for single-pass portable recovery
+  using a 4 KiB record buffer. Share envelope/record validation with slice import,
+  preserve checkpoint bytes and publish no candidate before integrity succeeds.
+  Exercise one-million-record file export/recovery and destination reclamation
+  after source failures, corruption and panic.
+
+- Add `Map::rebuild_in` for native rehash into another allocator while preserving
+  the source. Use it to grow the installed map through six capacity doublings
+  within two preallocated retained banks, publishing only a complete candidate.
+
+- Add the optional native `map` API for allocator-owned u64 keys and values:
+  scoped access, geometric growth, tombstone-free deletion, bounded admission,
+  panic poisoning and streamed portable checkpoint/recovery. Keep slot ownership
+  and unsafe region custody separate; no private std header becomes persistent.
+
+- Add explicit portable record-vector V3→V2 widening after heap replacement.
+  Preserve field order and ceilings, reject incomplete or wrong-schema sources,
+  and qualify publication rollback, full-width updates and exact V2 recovery.
 
 - Add explicit portable scalar V2→V3 narrowing with range checks before native
   construction, publication rollback, ceiling preservation and full-width V2
@@ -77,6 +110,21 @@
   discarding deliberately corrupted native metadata.
 
 ### 🧪 Testing
+
+- Exercise growth rollback during destination writes, after candidate construction,
+  before/after publication and during failed upgrades. Verify both bank directions,
+  source preservation, business-error/forgotten-view growth and budget exhaustion.
+  Extend the million-key workload with native relocation and portable recovery.
+
+- Add independent-model mixed histories, collision-chain and malformed-image
+  checks, host region-controller reopening/refusal, and a public-API million-key
+  firehose with 256 million mixed operations and complete portable recovery.
+  These load measurements remain native host results.
+
+- Qualify a closed installed native map profile with guarded slot access,
+  compatible upgrades, deletion/reuse, allocation refusal, malformed-root/slot
+  rejection and rollback before and after root publication. Preserve the existing
+  vector admission rules and exercise map-only guard and stack counterexamples.
 
 - Qualify retained V2→V3 record-vector conversion while preserving backing and
   capacity. Check whole-source admission, range refusal and publication rollback;

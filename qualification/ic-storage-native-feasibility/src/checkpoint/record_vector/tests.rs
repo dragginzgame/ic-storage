@@ -91,3 +91,66 @@ fn v2_framing_and_all_invariants_precede_conversion() {
         Err(Error::Limit)
     );
 }
+
+#[test]
+fn widening_preserves_order_width_boundaries_and_unused_slots() {
+    for count in [0, 1, LIMIT] {
+        let source: Vec<_> = (0..count)
+            .map(|i| V3::new(u32::MAX - i as u32, u64::MAX - i as u64).unwrap())
+            .collect();
+        let bytes = encode(&source, 19).unwrap();
+        let (records, actual) = decode_widen_v3(&bytes, 19).unwrap();
+        assert_eq!(actual, count);
+        assert!(records[count..].iter().all(Option::is_none));
+        let target: Vec<_> = records[..count].iter().map(|v| v.unwrap()).collect();
+        for (old, new) in source.iter().zip(&target) {
+            assert_eq!(new.counter(), u64::from(old.counter()));
+            assert_eq!(new.ceiling(), old.ceiling());
+        }
+        assert_eq!(decode_v2(&bytes, 19), Err(Error::Schema));
+        assert_eq!(decode_widen_v3(&bytes, 20), Err(Error::Epoch));
+        let current = encode_v2(&target, 20).unwrap();
+        assert_eq!(decode_widen_v3(&current, 20), Err(Error::Schema));
+        assert_eq!(
+            decode_narrow_v2(&current, 20).unwrap().0[..count],
+            records_v3(&source)[..count]
+        );
+    }
+}
+
+fn records_v3(source: &[V3]) -> [Option<V3>; LIMIT] {
+    let mut records = [None; LIMIT];
+    for (slot, value) in records.iter_mut().zip(source) {
+        *slot = Some(*value);
+    }
+    records
+}
+
+#[test]
+fn widening_refuses_corrupt_or_invalid_predecessors_before_returning_records() {
+    let bytes = encode(&[V3::new(u32::MAX, u64::MAX).unwrap(); LIMIT], 9).unwrap();
+    for end in 0..bytes.len() {
+        assert!(decode_widen_v3(&bytes[..end], 9).is_err());
+    }
+    for index in 0..LIMIT {
+        let mut invalid = bytes.clone();
+        let ceiling = HEADER + index * V3::STORE_BYTES + 4;
+        invalid[ceiling..ceiling + 8].fill(0);
+        reseal(&mut invalid);
+        assert_eq!(
+            decode_widen_v3(&invalid, 9),
+            Err(Error::Record(CodecError::Invariant))
+        );
+    }
+    let mut corrupt = bytes.clone();
+    corrupt[HEADER] ^= 1;
+    assert_eq!(decode_widen_v3(&corrupt, 9), Err(Error::Integrity));
+    let mut wrong_count = bytes;
+    wrong_count[20..24].copy_from_slice(&((LIMIT + 1) as u32).to_le_bytes());
+    reseal(&mut wrong_count);
+    assert_eq!(decode_widen_v3(&wrong_count, 9), Err(Error::Limit));
+    let tight = encode(&[V3::new(7, 7).unwrap()], 10).unwrap();
+    let mut record = decode_widen_v3(&tight, 10).unwrap().0[0].unwrap();
+    assert!(record.add(1).is_err());
+    assert_eq!((record.counter(), record.ceiling()), (7, 7));
+}

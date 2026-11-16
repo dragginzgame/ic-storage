@@ -19,12 +19,12 @@ doctest = false
 
 [features]
 version-b = []
-managed-graph = ["dep:ic-storage-new"]
+managed-graph = ["dep:ic-storage"]
 managed-bench = ["managed-graph", "dep:ic-storage-simple-benchmarks"]
 
 [dependencies]
 ic-platform-runtime = { workspace = true, features = ["system-raw"] }
-ic-storage-new = { workspace = true, optional = true }
+ic-storage = { workspace = true, optional = true }
 ic-storage-simple-benchmarks = { workspace = true, optional = true }
 
 [lints]

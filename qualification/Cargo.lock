@@ -770,9 +770,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform-runtime"
-version = "0.23.11"
+version = "0.23.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4dc0059577167175de70e44128d415b772d9d20f3276cb3d8aeb09b01448ec09"
+checksum = "9f5f46eebbf414e38b7ad6db694ce05bebeae40ff8df28eba6c1e48a6c308df4"
 
 [[package]]
 name = "ic-storage"
@@ -786,11 +786,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "ic-storage"
+version = "0.75.0"
+dependencies = [
+ "sha2 0.11.1",
+]
+
+[[package]]
 name = "ic-storage-checkpoint-provider-probe"
 version = "0.1.0"
 dependencies = [
- "ic-platform-runtime 0.23.11",
- "ic-storage",
+ "ic-platform-runtime 0.23.13",
+ "ic-storage 0.74.1",
  "ic-storage-native-feasibility",
  "toko-tooling",
 ]
@@ -800,6 +807,7 @@ name = "ic-storage-native"
 version = "0.75.0"
 dependencies = [
  "ic-storage-native-derive",
+ "sha2 0.11.1",
 ]
 
 [[package]]
@@ -821,13 +829,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ic-storage-new"
-version = "0.75.0"
-dependencies = [
- "sha2 0.11.1",
-]
-
-[[package]]
 name = "ic-storage-retention-probe"
 version = "0.1.0"
 dependencies = [
@@ -844,8 +845,8 @@ dependencies = [
 name = "ic-storage-rust-startup-probe"
 version = "0.1.0"
 dependencies = [
- "ic-platform-runtime 0.23.11",
- "ic-storage-new",
+ "ic-platform-runtime 0.23.13",
+ "ic-storage 0.75.0",
  "ic-storage-simple-benchmarks",
  "toko-tooling",
 ]
@@ -855,8 +856,8 @@ name = "ic-storage-simple-benchmarks"
 version = "0.1.0"
 dependencies = [
  "ic-host-artifacts",
- "ic-platform-runtime 0.23.11",
- "ic-storage",
+ "ic-platform-runtime 0.23.13",
+ "ic-storage 0.74.1",
  "ic-storage-retention-probe",
  "ic-testkit",
  "serde_json",
@@ -866,9 +867,9 @@ dependencies = [
 
 [[package]]
 name = "ic-testkit"
-version = "0.107.1"
+version = "0.107.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4fe4ea7882118e731ef1ebe8c668fc5dfa5252c1c972b1de68bc444868fae42"
+checksum = "6d0ad701e379df81e149511b0d6bbb810648770ec777a4eb88fd7e87e4ee2883"
 dependencies = [
  "pocket-ic",
 ]
@@ -2220,9 +2221,9 @@ dependencies = [
 
 [[package]]
 name = "toko-tooling"
-version = "0.44.6"
+version = "0.44.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c27413bf2875a061354aff385a92c66bdf9f058ac372d28b062aaf982c4229c8"
+checksum = "bdfd5bc761f55ede02e82f8af36ca82415696209b3ff45e8f080e82cab85c418"
 
 [[package]]
 name = "tower"

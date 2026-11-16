@@ -16,9 +16,11 @@ ignored = ["toko-tooling"]
 
 [features]
 derive = ["dep:ic-storage-native-derive"]
+map = ["dep:sha2"]
 
 [dependencies]
 ic-storage-native-derive = { workspace = true, optional = true }
+sha2 = { workspace = true, optional = true }
 
 [lints]
 workspace = true

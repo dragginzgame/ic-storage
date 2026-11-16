@@ -120,6 +120,12 @@ pub(super) fn compose_record_v2(raw: &[u8], provider: &[u8]) -> Result<Vec<u8>> 
     compose_admitted(&guarded, &profile, provider)
 }
 
+pub(super) fn compose_map(raw: &[u8], provider: &[u8]) -> Result<Vec<u8>> {
+    let guarded = vector_access::prepare_map(raw).map_err(|_| "raw map profile")?;
+    let profile = vector_access::inspect_map(raw).map_err(|_| "raw map profile")?;
+    compose_admitted(&guarded, &profile, provider)
+}
+
 fn compose_admitted(
     guarded: &[u8],
     profile: &vector_access::Profile,
@@ -146,7 +152,12 @@ fn compose_admitted(
             _ => {}
         }
     }
-    if bindings.len() != 8 {
+    let helpers: &[&str] = if profile.map {
+        &vector_access::MAP_HELPERS
+    } else {
+        &vector_access::HELPERS
+    };
+    if bindings.len() != helpers.len() + 1 {
         return Err("vector binding roster");
     }
     let first_rust = 2 + provider_functions;
@@ -162,7 +173,7 @@ fn compose_admitted(
         globals: 0,
     };
     let mut rust_functions = vec![*bindings.get("__link_claim").ok_or("missing claim")?];
-    for helper in vector_access::HELPERS {
+    for helper in helpers {
         rust_functions.push(
             *bindings
                 .get(format!("__link_{helper}").as_str())

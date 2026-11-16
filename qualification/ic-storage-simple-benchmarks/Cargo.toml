@@ -22,11 +22,11 @@ tokio = { workspace = true, features = ["macros", "rt"] }
 category = "benchmarks"
 
 [features]
-storage = ["dep:ic-storage"]
+storage = ["dep:ic-storage-legacy"]
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 ic-platform-runtime = { workspace = true, features = ["system-raw"] }
-ic-storage = { workspace = true, optional = true }
+ic-storage-legacy = { workspace = true, optional = true }
 
 [[example]]
 name = "storage-wasm"

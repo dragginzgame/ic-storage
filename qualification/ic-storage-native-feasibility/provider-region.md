@@ -41,7 +41,7 @@ issuing controller, pointer and exact block. It seals further access and returns
 only length/capacity. No pointer or private header is retained. Refusal returns
 the original vector; forgotten owners keep their block unavailable. Dropping a
 vector deallocates its block for reuse but cannot replay the old root descriptor.
-No application destructor runs because both admitted element types are Copy.
+No application destructor runs because the admitted element types are Copy.
 
 The provider must not settle or reissue the loan until the controller and all
 clients have ended. This private unsafe boundary is not the safe application
@@ -50,6 +50,34 @@ must still be enforced by the eventual provider wrapper. A copied descriptor
 alone cannot authorize another claim. The host replacement test retains its
 original backing allocation, so it proves no cross-instance allocation identity.
 Allocator reuse does not return backing capacity or Wasm pages to the platform.
+
+## Product keyed table on the host
+
+The closed host test set additionally admits the product map's `repr(C)` Slot:
+three initialized u64 words, with no owning fields or Drop. The
+[map fixture](tests/fixtures/region/tests/map.rs) runs the public `Map` against
+this same allocator, releases its slot vector, creates a fresh controller, and
+readmits the table. It checks delete/reinsert after reopening and portable
+reconstruction in a different backing allocation. Unlike vector in-place growth,
+map rehash requires two live allocations; this one-block provider correctly
+refuses growth and replacement without changing the original state.
+
+`Map::rebuild_in` additionally builds a native candidate in a second disjoint
+loan while the original map stays live. The host test checks destination
+allocation refusal, simultaneous source/candidate ownership, independent
+mutation, release/readmission and a portable round trip. The installed map
+profile now uses two such controllers under one exclusive foreign allocation
+loan; its [contract](native-map-provider.md) owns bank selection and publication.
+
+The streamed map importer also runs against this one-block controller. Read
+errors at every phase, final-digest corruption and a source panic discard the
+private candidate. A subsequent successful import reuses the same destination
+loan, while the original source map remains unchanged. This establishes host
+candidate reclamation, not durable checkpoint custody or installed recovery.
+
+This addition is host-only and does not change either installed provider's
+element admission or capacity. The [product map contract](../../docs/design/native-map.md)
+owns layout, hash placement, portable encoding and sustained-load evidence.
 
 ## Fresh record controllers on the host
 

@@ -62,7 +62,10 @@ fn prepare(raw: &[u8], bridge: &[u8], relocated: bool, root: (u64, u64), post: P
 }
 
 fn prepare_v2(raw: &[u8], bridge: &[u8], relocated: bool, root: (u64, u64), post: Post) -> Vec<u8> {
-    assert!(matches!(post, Post::Reopen | Post::Recover));
+    assert!(matches!(
+        post,
+        Post::Reopen | Post::Recover | Post::WidenVector
+    ));
     prepare_schema(
         raw,
         bridge,
@@ -132,9 +135,15 @@ fn prepare_schema(
     } else {
         matches!(
             post,
-            Post::Reopen | Post::Recover | Post::NarrowVector | Post::ConvertVector
+            Post::Reopen
+                | Post::Recover
+                | Post::NarrowVector
+                | Post::WidenVector
+                | Post::ConvertVector
         )
     });
+    assert!(post != Post::WidenVector || v2);
+    assert!(post != Post::NarrowVector || !v2);
     let root = profile.root;
     assert!(
         matches!(
@@ -149,7 +158,8 @@ fn prepare_schema(
     }
     .unwrap();
     if let Some((index, counter)) = boundary {
-        assert!(v2 && index < root.0 as usize);
+        // A V3 boundary value also leaves its explicit reserved word zero.
+        assert!((v2 || u32::try_from(counter).is_ok()) && index < root.0 as usize);
         replace(
             &mut source,
             "(call $element_init)",
