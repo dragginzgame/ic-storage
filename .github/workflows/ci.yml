@@ -66,6 +66,8 @@ jobs:
           make checkpoint-provider-test 2>&1 | tee target/evidence/checkpoint-provider-test.log
       - name: Validate native checkpoint recovery
         run: make native-checkpoint-test 2>&1 | tee target/evidence/native-checkpoint-test.log
+      - name: Installed native record conversion
+        run: make native-record-test 2>&1 | tee target/evidence/native-record-test.log
       - name: Validate governed native migration jobs
         run: make native-job-test 2>&1 | tee target/evidence/native-job-test.log
       - name: Retain diagnostics

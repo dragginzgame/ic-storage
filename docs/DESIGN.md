@@ -167,6 +167,14 @@ to owners; compiler TypeId values and raw addresses are not durable application 
 
 ### Application type declarations
 
+A [controlled scalar-record experiment](../qualification/ic-storage-native-feasibility/records.md)
+now defines concrete V1/V2 payloads and an explicit counter/ceiling conversion.
+Host and installed IC tests preserve the unchanged vector, convert under explicit
+scalar metadata admission, and recover both record fields through a versioned
+checkpoint. The installed profile checks failed-upgrade rollback and fresh recovery
+in both allocation domains. General record ownership and derive support remain
+future work; the vector still contains only u64 elements.
+
 Use ordinary-looking Rust records with a derive-based persistence declaration
 as the intended application surface. The following syntax and collection names
 are illustrative, not implemented APIs or a decision to retain std Vec:

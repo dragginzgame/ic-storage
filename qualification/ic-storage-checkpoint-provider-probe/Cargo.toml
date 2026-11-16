@@ -20,6 +20,7 @@ doctest = false
 [features]
 native-bridge = []
 native-job = ["native-bridge"]
+native-record = ["native-bridge"]
 version-b = []
 
 [dependencies]

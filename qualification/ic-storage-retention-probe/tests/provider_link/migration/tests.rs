@@ -121,4 +121,5 @@ fn bridge_artifact_has_disjoint_initialization_and_resolved_calls() {
 
 mod installed;
 mod job;
+mod records;
 mod reopen;

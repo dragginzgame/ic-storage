@@ -3,8 +3,8 @@
 set -euo pipefail
 
 mode="${1:-artifact}"
-if [[ $# -gt 1 || ( "$mode" != artifact && "$mode" != installed && "$mode" != migration && "$mode" != job ) ]]; then
-    echo 'usage: run-provider-probe.sh [artifact|installed|migration|job]' >&2
+if [[ $# -gt 1 || ( "$mode" != artifact && "$mode" != installed && "$mode" != migration && "$mode" != job && "$mode" != record ) ]]; then
+    echo 'usage: run-provider-probe.sh [artifact|installed|migration|job|record]' >&2
     exit 1
 fi
 
@@ -33,9 +33,11 @@ cp qualification/ic-storage-native-feasibility/tests/fixtures/provider_vector.rs
 cp -R qualification/ic-storage-native-feasibility/tests/fixtures/region "$output/vector/region"
 cp -R qualification/ic-storage-retention-probe/tests/provider_custody/vector "$output/vector/provider-source"
 cp qualification/ic-storage-native-feasibility/vector-provider-contract.md "$output/vector/"
-if [[ "$mode" == migration || "$mode" == job ]]; then
+if [[ "$mode" == migration || "$mode" == job || "$mode" == record ]]; then
     cp -R qualification/ic-storage-checkpoint-provider-probe/src "$output/checkpoint-source"
     cp -R qualification/ic-storage-native-feasibility/src/checkpoint "$output/checkpoint-codec"
+    cp qualification/ic-storage-native-feasibility/src/record.rs "$output/"
+    cp -R qualification/ic-storage-native-feasibility/src/record "$output/record-tests"
     cp qualification/ic-storage-checkpoint-provider-probe/Cargo.toml "$output/checkpoint-source/"
     cp qualification/ic-storage-native-feasibility/native-checkpoint-contract.md "$output/"
     if [[ "$mode" == job ]]; then
@@ -44,6 +46,9 @@ if [[ "$mode" == migration || "$mode" == job ]]; then
         cp qualification/ic-storage-native-feasibility/migration-job.md "$output/"
         cp qualification/ic-storage-native-feasibility/staged-import.md "$output/"
         cp target/qualification/checkpoint-job/wasm32-unknown-unknown/release/ic_storage_checkpoint_provider_probe.wasm "$output/checkpoint-job.wasm"
+    elif [[ "$mode" == record ]]; then
+        cp qualification/ic-storage-native-feasibility/records.md "$output/"
+        cp target/qualification/checkpoint-record/wasm32-unknown-unknown/release/ic_storage_checkpoint_provider_probe.wasm "$output/checkpoint-record.wasm"
     else
         cp target/qualification/checkpoint-native/wasm32-unknown-unknown/release/ic_storage_checkpoint_provider_probe.wasm "$output/checkpoint-bridge.wasm"
     fi
@@ -87,11 +92,16 @@ fi
 if [[ "$mode" == migration ]]; then
     NATIVE_PROVIDER_INPUTS="$output" cargo test --manifest-path qualification/Cargo.toml \
         -p ic-storage-retention-probe --target-dir target/qualification --locked --offline \
-        --test provider_link migration -- --ignored --skip migration::tests::job --nocapture 2>&1 | tee "$output/migration.txt"
+        --test provider_link migration -- --ignored --skip migration::tests::job --skip migration::tests::records --nocapture 2>&1 | tee "$output/migration.txt"
 fi
 if [[ "$mode" == job ]]; then
     NATIVE_PROVIDER_INPUTS="$output" cargo test --manifest-path qualification/Cargo.toml \
         -p ic-storage-retention-probe --target-dir target/qualification --locked --offline \
         --test provider_link migration::tests::job -- --ignored --nocapture 2>&1 | tee "$output/job.txt"
+fi
+if [[ "$mode" == record ]]; then
+    NATIVE_PROVIDER_INPUTS="$output" cargo test --manifest-path qualification/Cargo.toml \
+        -p ic-storage-retention-probe --target-dir target/qualification --locked --offline \
+        --test provider_link migration::tests::records -- --ignored --nocapture 2>&1 | tee "$output/records.txt"
 fi
 printf 'Bounded provider %s checks passed; only this mode and its recorded inputs are covered, not general native persistence.\n' "$mode" > "$output/COMPLETE"

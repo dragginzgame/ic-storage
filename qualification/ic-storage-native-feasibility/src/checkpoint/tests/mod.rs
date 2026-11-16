@@ -80,6 +80,7 @@ fn resealed_unknown_and_inconsistent_headers_still_refuse() {
     }
 }
 
+mod records;
 mod v2;
 
 #[test]

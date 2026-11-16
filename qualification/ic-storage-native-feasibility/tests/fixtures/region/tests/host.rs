@@ -4,6 +4,7 @@
 use super::super::{Descriptor, Error as RegionError, Region};
 use ic_storage_native::{Refusal, Vector, with_vector};
 use ic_storage_native_feasibility::checkpoint;
+use ic_storage_native_feasibility::record::{self, Record};
 use std::{
     mem,
     panic::{AssertUnwindSafe, catch_unwind},
@@ -11,6 +12,8 @@ use std::{
 };
 
 const WORDS: usize = 16;
+
+mod records;
 
 #[derive(Debug, PartialEq, Eq)]
 enum Failure {
@@ -20,6 +23,8 @@ enum Failure {
     Checkpoint(checkpoint::Error),
     Capacity,
     Injected,
+    Record(record::Error),
+    RecordVersion,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -39,7 +44,7 @@ enum FrameFault {
 struct ProviderHost {
     backing: [u64; WORDS],
     root: Descriptor,
-    counter: u64,
+    record: Record,
     poisoned: bool,
 }
 
@@ -51,7 +56,7 @@ impl ProviderHost {
                 length: 0,
                 capacity: 0,
             },
-            counter: 41,
+            record: Record::V1(record::V1 { counter: 41 }),
             poisoned: false,
         }
     }
@@ -109,9 +114,26 @@ impl ProviderHost {
     }
 
     fn export(&mut self, epoch: u64) -> Result<Vec<u8>, Failure> {
-        let counter = self.counter;
-        self.update(|view| checkpoint::encode_v2(counter, view.values(), epoch))?
+        let record = self.record;
+        self.update(|view| checkpoint::encode_record(record, view.values(), epoch))?
             .map_err(Failure::Checkpoint)
+    }
+
+    fn convert(&mut self, ceiling: u64, fail_before_publish: bool) -> Result<(), Failure> {
+        if self.poisoned {
+            return Err(Failure::Poisoned);
+        }
+        let Record::V1(source) = self.record else {
+            return Err(Failure::RecordVersion);
+        };
+        // Build only a scalar candidate. No vector loan, destruction, allocation
+        // or payload write occurs. The final assignment cannot fail or unwind.
+        let candidate = source.upgrade(ceiling).map_err(Failure::Record)?;
+        if fail_before_publish {
+            return Err(Failure::Injected);
+        }
+        self.record = Record::V2(candidate);
+        Ok(())
     }
 
     fn recover(&mut self, bytes: &[u8], epoch: u64) -> Result<(), Failure> {
@@ -124,14 +146,14 @@ impl ProviderHost {
         epoch: u64,
         fault: ImportFault,
     ) -> Result<(), Failure> {
-        let decoded = checkpoint::decode(bytes, epoch).map_err(Failure::Checkpoint)?;
+        let decoded = checkpoint::decode_record(bytes, epoch).map_err(Failure::Checkpoint)?;
         if decoded.values.len() > WORDS {
             return Err(Failure::Capacity);
         }
         // Build privately with fresh backing and allocator issuance. Only a
         // complete candidate replaces the old host; never reopen its old root.
         let mut candidate = Self::new();
-        candidate.counter = decoded.counter;
+        candidate.record = decoded.record;
         candidate.update(|mut view| {
             for (index, value) in decoded.values.into_iter().enumerate() {
                 view.push(value).map_err(Failure::Scope)?;

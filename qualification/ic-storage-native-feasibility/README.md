@@ -9,6 +9,11 @@ integration-test kernel exercises an arena allocator under the explicit
 
 ## Ownership boundary
 
+The [controlled record experiment](records.md) adds the first concrete scalar
+schema conversion and versioned portable recovery to host and installed fixtures.
+`make native-record-test` checks upgrade rollback and recovery while preserving
+the existing vector during conversion. Derive generation remains separate work.
+
 `Host` owns the vector at all times. A frame offers scalar reads/writes,
 append/removal, a borrowed slice of initialized `u64` elements and explicit
 detach/attach/retire operations. It never exposes `&mut Vec`, an owning record,

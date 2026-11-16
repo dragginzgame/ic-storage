@@ -138,7 +138,22 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
             ]);
             expected.sort_unstable();
         }
+        if callbacks.contains(&"record_schema") {
+            assert!(!callbacks.contains(&"domain"));
+            expected.extend([
+                "record_schema",
+                "record_ceiling",
+                "record_restore",
+                "record_source_counter",
+                "record_publish",
+            ]);
+            expected.sort_unstable();
+        }
         assert_eq!(callbacks, expected);
+        assert_eq!(
+            result.exports.contains_key("checkpoint_convert"),
+            callbacks.contains(&"record_schema")
+        );
         assert_eq!(
             result.exports.contains_key("checkpoint_cancel"),
             callbacks.contains(&"domain")
@@ -178,6 +193,7 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
                     | "checkpoint_stage_restart"
                     | "checkpoint_batch"
                     | "checkpoint_stage_damage"
+                    | "checkpoint_convert"
             ));
         }
     } else {
@@ -200,7 +216,10 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
             .iter()
             .filter(|(name, _)| {
                 name.starts_with("ncp_")
-                    || matches!(name.as_str(), "__bridge_frozen" | "__bridge_importing")
+                    || matches!(
+                        name.as_str(),
+                        "__bridge_frozen" | "__bridge_importing" | "__bridge_record_source"
+                    )
             })
             .map(|(_, (_, index))| *index)
             .collect();
@@ -208,6 +227,8 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
             pending.len(),
             if result.exports.contains_key("ncp_domain") {
                 19
+            } else if result.exports.contains_key("ncp_record_schema") {
+                13
             } else {
                 7
             }
@@ -268,7 +289,7 @@ impl Reencode for Mapping {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Post {
     Refuse,
     Recover,
@@ -277,11 +298,16 @@ pub(super) enum Post {
     Stage,
     Restart,
     Importing,
+    Convert,
 }
 
 pub(super) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
     let p = inventory(bridge, true);
     let n = inventory(native, false);
+    assert_eq!(
+        p.exports.contains_key("checkpoint_convert"),
+        n.exports.contains_key("ncp_record_schema")
+    );
     assert_eq!(
         n.exports.contains_key("ncp_thaw"),
         n.exports.contains_key("ncp_domain")
@@ -300,8 +326,11 @@ pub(super) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
             .any(|(m, n)| m == "native_checkpoint" && n == "domain"),
         n.exports.contains_key("ncp_domain")
     );
-    let reset = matches!(post, Post::Reopen | Post::Frozen | Post::Importing)
-        .then(|| super::transient::Plan::read(bridge));
+    let reset = matches!(
+        post,
+        Post::Reopen | Post::Frozen | Post::Importing | Post::Convert
+    )
+    .then(|| super::transient::Plan::read(bridge));
     let ic: Vec<_> = p
         .imports
         .iter()
@@ -442,6 +471,12 @@ pub(super) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
                 // Native admission runs first without entering checkpoint Rust.
                 // Its transient native frame has ended before clearing stack.
                 Post::Reopen => vec![ncall("__bridge_post"), reset_index],
+                Post::Convert => vec![
+                    ncall("__bridge_record_source"),
+                    reset_index,
+                    pcall("checkpoint_convert"),
+                    ncall("__bridge_post"),
+                ],
                 Post::Frozen => vec![
                     ncall("__bridge_frozen"),
                     reset_index,

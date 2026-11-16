@@ -1,7 +1,9 @@
 # Scalar/vector checkpoint experiment
 
 This fixture specifies a logical checkpoint for one u64 counter and one uniquely
-owned vector: version 1 admits 16 u64 values; version 2 admits 512. It is an
+owned vector: envelope version 1 admits 16 u64 values; version 2 admits 512.
+Envelope version 3 adds the controlled record's ceiling with the same 512-value
+bound. It is an
 experimental contract, not a
 production Storage format or the complete migration protocol. It contains no
 pointer, capacity, native header, allocator layout or executable identity.
@@ -89,6 +91,24 @@ This is neither compatible direct reopen nor the installed incompatible-runtime
 proof. It does not qualify independent opening of governed Storage handles,
 canister upgrade modes, rollback, interruption/resume or persistent checkpoint
 storage. The required published Storage 0.74.1 provider boundary remains unchanged.
+
+## Record schema 2, envelope version 3
+
+The [controlled record](records.md) adds an explicit u64 ceiling. Envelope v3
+keeps the 80-byte header, schema identity `RECU64V1`, root/vector IDs, payload,
+seal, digest and 512-value limit of v2. Offset 8 becomes envelope version 3;
+offset 24 becomes schema version 2; the word at offset 72 now stores the ceiling.
+Counter remains at offset 56. The complete bound stays 4216 bytes.
+
+`decode_record` accepts envelope v1/v2 only with schema 1 and zero reserved word,
+or envelope v3 only with schema 2. It verifies integrity and expected epoch,
+then validates counter ≤ ceiling before allocating values. Unknown versions and
+inconsistent envelope/schema combinations refuse. `encode_record` preserves v2
+bytes for a V1 record and writes v3 for V2; existing writers and goldens are
+unchanged. The legacy `decode` deliberately rejects v3 rather than discarding
+the added field. The legacy installed checkpoint adapters and migration jobs still use that
+reader. The separately selected [native-record profile](records.md#installed-record-profile)
+uses `decode_record` and admits V2 under its explicit metadata contract.
 
 ## Handoff from a frozen live source
 

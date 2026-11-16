@@ -2,6 +2,17 @@
 
 ## [0.1.12] - Unreleased
 
+### ✨ Added
+
+- Add concrete scalar record versions and checked V1→V2 conversion in the native
+  host fixture, preserving the existing vector allocation. Add portable recovery
+  of both record fields through checkpoint v3; legacy readers reject the new
+  schema and existing checkpoint bytes remain unchanged.
+- Add an installed record profile with explicit schema admission, compatible
+  reopening, V1→V2 conversion and checkpoint recovery in both allocation domains.
+  Verify failed upgrades roll back record publication, vector bytes, module and
+  stable state; run it with `make native-record-test`, also included in CI.
+
 ### 📝 Design
 
 - Scope direct reopening to one supported runtime contract. Handle incompatible
@@ -29,6 +40,7 @@
 ### ▶️ Try it
 
 Run `make native-feasibility-test` for the provider-host failure and recovery cases.
+Run `make native-record-test` for installed conversion and portable recovery.
 Run `make native-provider-test` for installed finalization rollback.
 Run `make native-job-test` for mixed histories and repeated portable migrations.
 

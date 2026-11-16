@@ -14,6 +14,7 @@ use std::{
 
 pub mod checkpoint;
 pub mod migration_job;
+pub mod record;
 
 /// Bounded fixture size; resource refusal must precede mutation.
 pub const MAX_VALUES: usize = 16;

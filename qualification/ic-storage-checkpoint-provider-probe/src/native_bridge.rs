@@ -4,6 +4,9 @@ use crate::provider::cell;
 use ic_platform_runtime::ic0;
 use ic_storage_native_feasibility::checkpoint;
 
+#[cfg(feature = "native-record")]
+mod records;
+
 // These scalar imports validate arguments and custody in trusted Wasm. Their
 // closed call graph cannot invoke Rust while this runtime is live.
 #[expect(
@@ -51,7 +54,11 @@ extern "C" fn checkpoint_export() {
     let count = freeze();
     assert!(count <= checkpoint::V2_MAX_VALUES as u32);
     let values: Vec<_> = (0..count).map(|index| value(index)).collect();
-    cell(false).set(checkpoint::encode_v2(counter(), &values, epoch).unwrap());
+    #[cfg(not(feature = "native-record"))]
+    let encoded = checkpoint::encode_v2(counter(), &values, epoch).unwrap();
+    #[cfg(feature = "native-record")]
+    let encoded = records::encode(counter(), &values, epoch);
+    cell(false).set(encoded);
     if fault == 1 {
         ic0::trap(b"native export fault after stable write");
     }
@@ -68,12 +75,21 @@ extern "C" fn checkpoint_restore() {
     assert!(fault <= 2);
     fresh();
     let mut cell = cell(false);
+    #[cfg(not(feature = "native-record"))]
     let decoded = checkpoint::decode(cell.get(), epoch).unwrap();
+    #[cfg(feature = "native-record")]
+    let decoded = checkpoint::decode_record(cell.get(), epoch).unwrap();
     if fault == 1 {
         cell.set(checkpoint::encode_v2(999, &decoded.values, epoch).unwrap());
         ic0::trap(b"native restore fault after stable write");
     }
+    #[cfg(not(feature = "native-record"))]
     begin(decoded.counter);
+    #[cfg(feature = "native-record")]
+    {
+        begin(decoded.record.counter());
+        records::restore(decoded.record);
+    }
     for (index, value) in decoded.values.iter().enumerate() {
         put(index as u32, *value);
         if fault == 2 {
@@ -109,7 +125,14 @@ extern "C" fn checkpoint_damage() {
             bytes.pop().unwrap();
         }
         1 => bytes[80] ^= 1,
-        2 => bytes[24] = 2,
+        // Schema 2 is valid in the record profile, so use an unknown version.
+        2 => {
+            bytes[24] = if cfg!(feature = "native-record") {
+                3
+            } else {
+                2
+            }
+        }
         _ => panic!("unknown damage mode"),
     }
     cell.set(bytes);

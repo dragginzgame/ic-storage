@@ -4,12 +4,13 @@ use super::vector_link;
 use ic_host_artifacts::{wasm, wasm_text};
 
 mod artifact;
+mod records;
 mod tests;
 mod transient;
 
 const LIMIT: usize = 1024 * 1024;
 
-fn native(raw: &[u8], relocated: bool, root: (u64, u64), job: bool) -> Vec<u8> {
+fn native_source(relocated: bool, root: (u64, u64), job: bool) -> String {
     let mut source = vector_link::source(vector_link::Profile { root, ..vector_link::Profile::A }).unwrap()
         .replace("(memory (export \"memory\") 3 3)", "(memory (export \"memory\") 32 256)")
         .replace("(i32.ne (memory.size) (i32.const 3))", "(i32.lt_u (memory.size) (i32.const 32))")
@@ -32,8 +33,12 @@ fn native(raw: &[u8], relocated: bool, root: (u64, u64), job: bool) -> Vec<u8> {
             .replace("131080", "147464")
             .replace("131072", "147456");
     }
+    source
+}
+
+fn compile_native(raw: &[u8], source: &str) -> Vec<u8> {
     let provider = wasm_text::compile(
-        &source,
+        source,
         wasm_text::CompileLimits {
             source_bytes: LIMIT,
             module_bytes: LIMIT,
@@ -41,6 +46,10 @@ fn native(raw: &[u8], relocated: bool, root: (u64, u64), job: bool) -> Vec<u8> {
     )
     .unwrap();
     vector_link::compose(raw, &provider).unwrap()
+}
+
+fn native(raw: &[u8], relocated: bool, root: (u64, u64), job: bool) -> Vec<u8> {
+    compile_native(raw, &native_source(relocated, root, job))
 }
 
 fn prepare(
