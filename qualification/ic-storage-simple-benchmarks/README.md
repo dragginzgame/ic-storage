@@ -54,13 +54,16 @@ checks installed module hashes and alternates backend order between seeds.
 A trap, malformed reply or state mismatch aborts the run; failed measurements
 are never silently omitted or retried.
 
-Both backends use Runtime 0.22.5 and the same Rust release settings: optimization
+Both callers use Runtime 0.23.11 with only `system-raw`; the frozen Storage 0.74.1
+backend retains its transitive Runtime 0.22.5 `ic0` bindings. Neither path selects
+an executor or passes Runtime Rust types across that boundary.
+Both backends use the same Rust release settings: optimization
 level 3, LTO, one codegen unit, panic abort, no post-link optimizer. Linker settings
 select a 1 MiB stack, 129 initial 64 KiB pages and a 256-page maximum. M0 grows one
 arena page during setup. Its deterministic artifact transform reserves the
 retained interval; Storage uses ordinary Wasm startup and stable memory.
 
-Timing uses the delta of `ic0::performance_counter(0)` around the complete
+Timing uses the delta of `ic0::instruction_counter()` (IC performance counter zero) around the complete
 backend operation batch. M0 includes opening/admitting the image, entering the
 session, resolving its root, each operation and final validation. Storage
 includes borrowing its held state and each operation. Request parsing, setup,

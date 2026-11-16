@@ -2,11 +2,7 @@ use super::installed::{logical, query, refused_update, replace_heap, words};
 use super::*;
 use crate::installed_tests::{stopped_hash, update};
 use ic_storage_retention_probe::artifact::{sha256, sha256_hex};
-use ic_testkit::{
-    pic::PocketIcStartupConfig,
-    pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking::PocketIc},
-};
-use std::time::Duration;
+use ic_testkit::pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking::PocketIc};
 
 mod cancellation;
 mod frozen;
@@ -123,16 +119,16 @@ async fn controller_authority_domains_epochs_and_single_use_survive_upgrades() {
         );
         bytes
     };
-    let owner = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .unwrap()
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_application_subnet()
-                .with_max_request_time_ms(Some(30_000)),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_application_subnet()
+        .with_max_request_time_ms(Some(30_000))
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     let a = candidate(false, (0, 0), true);
     let b = candidate(true, (0, 0), true);
     let reopen_b = candidate(true, (0, 0), false);
@@ -197,5 +193,5 @@ async fn controller_authority_domains_epochs_and_single_use_survive_upgrades() {
         .unwrap();
     refused_import(pic, id, &b, args(1, 131072, 0)).await;
     refused_export(pic, id, id, args(1, 147456, 0)).await;
-    owner.close().await;
+    instance.drop().await;
 }

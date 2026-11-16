@@ -1,12 +1,9 @@
 //! Execute only the reviewed u64-vector foreign allocation and ownership contract.
 
 use ic_storage_retention_probe::artifact::{sha256, sha256_hex};
-use std::{fs, time::Duration};
+use std::fs;
 
-use ic_testkit::{
-    pic::PocketIcStartupConfig,
-    pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking::PocketIc},
-};
+use ic_testkit::pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking::PocketIc};
 
 use super::super::installed_tests::{stopped_hash, update};
 use super::{Profile, admit_final, prepare};
@@ -117,17 +114,16 @@ async fn native_vector_lifecycle_reclamation_and_rollback() {
         );
         bytes
     };
-    let config = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .expect("prepare the server explicitly with make retention-setup");
-    let owner = config
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_max_request_time_ms(Some(30_000))
-                .with_application_subnet(),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_max_request_time_ms(Some(30_000))
+        .with_application_subnet()
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     let a = candidate(Profile::A);
     let b = candidate(Profile::B);
     let id = install(pic, a.clone()).await;
@@ -253,5 +249,5 @@ async fn native_vector_lifecycle_reclamation_and_rollback() {
     assert_eq!((lost.phase, lost.header[6]), (2, 0));
     rejected_update(pic, abandoned, "vector_reuse").await;
     rejected_upgrade(pic, abandoned, &b).await;
-    owner.close().await;
+    instance.drop().await;
 }

@@ -80,16 +80,16 @@ async fn mixed_native_histories_match_a_model_across_repeated_domain_migrations(
     };
     let ready = [save(false, (0, 0), false), save(true, (0, 0), false)];
     let recovery = [save(false, (0, 0), true), save(true, (0, 0), true)];
-    let owner = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .unwrap()
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_application_subnet()
-                .with_max_request_time_ms(Some(30_000)),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_application_subnet()
+        .with_max_request_time_ms(Some(30_000))
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     let methods = [
         "vector_mutate",
         "vector_append",
@@ -188,5 +188,5 @@ async fn mixed_native_histories_match_a_model_across_repeated_domain_migrations(
         model.apply(5);
         model.check(&query(pic, id, "observe").await, 131072, 96);
     }
-    owner.close().await;
+    instance.drop().await;
 }

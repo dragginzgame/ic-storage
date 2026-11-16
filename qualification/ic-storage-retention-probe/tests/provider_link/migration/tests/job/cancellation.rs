@@ -41,16 +41,16 @@ async fn cancelled_jobs_resume_in_place_without_replaying_retired_epochs() {
         );
         bytes
     };
-    let owner = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .unwrap()
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_application_subnet()
-                .with_max_request_time_ms(Some(30_000)),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_application_subnet()
+        .with_max_request_time_ms(Some(30_000))
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     let a = candidate(false, (0, 0), true);
     let b = candidate(true, (0, 0), true);
     let reopen = candidate(false, (0, 0), false);
@@ -162,5 +162,5 @@ async fn cancelled_jobs_resume_in_place_without_replaying_retired_epochs() {
         // Neither corrupt stable data nor abandoned native custody may be reset.
         refused_cancel(pic, id, id, args(1, 147456, 0), None).await;
     }
-    owner.close().await;
+    instance.drop().await;
 }

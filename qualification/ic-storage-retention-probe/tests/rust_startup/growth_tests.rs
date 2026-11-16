@@ -116,16 +116,16 @@ async fn grown_memory_survives_upgrades_and_refusals_preserve_state() {
     let b = prepare(&raw_b).expect("B");
     admit(&a.bytes, &raw_a).expect("final A");
     admit(&b.bytes, &raw_b).expect("final B");
-    let owner = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .expect("server setup")
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_application_subnet()
-                .with_max_request_time_ms(Some(30_000)),
-        )
-        .await
-        .expect("instance");
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_application_subnet()
+        .with_max_request_time_ms(Some(30_000))
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     let id = pic.create_canister().await;
     pic.install_canister(id, a.bytes.clone(), vec![], None)
         .await;
@@ -233,5 +233,5 @@ async fn grown_memory_survives_upgrades_and_refusals_preserve_state() {
         words::<7>(pic, id, "growth").await,
         [256, 257, s, s, s, s, s]
     );
-    owner.close().await;
+    instance.drop().await;
 }

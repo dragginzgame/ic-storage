@@ -97,16 +97,16 @@ impl Model {
 #[tokio::test(flavor = "current_thread")]
 #[ignore = "native-record-job-test supplies fresh artifacts and prepared server"]
 async fn mixed_record_histories_preserve_fields_custody_and_durable_job_state() {
-    let owner = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .unwrap()
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_application_subnet()
-                .with_max_request_time_ms(Some(30_000)),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_application_subnet()
+        .with_max_request_time_ms(Some(30_000))
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     let ready = [
         candidate(false, (0, 0), Post::Reopen),
         candidate(true, (0, 0), Post::Reopen),
@@ -295,5 +295,5 @@ async fn mixed_record_histories_preserve_fields_custody_and_durable_job_state() 
             "record history seed={seed} initial={root:?}: 96 mixed operations, 4 cancellations, 2 atomic and 2 staged cutovers; all 10 operations covered"
         );
     }
-    owner.close().await;
+    instance.drop().await;
 }

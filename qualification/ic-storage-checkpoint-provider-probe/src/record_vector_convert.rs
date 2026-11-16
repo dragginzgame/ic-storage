@@ -1,7 +1,7 @@
 //! Retained conversion uses scalar callbacks, never old native Rust owners.
 
 use crate::record_vector::args;
-use ic_platform_runtime::ic0;
+use ic_platform_runtime::raw as ic0;
 use ic_storage_native_feasibility::{
     checkpoint::record_vector::LIMIT,
     record::{V2, narrow::V3},

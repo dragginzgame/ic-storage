@@ -4,6 +4,22 @@
 
 ### 🔧 Changed
 
+- Adopt Testkit 0.107.1 and its original PocketIC client types. Qualification
+  callers require the externally prepared server URL and explicitly delete their
+  own instances; preserve request limits and manual simulation progression.
+  Keep the 0.106.0 launcher as a separate pinned tool, outside the consumer graph.
+  Remove Testkit's legacy Host/Platform edges from the qualification lockfile.
+
+- Adopt Platform Runtime 0.23.11 with `system-raw` for caller-owned synchronous
+  exports, resolving the API blocker tracked in Platform #6. Qualify startup,
+  retained graphs, checkpoints, record conversions, governed jobs and benchmark
+  replies without adding an executor. The frozen Storage 0.74.1 oracle retains
+  its transitive Runtime 0.22.5; graph checks admit that pair only where needed.
+
+- Adopt Toko Tooling 0.44.6 in both workspaces through its canonical snapshot
+  exporter, including the clarified asynchronous hosted-CI policy. Preserve the
+  current executable snapshot closure and unrelated dependency selections.
+
 - Advance the unpublished product workspace to 0.75.0, above the latest published
   `ic-storage` 0.74.1. Preserve package identities, historical evidence and the
   independently pinned checkpoint reader; this does not establish compatibility
@@ -23,6 +39,14 @@
   installed provider/retention checks pass with that selection.
 
 ### ✨ Added
+
+- Add explicit portable scalar V2→V3 narrowing with range checks before native
+  construction, publication rollback, ceiling preservation and full-width V2
+  recovery after refusal. Share recovery mechanics with exact restore and widening.
+
+- Add explicit portable scalar V3→V2 widening after heap replacement, sharing
+  the existing recovery path and refusing other source schemas. Qualify corrupt
+  source recovery, publication rollback and subsequent full-width updates.
 
 - Qualify explicit installed scalar V3→V2 widening with destination-only source
   refusal, unchanged vector storage and ceiling, publication rollback, repeated

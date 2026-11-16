@@ -2,8 +2,7 @@ use super::super::installed::{export, logical, query, recover, refused, words};
 use super::*;
 use crate::installed_tests::{stopped_hash, update};
 use ic_storage_retention_probe::artifact::{sha256, sha256_hex, validate_wasm};
-use ic_testkit::{pic::PocketIcStartupConfig, pocket_ic::PocketIcBuilder};
-use std::time::Duration;
+use ic_testkit::pocket_ic::PocketIcBuilder;
 use wasm_encoder::{BlockType, ExportKind, ExportSection, Function, FunctionSection, MemArg};
 
 // Deliberate source corruption, outside both Rust runtimes. After poisoning,
@@ -204,16 +203,16 @@ async fn compatible_reopening_discards_transients_then_can_export_and_recover() 
         );
         bytes
     };
-    let owner = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .unwrap()
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_application_subnet()
-                .with_max_request_time_ms(Some(30_000)),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_application_subnet()
+        .with_max_request_time_ms(Some(30_000))
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     let reopened = candidate(false, (0, 0));
     let failed = trap_after_reset(&reopened);
     let digest = sha256_hex(&failed);
@@ -270,5 +269,5 @@ async fn compatible_reopening_discards_transients_then_can_export_and_recover() 
         assert_eq!(logical(&query(pic, id, "observe").await), [1]);
         export(pic, id, 12).await;
     }
-    owner.close().await;
+    instance.drop().await;
 }

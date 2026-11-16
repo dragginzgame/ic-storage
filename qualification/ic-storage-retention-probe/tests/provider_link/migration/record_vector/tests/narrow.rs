@@ -175,16 +175,16 @@ async fn installed_portable_narrowing_preserves_order_and_ceiling_then_uses_nati
     let narrow = candidate(&directory, &raw, &bridge, true, (0, 0), Post::NarrowVector);
     let recover = candidate(&directory, &raw, &bridge, false, (0, 0), Post::Recover);
     let reopen = candidate(&directory, &raw, &bridge, true, (0, 0), Post::Reopen);
-    let owner = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .unwrap()
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_application_subnet()
-                .with_max_request_time_ms(Some(30_000)),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_application_subnet()
+        .with_max_request_time_ms(Some(30_000))
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     for count in [0, 1, 16] {
         let id = pic.create_canister().await;
         pic.install_canister(
@@ -235,7 +235,7 @@ async fn installed_portable_narrowing_preserves_order_and_ceiling_then_uses_nati
         assert_eq!(values(&query(pic, id, "observe").await), next);
         update(pic, id, "vector_clear").await;
     }
-    owner.close().await;
+    instance.drop().await;
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -244,16 +244,16 @@ async fn installed_failed_narrowing_preserves_source_for_explicit_repair_and_ret
     let (directory, raw, bridge) = inputs();
     let source = source(&directory);
     let narrow = candidate(&directory, &raw, &bridge, true, (0, 0), Post::NarrowVector);
-    let owner = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .unwrap()
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_application_subnet()
-                .with_max_request_time_ms(Some(30_000)),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_application_subnet()
+        .with_max_request_time_ms(Some(30_000))
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     for (index, counter) in [
         (0, u64::from(u32::MAX) + 1),
         (8, u64::MAX),
@@ -296,5 +296,5 @@ async fn installed_failed_narrowing_preserves_source_for_explicit_repair_and_ret
             .collect();
         assert_eq!(actual, expected);
     }
-    owner.close().await;
+    instance.drop().await;
 }

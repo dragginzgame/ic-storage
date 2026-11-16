@@ -2,11 +2,8 @@ use super::*;
 use crate::installed_tests::{stopped_hash, update};
 use crate::migration::tests::installed::{replace_heap, replace_heap_with_options};
 use ic_storage_retention_probe::artifact::{sha256, sha256_hex};
-use ic_testkit::{
-    pic::PocketIcStartupConfig,
-    pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking::PocketIc},
-};
-use std::{fs, path::PathBuf, time::Duration};
+use ic_testkit::pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking::PocketIc};
+use std::{fs, path::PathBuf};
 use wasmparser::{Operator, Parser, Payload};
 
 mod job;
@@ -213,16 +210,16 @@ fn record_recovery_artifact_resolves_callbacks_and_orders_freshness_before_rust(
 #[ignore = "native-record-vector-test supplies fresh artifacts and prepared server"]
 async fn installed_record_vectors_recover_in_a_new_domain_and_continue_allocating() {
     let (directory, raw, bridge) = inputs();
-    let owner = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .unwrap()
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_application_subnet()
-                .with_max_request_time_ms(Some(30_000)),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_application_subnet()
+        .with_max_request_time_ms(Some(30_000))
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     let reopen_b = candidate(&directory, &raw, &bridge, true, (0, 0), Post::Reopen);
     let recover_b = candidate(&directory, &raw, &bridge, true, (0, 0), Post::Recover);
     let recover_a = candidate(&directory, &raw, &bridge, false, (0, 0), Post::Recover);
@@ -296,7 +293,7 @@ async fn installed_record_vectors_recover_in_a_new_domain_and_continue_allocatin
         update(pic, id, "vector_append").await;
         assert_eq!(values(&query(pic, id, "observe").await), [(1, 1000)]);
     }
-    owner.close().await;
+    instance.drop().await;
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -305,16 +302,16 @@ async fn installed_corrupt_record_checkpoints_refuse_without_reset_or_publicatio
     let (directory, raw, bridge) = inputs();
     let source = candidate(&directory, &raw, &bridge, false, (3, 4), Post::Reopen);
     let recovery = candidate(&directory, &raw, &bridge, true, (0, 0), Post::Recover);
-    let owner = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .unwrap()
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_application_subnet()
-                .with_max_request_time_ms(Some(30_000)),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_application_subnet()
+        .with_max_request_time_ms(Some(30_000))
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     for damage in 0..3 {
         let id = pic.create_canister().await;
         pic.install_canister(id, source.clone(), vec![], None).await;
@@ -331,5 +328,5 @@ async fn installed_corrupt_record_checkpoints_refuse_without_reset_or_publicatio
         pic.start_canister(id, None).await.unwrap();
         assert_eq!(values(&query(pic, id, "observe").await), expected);
     }
-    owner.close().await;
+    instance.drop().await;
 }

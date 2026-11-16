@@ -204,16 +204,16 @@ async fn managed_graph_survives_installed_upgrades_and_rolls_back_trapped_update
         fs::write(evidence.join(format!("{name}.txt")), &artifact.report).expect("report");
         println!("graph-{name}:\n{}", artifact.report);
     }
-    let owner = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .expect("server setup")
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_application_subnet()
-                .with_max_request_time_ms(Some(30_000)),
-        )
-        .await
-        .expect("instance");
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_application_subnet()
+        .with_max_request_time_ms(Some(30_000))
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     let id = pic.create_canister().await;
     pic.install_canister(id, a.bytes.clone(), vec![], None)
         .await;
@@ -275,5 +275,5 @@ async fn managed_graph_survives_installed_upgrades_and_rolls_back_trapped_update
     let grown = retained_bytes(pic, id).await;
     upgrade(pic, id, &a.bytes).await;
     assert_eq!(retained_bytes(pic, id).await, grown);
-    owner.close().await;
+    instance.drop().await;
 }

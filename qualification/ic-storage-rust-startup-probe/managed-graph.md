@@ -34,7 +34,7 @@ Only `canister_init` initializes fresh retained bytes and builds the first graph
 references, requires the expected non-null root, then enables the transient
 capability. Missing/incompatible data is never initialized on upgrade.
 
-Platform's IC0-only path links std. Linking the M0 decoder also retains std panic
+The fixture links std with Platform's `system-raw` path. The M0 decoder retains std panic
 formatting and its function table. A fixture global allocator traps on every
 allocation/deallocation request, preventing dlmalloc from acquiring retained
 pages. The graph artifact profile admits exactly one 18-slot nonshared funcref

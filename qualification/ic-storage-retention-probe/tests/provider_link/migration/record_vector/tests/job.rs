@@ -4,11 +4,8 @@ use super::{query, values};
 use crate::installed_tests::{stopped_hash, update};
 use crate::migration::tests::installed::{replace_heap, replace_heap_with_options};
 use ic_storage_retention_probe::artifact::{sha256, sha256_hex};
-use ic_testkit::{
-    pic::PocketIcStartupConfig,
-    pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking::PocketIc},
-};
-use std::{fs, time::Duration};
+use ic_testkit::pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking::PocketIc};
+use std::fs;
 
 mod history;
 
@@ -156,16 +153,16 @@ async fn upgrade(pic: &PocketIc, id: CanisterId, wasm: &[u8], words: &[u64], kee
 #[tokio::test(flavor = "current_thread")]
 #[ignore = "native-record-job-test supplies fresh artifacts and prepared server"]
 async fn authority_epochs_consumption_and_atomic_record_recovery() {
-    let owner = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .unwrap()
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_application_subnet()
-                .with_max_request_time_ms(Some(30_000)),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_application_subnet()
+        .with_max_request_time_ms(Some(30_000))
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     let recover = candidate(true, (0, 0), Post::Recover);
     let back = candidate(false, (0, 0), Post::Recover);
     let reopen = candidate(true, (0, 0), Post::Reopen);
@@ -218,22 +215,22 @@ async fn authority_epochs_consumption_and_atomic_record_recovery() {
         upgrade(pic, id, &back, &[2, B, 0], false).await;
         assert_eq!(values(&query(pic, id, "observe").await), next);
     }
-    owner.close().await;
+    instance.drop().await;
 }
 
 #[tokio::test(flavor = "current_thread")]
 #[ignore = "native-record-job-test supplies fresh artifacts and prepared server"]
 async fn frozen_resume_cancellation_and_record_mismatches() {
-    let owner = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .unwrap()
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_application_subnet()
-                .with_max_request_time_ms(Some(30_000)),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_application_subnet()
+        .with_max_request_time_ms(Some(30_000))
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     let frozen = candidate(false, (0, 0), Post::Frozen);
     let reopen = candidate(false, (0, 0), Post::Reopen);
     let recover = candidate(true, (0, 0), Post::Recover);
@@ -280,22 +277,22 @@ async fn frozen_resume_cancellation_and_record_mismatches() {
             refuse_upgrade(pic, id, &recover, &[1, A, 0], false).await;
         }
     }
-    owner.close().await;
+    instance.drop().await;
 }
 
 #[tokio::test(flavor = "current_thread")]
 #[ignore = "native-record-job-test supplies fresh artifacts and prepared server"]
 async fn staged_records_resume_retry_restart_and_publish_once() {
-    let owner = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .unwrap()
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_application_subnet()
-                .with_max_request_time_ms(Some(30_000)),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_application_subnet()
+        .with_max_request_time_ms(Some(30_000))
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     let start = candidate(true, (0, 0), Post::Stage);
     let resume = candidate(true, (0, 0), Post::Importing);
     let restart = candidate(true, (0, 0), Post::Restart);
@@ -395,7 +392,7 @@ async fn staged_records_resume_retry_restart_and_publish_once() {
         call(pic, id, "import_batch", &[1, A, 0, 16, 0]).await;
         assert_eq!(values(&query(pic, id, "observe").await), expected);
     }
-    owner.close().await;
+    instance.drop().await;
 }
 
 #[test]

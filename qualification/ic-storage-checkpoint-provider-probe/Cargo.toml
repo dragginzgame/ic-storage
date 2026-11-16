@@ -29,7 +29,7 @@ native-record-vector-source = ["native-record-vector"]
 version-b = []
 
 [dependencies]
-ic-platform-runtime = { workspace = true, features = ["ic0"] }
+ic-platform-runtime = { workspace = true, features = ["system-raw"] }
 ic-storage.workspace = true
 ic-storage-native-feasibility.workspace = true
 

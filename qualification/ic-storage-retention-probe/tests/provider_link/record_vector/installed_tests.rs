@@ -4,11 +4,8 @@ use ic_storage_retention_probe::{
     artifact::{compile_wat, sha256_hex, validate_wasm},
     vector_provider::records,
 };
-use ic_testkit::{
-    pic::PocketIcStartupConfig,
-    pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking::PocketIc},
-};
-use std::{fs, time::Duration};
+use ic_testkit::pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking::PocketIc};
+use std::fs;
 
 use super::super::installed_tests::{stopped_hash, update};
 use super::link::{self, Profile};
@@ -106,16 +103,16 @@ async fn install(pic: &PocketIc, bytes: Vec<u8>) -> CanisterId {
 #[ignore = "make native-provider-test supplies fresh artifacts and the prepared server"]
 async fn native_records_mutate_reclaim_and_reopen_across_installed_upgrades() {
     let (directory, raw) = inputs();
-    let config = PocketIcStartupConfig::from_env(Duration::from_secs(30)).unwrap();
-    let owner = config
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_max_request_time_ms(Some(30_000))
-                .with_application_subnet(),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_max_request_time_ms(Some(30_000))
+        .with_application_subnet()
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     let b = candidate(&directory, &raw, Profile::B);
     for root in [(0, 0), (0, 8), (3, 4), (16, 16)] {
         let profile = Profile { root, ..Profile::A };
@@ -202,23 +199,23 @@ async fn native_records_mutate_reclaim_and_reopen_across_installed_upgrades() {
         update(pic, id, "vector_mutate").await;
         assert_eq!(observe(pic, id).await.values(), [(3, 1000)]);
     }
-    owner.close().await;
+    instance.drop().await;
 }
 
 #[tokio::test(flavor = "current_thread")]
 #[ignore = "make native-provider-test supplies fresh artifacts and the prepared server"]
 async fn native_record_admission_refuses_corruption_and_abandoned_custody() {
     let (directory, raw) = inputs();
-    let config = PocketIcStartupConfig::from_env(Duration::from_secs(30)).unwrap();
-    let owner = config
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_max_request_time_ms(Some(30_000))
-                .with_application_subnet(),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_max_request_time_ms(Some(30_000))
+        .with_application_subnet()
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     let b = candidate(&directory, &raw, Profile::B);
     let mut faults: Vec<_> = records::SCHEMA
         .iter()
@@ -302,7 +299,7 @@ async fn native_record_admission_refuses_corruption_and_abandoned_custody() {
     rejected_upgrade(pic, old, &b).await;
     let records = install(pic, b).await;
     rejected_upgrade(pic, records, &u64_module).await;
-    owner.close().await;
+    instance.drop().await;
 }
 
 fn guard_candidate(root: (u64, u64), operation: u32, claim: bool, body: &str) -> Vec<u8> {
@@ -329,16 +326,16 @@ fn guard_candidate(root: (u64, u64), operation: u32, claim: bool, body: &str) ->
 #[ignore = "make native-provider-test supplies fresh artifacts and the prepared server"]
 async fn record_guards_bound_stack_fields_spare_capacity_and_copy_windows() {
     let (directory, _) = inputs();
-    let config = PocketIcStartupConfig::from_env(Duration::from_secs(30)).unwrap();
-    let owner = config
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_max_request_time_ms(Some(30_000))
-                .with_application_subnet(),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_max_request_time_ms(Some(30_000))
+        .with_application_subnet()
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     let probe = |root, operation, claim, body: &str| {
         let bytes = guard_candidate(root, operation, claim, body);
         fs::write(
@@ -496,5 +493,5 @@ async fn record_guards_bound_stack_fields_spare_capacity_and_copy_windows() {
         let id = install(pic, probe(root, op, claim, body)).await;
         rejected_update(pic, id, "probe").await;
     }
-    owner.close().await;
+    instance.drop().await;
 }

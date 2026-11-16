@@ -7,12 +7,12 @@ use std::{
     fs,
     io::Write,
     path::{Path, PathBuf},
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use ic_storage_retention_probe::startup::{prepare_benchmark, prepare_graph};
 use ic_storage_simple_benchmarks::OPERATIONS;
-use ic_testkit::{pic::PocketIcStartupConfig, pocket_ic::PocketIcBuilder};
+use ic_testkit::pocket_ic::PocketIcBuilder;
 
 fn read(path: &Path) -> Vec<u8> {
     ic_host_artifacts::read(
@@ -118,7 +118,7 @@ async fn main() {
     fs::write(output.join("storage.wasm"), &storage).unwrap();
     fs::write(output.join("managed-admission.txt"), &managed.report).unwrap();
     fs::write(output.join("configuration.json"),serde_json::to_vec_pretty(&serde_json::json!({
-        "schema":1,"completion_marker":"COMPLETE","storage":"0.74.1","runtime":"0.22.5","testkit":"0.106.0","sources_sha256":sources,
+        "schema":1,"completion_marker":"COMPLETE","storage":"0.74.1","runtime":"0.23.11","runtime_features":["system-raw"],"storage_transitive_runtime":"0.22.5","testkit":"0.107.1","server_launcher":"ic-testkit 0.106.0","sources_sha256":sources,
         "rust":"1.100.0","target":"wasm32-unknown-unknown","profile":"release; opt=3; lto=true; codegen-units=1; panic=abort; no post-link optimizer",
         "rows":[1,16,64],"batch":[1,8],"seeds":[1,2,3],"operations":OPERATIONS,
         "metric":"performance_counter(0) delta including backend entry/admission; excludes setup, wire and correctness queries",
@@ -134,16 +134,16 @@ async fn main() {
     .unwrap();
     csv.flush().unwrap();
     println!("Evidence: {}", output.display());
-    let owner = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .expect("make retention-setup")
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_application_subnet()
-                .with_max_request_time_ms(Some(120_000)),
-        )
-        .await
-        .expect("start admitted server");
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_application_subnet()
+        .with_max_request_time_ms(Some(120_000))
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     let mut samples = 0;
     for rows in [1, 16, 64] {
         for seed in 1..=3 {
@@ -208,7 +208,7 @@ async fn main() {
             }
         }
     }
-    owner.close().await;
+    instance.drop().await;
     assert_eq!(samples, 216);
     // Never mark a partial or failed attempt complete; raw rows remain diagnostic.
     fs::write(

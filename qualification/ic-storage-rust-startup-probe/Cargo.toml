@@ -23,7 +23,7 @@ managed-graph = ["dep:ic-storage-new"]
 managed-bench = ["managed-graph", "dep:ic-storage-simple-benchmarks"]
 
 [dependencies]
-ic-platform-runtime = { workspace = true, features = ["ic0"] }
+ic-platform-runtime = { workspace = true, features = ["system-raw"] }
 ic-storage-new = { workspace = true, optional = true }
 ic-storage-simple-benchmarks = { workspace = true, optional = true }
 

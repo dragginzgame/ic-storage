@@ -44,16 +44,16 @@ async fn checked_updates_survive_reopen_and_migration_with_trap_rollback() {
         );
         bytes
     };
-    let owner = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .unwrap()
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_application_subnet()
-                .with_max_request_time_ms(Some(30_000)),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_application_subnet()
+        .with_max_request_time_ms(Some(30_000))
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     let convert = candidate(false, (0, 0), 2, Post::Convert);
     let reopen = candidate(false, (0, 0), 2, Post::Reopen);
     let recover = candidate(true, (0, 0), 2, Post::Recover);
@@ -123,5 +123,5 @@ async fn checked_updates_survive_reopen_and_migration_with_trap_rollback() {
     replace_heap(pic, id, &recover, args(9, 0)).await.unwrap();
     pic.start_canister(id, None).await.unwrap();
     add(pic, id, 1, 2, u64::MAX).await;
-    owner.close().await;
+    instance.drop().await;
 }

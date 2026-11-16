@@ -1,6 +1,6 @@
 //! Controller-authorized, single-use native migration job fixture.
 use crate::provider::job_cell;
-use ic_platform_runtime::ic0;
+use ic_platform_runtime::raw as ic0;
 #[cfg(not(feature = "native-record-vector-job"))]
 use ic_storage_native_feasibility::migration_job::Job;
 #[cfg(feature = "native-record-vector-job")]

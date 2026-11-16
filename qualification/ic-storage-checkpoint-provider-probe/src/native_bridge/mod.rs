@@ -1,7 +1,7 @@
 //! Scalar-only foreign bridge. No native pointer or owner enters this runtime.
 
 use crate::provider::cell;
-use ic_platform_runtime::ic0;
+use ic_platform_runtime::raw as ic0;
 use ic_storage_native_feasibility::checkpoint;
 
 #[cfg(feature = "native-record")]
@@ -71,14 +71,66 @@ extern "C" fn checkpoint_export() {
 )]
 #[unsafe(no_mangle)]
 extern "C" fn checkpoint_restore() {
+    restore_checkpoint(Recovery::Exact);
+}
+
+#[cfg(feature = "native-record")]
+#[expect(
+    unsafe_code,
+    reason = "private portable widening entry bound by final linker"
+)]
+#[unsafe(no_mangle)]
+extern "C" fn checkpoint_restore_widen() {
+    restore_checkpoint(Recovery::Widen);
+}
+
+#[cfg(feature = "native-record")]
+#[expect(
+    unsafe_code,
+    reason = "private portable narrowing entry bound by final linker"
+)]
+#[unsafe(no_mangle)]
+extern "C" fn checkpoint_restore_narrow() {
+    restore_checkpoint(Recovery::Narrow);
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Recovery {
+    Exact,
+    #[cfg(feature = "native-record")]
+    Widen,
+    #[cfg(feature = "native-record")]
+    Narrow,
+}
+
+fn restore_checkpoint(mode: Recovery) {
     let [epoch, fault] = args();
-    assert!(fault <= 2);
+    assert!(fault <= if mode != Recovery::Exact { 3 } else { 2 });
     fresh();
     let mut cell = cell(false);
     #[cfg(not(feature = "native-record"))]
     let decoded = checkpoint::decode(cell.get(), epoch).unwrap();
     #[cfg(feature = "native-record")]
-    let decoded = checkpoint::decode_record(cell.get(), epoch).unwrap();
+    let decoded = {
+        use ic_storage_native_feasibility::record::{Record, V2, narrow::V3};
+        let mut decoded = checkpoint::decode_record(cell.get(), epoch).unwrap();
+        if mode == Recovery::Widen {
+            let Record::V3(source) = decoded.record else {
+                ic0::trap(b"portable widening requires schema three");
+            };
+            decoded.record = Record::V2(V2::from(source));
+        }
+        if mode == Recovery::Narrow {
+            let Record::V2(source) = decoded.record else {
+                ic0::trap(b"portable narrowing requires schema two");
+            };
+            decoded.record = Record::V3(
+                V3::try_from(source)
+                    .unwrap_or_else(|_| ic0::trap(b"portable narrowing out of range")),
+            );
+        }
+        decoded
+    };
     if fault == 1 {
         cell.set(checkpoint::encode_v2(999, &decoded.values, epoch).unwrap());
         ic0::trap(b"native restore fault after stable write");
@@ -97,6 +149,9 @@ extern "C" fn checkpoint_restore() {
         }
     }
     finish(decoded.values.len() as u32);
+    if fault == 3 {
+        ic0::trap(b"portable record conversion after publication");
+    }
 }
 
 #[expect(

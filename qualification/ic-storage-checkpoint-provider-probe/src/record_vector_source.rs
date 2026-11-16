@@ -2,7 +2,7 @@
 //! No native retained-layout or source EOP claim is made by this fixture.
 
 use crate::provider::record_vector_cell as cell;
-use ic_platform_runtime::ic0;
+use ic_platform_runtime::raw as ic0;
 use ic_storage_native_feasibility::{checkpoint::record_vector as codec, record::V2};
 use std::cell::RefCell;
 

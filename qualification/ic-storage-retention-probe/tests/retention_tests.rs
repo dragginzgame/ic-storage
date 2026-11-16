@@ -2,9 +2,7 @@
 #![forbid(unsafe_code)]
 
 use ic_storage_retention_probe::artifact::{compile_wat, validate_wasm};
-use std::time::Duration;
 
-use ic_testkit::pic::PocketIcStartupConfig;
 use ic_testkit::pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking::PocketIc};
 
 const MAGIC: u64 = 0x4f50_524f_4245_3031;
@@ -61,17 +59,16 @@ async fn rejected_upgrade(pic: &PocketIc, id: CanisterId, source: &str) {
 
 #[tokio::test(flavor = "current_thread")]
 async fn retained_scalar_survives_upgrade_and_failed_upgrade() {
-    let config = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .expect("prepare the server explicitly with make retention-setup");
-    let owner = config
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_max_request_time_ms(Some(30_000))
-                .with_application_subnet(),
-        )
-        .await
-        .expect("start admitted PocketIC server");
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_max_request_time_ms(Some(30_000))
+        .with_application_subnet()
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     let id = pic.create_canister().await;
     pic.install_canister(id, module(A), vec![], None).await;
     assert_eq!(read(pic, id).await, [MAGIC, 1, 10, 11]);
@@ -108,5 +105,5 @@ async fn retained_scalar_survives_upgrade_and_failed_upgrade() {
         .expect("commit corrupt marker");
     assert_eq!(read(pic, id).await, [0, 4, 10, 11]);
     rejected_upgrade(pic, id, B).await;
-    owner.close().await;
+    instance.drop().await;
 }

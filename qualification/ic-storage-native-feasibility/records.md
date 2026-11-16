@@ -527,3 +527,77 @@ record-vector conversion/recovery passed ten cases plus three codec tests in
 `attempt.mO9xn6`. Both cohorts also passed eighteen raw/link checks and have
 COMPLETE. Selected Wasm and host-test Clippy passed. These recorded source
 snapshots precede only the documentation updates reporting their results.
+
+### Portable widening after heap replacement
+
+`Post::RecoverWiden` selects a private `checkpoint_restore_widen` entry for a
+fresh schema-2 destination. It shares decoding, reconstruction and finalization
+with ordinary recovery, but explicitly requires a V3 checkpoint and applies the
+existing exact `From<V3> for V2` conversion before native construction. Ordinary
+recovery remains schema-exact. Source memory is never interpreted by the new
+runtime; the destination freshness check rejects keep-mode use.
+
+The entire checkpoint, epoch and source invariant are checked before construction.
+Success preserves the existing checkpoint bytes and restores both scalar fields
+and ordered vector values. The source V3 checkpoint remains independently readable;
+subsequent V2 export writes the existing schema-2 checkpoint format. This is the
+plain checkpoint fixture, without job consumption or automatic stale-data defense.
+
+Arguments are the source checkpoint epoch and fault selector: 0 normally, 1 after
+a diagnostic stable write, 2 during vector copying, and 3 after final publication.
+The post-publication fault is admitted by explicit portable conversion, not
+ordinary exact recovery. Installed
+tests compare the old module hash, scalar fields, complete vector observation and
+stable bytes after failures. They cover empty, reserved-empty, spare and full
+roots; source width limits; wrong epochs; missing, malformed and wrong-schema
+checkpoints; keep-mode refusal; continued full-width mutation and allocation;
+and another ordinary recovery back to the original allocation domain. Recovery
+also succeeds from an independently readable checkpoint after source metadata is
+corrupted and the unusable old hook is explicitly skipped.
+
+On 16 November 2026, `make native-record-test` passed eighteen raw/link checks,
+one conversion artifact test and five installed cases in
+`target/evidence/provider-link/attempt.vd8HTX/` (8.73 seconds for the selected
+record group). The directly affected ordinary checkpoint regression passed
+eighteen raw/link checks and four cases in `attempt.z280DT` (3.86 seconds).
+Both cohorts have COMPLETE and retain compiler/source identities and composed
+artifacts. Strict selected Wasm/host test Clippy and formatting passed. These
+bounded fixtures do not qualify record-vector widening, production migration
+authority or an actual compiler transition.
+
+### Portable narrowing and full-width fallback
+
+`Post::RecoverNarrow` selects a fresh schema-3 destination and the private
+`checkpoint_restore_narrow` entry. Exact recovery, widening and narrowing now
+share one reconstruction path with a closed recovery selector; the installed
+artifact, not checkpoint contents or a caller-supplied flag, selects conversion.
+Narrowing requires a complete schema-2 checkpoint and applies `V3::try_from`
+before beginning native construction. Counters above u32::MAX refuse. The
+original checkpoint remains unchanged on success as well as failure.
+
+The retained source heap is discarded on successful import. Logical fields and
+vector order survive; spare capacity is rebuilt from length. The V3 destination
+preserves the application ceiling and enforces its u32 update bounds. Its next
+export uses the existing schema-3 checkpoint v4, and ordinary exact recovery can
+then move it back to the original allocation domain. A V1 or V3 checkpoint never
+silently enters the narrowing path, and ordinary recovery still cannot implicitly
+reinterpret a V2 checkpoint as V3.
+
+Installed cases cover empty, reserved-empty, spare and full vectors; successful
+u32::MAX recovery; refusal at u32::MAX+1 and u64::MAX; a tight ceiling; missing or
+wrong-epoch checkpoints; keep-mode refusal; rollback after diagnostic stable
+writes, during construction and after publication; and continued allocation.
+After range refusal, the exact V2 recovery artifact successfully reconstructs the
+same full-width counter, ceiling and vector from the untouched checkpoint. This
+is a tested fallback, not permission to reset data or truncate counters.
+
+On 16 November 2026, `make native-record-test` passed eighteen raw/link artifact
+checks, one conversion artifact test and six installed cases, including the
+portable widening regression, in
+`target/evidence/provider-link/attempt.DIfeCk/` (9.34 seconds for the selected
+record group). The ordinary checkpoint regression passed eighteen raw/link
+checks and four cases in `attempt.pRWLgp` (4.13 seconds). Both cohorts have COMPLETE
+and retain the exact source/compiler inputs and composed artifacts. Selected
+Wasm and host-test Clippy and formatting passed. The scope remains one scalar
+record with a bounded u64 vector under the supported runtime contract; governed
+job schema conversion and actual cross-compiler migration are not established.

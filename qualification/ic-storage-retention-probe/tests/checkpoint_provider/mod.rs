@@ -5,14 +5,9 @@ mod artifacts;
 mod v2;
 
 use ic_storage_retention_probe::artifact::sha256;
-use std::time::Duration;
 
-use ic_testkit::{
-    pic::PocketIcStartupConfig,
-    pocket_ic::{
-        CanisterId, ErrorCode, PocketIcBuilder, common::rest::BlobCompression,
-        nonblocking::PocketIc,
-    },
+use ic_testkit::pocket_ic::{
+    CanisterId, ErrorCode, PocketIcBuilder, common::rest::BlobCompression, nonblocking::PocketIc,
 };
 
 fn encode(words: &[u64]) -> Vec<u8> {
@@ -93,16 +88,16 @@ async fn fresh_heap_import_and_failed_upgrade_rollback() {
     let a = artifacts::input("a");
     let b = artifacts::input("b");
     assert_ne!(a, b);
-    let owner = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .expect("prepare server with make retention-setup")
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_application_subnet()
-                .with_max_request_time_ms(Some(30_000)),
-        )
-        .await
-        .expect("start admitted server");
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_application_subnet()
+        .with_max_request_time_ms(Some(30_000))
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     let id = install(pic, &a).await;
     state(pic, id, &[101, 101, 0, 0, 41, 7, 3, 3, 5, 8]).await;
     refused(pic, id, &b, &[7, 0]).await; // No complete export yet.
@@ -162,5 +157,5 @@ async fn fresh_heap_import_and_failed_upgrade_rollback() {
     pic.set_stable_memory(id, vec![], BlobCompression::NoCompression)
         .await;
     refused(pic, id, &b, &[7, 0]).await;
-    owner.close().await;
+    instance.drop().await;
 }

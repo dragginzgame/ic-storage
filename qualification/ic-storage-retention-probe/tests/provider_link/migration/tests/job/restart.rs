@@ -39,16 +39,16 @@ async fn explicit_restart_recovers_partial_heaps_but_never_completed_or_corrupt_
         println!("restart artifact bytes={} sha256={digest}", bytes.len());
         bytes
     };
-    let owner = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .unwrap()
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_application_subnet()
-                .with_max_request_time_ms(Some(30_000)),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_application_subnet()
+        .with_max_request_time_ms(Some(30_000))
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     for relocated in [false, true] {
         let source = if relocated { 131072 } else { 147456 };
         let target = if relocated { 147456 } else { 131072 };
@@ -179,5 +179,5 @@ async fn explicit_restart_recovers_partial_heaps_but_never_completed_or_corrupt_
             assert_eq!(logical(&query(pic, id, "observe").await), [1]);
         }
     }
-    owner.close().await;
+    instance.drop().await;
 }

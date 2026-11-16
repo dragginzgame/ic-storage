@@ -128,16 +128,16 @@ async fn installed_retained_record_conversion_preserves_allocation_and_recovers(
     );
     let reopen = prepare(&raw, &bridge, false, (0, 0), Post::Reopen);
     let recover = prepare(&raw, &bridge, true, (0, 0), Post::Recover);
-    let owner = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .unwrap()
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_application_subnet()
-                .with_max_request_time_ms(Some(30_000)),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_application_subnet()
+        .with_max_request_time_ms(Some(30_000))
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     for root in [(0, 0), (0, 4), (1, 4), (3, 4), (16, 16)] {
         let source = save(
             &directory,
@@ -204,7 +204,7 @@ async fn installed_retained_record_conversion_preserves_allocation_and_recovers(
         update(pic, id, "vector_append").await;
         update(pic, id, "vector_shrink").await;
     }
-    owner.close().await;
+    instance.drop().await;
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -219,16 +219,16 @@ async fn retained_range_failures_keep_full_width_source_recoverable() {
         prepare_v2(&v2, &v2_bridge, true, (0, 0), Post::Recover),
     );
     let recover_v3 = prepare(&raw, &bridge, true, (0, 0), Post::Recover);
-    let owner = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .unwrap()
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_application_subnet()
-                .with_max_request_time_ms(Some(30_000)),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_application_subnet()
+        .with_max_request_time_ms(Some(30_000))
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     for (index, counter) in [
         (0, u64::from(u32::MAX)),
         (0, u64::from(u32::MAX) + 1),
@@ -315,7 +315,7 @@ async fn retained_range_failures_keep_full_width_source_recoverable() {
             assert_eq!(values(&query(pic, id, "observe").await), vec![(1, 1000)]);
         }
     }
-    owner.close().await;
+    instance.drop().await;
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -324,16 +324,16 @@ async fn retained_conversion_rejects_corrupt_predecessors_without_the_old_hook()
     let (directory, raw, _) = inputs();
     let (v2, bridge, convert) = v2_inputs(&directory);
     let target = prepare(&raw, &convert, false, (0, 0), Post::ConvertVector);
-    let owner = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .unwrap()
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_application_subnet()
-                .with_max_request_time_ms(Some(30_000)),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_application_subnet()
+        .with_max_request_time_ms(Some(30_000))
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     // No source pre-upgrade hook can mask a missing destination check. Cover
     // unknown schema, wrong field kind, fabricated shape, lost custody and a
     // later invalid element before the destination enters checkpoint Rust.
@@ -351,5 +351,5 @@ async fn retained_conversion_rejects_corrupt_predecessors_without_the_old_hook()
         update(pic, id, "corrupt").await;
         refused_upgrade(pic, id, &target, args(0, 0), true).await;
     }
-    owner.close().await;
+    instance.drop().await;
 }

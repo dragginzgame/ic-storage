@@ -1,9 +1,8 @@
 //! Exercise access helpers as WAT only, before linking any Rust vector body.
 
 use ic_storage_retention_probe::artifact::{compile_wat, validate_wasm};
-use std::time::Duration;
 
-use ic_testkit::{pic::PocketIcStartupConfig, pocket_ic::PocketIcBuilder};
+use ic_testkit::pocket_ic::PocketIcBuilder;
 
 use super::super::{admit, record, update};
 use super::{install, observe, rejected_update, source};
@@ -33,17 +32,16 @@ fn candidate(root: (u64, u64), operation: u32, claim: bool, body: &str) -> Vec<u
 
 #[tokio::test(flavor = "current_thread")]
 async fn access_helpers_bound_effective_ranges_and_refuse_uninitialized_reads() {
-    let config = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .expect("prepare the server explicitly with make retention-setup");
-    let owner = config
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_max_request_time_ms(Some(30_000))
-                .with_application_subnet(),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_max_request_time_ms(Some(30_000))
+        .with_application_subnet()
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
 
     // Stack scratch is valid before claim, but neither side of its exact frame is.
     let stack = install(pic, candidate((3, 4), 0, false, r#"
@@ -346,5 +344,5 @@ async fn access_helpers_bound_effective_ranges_and_refuse_uninitialized_reads() 
         let id = install(pic, candidate(root, operation, claim, body)).await;
         rejected_update(pic, id, "probe").await;
     }
-    owner.close().await;
+    instance.drop().await;
 }

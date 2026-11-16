@@ -198,6 +198,11 @@ V3's four-byte counter and canonical reserved word. An explicit installed
 [V3→V2 widening converter](../qualification/ic-storage-native-feasibility/records.md#installed-exact-widening)
 now preserves vector storage and the ceiling, validates the source before Rust
 entry, and exercises publication rollback and full-width portable recovery.
+A separately selected portable widening entry also restores a V3 checkpoint
+directly into fresh V2 state after discarding the source heap. Its explicit
+V2→V3 counterpart checks range before native construction and preserves the V2
+checkpoint for full-width recovery when narrowing refuses. Ordinary recovery
+continues to require matching schemas.
 This closed scalar conversion does not authorize automatic downgrade or a
 record-vector/job schema change.
 

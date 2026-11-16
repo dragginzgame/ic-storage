@@ -2,9 +2,7 @@
 #![forbid(unsafe_code)]
 
 use ic_storage_retention_probe::artifact::sha256_hex;
-use std::time::Duration;
 
-use ic_testkit::pic::PocketIcStartupConfig;
 use ic_testkit::pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking::PocketIc};
 use wasmparser::{Operator, Parser, Payload, TypeRef};
 
@@ -165,17 +163,16 @@ async fn installed_claims_require_settlement_and_refusals_preserve_custody() {
     ] {
         record(label, &bytes);
     }
-    let config = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .expect("prepare the server explicitly with make retention-setup");
-    let owner = config
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_max_request_time_ms(Some(30_000))
-                .with_application_subnet(),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_max_request_time_ms(Some(30_000))
+        .with_application_subnet()
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     let id = pic.create_canister().await;
     pic.install_canister(id, variant(1, 4096, false), vec![], None)
         .await;
@@ -227,5 +224,5 @@ async fn installed_claims_require_settlement_and_refusals_preserve_custody() {
     assert_eq!(observe(pic, corrupt).await, [1, 1, 1, 17, 0]);
     rejected_update(pic, corrupt, "advance").await;
     rejected_upgrade(pic, corrupt, variant(2, 4096, false)).await;
-    owner.close().await;
+    instance.drop().await;
 }

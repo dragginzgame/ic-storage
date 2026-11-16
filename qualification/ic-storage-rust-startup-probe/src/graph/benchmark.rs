@@ -1,6 +1,6 @@
 //! M0 sequence uses existing Node links, not a speculative vector implementation.
 
-use ic_platform_runtime::ic0;
+use ic_platform_runtime::raw as ic0;
 use ic_storage_new::m0::image::{Counter, Error, Session};
 use ic_storage_simple_benchmarks::{Access, run, wire};
 
@@ -68,12 +68,12 @@ impl Access for Heap<'_, '_> {
 #[unsafe(export_name = "canister_update bench_run")]
 extern "C" fn bench_run() {
     let (operation, batch) = wire::request();
-    let start = ic0::performance_counter(0);
+    let start = ic0::instruction_counter();
     let result = kernel::update(|s| {
         let root = s.root()?.ok_or(Error::Handle)?;
         run(&mut Heap { session: s, root }, operation, batch)
     });
-    let instructions = ic0::performance_counter(0) - start;
+    let instructions = ic0::instruction_counter() - start;
     wire::reply(&[instructions, result]);
 }
 

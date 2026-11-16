@@ -1,11 +1,6 @@
 //! Installed full-width vector descriptor admission; no Rust vector executes.
 
-use std::time::Duration;
-
-use ic_testkit::{
-    pic::PocketIcStartupConfig,
-    pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking::PocketIc},
-};
+use ic_testkit::pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking::PocketIc};
 
 use super::{admit, record, update};
 use crate::{module, stopped_hash};
@@ -95,17 +90,16 @@ async fn install(pic: &PocketIc, bytes: Vec<u8>) -> CanisterId {
 
 #[tokio::test(flavor = "current_thread")]
 async fn descriptors_are_admitted_before_access_and_published_after_settlement() {
-    let config = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .expect("prepare the server explicitly with make retention-setup");
-    let owner = config
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_max_request_time_ms(Some(30_000))
-                .with_application_subnet(),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_max_request_time_ms(Some(30_000))
+        .with_application_subnet()
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     let a = candidate(1, (3, 4), 4096, false, "nop", true);
     let b = candidate(2, (3, 4), 4096, false, "nop", true);
     let id = install(pic, a.clone()).await;
@@ -212,5 +206,5 @@ async fn descriptors_are_admitted_before_access_and_published_after_settlement()
     assert_eq!(lost.header[6], 0);
     rejected_update(pic, abandoned, "append").await;
     rejected_upgrade(pic, abandoned, &b).await;
-    owner.close().await;
+    instance.drop().await;
 }

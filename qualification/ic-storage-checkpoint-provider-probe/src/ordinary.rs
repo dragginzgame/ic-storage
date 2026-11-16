@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::provider::cell;
-use ic_platform_runtime::ic0;
+use ic_platform_runtime::raw as ic0;
 use ic_storage::adapter::StableCell;
 use ic_storage_native_feasibility::checkpoint;
 

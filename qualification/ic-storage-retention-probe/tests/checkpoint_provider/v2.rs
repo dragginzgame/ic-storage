@@ -32,16 +32,16 @@ fn checkpoint(bytes: &[u8], values: &[u64], counter: u64, epoch: u64) {
 async fn version_two_recovers_full_capacity_and_preserves_failed_imports() {
     let a = artifacts::input("a");
     let b = artifacts::input("b");
-    let owner = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .expect("prepare server with make retention-setup")
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_application_subnet()
-                .with_max_request_time_ms(Some(30_000)),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_application_subnet()
+        .with_max_request_time_ms(Some(30_000))
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     for count in [0, 17, 512] {
         let id = install(pic, &a).await;
         update(pic, id, "fill", &[count, 1000]).await;
@@ -100,5 +100,5 @@ async fn version_two_recovers_full_capacity_and_preserves_failed_imports() {
         update(pic, id, "damage_checkpoint", &[mode]).await;
         refused(pic, id, &b, &[8, 0]).await;
     }
-    owner.close().await;
+    instance.drop().await;
 }

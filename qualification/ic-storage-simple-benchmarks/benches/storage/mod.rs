@@ -2,7 +2,7 @@
 
 use std::{cell::RefCell, convert::Infallible};
 
-use ic_platform_runtime::ic0;
+use ic_platform_runtime::raw as ic0;
 use ic_storage::{
     AllocationGrants, DefaultMemoryImpl, GenericAllocationPolicy, MemoryAuthority, MemoryRequest,
     MemoryRuntime, SealedDeclarationSnapshot, StableKey,
@@ -80,10 +80,10 @@ extern "C" fn init() {
 #[unsafe(export_name = "canister_update bench_run")]
 extern "C" fn bench_run() {
     let (operation, batch) = wire::request();
-    let start = ic0::performance_counter(0);
+    let start = ic0::instruction_counter();
     let result =
         STATE.with(|slot| run(slot.borrow_mut().as_mut().unwrap(), operation, batch).unwrap());
-    let instructions = ic0::performance_counter(0) - start;
+    let instructions = ic0::instruction_counter() - start;
     wire::reply(&[instructions, result]);
 }
 

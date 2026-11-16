@@ -1,7 +1,7 @@
 //! Governed record-vector checkpoint bridge; only scalar fields cross domains.
 
 use crate::provider::record_vector_cell as cell;
-use ic_platform_runtime::ic0;
+use ic_platform_runtime::raw as ic0;
 use ic_storage_native_feasibility::checkpoint::record_vector as codec;
 #[cfg(feature = "native-record-vector-v2")]
 use ic_storage_native_feasibility::record::V2 as Record;

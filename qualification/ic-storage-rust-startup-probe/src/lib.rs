@@ -1,4 +1,4 @@
-//! Allocation-free startup fixture using Platform's IC0-only binding path.
+//! Allocation-free startup fixture using Platform's synchronous system-raw binding path.
 //!
 //! The dependency graph links std. No general heap or persistent Rust references
 //! are used. The host admits the final module and installs its Wasm bootstrap.
@@ -6,7 +6,7 @@
 use std::hint::black_box;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use ic_platform_runtime::ic0;
+use ic_platform_runtime::raw as ic0;
 
 #[cfg(feature = "managed-graph")]
 mod graph;

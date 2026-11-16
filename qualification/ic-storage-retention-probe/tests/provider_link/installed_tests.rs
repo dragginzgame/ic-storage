@@ -1,12 +1,9 @@
 //! Execute only the admitted fixed-scalar foreign-allocation contract.
 
 use ic_storage_retention_probe::artifact::sha256_hex;
-use std::{fs, time::Duration};
+use std::fs;
 
-use ic_testkit::{
-    pic::PocketIcStartupConfig,
-    pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking::PocketIc},
-};
+use ic_testkit::pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking::PocketIc};
 
 use super::{
     artifact::{self, Profile},
@@ -77,17 +74,16 @@ async fn scalar_access_settlement_upgrade_and_rollback() {
         );
         bytes
     };
-    let config = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .expect("prepare the server explicitly with make retention-setup");
-    let owner = config
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_max_request_time_ms(Some(30_000))
-                .with_application_subnet(),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_max_request_time_ms(Some(30_000))
+        .with_application_subnet()
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     let id = pic.create_canister().await;
     pic.install_canister(id, candidate(Profile::A), vec![], None)
         .await;
@@ -142,5 +138,5 @@ async fn scalar_access_settlement_upgrade_and_rollback() {
     rejected_update(pic, corrupt, "native_write").await;
     rejected_upgrade(pic, corrupt, candidate(Profile::B)).await;
     assert_eq!(observe(pic, corrupt).await, [1, 1, 1, 17, 0]);
-    owner.close().await;
+    instance.drop().await;
 }

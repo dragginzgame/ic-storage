@@ -193,6 +193,14 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
             callbacks.contains(&"record_schema")
         );
         assert_eq!(
+            result.exports.contains_key("checkpoint_restore_narrow"),
+            callbacks.contains(&"record_schema")
+        );
+        assert_eq!(
+            result.exports.contains_key("checkpoint_restore_widen"),
+            callbacks.contains(&"record_schema")
+        );
+        assert_eq!(
             result.exports.contains_key("checkpoint_widen"),
             callbacks.contains(&"record_schema")
         );
@@ -230,6 +238,8 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
                     | "checkpoint_create"
                     | "checkpoint_export"
                     | "checkpoint_restore"
+                    | "checkpoint_restore_widen"
+                    | "checkpoint_restore_narrow"
                     | "checkpoint_bytes"
                     | "checkpoint_damage"
                     | "checkpoint_cancel"
@@ -361,6 +371,8 @@ impl Reencode for Mapping {
 pub(super) enum Post {
     Refuse,
     Recover,
+    RecoverWiden,
+    RecoverNarrow,
     Reopen,
     Frozen,
     Stage,
@@ -560,6 +572,16 @@ pub(super) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
                 Post::Recover => vec![
                     ncall("ncp_fresh"),
                     pcall("checkpoint_restore"),
+                    ncall("__bridge_post"),
+                ],
+                Post::RecoverNarrow => vec![
+                    ncall("ncp_fresh"),
+                    pcall("checkpoint_restore_narrow"),
+                    ncall("__bridge_post"),
+                ],
+                Post::RecoverWiden => vec![
+                    ncall("ncp_fresh"),
+                    pcall("checkpoint_restore_widen"),
                     ncall("__bridge_post"),
                 ],
                 Post::ConvertVector => vec![

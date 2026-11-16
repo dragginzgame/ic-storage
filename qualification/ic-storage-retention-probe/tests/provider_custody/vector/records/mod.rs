@@ -1,13 +1,8 @@
 //! Installed record-element metadata protocol, reusing vector custody transitions.
 //! No Rust record, allocator or vector executes inside these WAT canisters.
 
-use std::time::Duration;
-
 use ic_storage_retention_probe::artifact::{compile_wat, validate_wasm};
-use ic_testkit::{
-    pic::PocketIcStartupConfig,
-    pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking::PocketIc},
-};
+use ic_testkit::pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking::PocketIc};
 
 use super::{admit, install, record, stopped_hash, update};
 
@@ -85,16 +80,16 @@ async fn rejected_upgrade(pic: &PocketIc, id: CanisterId, target: &[u8]) {
 
 #[tokio::test(flavor = "current_thread")]
 async fn record_elements_preserve_schema_values_and_custody_across_upgrades() {
-    let config = PocketIcStartupConfig::from_env(Duration::from_secs(30)).unwrap();
-    let owner = config
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_max_request_time_ms(Some(30_000))
-                .with_application_subnet(),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_max_request_time_ms(Some(30_000))
+        .with_application_subnet()
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     let b = candidate(2, (3, 4), false, "nop", true);
     for root in [(0, 0), (0, 8), (3, 4), (16, 16)] {
         let a = candidate(1, root, false, "nop", true);
@@ -156,21 +151,21 @@ async fn record_elements_preserve_schema_values_and_custody_across_upgrades() {
         update(pic, id, "append").await;
         assert_eq!(observe(pic, id).await.values(), [(101, 1000)]);
     }
-    owner.close().await;
+    instance.drop().await;
 }
 
 #[tokio::test(flavor = "current_thread")]
 async fn record_element_corruption_refuses_at_destination_without_source_guard() {
-    let config = PocketIcStartupConfig::from_env(Duration::from_secs(30)).unwrap();
-    let owner = config
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_max_request_time_ms(Some(30_000))
-                .with_application_subnet(),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_max_request_time_ms(Some(30_000))
+        .with_application_subnet()
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     let b = candidate(2, (3, 4), false, "nop", true);
     let mut faults: Vec<_> = SCHEMA
         .iter()
@@ -226,5 +221,5 @@ async fn record_element_corruption_refuses_at_destination_without_source_guard()
     super::rejected_upgrade(pic, scalar, &b).await;
     let records = install(pic, b).await;
     rejected_upgrade(pic, records, &scalar_module).await;
-    owner.close().await;
+    instance.drop().await;
 }

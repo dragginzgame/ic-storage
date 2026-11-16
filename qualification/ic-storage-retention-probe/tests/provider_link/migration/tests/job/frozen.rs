@@ -147,16 +147,16 @@ async fn frozen_sources_survive_compatible_upgrades_without_releasing_writes() {
     let reopen = save(prepare_job(&raw, &bridge, false, (0, 0), false));
     let recover_a = save(prepare_job(&raw, &bridge, false, (0, 0), true));
     let recover_b = save(prepare_job(&raw, &bridge, true, (0, 0), true));
-    let owner = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .unwrap()
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_application_subnet()
-                .with_max_request_time_ms(Some(30_000)),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_application_subnet()
+        .with_max_request_time_ms(Some(30_000))
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     for root in [(3, 4), (0, 0), (512, 512)] {
         let id = pic.create_canister().await;
         pic.set_controllers(id, None, vec![CanisterId::anonymous(), id])
@@ -237,5 +237,5 @@ async fn frozen_sources_survive_compatible_upgrades_without_releasing_writes() {
         }
         refused_resume(pic, id, &frozen_a, args(1, 147456, 0), message).await;
     }
-    owner.close().await;
+    instance.drop().await;
 }

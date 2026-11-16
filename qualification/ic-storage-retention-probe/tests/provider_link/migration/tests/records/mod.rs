@@ -5,13 +5,11 @@ use super::{
 };
 use crate::installed_tests::{stopped_hash, update};
 use ic_storage_retention_probe::artifact::{sha256, sha256_hex, validate_wasm};
-use ic_testkit::{
-    pic::PocketIcStartupConfig,
-    pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking::PocketIc},
-};
-use std::time::Duration;
+use ic_testkit::pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking::PocketIc};
 
 mod narrow;
+mod portable_narrow;
+mod portable_widen;
 mod updates;
 mod widen;
 
@@ -180,16 +178,16 @@ async fn installed_conversion_rollback_and_portable_recovery() {
         );
         bytes
     };
-    let owner = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .unwrap()
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_application_subnet()
-                .with_max_request_time_ms(Some(30_000)),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_application_subnet()
+        .with_max_request_time_ms(Some(30_000))
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     let convert = candidate(false, (0, 0), 2, Post::Convert);
     let reopen = candidate(false, (0, 0), 2, Post::Reopen);
     let recover = candidate(true, (0, 0), 2, Post::Recover);
@@ -296,5 +294,5 @@ async fn installed_conversion_rollback_and_portable_recovery() {
         assert_ne!(query(pic, id, "checkpoint_bytes").await, before);
         refused(pic, id, &recover, args(9, 0), false).await;
     }
-    owner.close().await;
+    instance.drop().await;
 }

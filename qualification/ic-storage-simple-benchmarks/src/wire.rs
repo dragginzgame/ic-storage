@@ -1,6 +1,6 @@
 //! Fixed little-endian benchmark protocol; no Candid or heap allocation in timing.
 
-use ic_platform_runtime::ic0;
+use ic_platform_runtime::raw as ic0;
 
 /// Read exactly two u64 words. Invalid requests trap before a timer starts.
 #[must_use]

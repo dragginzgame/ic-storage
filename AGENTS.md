@@ -7,7 +7,7 @@ on hold. Do not modify that repository as part of this experiment. This research
 repository was renamed from `ic-storage-new` to `ic-storage` on 2026-11-16.
 
 This repository adopts [TOKO-TOOLING.md](TOKO-TOOLING.md) and its revision-bound
-references. The canonical exporter owns the Toko 0.44.5 snapshot under
+references. The canonical exporter owns the Toko 0.44.6 snapshot under
 `vendor/toko-tooling/` and `.toko-tooling.snapshot`. Product scope and the commands
 below are consumer-owned choices within that baseline; no policy exceptions are
 claimed. Installation alone does not establish native host or product

@@ -17,11 +17,19 @@ pub(super) fn prepare(
     assert!(matches!(schema, 1..=3));
     assert!(matches!(
         post,
-        Post::Reopen | Post::Convert | Post::Narrow | Post::Widen | Post::Recover
+        Post::Reopen
+            | Post::Convert
+            | Post::Narrow
+            | Post::Widen
+            | Post::Recover
+            | Post::RecoverWiden
+            | Post::RecoverNarrow
     ));
     assert!(post != Post::Convert || schema == 2);
     assert!(post != Post::Narrow || schema == 3);
-    assert!(post != Post::Widen || schema == 2);
+    assert!(!matches!(post, Post::Widen | Post::RecoverWiden) || schema == 2);
+    assert!(post != Post::RecoverNarrow || schema == 3);
+    assert!(!matches!(post, Post::RecoverWiden | Post::RecoverNarrow) || root == (0, 0));
     let source_schema = match post {
         Post::Convert => 1,
         Post::Narrow => 2,

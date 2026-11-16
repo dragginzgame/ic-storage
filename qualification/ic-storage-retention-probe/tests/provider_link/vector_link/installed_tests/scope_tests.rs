@@ -22,16 +22,16 @@ async fn callback_errors_and_forgotten_views_finalize_custody_across_upgrades() 
         );
         bytes
     };
-    let owner = PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .unwrap()
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_application_subnet()
-                .with_max_request_time_ms(Some(30_000)),
-        )
-        .await
-        .unwrap();
-    let pic = owner.instance();
+    let server = std::env::var("IC_TESTKIT_POCKET_IC_URL").expect(
+        "run with the prepared server via make retention-setup and the selected test target",
+    );
+    let instance = PocketIcBuilder::new()
+        .with_application_subnet()
+        .with_max_request_time_ms(Some(30_000))
+        .with_server_url(server.parse().expect("valid prepared server URL"))
+        .build_async()
+        .await;
+    let pic = &instance;
     let a = candidate(Profile::A);
     let b = candidate(Profile::B);
     for root in [(0, 0), (0, 8), (3, 3), (3, 4), (512, 512)] {
@@ -97,5 +97,5 @@ async fn callback_errors_and_forgotten_views_finalize_custody_across_upgrades() 
         assert_eq!(reused.values(), [1]);
         upgrade(pic, id, &b, 2).await;
     }
-    owner.close().await;
+    instance.drop().await;
 }

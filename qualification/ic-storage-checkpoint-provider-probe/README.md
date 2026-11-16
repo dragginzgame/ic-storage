@@ -12,6 +12,9 @@ The separate `native-record` feature reuses the scalar bridge for
 [installed record conversion and versioned checkpoints](../ic-storage-native-feasibility/records.md#installed-record-profile).
 It includes explicit V1→V2 field addition, checked V2→V3 narrowing and exact
 V3→V2 widening; conversion policy is bound by the selected upgrade artifact.
+A separate portable widening entry accepts only V3 checkpoints and constructs
+fresh V2 state after heap replacement. The portable narrowing entry requires V2
+and checks u32 range before constructing V3. Ordinary recovery remains schema-exact.
 Run `make native-record-test`. Select it separately from `native-job`; the job
 profile remains schema 1 and takes precedence when both features are enabled.
 
@@ -158,3 +161,66 @@ shares `provider.rs` and the codec while selecting scalar callbacks instead of
 ordinary Global-owned application state. It exports inside the canister and
 reconstructs under a relocated native domain; the host does not copy observed
 values into the target. Ordinary-profile evidence above keeps its original scope.
+
+## Platform Runtime adoption (16 November 2026)
+
+Runtime 0.23.11 supplies the synchronous surface requested in
+[Platform #6](https://github.com/dragginzgame/ic-platform/issues/6).
+Our three direct consumers select only `system-raw`, defaults disabled, and use
+`ic_platform_runtime::raw`. Argument/caller copies, live controller checks,
+raw append/reply and byte traps retain their signatures; benchmarks use
+`instruction_counter()` for IC performance counter zero. Exports, buffers,
+authorization, reply ownership and upgrade hooks remain consumer-owned. No
+executor, callback registry, futures or initialization requirement is introduced.
+
+The registry archive SHA-256 is
+`4dc0059577167175de70e44128d415b772d9d20f3276cb3d8aeb09b01448ec09`,
+matching the official crates.io index. The published source identifies commit
+`cbbf26ade6644ed6fbcadfe3ccbafe809c362f25`; its
+[supplier contract and qualification](https://github.com/dragginzgame/ic-platform/blob/cbbf26ade6644ed6fbcadfe3ccbafe809c362f25/docs/qualification/runtime-storage.md)
+distinguishes raw synchronous calls from executor-managed replies.
+
+The frozen published Storage 0.74.1 checkpoint oracle still selects Runtime
+0.22.5 with only `ic0`. Its stable-memory binding calls share neither Runtime
+Rust types nor executor state with our 0.23.11 raw calls. Dependency checks admit
+two Runtime identities only in the checkpoint and Storage benchmark graphs;
+the startup graphs still require one. All retain the prohibitions on the Platform
+facade, Types, singleton guard and Toko Tooling. This does not modify the legacy
+repository or assert that its transitive dependency has been upgraded.
+
+The earlier 0.23.9 resolver refusal remains historical evidence under
+`target/evidence/dependency-adoption/platform-0.23.9/`; that release omitted the
+required synchronous API. Its archive SHA-256 was
+`3b4f8c548f008420e4527abffc72663a29dc6712b00014d373b341ced0d74381`.
+The new direct selection removes that blocker and the proposed compatibility
+hold is no longer needed. Historical installed cohorts retain their original
+compiler and dependency scope.
+
+Focused consumer checks passed under Rust 1.100.0 with locked offline Cargo:
+`fmt-check`, `deps-check`, startup/managed-graph/benchmark/checkpoint Clippy,
+and freshly built installed startup (3 cases), managed graph (2 cases), and
+ordinary checkpoint (2 cases) checks. Provider cohorts each passed 18 raw
+artifact checks plus their selected cases:
+
+| Scope | Evidence under `target/evidence/provider-link/` | Selected cases |
+| --- | --- | --- |
+| Native checkpoint | `attempt.w2TDQH` | 4 |
+| Scalar records, retained and portable conversion | `attempt.zP4I9Z` | 7 |
+| Record vectors | `attempt.FgnOOU` | 10 |
+| Scalar governed jobs | `attempt.RpCepx` | 7 |
+| Record-vector governed jobs | `attempt.DgXVFl` | 5 |
+
+All cohorts have completion markers. The latter two include authorization,
+restart/cancellation and seeded migration histories. Record-vector codec tests
+and migration-job state-machine tests also pass. Adoption logs, supplier contract,
+registry observation, selected graphs and locks are retained under
+`target/evidence/dependency-adoption/platform-0.23.11/`.
+
+The final benchmark cohort `target/evidence/simple-benchmarks/1794847479348/`
+contains 216 validated samples and records both Runtime versions. The preliminary
+cohort `1794847453508` passed but retained the old hardcoded Runtime report label;
+use the final cohort for adoption provenance. Compared with historical cohort
+`1794757137285`, complete uncompressed managed/Storage Wasm sizes are
+36,878/136,314 bytes (previously 36,870/136,132); complete code-section sizes remain
+34,265/105,199 bytes. This bounds observed artifact cost for these fixtures and
+is not a general performance or production-persistence claim.

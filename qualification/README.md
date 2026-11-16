@@ -70,12 +70,22 @@ digests. `wat` stays in the 1.263 patch line alongside the selected 0.263 parser
 and encoder. `make retention-lint` runs its focused contract tests. The provider
 collector retains these shared host sources along with the calling test sources.
 
-The simulator remains on `ic-testkit` 0.106.0 and its prepared server CLI. Its
-transitive Artifacts/FS/Process 0.79 dependencies remain locked to that supplier;
-this migration removes direct legacy Host use but does not migrate Testkit's
-server lifecycle or claim a completely legacy-free graph. The new Host byte API
-has no gzip or simulator CLI replacement. Do not force incompatible Host versions
-into Testkit or add direct FS/Process dependencies that these callers do not use.
+The simulator library now selects `ic-testkit` 0.107.1, retaining the original
+PocketIC 16.1.0 client/type identity with defaults only. Its removed startup
+wrapper is replaced by caller-owned `PocketIcBuilder` construction with the
+mandatory `IC_TESTKIT_POCKET_IC_URL` supplied by the prepared launcher. Missing
+or malformed configuration fails before client construction; tests never fall
+back to downloading or spawning a server. Callers retain their existing request
+limits and manual progression and await instance deletion explicitly.
+
+The existing `ic-testkit-server` 0.106.0 executable remains a separately pinned
+tool in Makefile, prepared through Toko's canonical installer. Testkit 0.107.1
+ships no CLI; its supplier qualification likewise uses an external server session.
+The tool owns server startup/shutdown, while each test owns its instance. This
+pin is tooling infrastructure, not a second Testkit library or SDK wrapper in the
+qualification graph. The new library graph removes legacy Host Artifacts/FS/
+Process 0.79 and Platform facade/Types edges; graph checks forbid those dependencies
+and unused held-reply fixtures in our selected Testkit profile.
 
 The 0.80.1 migration passed the artifact contract tests, strict runner/benchmark
 Clippy, dependency pins/graph boundaries and Rustdoc. Installed retention,
@@ -120,8 +130,8 @@ cargo fetch --manifest-path qualification/Cargo.toml --locked
 make retention-setup
 ```
 
-The setup target selects the Testkit executable from this workspace's lockfile
-through Toko's canonical installer, then prepares its pinned server asset.
+The setup target selects the explicit launcher version in Makefile through
+Toko's canonical installer, then prepares its pinned PocketIC 16.1.0 server asset.
 No test downloads a server, installs tools or updates a lockfile.
 
 ```sh
@@ -133,9 +143,10 @@ make retention-test
 Build output belongs under `target/qualification/`; raw experimental output
 belongs under `target/evidence/`. `make fmt` and `make fmt-check` include this
 workspace. `make deps-list` and `make deps-update` discover it through Toko's
-canonical inventory. The qualification catalog selected the latest stable,
-non-yanked registry releases on 15 November 2026: Testkit 0.106.0, Host Artifacts
-0.79.0 and Tokio 1.54.1. Tooling remains the admitted exact 0.44.5 pin.
+canonical inventory. Testkit 0.107.1 was verified as the latest stable, non-yanked
+release on 16 November 2026. The lock selects Host Artifacts 0.80.2 and Tokio
+1.54.1; Tooling remains the admitted exact 0.44.6 pin. Earlier evidence retains
+its original dependency versions.
 
 ## Evidence boundary
 
@@ -177,3 +188,44 @@ workloads. `make benchmark-simple` records 216 checked instruction measurements;
 it is opt-in and does not impose a CI timing threshold. Artifact admission is
 shared through the retention runner library, with a separate import/export
 profile for the benchmark canister.
+
+## Testkit 0.107.1 adoption (16 November 2026)
+
+The official crates.io index identifies the selected archive with SHA-256
+`a4fe4ea7882118e731ef1ebe8c668fc5dfa5252c1c972b1de68bc444868fae42`.
+Its source pin is `18198d6cfe6c097ef007a1a6a8b312c0a394e211`; the
+[supplier ownership contract](https://github.com/dragginzgame/ic-tooling/blob/18198d6cfe6c097ef007a1a6a8b312c0a394e211/docs/testkit-held-replies.md#purpose-and-ownership)
+assigns prepared servers, runtimes, instance lifetime and simulator progression
+to consumers. The selected default library graph is Testkit → PocketIC 16.1.0;
+no held-reply feature or new client wrapper is used here.
+
+All 43 existing instance owners now select the required prepared URL directly
+through the original PocketIC builder and await instance deletion. Preserve
+request limits, current-thread Tokio tests, manual progression and existing
+lifecycle assertions. Launcher version 0.106.0 and PocketIC server 16.1.0 remain
+separate explicitly prepared tools; `make retention-tools-check` admits them
+without installing anything during checks. Benchmark provenance records the
+library and launcher versions separately.
+
+Registry observation, verified checksum, lockfile, Makefile, setup and validation
+logs are retained under `target/evidence/dependency-adoption/testkit-0.107.1/`.
+
+Formatting, dependency boundaries, prepared-tool admission and focused host/Wasm
+Clippy passed. Installed retention (7 cases), startup (3), managed graph (2) and
+ordinary checkpoint (2) passed. Each provider cohort below passed 18 raw artifact
+checks plus its selected cases and wrote a completion marker:
+
+| Scope | Evidence under `target/evidence/provider-link/` | Selected cases |
+| --- | --- | --- |
+| Native provider lifecycle | `attempt.ZQrWtD` | 6 |
+| Native checkpoint | `attempt.aYiT4g` | 4 |
+| Scalar record conversion/recovery | `attempt.ixBPHB` | 7 |
+| Record-vector conversion/recovery | `attempt.gjHgy3` | 10 |
+| Scalar governed jobs | `attempt.CMtSLC` | 7 |
+| Record-vector governed jobs | `attempt.8L36ho` | 5 |
+
+Record-vector codec and migration-job state-machine checks also passed.
+`target/evidence/simple-benchmarks/1794848319644/` contains 216 validated samples
+with Testkit 0.107.1 and launcher 0.106.0 recorded separately. These are Linux
+consumer checks on the prepared simulator, not native macOS or production
+qualification. Earlier Platform/Testkit evidence retains its original scope.

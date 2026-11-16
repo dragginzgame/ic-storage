@@ -13,13 +13,14 @@ implementation consultation and makes no clean-room claim.
 
 ## Selected contract
 
-The canister uses Platform Runtime 0.22.5 with only `ic0`, defaults disabled.
-That owner currently links std. This experiment therefore selects a std-linked,
+The canister uses Platform Runtime 0.23.11 with only `system-raw`, defaults disabled.
+The fixture links std. This experiment therefore selects a std-linked,
 allocation-free path rather than claiming a no_std dependency graph. Its source
 uses scalar atomics, fixed stack buffers and replies, with no allocator, executor,
 callbacks, timers, Rust references into retained storage or stable-memory access.
-The normal dependency graph contains the fixture, Platform Runtime and its IC0
-supplier. The raw module must import exactly the two reply functions.
+The scalar normal dependency graph contains only the fixture and Platform Runtime.
+The raw module must import exactly the two reply functions. Platform's raw API
+is Wasm-only; installed checks own this canister's execution evidence.
 
 The only Rust unsafe constructs are narrowly expected export-name attributes:
 the fixture owns each IC endpoint symbol, and admission checks the exact export
