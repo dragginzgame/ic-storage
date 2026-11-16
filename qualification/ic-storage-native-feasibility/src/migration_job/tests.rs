@@ -274,3 +274,56 @@ fn staged_batch_sizes_can_change_only_at_the_current_cursor() {
         }
     }
 }
+
+#[test]
+fn restart_discards_only_unfinished_progress_and_preserves_checkpoint_binding() {
+    for values in [vec![], vec![7; 65], vec![9; 512]] {
+        let mut job = Job::initial(131072).unwrap();
+        assert_eq!(job.restart_import(131072, 131072, 0), Err(Error::State));
+        job = job.export(131072, 147456, 1, 41, &values).unwrap();
+        let sealed = job.encode().unwrap();
+        assert_eq!(job.restart_import(147456, 131072, 1), Err(Error::State));
+        assert_eq!(job.encode().unwrap(), sealed);
+        let mut cancelled = Job::decode(&sealed).unwrap();
+        cancelled.cancel(131072, 147456, 1).unwrap();
+        assert_eq!(
+            cancelled.restart_import(147456, 131072, 1),
+            Err(Error::State)
+        );
+        job.begin_import(147456, 131072, 1).unwrap();
+        let initial = job.encode().unwrap();
+        if !values.is_empty() {
+            job.batch(147456, 131072, 1, 0, 64).unwrap();
+        }
+        // Exercise a fresh reader of the durable progress, not just one live job.
+        job = Job::decode(&job.encode().unwrap()).unwrap();
+        let before = job.encode().unwrap();
+        for (target, source, epoch, error) in [
+            (131072, 131072, 1, Error::Domain),
+            (147456, 147456, 1, Error::Domain),
+            (147456, 131072, 2, Error::Epoch),
+        ] {
+            assert_eq!(job.restart_import(target, source, epoch), Err(error));
+            assert_eq!(job.encode().unwrap(), before);
+        }
+        let decoded = job.restart_import(147456, 131072, 1).unwrap();
+        assert_eq!(decoded.values, values);
+        assert_eq!(decoded.counter, 41);
+        assert_eq!(job.encode().unwrap(), initial);
+        job.restart_import(147456, 131072, 1).unwrap();
+        assert_eq!(job.encode().unwrap(), initial);
+        assert!(job.batch(147456, 131072, 1, 64, 64).is_err());
+        let mut offset = 0;
+        loop {
+            let batch = job.batch(147456, 131072, 1, offset, 64).unwrap();
+            assert!(!batch.retry, "pre-restart acknowledgement was retired");
+            if batch.complete {
+                break;
+            }
+            offset = batch.end;
+        }
+        let complete = job.encode().unwrap();
+        assert_eq!(job.restart_import(147456, 131072, 1), Err(Error::State));
+        assert_eq!(job.encode().unwrap(), complete);
+    }
+}

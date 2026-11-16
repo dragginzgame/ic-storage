@@ -11,6 +11,8 @@ use ic_testkit::{
 use super::super::installed_tests::{stopped_hash, update};
 use super::{Profile, admit_final, prepare};
 
+mod scope_tests;
+
 #[derive(Debug, PartialEq, Eq)]
 struct Snapshot {
     version: u64,

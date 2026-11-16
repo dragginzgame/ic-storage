@@ -268,8 +268,13 @@ Compile-fail tests reject view/reference/future escape, take/replace of the carr
 cloning and consuming iteration; runtime tests cover ordinary error semantics and
 allocation refusal through the real bounded provider allocator. Native claim,
 publication and panic/trap policy remain the runtime caller's responsibility.
-The installed caller is still a closed operation selector, not arbitrary
-application callbacks. This does not qualify owning elements or record conversion.
+The installed caller now exercises normal callback errors and forgotten scoped
+views across compatible upgrades. Earlier scalar writes and a successful append
+survive a normal error; full-capacity append refusal still preserves earlier
+writes. The runtime releases the actual owner and settles custody even after
+the view is forgotten. A later trap rolls back its whole IC message. This remains
+a closed operation selector, not arbitrary application callbacks, owning
+elements, native-host poisoning or record conversion.
 
 Keep allocator/kernel unsafe operations private and narrowly reviewed.
 The existing M0 crate continues to forbid unsafe Rust; adopting this direction
@@ -607,6 +612,15 @@ final batch publishes the native root and consumes the job. This proves bounded
 cross-message construction for one vector, not large-graph scalability: each
 step still reads/validates the complete checkpoint (at most 512 elements), and
 native-prefix verification and transient clearing have their own bounded costs.
+
+An explicit restart target now recovers unfinished imports by replacing the
+partial heap and resetting its cursor from the same validated independent
+checkpoint. It can skip a refusing old upgrade hook without interpreting native
+prefix data. Wrong bindings, corrupt checkpoints and already completed jobs
+refuse; initialization traps restore the prior module, heap and stable bytes.
+This bounded path preserves the existing target domain and permits no native
+writes or external effects during import. General recovery authority, graph
+identity and migration to a different target remain separate qualification work.
 
 This repository owns the checkpoint envelope, locator/adapter specification,
 source/target conformance fixtures and maintenance of the qualified reader

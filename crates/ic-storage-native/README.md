@@ -20,3 +20,6 @@ descriptors. Native owners and scalar record conversion remain runtime work.
 Run `make native-core-test` for host behavior and ownership compile-fail tests;
 `make native-provider-test` exercises the library through the installed provider.
 The existing checkpoint/job gates additionally exercise portable reconstruction.
+Installed scope cases cover normal callback errors, full-capacity refusal and
+forgotten views across compatible upgrades. They check settlement before reply
+and distinguish these outcomes from whole-message trap rollback.

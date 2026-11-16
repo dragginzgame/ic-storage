@@ -17,7 +17,7 @@ No Rust pointer, Vec header or allocator owner crosses between runtimes.
 Source A has its 4096-byte native allocation at 131072. Target B uses 147456.
 Both reconstruct transient std headers under the existing Region contract. The
 bridge-specific metadata format is 2 and includes one u64 counter at 65600.
-The counter is initialized to 41; the vector supports the existing six operations.
+The counter is initialized to 41; the vector supports the linked native operations.
 
 Checkpoint export validates and freezes the source, reads its logical values
 through checked scalar callbacks and publishes the complete envelope through

@@ -49,11 +49,12 @@
   (if (i32.ne (global.get $access_operation) (i32.const -1)) (then unreachable))
   (call $admit))
 
-;; Qualification-only corruption of an otherwise admissible construction prefix.
+;; Qualification-only corruption of a construction prefix. Mode 3 also makes
+;; its header inadmissible, so the old pre-upgrade hook must refuse.
 ;; Controller authorization is in the separate Rust diagnostic entrypoint.
 (func (export "ncp_stage_damage") (param $mode i32)
   (call $staged)
-  (if (i32.gt_u (local.get $mode) (i32.const 2)) (then unreachable))
+  (if (i32.gt_u (local.get $mode) (i32.const 3)) (then unreachable))
   (if (i64.eqz (i64.load (i32.const 65568))) (then unreachable))
   (if (i32.eqz (local.get $mode))
     (then
@@ -62,4 +63,6 @@
   (if (i32.eq (local.get $mode) (i32.const 1))
     (then (i64.store (i32.const 65600) (i64.xor (i64.load (i32.const 65600)) (i64.const 1)))))
   (if (i32.eq (local.get $mode) (i32.const 2))
-    (then (i64.store (i32.const 131072) (i64.xor (i64.load (i32.const 131072)) (i64.const 1))))))
+    (then (i64.store (i32.const 131072) (i64.xor (i64.load (i32.const 131072)) (i64.const 1)))))
+  (if (i32.eq (local.get $mode) (i32.const 3))
+    (then (i64.store (i32.const 65576) (i64.add (i64.load (i32.const 65568)) (i64.const 1))))))

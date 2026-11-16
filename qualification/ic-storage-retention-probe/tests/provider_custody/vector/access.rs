@@ -103,6 +103,20 @@ async fn access_helpers_bound_effective_ranges_and_refuse_uninitialized_reads() 
         &97_u64.to_le_bytes()
     );
 
+    // Error and forget operations may read/mutate existing words. Only the error
+    // path can initialize one extra word, and full capacity still allows edits.
+    for (root, operation, offset) in [((3, 4), 6, 24), ((512, 512), 6, 4088), ((3, 4), 7, 16)] {
+        let body = format!(
+            "(call $access_store_i64 (i32.const 131072) (i64.const 97) (i64.const {offset}))"
+        );
+        let id = install(pic, candidate(root, operation, true, &body)).await;
+        update(pic, id, "probe").await;
+        assert_eq!(
+            &observe(pic, id).await.payload[offset..offset + 8],
+            &97u64.to_le_bytes()
+        );
+    }
+
     for (root, operation, body) in [
         (
             (512, 512),
@@ -253,9 +267,57 @@ async fn access_helpers_bound_effective_ranges_and_refuse_uninitialized_reads() 
         ),
         (
             (3, 4),
-            6,
+            8,
             true,
             "(drop (call $access_load_i64 (i32.const 131072) (i64.const 0)))",
+        ),
+        (
+            (3, 4),
+            6,
+            true,
+            "(drop (call $access_load_i64 (i32.const 131096) (i64.const 0)))",
+        ),
+        (
+            (3, 4),
+            6,
+            true,
+            "(call $access_store_i64 (i32.const 131104) (i64.const 1) (i64.const 0))",
+        ),
+        (
+            (512, 512),
+            6,
+            true,
+            "(call $access_store_i64 (i32.const 135168) (i64.const 1) (i64.const 0))",
+        ),
+        (
+            (0, 0),
+            7,
+            true,
+            "(call $access_store_i64 (i32.const 131072) (i64.const 1) (i64.const 0))",
+        ),
+        (
+            (3, 4),
+            7,
+            true,
+            "(drop (call $access_load_i64 (i32.const 131096) (i64.const 0)))",
+        ),
+        (
+            (3, 4),
+            7,
+            true,
+            "(call $access_store_i64 (i32.const 131096) (i64.const 1) (i64.const 0))",
+        ),
+        (
+            (3, 4),
+            6,
+            true,
+            "(call $access_copy (i32.const 131072) (i32.const 131080) (i32.const 8))",
+        ),
+        (
+            (3, 4),
+            7,
+            true,
+            "(call $access_copy (i32.const 131072) (i32.const 131080) (i32.const 8))",
         ),
         (
             (3, 4),

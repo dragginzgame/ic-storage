@@ -24,6 +24,19 @@ pub(super) async fn replace_heap(
     target: &[u8],
     arguments: Vec<u8>,
 ) -> Result<(), RejectResponse> {
+    replace_heap_with_options(pic, id, target, arguments, false, None).await
+}
+
+// Recovery tests explicitly skip the old hook only after a checkpoint exists.
+// Management authorization still applies, including to the chunk-store calls.
+pub(super) async fn replace_heap_with_options(
+    pic: &PocketIc,
+    id: CanisterId,
+    target: &[u8],
+    arguments: Vec<u8>,
+    skip_pre_upgrade: bool,
+    sender: Option<CanisterId>,
+) -> Result<(), RejectResponse> {
     // The selected management DTO defaults persistence to Replace. Populate
     // the option explicitly: Upgrade(None) is forbidden for EOP canisters.
     let mut mode = CanisterInstallMode::Upgrade(Some(Default::default()));
@@ -31,14 +44,15 @@ pub(super) async fn replace_heap(
         unreachable!()
     };
     flags.wasm_memory_persistence = Some(Default::default());
+    flags.skip_pre_upgrade = Some(skip_pre_upgrade);
     assert_eq!(
         format!("{:?}", flags.wasm_memory_persistence),
         "Some(Replace)"
     );
-    pic.clear_chunk_store(id, None).await.unwrap();
-    let hash = pic.upload_chunk(id, None, target.to_vec()).await.unwrap();
+    pic.clear_chunk_store(id, sender).await?;
+    let hash = pic.upload_chunk(id, sender, target.to_vec()).await?;
     assert_eq!(hash, Sha256Digest::compute(target).as_bytes());
-    pic.install_chunked_canister(id, None, mode, id, vec![hash.clone()], hash, arguments)
+    pic.install_chunked_canister(id, sender, mode, id, vec![hash.clone()], hash, arguments)
         .await
 }
 

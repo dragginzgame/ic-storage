@@ -25,7 +25,7 @@ transient frame before claiming backing. This checks bounds, not initialization
 of stack slots or their Rust representations.
 
 Payload access requires a claimed phase, an unset settlement word and a selected
-operation in 0..=5. The header's full-width length/capacity is checked again before
+operation in 0..=7. The header's full-width length/capacity is checked again before
 length arithmetic. All other linear memory, including provider metadata and reply
 scratch, is inaccessible through these helpers. For old admitted length `L`, the
 payload windows start at 131072 and have these lengths:
@@ -38,6 +38,8 @@ payload windows start at 131072 and have these lengths:
 | 3: shrink | 0 | 0 |
 | 4: clear/shrink | 0 | 0 |
 | 5: destroy/reuse | 0 | 8 |
+| 6: mutate, try append, return business Err | `8*L` | `8*min(L+1,512)` |
+| 7: mutate and forget view | `8*L` | `8*L` |
 
 These are conservative windows for the reviewed u64-only operations, not proof
 that every operation writes its intended element. New writes do not enlarge the
@@ -81,8 +83,10 @@ one copy. The unresolved output is 1429 bytes with SHA-256
 `9330264d5230f7b23358eef05e7cba4c2a5611390358d96df9b7affecb1db7ac`.
 The passing eleven-check cohort and `vector/guarded.wasm` are under
 `target/evidence/provider-link/attempt.JIJ4Hv/`.
-The shared scoped-core build has 76 sites: 31 i32 loads, one byte load, one i64
-load, 36 i32 stores, two byte stores, four i64 stores and one copy. Its current
+The initial shared scoped-core build had 76 sites: 31 i32 loads, one byte load,
+one i64 load, 36 i32 stores, two byte stores, four i64 stores and one copy.
+The error/forget extension has 85 sites: 36 i32 loads, one byte load, two i64
+loads, 37 i32 stores, two byte stores, six i64 stores and one copy. Its current
 artifact and installed evidence are recorded under [vector linkage](vector-link.md).
 
 ## Installed helper evidence and remaining gate
@@ -111,7 +115,8 @@ guard checks alone never establish the loan or source initialization history.
 The trusted entrypoint must derive length/capacity from the admitted header,
 select the operation, call Rust, and settle the returned descriptor only after
 all Rust ownership has ended. It must reset the transient operation selector
-before replying. Failure must trap without local recovery. Guards cannot repair
+before replying. Guard, admission and finalization failures must trap without
+local recovery; normal callback errors still finalize preceding writes. Guards cannot repair
 Rust undefined behavior before code generation, certify aliases or replace the
 allocation contract. Their role is to enforce bounded machine accesses and make
 unexpected accesses fail during the bounded installed lifecycle experiment.

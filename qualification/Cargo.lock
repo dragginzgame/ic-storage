@@ -835,7 +835,7 @@ dependencies = [
 
 [[package]]
 name = "ic-storage-native"
-version = "0.1.10"
+version = "0.1.11"
 
 [[package]]
 name = "ic-storage-native-feasibility"
@@ -848,7 +848,7 @@ dependencies = [
 
 [[package]]
 name = "ic-storage-new"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "sha2 0.11.1",
 ]

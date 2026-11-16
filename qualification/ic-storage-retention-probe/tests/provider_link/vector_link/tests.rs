@@ -113,6 +113,15 @@ fn linked_vector_binds_guards_and_orders_custody_without_execution() {
             [run, 1]
         );
     }
+    for (operation, name, expected_calls) in [
+        (6, "vector_business_error", vec![run, 0, 1]),
+        (7, "vector_forget", vec![run, 1]),
+        (6, "vector_error_trap", vec![run]),
+    ] {
+        let entry = exports[format!("canister_update {name}").as_str()];
+        assert!(matches!(ops(entry)[0], Op::I32Const { value } if value == operation));
+        assert_eq!(calls(entry), expected_calls);
+    }
     // Full instruction sequence: admission precedes narrowing and native entry;
     // settlement consumes only returned bits, then operation resets to idle.
     use Op::*;
@@ -171,11 +180,11 @@ fn linked_vector_binds_guards_and_orders_custody_without_execution() {
         }
     }
     assert_eq!(guard_counts.len(), 7);
-    assert_eq!(guard_counts.values().sum::<u32>(), 76);
+    assert_eq!(guard_counts.values().sum::<u32>(), 85);
     let guards: Vec<_> = guard_counts.keys().copied().collect();
     assert_eq!(
         guard_counts.values().copied().collect::<Vec<_>>(),
-        [31, 1, 1, 36, 2, 4, 1]
+        [36, 1, 2, 37, 2, 6, 1]
     );
     let access = calls(guards[0])[0];
     for private in guards.iter().copied().chain([claim, settle, access, run]) {
@@ -193,7 +202,7 @@ fn linked_vector_binds_guards_and_orders_custody_without_execution() {
             .iter()
             .filter(|&&target| target >= first_rust)
             .count(),
-        2
+        4
     );
     for (kind, guard) in guards.iter().enumerate() {
         assert_eq!(

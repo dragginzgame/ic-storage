@@ -76,7 +76,7 @@ pub unsafe extern "C" fn provider_vector_step(
     operation: u32,
     value: u64,
 ) -> u64 {
-    if operation > 5 {
+    if operation > 7 {
         abort();
     }
     // SAFETY: the diagnostic caller's contract supplies one exclusive initialized
@@ -98,26 +98,49 @@ pub unsafe extern "C" fn provider_vector_step(
         drop(values);
         values = Vec::new_in(&controller);
     }
-    with_vector(&mut values, 512, |mut view| match operation {
-        0 => {
-            if let Some(first) = view.values_mut().first_mut() {
-                *first = first.wrapping_add(value);
+    let outcome = with_vector(&mut values, 512, |mut view| {
+        match operation {
+            0 | 7 => {
+                if let Some(first) = view.values_mut().first_mut() {
+                    *first = first.wrapping_add(value);
+                }
+                if operation == 7 {
+                    #[expect(
+                        clippy::forget_non_drop,
+                        reason = "qualify forgotten scoped views on IC"
+                    )]
+                    core::mem::forget(view);
+                }
             }
+            1 | 5 => {
+                view.push(value).unwrap_or_else(|_| abort());
+            }
+            2 => {
+                let _ = view.remove_first();
+            }
+            3 => view.shrink_to_fit(),
+            4 => {
+                view.clear();
+                view.shrink_to_fit();
+            }
+            6 => {
+                if let Some(first) = view.values_mut().first_mut() {
+                    *first = first.wrapping_add(value);
+                }
+                // A normal callback error preserves this mutation and any successful
+                // append. Allocation/limit refusal also leaves the preceding write.
+                view.push(value).map_err(|_| ())?;
+                return Err(());
+            }
+            _ => abort(),
         }
-        1 | 5 => {
-            view.push(value).unwrap_or_else(|_| abort());
-        }
-        2 => {
-            let _ = view.remove_first();
-        }
-        3 => view.shrink_to_fit(),
-        4 => {
-            view.clear();
-            view.shrink_to_fit();
-        }
-        _ => abort(),
+        Ok(())
     })
     .unwrap_or_else(|_| abort());
+    if outcome.is_err() != (operation == 6) {
+        abort();
+    }
+    // Finalize even for a normal callback error or a forgotten non-owning view.
     let root = controller.release(values).unwrap_or_else(|_| abort());
     ((root.length as u64) << 32) | root.capacity as u64
 }

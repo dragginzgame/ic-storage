@@ -64,11 +64,12 @@ available to this controller again and touches no payload. It does not return
 Wasm pages to the platform. Controller moves do not move the backing; there is
 no Clone equivalence, callback or unwinding allocator method.
 
-The six operations use ordinary Vec methods on u64 through the shared scoped
+The eight operations use ordinary Vec methods on u64 through the shared scoped
 core: mutate first, reserve/push,
-remove first, shrink, clear/shrink, and destroy/reallocate/push. Push writes before
+remove first, shrink, clear/shrink, destroy/reallocate/push, mutate/try-push with
+a normal callback error, and mutate/forget the scoped view. Push writes before
 publishing a longer prefix; removal preserves the surviving elements; clear and
-destruction invoke no application Drop. Partial allocation failure traps. Source
+destruction invoke no application Drop. Unexpected failures trap. Source
 code initializes all controller/Vec fields and stack values before reading them;
 retained stack bytes are never treated as old live Rust state.
 
@@ -98,7 +99,7 @@ restore the same amount through an unmodified local. An acyclic direct call
 graph supplies the maximum sum; early return, implicit-function-label branches,
 effects/control after restoration and unknown operators refuse. Plain numeric
 Select is admitted but cannot replace or bypass frame reservation/restoration.
-All 76 emitted memory sites call guards for this stack or the operation's payload
+All 85 emitted memory sites call guards for this stack or the operation's payload
 window. Helpers use Wasm locals, not Rust stack slots. These post-codegen guards
 enforce machine bounds; they cannot fix earlier Rust undefined behavior or prove
 initialization, aliasing or source identity. The argument above must hold first.
@@ -111,8 +112,15 @@ or destructor cleanup is attempted. Fault tests compare the complete header and
 payload and the installed module hash after refused upgrades. They do not claim
 that all transient scratch bytes are directly observed.
 
-Returning a business Err would not undo earlier writes. This fixture has no
-business-error API: reserve failures and invalid metadata trap. Native-host
+Returning a business Err does not undo earlier writes. Operation 6 changes the
+first scalar, attempts one append, then returns an ordinary callback Err even
+when the append succeeds. At full capacity append refuses but the first write
+still commits. Rust checks the expected error, releases the Vec and returns its
+descriptor; the WAT wrapper settles before replying with diagnostic code 1.
+Operation 7 mutates the first scalar then forgets the non-owning view; the runtime
+still owns and releases the Vec. A later trap rolls back that whole IC message,
+including preceding settled writes, but not earlier successful calls. Invalid
+metadata and unexpected errors still trap. Native-host
 poisoning, arbitrary Drop, shared/cyclic ownership and general installed application
 callbacks stay outside this subset. Capacity-reuse evidence is not platform-memory reclamation.
 

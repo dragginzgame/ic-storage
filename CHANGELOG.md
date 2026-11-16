@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.11] - 2026-11-16
+
+### 🧪 Testing
+
+- Exercise normal callback errors and forgotten scoped views through the installed
+  native vector. Preserve earlier writes and finalize custody before replying;
+  distinguish ordinary refusal from traps that roll back the whole IC message.
+- Add explicit checkpoint-based restart of unfinished staged imports after heap
+  replacement. Recover from damaged native prefixes without reading the old
+  heap, including when its upgrade hook refuses. Preserve checkpoint bindings;
+  reject completed jobs and corrupt checkpoints, and test restart rollback.
+
+### ▶️ Try it
+
+Run `make native-provider-test` for the installed scoped error and forget cases.
+Run `make native-job-test` with cached dependencies and the prepared local server
+for staged restart, recovery, refusal and rollback cases.
+
 ## [0.1.10] - 2026-11-16
 
 ### 🧪 Testing

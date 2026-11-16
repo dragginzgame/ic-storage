@@ -8,6 +8,49 @@ native imports. It now has an installed lifecycle under the separate
 This remains a closed qualification recipe, not a general linker, source
 authenticator or native-persistence admission.
 
+## Installed scope outcomes (0.1.11)
+
+On 16 November 2026, the closed native fixture added two scoped operations:
+mutate/try-append then return a normal callback Err, and mutate then forget the
+non-owning view. Rust verifies the expected outcome and releases the actual Vec;
+the WAT wrapper settles custody before replying. The error reply is diagnostic
+code 1, not an IC trap. A separate endpoint traps after the same settled operation
+to demonstrate whole-message rollback. No new retained representation is added.
+
+The installed scope suite covers five roots: empty, empty with spare capacity,
+growth from exact capacity, existing spare capacity and full 512-element capacity.
+It checks fifteen normal-error replies, twenty forgotten views, fifteen rollback
+cases and twenty compatible upgrades. It compares the complete payload and root,
+then clears, reallocates and reopens the vector. At full capacity, refused append
+preserves the preceding scalar write. Frozen/importing job tests refuse both new
+operations before exposing ordinary native access.
+
+The raw profile still has eight bodies, the same signatures and an 80-byte peak
+stack; the acyclic graph now has eleven direct internal edges. All 85 memory
+sites are guarded. Exact access inventory and added WAT boundary cases cover the
+new read/write windows, including spare reads, writes beyond the single append,
+full capacity and forbidden copies. The first artifact-only attempt stopped at
+the old access-count assertion; `attempt.gdgGaf` is preserved as failed evidence.
+
+On x86_64 Linux with Rust 1.100.0, `make native-provider-test` passed fourteen
+artifact checks and three installed suites (1.99 seconds) in
+`target/evidence/provider-link/attempt.bmbqrN/`. Principal artifacts are:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| Raw vector | 4891 | `6f217d37a40b20f947e1f86f7b75165ce801a529e61d49e059f2e46d24d47bd3` |
+| Guarded intermediate | 2094 | `74fbc13cac80ab51474dfd6a0af31cf170fa183d7d94429fe55e03fd304af638` |
+| Linked A | 4096 | `eaaf59a0bc887d7ec0e2b754213da85765c2e0acb5ff84c887287b555362ebca` |
+| Linked B | 4096 | `e9744d2d9015ce687177d87e1d65c9cef87355db5347ad1ec781e2600b1eaa5d` |
+
+All five installed retention/helper tests passed (1.47 seconds). Connected
+checkpoint checks passed in `attempt.x8CTtq` (four checks, 4.13 seconds). The final
+job cohort `attempt.CbyT3P` passed nine host job tests, fourteen artifact checks
+and six job checks (40.04 seconds), including the new frozen/importing refusals.
+Host/wasm lint and formatting passed. These results qualify fixed synchronous
+u64 operations, not arbitrary application callbacks, native-host poisoning,
+owning elements, general layout admission or hosted/macOS execution.
+
 ## Shared scoped core evidence (0.1.10)
 
 On 16 November 2026, the native fixture began using the unpublished
@@ -58,18 +101,19 @@ same module. Only the two existing IC reply imports remain.
 
 The fixed three-page memory is shared. Provider globals precede the Rust globals,
 and the raw Rust functions and compiler globals remain private. The transient
-stack is now bounded to 80 live bytes with 76 guarded Rust access sites for the
+stack is now bounded to 80 live bytes with 85 guarded Rust access sites for the
 shared scoped-core build; the original evidence below used 64 bytes and 49 sites. The
 retention marker is preserved; pre-link function-name metadata is discarded
 because its indices no longer describe the final artifact.
 
-The trusted WAT glue selects one of the six reviewed operations. It checks the
+The trusted WAT glue selects one of the eight reviewed operations. It checks the
 operation selector is idle, admits the full-width metadata and only then narrows
 length/capacity for Rust. Rust claims the same provider synchronously. No callback
 can change the descriptor between admission and claim. The returned u64 contains
 only length/capacity; the wrapper extracts these bits and settles after Rust has
-returned, then resets the operation selector before replying. Failures propagate
-as traps; there is no local catch or destructor-dependent custody recovery.
+returned, then resets the operation selector before replying. Normal callback
+errors preserve writes and still settle; unexpected failures propagate as traps.
+There is no local catch or destructor-dependent custody recovery.
 
 Pre-upgrade checks idle operation state before the existing provider checks.
 Post-upgrade first runs provider admission, then a zero-add native operation and
@@ -85,7 +129,7 @@ byte comparison and is recorded with the artifact digest.
 test alongside the existing diagnostics. The test independently follows the WAT
 provider's claim/settle calls and checks:
 
-- All seven guard bindings and all 76 current access sites, with no direct memory
+- All seven guard bindings and all 85 current access sites, with no direct memory
   instructions remaining in the Rust bodies.
 - Private Rust/claim/settle/access functions, correct global remapping, fixed
   memory and the sole retention marker; no data initializer, table or start.

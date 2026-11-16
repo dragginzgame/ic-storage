@@ -6,7 +6,8 @@ handles at `native.checkpoint.job.v1`; the original scalar checkpoint locator an
 version-1/2 logical checkpoint formats are unchanged. Source and target share
 the governed reader independently of discarded native memory.
 The [staged import extension](staged-import.md) adds an explicit version-2 job
-envelope and unpublished native construction across bounded updates/upgrades.
+envelope and unpublished native construction across bounded updates/upgrades,
+with explicit checkpoint-based restart after an interrupted import.
 
 ## Contract and bytes
 

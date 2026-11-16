@@ -32,12 +32,30 @@ fn validate(checkpoint: &Checkpoint, prefix: u32) {
 )]
 #[unsafe(no_mangle)]
 extern "C" fn checkpoint_stage() {
+    start(false);
+}
+
+#[expect(
+    unsafe_code,
+    reason = "private restart entry bound only to fresh-heap upgrade composition"
+)]
+#[unsafe(no_mangle)]
+extern "C" fn checkpoint_stage_restart() {
+    start(true);
+}
+
+fn start(restart: bool) {
     let [epoch, source, fault] = args();
     assert!(fault <= 1);
     super::fresh();
     let mut cell = job_cell(false);
     let mut job = Job::decode(cell.get()).unwrap();
-    let decoded = job.begin_import(domain(), source, epoch).unwrap();
+    let decoded = if restart {
+        job.restart_import(domain(), source, epoch)
+    } else {
+        job.begin_import(domain(), source, epoch)
+    }
+    .unwrap();
     stage_begin(decoded.counter);
     cell.set(job.encode().unwrap());
     if fault == 1 {
@@ -122,7 +140,14 @@ extern "C" fn checkpoint_stage_damage() {
     controller();
     let [mode, reserved, other] = args();
     assert_eq!([reserved, other], [0, 0]);
-    assert!(mode <= 2);
-    stage_damage(mode as u32);
+    assert!(mode <= 4);
+    if mode == 4 {
+        let mut cell = job_cell(false);
+        let mut bytes = cell.get().clone();
+        bytes[24] ^= 1;
+        cell.set(bytes);
+    } else {
+        stage_damage(mode as u32);
+    }
     ic0::msg_reply();
 }

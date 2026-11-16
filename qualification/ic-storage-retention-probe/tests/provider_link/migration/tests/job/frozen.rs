@@ -130,16 +130,20 @@ async fn resume(pic: &PocketIc, id: CanisterId, target: &[u8], epoch: u64, desti
     assert_eq!(query(pic, id, "observe").await, native);
     assert_eq!(pic.get_stable_memory(id).await, stable);
     assert_eq!(query(pic, id, "checkpoint_bytes").await, checkpoint);
-    let error = pic
-        .update_call(id, id, "vector_reuse", vec![])
-        .await
-        .unwrap_err();
-    assert!(matches!(
-        error.error_code,
-        ErrorCode::CanisterCalledTrap | ErrorCode::CanisterTrapped
-    ));
-    assert_eq!(query(pic, id, "observe").await, native);
-    assert_eq!(pic.get_stable_memory(id).await, stable);
+    for method in [
+        "vector_reuse",
+        "vector_business_error",
+        "vector_forget",
+        "vector_error_trap",
+    ] {
+        let error = pic.update_call(id, id, method, vec![]).await.unwrap_err();
+        assert!(matches!(
+            error.error_code,
+            ErrorCode::CanisterCalledTrap | ErrorCode::CanisterTrapped
+        ));
+        assert_eq!(query(pic, id, "observe").await, native);
+        assert_eq!(pic.get_stable_memory(id).await, stable);
+    }
 }
 
 #[tokio::test(flavor = "current_thread")]

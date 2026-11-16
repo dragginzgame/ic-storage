@@ -37,6 +37,17 @@
 (func (export "canister_update vector_reuse")
   (call $vector_run (i32.const 5) (global.get $version)) (call $reply))
 
+;; Rust verifies that operation 6 produced an ordinary callback Err, then returns
+;; the settled descriptor. Only after settlement do we reply with diagnostic 1.
+(func (export "canister_update vector_business_error")
+  (call $vector_run (i32.const 6) (global.get $version))
+  (i32.store (i32.const 0) (i32.const 1))
+  (call $reply_data (i32.const 0) (i32.const 4)) (call $reply))
+(func (export "canister_update vector_forget")
+  (call $vector_run (i32.const 7) (global.get $version)) (call $reply))
+(func (export "canister_update vector_error_trap")
+  (call $vector_run (i32.const 6) (global.get $version)) unreachable)
+
 ;; A failed second operation must roll back the preceding settled mutation in
 ;; the same IC transaction. Both paths use the admitted native entrypoint.
 (func (export "canister_update vector_trap")

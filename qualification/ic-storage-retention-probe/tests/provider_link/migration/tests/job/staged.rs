@@ -1,13 +1,13 @@
 use super::*;
 
-fn batch_args(epoch: u64, source: u64, offset: u64, limit: u64, fault: u64) -> Vec<u8> {
+pub(super) fn batch_args(epoch: u64, source: u64, offset: u64, limit: u64, fault: u64) -> Vec<u8> {
     [epoch, source, offset, limit, fault]
         .into_iter()
         .flat_map(u64::to_le_bytes)
         .collect()
 }
 
-fn progress(
+pub(super) fn progress(
     bytes: &[u8],
     phase: u16,
     source: u64,
@@ -40,7 +40,7 @@ fn progress(
     &bytes[64..64 + len]
 }
 
-async fn refused(
+pub(super) async fn refused(
     pic: &PocketIc,
     id: CanisterId,
     sender: CanisterId,
@@ -74,7 +74,7 @@ async fn retry(pic: &PocketIc, id: CanisterId, arguments: Vec<u8>) {
     assert_eq!(pic.get_stable_memory(id).await, stable);
 }
 
-async fn resume(pic: &PocketIc, id: CanisterId, wasm: &[u8], source: u64) {
+pub(super) async fn resume(pic: &PocketIc, id: CanisterId, wasm: &[u8], source: u64) {
     let native = query(pic, id, "observe").await;
     let stable = pic.get_stable_memory(id).await;
     pic.upgrade_eop_canister(id, wasm.to_vec(), args(1, source, 0), None)
@@ -177,6 +177,9 @@ async fn bounded_imports_resume_retry_and_publish_only_complete_vectors() {
                 "vector_shrink",
                 "vector_clear",
                 "vector_reuse",
+                "vector_business_error",
+                "vector_forget",
+                "vector_error_trap",
             ] {
                 refused(pic, id, id, method, vec![]).await;
             }

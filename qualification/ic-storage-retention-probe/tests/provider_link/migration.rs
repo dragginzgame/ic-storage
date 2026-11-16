@@ -108,6 +108,16 @@ fn prepare_staged_job(raw: &[u8], bridge: &[u8], relocated: bool, resume: bool) 
     bytes
 }
 
+fn prepare_restart_job(raw: &[u8], bridge: &[u8], relocated: bool) -> Vec<u8> {
+    let bytes = artifact::combine(
+        &native(raw, relocated, (0, 0), true),
+        bridge,
+        artifact::Post::Restart,
+    );
+    wasm::validate(&bytes, LIMIT).unwrap();
+    bytes
+}
+
 fn admit_final(
     bytes: &[u8],
     raw: &[u8],

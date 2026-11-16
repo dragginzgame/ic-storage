@@ -66,8 +66,8 @@ native owner exists while checkpoint Rust executes; subsequent application
 operations use the original admitted fresh-controller/raw-parts path. Ready
 upgrades and ordinary mutation work after completion. Importing forbids export,
 source cancellation and atomic recovery; losing or corrupting a prefix does not
-silently initialize or republish it. A separately qualified restart-from-checkpoint
-procedure after cutover remains future work.
+silently initialize or republish it. The explicit restart mode below can discard
+an unfinished prefix and reconstruct from its independent checkpoint.
 
 ## Compatible interruption
 
@@ -88,6 +88,40 @@ composer checks the WAT-only callback closure and bootstrap → transient reset 
 checkpoint-verifier ordering. A digest/geometry still does not authenticate an
 arbitrary executable.
 
+## Explicit restart after cutover
+
+A separately composed restart executable accepts only an Importing job at the
+exact epoch, source and compiled destination. The management upgrade explicitly
+selects Replace and `skip_pre_upgrade = true`. Skipping the old hook is deliberate:
+even a malformed native header may make that hook refuse. This path uses no old
+native descriptors, references, destructors or prefix values. Management controller
+authorization still applies; there is no application update that resets the heap.
+This fixture has no in-flight external effects and blocks native writes throughout
+Importing. Skipping hooks in other application phases is not qualified here.
+
+The destination's fresh-memory check runs before checkpoint Rust. Fresh governed
+handles locate and validate the complete job/checkpoint independently. Only then
+does it create an empty unpublished native prefix and reset durable progress to
+`(0, 0, 0)` in the same upgrade. The epoch, domains, counter and logical checkpoint
+remain unchanged. This adds a transition, not a new wire version or locator.
+A trap after native/stable initialization restores the prior module, damaged
+prefix and all stable bytes. Corrupt checkpoints refuse; restart cannot repair
+the independent recovery record itself.
+
+Repeated explicit restarts while Importing are permitted and discard all partial
+work again. Ordinary compatible resumption keeps that work. Restart invalidates
+the previous latest-batch acknowledgement: the next batch must begin at zero.
+An old offset-zero request can copy the same immutable checkpoint again after
+reset; it is not acknowledged as a prior committed batch. There are no external
+batch side effects or owning graph edges in this scalar fixture. A general job
+with those effects would require a separately specified attempt identity.
+
+Ready, Sealed, Cancelled and Consumed jobs refuse this mode. In particular,
+successful publication and subsequent application writes cannot be undone by
+replaying a restart. Restart remains within the already bound target domain;
+redirecting recovery to another runtime/domain needs a separate protocol.
+Keep mode refuses the nonempty retained header instead of clearing it.
+
 ## Bounds and qualification
 
 At most 64 native values are copied per batch, but **total work is not O(batch)**.
@@ -106,6 +140,10 @@ and all stable bytes. Diagnostic `damage_import` is controller-protected and
 deliberately changes native cursor, counter or first element without changing
 the valid checkpoint; both resume and continued batches must refuse. These
 diagnostics are qualification endpoints, not production recovery operations.
+The restart suite additionally damages the header's length/capacity relation
+(mode 3) and the independent job's integrity (mode 4). It tests empty, partial
+and full-capacity checkpoints in both domains, explicit hook skipping, unchanged
+state after refused/failed restarts, reconstruction and subsequent native reuse.
 
 ## Recorded evidence
 
@@ -138,3 +176,23 @@ stopped at WAT syntax validation before installed execution; that failed cohort
 is preserved and is not migration evidence. Existing historical cohorts retain
 their original meaning. This is local Linux qualification, not hosted CI,
 macOS execution, production authority or large-data performance evidence.
+
+### Restart evidence (0.1.11)
+
+On 16 November 2026, `make native-job-test` passed on x86_64 Linux with Rust
+1.100.0 and the prepared PocketIC server: nine host job tests, fourteen artifact
+checks and six job checks. The job phase took 37.29 seconds excluding preparation.
+The new suite completed fourteen explicit restarts and reconstructions in both
+allocation domains, including four inadmissible-header recoveries. Two corrupt
+checkpoint cases refused. Wrong mode/domain/epoch, unauthorized management
+access, post-publication replay and injected initialization failure preserved
+the observed native state, module hash and all stable bytes.
+
+Cohort `target/evidence/provider-link/attempt.RuI0DK/` retains the exact compiler,
+bridge, codec, composer, tests and candidate Wasm, plus `job.txt` and `COMPLETE`.
+Restart A is 137087 bytes with SHA-256
+`cd6f6503060514383949994ab2a3053466f0ce3bb36091eea8a308828c14a41e`;
+restart B is 137087 bytes with SHA-256
+`e48123fea3d09a1c06391700a33d045c326b32993e747aabc972c172c5dc1d77`.
+This evidence retains the earlier bounds and does not establish production
+recovery authority, arbitrary graph migration or hosted/macOS execution.

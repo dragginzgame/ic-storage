@@ -150,6 +150,7 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
         for name in [
             "checkpoint_stage",
             "checkpoint_stage_resume",
+            "checkpoint_stage_restart",
             "checkpoint_batch",
             "checkpoint_stage_damage",
         ] {
@@ -174,6 +175,7 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
                     | "checkpoint_resume"
                     | "checkpoint_stage"
                     | "checkpoint_stage_resume"
+                    | "checkpoint_stage_restart"
                     | "checkpoint_batch"
                     | "checkpoint_stage_damage"
             ));
@@ -273,6 +275,7 @@ pub(super) enum Post {
     Reopen,
     Frozen,
     Stage,
+    Restart,
     Importing,
 }
 
@@ -445,6 +448,7 @@ pub(super) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
                     pcall("checkpoint_resume"),
                 ],
                 Post::Stage => vec![ncall("ncp_fresh"), pcall("checkpoint_stage")],
+                Post::Restart => vec![ncall("ncp_fresh"), pcall("checkpoint_stage_restart")],
                 Post::Importing => vec![
                     ncall("__bridge_importing"),
                     reset_index,

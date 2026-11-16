@@ -17,15 +17,21 @@
     (then (return (i32.wrap_i64 (local.get $start)))))
   (if (i32.ne (global.get $phase) (i32.const 2)) (then unreachable))
   (if (i64.ne (i64.load (i32.const 65584)) (i64.const 0)) (then unreachable))
-  (if (i32.gt_u (global.get $access_operation) (i32.const 5)) (then unreachable))
+  (if (i32.gt_u (global.get $access_operation) (i32.const 7)) (then unreachable))
   (local.set $words (i64.load (i32.const 65568)))
   ;; Defensive shape check precedes length arithmetic, even under a claim.
   (call $shape (local.get $words) (i64.load (i32.const 65576)))
   (if (i32.and (i32.eqz (local.get $write))
-               (i32.ge_u (global.get $access_operation) (i32.const 3)))
+               (i32.and (i32.ge_u (global.get $access_operation) (i32.const 3))
+                        (i32.le_u (global.get $access_operation) (i32.const 5))))
     (then (local.set $words (i64.const 0))))
   (if (local.get $write)
     (then
+      ;; The business-error operation may append once or refuse at full capacity
+      ;; after mutating an existing scalar. It never reads the appended word.
+      (if (i32.and (i32.eq (global.get $access_operation) (i32.const 6))
+                   (i64.lt_u (local.get $words) (i64.const 512)))
+        (then (local.set $words (i64.add (local.get $words) (i64.const 1)))))
       (if (i32.eq (global.get $access_operation) (i32.const 1))
         (then
           (if (i64.eq (local.get $words) (i64.const 512)) (then unreachable))

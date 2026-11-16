@@ -89,6 +89,25 @@ impl Job {
         Ok(())
     }
 
+    /// Restart only an unfinished import from its independent checkpoint.
+    /// The adapter must discard the previous native heap explicitly and publish
+    /// a fresh empty prefix atomically with this reset. No old prefix is read.
+    /// Completed, cancelled and sealed jobs cannot use this recovery path.
+    pub fn restart_import(
+        &mut self,
+        target: u64,
+        source: u64,
+        epoch: u64,
+    ) -> Result<checkpoint::Checkpoint, Error> {
+        let (decoded, _) = self.importing(target, source, epoch)?;
+        self.progress = Some(Progress {
+            next: 0,
+            start: 0,
+            limit: 0,
+        });
+        Ok(decoded)
+    }
+
     /// Read durable importing state for complete native-prefix validation.
     pub fn importing(
         &self,
