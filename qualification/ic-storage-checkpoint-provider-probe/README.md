@@ -9,7 +9,7 @@ under `native.checkpoint.job.v1` for [durable migration admission](../ic-storage
 Its controller/epoch/consumption contract does not change the ordinary fixture.
 
 The separate `native-record` feature reuses the scalar bridge for
-[installed record conversion and checkpoint v3](../ic-storage-native-feasibility/records.md#installed-record-profile).
+[installed record conversion and versioned checkpoints](../ic-storage-native-feasibility/records.md#installed-record-profile).
 Run `make native-record-test`. Select it separately from `native-job`; the job
 profile remains schema 1 and takes precedence when both features are enabled.
 

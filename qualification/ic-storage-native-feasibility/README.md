@@ -12,7 +12,9 @@ integration-test kernel exercises an arena allocator under the explicit
 The [controlled record experiment](records.md) adds the first concrete scalar
 schema conversion and versioned portable recovery to host and installed fixtures.
 `make native-record-test` checks upgrade rollback and recovery while preserving
-the existing vector during conversion. Derive generation remains separate work.
+the existing vector during conversion. A derived V2 view supplies scalar getters and
+scoping; checked mutation and conversion policy stay explicit. Host poison and
+installed rollback/recovery checks exercise the generated view and field codec.
 
 `Host` owns the vector at all times. A frame offers scalar reads/writes,
 append/removal, a borrowed slice of initialized `u64` elements and explicit

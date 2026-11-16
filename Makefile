@@ -206,11 +206,13 @@ benchmark-simple: benchmark-simple-build
 	+@server="$$($(RETENTION_TOOL) --check)" && "$$server" run -- cargo run $(BENCH_CARGO) --example compare --target-dir target/qualification
 
 native-feasibility-lint:
+	+cargo clippy -p ic-storage-native-derive --all-targets --locked --offline -- -D warnings
 	+cargo clippy $(NATIVE_FEASIBILITY_CARGO) --all-targets -- -D warnings
 	+cargo clippy $(NATIVE_FEASIBILITY_CARGO) --example layout_probe --features layout-swapped -- -D warnings
 
 # Keep lint ordered before execution even when Make runs in parallel.
 native-feasibility-test: native-feasibility-lint
+	+cargo test -p ic-storage-native-derive --locked --offline
 	+cargo test $(NATIVE_FEASIBILITY_CARGO)
 
 native-layout-probe: native-feasibility-lint

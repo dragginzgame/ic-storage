@@ -10,6 +10,9 @@ use ic_testkit::{
 };
 use std::time::Duration;
 
+mod narrow;
+mod updates;
+
 fn inputs() -> (PathBuf, Vec<u8>, Vec<u8>) {
     let (directory, _) = super::super::super::input();
     let raw = fs::read(directory.join("vector/provider_vector.wasm")).unwrap();
@@ -33,13 +36,31 @@ fn logical(bytes: &[u8]) -> Vec<u64> {
 
 // Also compare record fields, which lie outside the legacy vector observation.
 async fn refused(pic: &PocketIc, id: CanisterId, target: &[u8], arguments: Vec<u8>, keep: bool) {
+    let fault = arguments
+        .get(8..16)
+        .map(|bytes| u64::from_le_bytes(bytes.try_into().unwrap()));
+    let message = match (keep, fault) {
+        (true, Some(1)) => Some("record conversion before publication"),
+        (true, Some(2)) => Some("record conversion after publication"),
+        (false, Some(1)) => Some("native restore fault after stable write"),
+        (false, Some(2)) => Some("native restore fault during construction"),
+        _ => None,
+    };
+    refused_with_message(pic, id, target, arguments, keep, message).await;
+}
+
+async fn refused_with_message(
+    pic: &PocketIc,
+    id: CanisterId,
+    target: &[u8],
+    arguments: Vec<u8>,
+    keep: bool,
+    message: Option<&str>,
+) {
     let native = query(pic, id, "observe").await;
     let record = query(pic, id, "observe_record").await;
     let stable = pic.get_stable_memory(id).await;
     let hash = stopped_hash(pic, id).await;
-    let fault = arguments
-        .get(8..16)
-        .map(|bytes| u64::from_le_bytes(bytes.try_into().unwrap()));
     let result = if keep {
         pic.upgrade_eop_canister(id, target.to_vec(), arguments, None)
             .await
@@ -54,13 +75,7 @@ async fn refused(pic: &PocketIc, id: CanisterId, target: &[u8], arguments: Vec<u
         ),
         "{error:?}"
     );
-    if let Some(fault @ (1 | 2)) = fault {
-        let message = match (keep, fault) {
-            (true, 1) => "record conversion before publication",
-            (true, _) => "record conversion after publication",
-            (false, 1) => "native restore fault after stable write",
-            (false, _) => "native restore fault during construction",
-        };
+    if let Some(message) = message {
         assert!(error.reject_message.contains(message), "{error:?}");
     }
     assert_eq!(stopped_hash(pic, id).await, hash);
@@ -74,80 +89,79 @@ async fn refused(pic: &PocketIc, id: CanisterId, target: &[u8], arguments: Vec<u
 #[ignore = "native-record-test supplies fresh compiler inputs"]
 fn conversion_artifact_orders_source_admission_before_rust() {
     let (_, raw, bridge) = inputs();
-    let bytes = prepare(&raw, &bridge, false, (0, 0), 2, Post::Convert);
-    let mut exports = std::collections::BTreeMap::new();
-    let mut bodies = Vec::new();
-    let mut imports = 0;
-    for payload in Parser::new(0).parse_all(&bytes) {
-        match payload.unwrap() {
-            Payload::ImportSection(r) => {
-                for import in r.into_imports() {
-                    assert_eq!(import.unwrap().module, "ic0");
-                    imports += 1;
+    for (schema, mode) in [(2, Post::Convert), (3, Post::Narrow)] {
+        let bytes = prepare(&raw, &bridge, false, (0, 0), schema, mode);
+        let mut exports = std::collections::BTreeMap::new();
+        let mut bodies = Vec::new();
+        let mut imports = 0;
+        for payload in Parser::new(0).parse_all(&bytes) {
+            match payload.unwrap() {
+                Payload::ImportSection(r) => {
+                    for import in r.into_imports() {
+                        assert_eq!(import.unwrap().module, "ic0");
+                        imports += 1;
+                    }
                 }
-            }
-            Payload::ExportSection(r) => {
-                for export in r {
-                    let export = export.unwrap();
-                    assert!(export.name == "memory" || export.name.starts_with("canister_"));
-                    exports.insert(export.name, export.index);
+                Payload::ExportSection(r) => {
+                    for export in r {
+                        let export = export.unwrap();
+                        assert!(export.name == "memory" || export.name.starts_with("canister_"));
+                        exports.insert(export.name, export.index);
+                    }
                 }
+                Payload::CodeSectionEntry(body) => bodies.push(body),
+                _ => {}
             }
-            Payload::CodeSectionEntry(body) => bodies.push(body),
-            _ => {}
         }
+        let calls = |index: u32| {
+            bodies[(index - imports) as usize]
+                .get_operators_reader()
+                .unwrap()
+                .into_iter()
+                .filter_map(|op| match op.unwrap() {
+                    Op::Call { function_index } => Some(function_index),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+        };
+        let init = calls(exports["canister_init"]);
+        let post = calls(exports["canister_post_upgrade"]);
+        assert_eq!((init.len(), post.len()), (2, 4));
+        assert!(post[0] > post[2] && post[3] > post[2]);
+        assert!(post[1] > post[0] && post[1] > post[3]);
+        assert_ne!(
+            post[0], init[0],
+            "source admission must not initialize retained state"
+        );
+        assert_ne!(
+            post[2], init[1],
+            "conversion must not create a checkpoint cell"
+        );
+        // Removing publication still produces valid Wasm; it is a different artifact.
+        let changed = crate::rewrite(&bytes, |module: &mut Module, id, data| {
+            if id != 10 {
+                module.section(&RawSection { id, data });
+                return;
+            }
+            let mut code = CodeSection::new();
+            for body in &bodies {
+                let mut copy = RoundtripReencoder;
+                let mut function = copy.new_function_with_parsed_locals(body).unwrap();
+                for op in body.get_operators_reader().unwrap() {
+                    let op = op.unwrap();
+                    if matches!(op, Op::Call { function_index } if function_index == post[2]) {
+                        function.instruction(&I::Nop);
+                    } else {
+                        function.instruction(&copy.instruction(op).unwrap());
+                    }
+                }
+                code.function(&function);
+            }
+            module.section(&code);
+        });
+        wasm::validate(&changed, LIMIT).unwrap();
+        assert_ne!(changed, prepare(&raw, &bridge, false, (0, 0), schema, mode));
     }
-    let calls = |index: u32| {
-        bodies[(index - imports) as usize]
-            .get_operators_reader()
-            .unwrap()
-            .into_iter()
-            .filter_map(|op| match op.unwrap() {
-                Op::Call { function_index } => Some(function_index),
-                _ => None,
-            })
-            .collect::<Vec<_>>()
-    };
-    let init = calls(exports["canister_init"]);
-    let post = calls(exports["canister_post_upgrade"]);
-    assert_eq!((init.len(), post.len()), (2, 4));
-    assert!(post[0] > post[2] && post[3] > post[2]);
-    assert!(post[1] > post[0] && post[1] > post[3]);
-    assert_ne!(
-        post[0], init[0],
-        "source admission must not initialize retained state"
-    );
-    assert_ne!(
-        post[2], init[1],
-        "conversion must not create a checkpoint cell"
-    );
-    // Removing publication still produces valid Wasm; it is a different artifact.
-    let changed = crate::rewrite(&bytes, |module: &mut Module, id, data| {
-        if id != 10 {
-            module.section(&RawSection { id, data });
-            return;
-        }
-        let mut code = CodeSection::new();
-        for body in &bodies {
-            let mut copy = RoundtripReencoder;
-            let mut function = copy.new_function_with_parsed_locals(body).unwrap();
-            for op in body.get_operators_reader().unwrap() {
-                let op = op.unwrap();
-                if matches!(op, Op::Call { function_index } if function_index == post[2]) {
-                    function.instruction(&I::Nop);
-                } else {
-                    function.instruction(&copy.instruction(op).unwrap());
-                }
-            }
-            code.function(&function);
-        }
-        module.section(&code);
-    });
-    wasm::validate(&changed, LIMIT).unwrap();
-    assert_ne!(
-        changed,
-        prepare(&raw, &bridge, false, (0, 0), 2, Post::Convert)
-    );
 }
 
 #[tokio::test(flavor = "current_thread")]

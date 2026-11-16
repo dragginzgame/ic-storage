@@ -835,7 +835,19 @@ dependencies = [
 
 [[package]]
 name = "ic-storage-native"
-version = "0.1.12"
+version = "0.1.13"
+dependencies = [
+ "ic-storage-native-derive",
+]
+
+[[package]]
+name = "ic-storage-native-derive"
+version = "0.1.13"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
 
 [[package]]
 name = "ic-storage-native-feasibility"
@@ -848,7 +860,7 @@ dependencies = [
 
 [[package]]
 name = "ic-storage-new"
-version = "0.1.12"
+version = "0.1.13"
 dependencies = [
  "sha2 0.11.1",
 ]

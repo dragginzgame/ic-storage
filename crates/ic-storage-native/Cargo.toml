@@ -14,5 +14,11 @@ toko-tooling.workspace = true
 [package.metadata.cargo-machete]
 ignored = ["toko-tooling"]
 
+[features]
+derive = ["dep:ic-storage-native-derive"]
+
+[dependencies]
+ic-storage-native-derive = { workspace = true, optional = true }
+
 [lints]
 workspace = true

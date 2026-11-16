@@ -9,6 +9,12 @@
 
 extern crate alloc;
 
+pub mod record;
+
+/// Declare a bounded scalar record; this does not grant persistence admission.
+#[cfg(feature = "derive")]
+pub use ic_storage_native_derive::Store;
+
 use alloc::vec::Vec;
 use core::alloc::Allocator;
 

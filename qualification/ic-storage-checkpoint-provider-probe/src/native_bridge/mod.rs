@@ -125,10 +125,10 @@ extern "C" fn checkpoint_damage() {
             bytes.pop().unwrap();
         }
         1 => bytes[80] ^= 1,
-        // Schema 2 is valid in the record profile, so use an unknown version.
+        // Record schemas 1–3 are valid, so use an unknown version.
         2 => {
             bytes[24] = if cfg!(feature = "native-record") {
-                3
+                255
             } else {
                 2
             }

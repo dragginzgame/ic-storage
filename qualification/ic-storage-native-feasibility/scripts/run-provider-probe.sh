@@ -35,14 +35,12 @@ cp -R qualification/ic-storage-retention-probe/tests/provider_custody/vector "$o
 cp qualification/ic-storage-native-feasibility/vector-provider-contract.md "$output/vector/"
 if [[ "$mode" == migration || "$mode" == job || "$mode" == record ]]; then
     cp -R qualification/ic-storage-checkpoint-provider-probe/src "$output/checkpoint-source"
-    cp -R qualification/ic-storage-native-feasibility/src/checkpoint "$output/checkpoint-codec"
-    cp qualification/ic-storage-native-feasibility/src/record.rs "$output/"
-    cp -R qualification/ic-storage-native-feasibility/src/record "$output/record-tests"
+    cp -R qualification/ic-storage-native-feasibility/src "$output/feasibility-source"
+    cp qualification/ic-storage-native-feasibility/Cargo.toml "$output/feasibility-source/"
+    cp -R crates/ic-storage-native-derive "$output/derive-source"
     cp qualification/ic-storage-checkpoint-provider-probe/Cargo.toml "$output/checkpoint-source/"
     cp qualification/ic-storage-native-feasibility/native-checkpoint-contract.md "$output/"
     if [[ "$mode" == job ]]; then
-        cp qualification/ic-storage-native-feasibility/src/migration_job.rs "$output/"
-        cp -R qualification/ic-storage-native-feasibility/src/migration_job "$output/migration-job-tests"
         cp qualification/ic-storage-native-feasibility/migration-job.md "$output/"
         cp qualification/ic-storage-native-feasibility/staged-import.md "$output/"
         cp target/qualification/checkpoint-job/wasm32-unknown-unknown/release/ic_storage_checkpoint_provider_probe.wasm "$output/checkpoint-job.wasm"

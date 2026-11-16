@@ -1,6 +1,41 @@
 # Changelog
 
-## [0.1.12] - Unreleased
+## [0.1.13] - Unreleased
+
+### ✨ Added
+
+- Add scoped access and checked updates for V2 scalar records, with host poison
+  handling and installed IC mutation, rollback and recovery checks.
+- Add an unpublished scalar-only `Store` derive for explicit schema/field IDs,
+  public-layout metadata, bounded logical codecs and scoped getters. Replace V1/V2
+  boilerplate with generated code while retaining explicit validation/conversion
+  and the existing checkpoint bytes. Reject unsupported fields and custom Drop.
+- Extend scalar declarations to u32/u64 with explicit field-kind metadata and
+  padding-free logical encoding. Add checked V2→V3 narrowing with installed
+  range refusal, publication rollback and recovery through checkpoint v4, keeping
+  the existing vector unchanged. Test logical widening separately on the host.
+- Qualify V3 padding rejection and independent checkpoint recovery after
+  discarding deliberately corrupted native metadata.
+
+### 🧪 Testing
+
+- Reject escaping record views at compile time. Exercise ordinary errors,
+  forgotten views, panic poisoning and checkpoint replacement on the host.
+- Preserve record updates across compatible reopening and portable recovery;
+  check ceiling/overflow refusals, frozen access and post-publication trap rollback
+  while leaving vector storage intact. Run `make native-record-test`.
+- Exercise generated codecs and views in those same host and installed paths;
+  preserve checkpoint golden bytes and verify field-ID ordering, scalar layout,
+  validation and compile-time rejection of unsupported declarations.
+
+### 📝 Design
+
+- Maintain one current pre-1.0 implementation. Qualification schema versions test
+  upgrades and refusal; they do not promise support for historical releases.
+
+## [0.1.12] - Development checkpoint
+
+Pushed as `f2516ff`; no release tag or package publication.
 
 ### ✨ Added
 

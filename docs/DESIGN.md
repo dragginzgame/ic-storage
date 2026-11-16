@@ -35,6 +35,15 @@ compiler portability and automatic compatibility discovery are not prerequisites
 for useful records, type declarations and application migrations. This narrows
 the compatibility promise without changing memory-safety obligations.
 
+Before 1.0, develop one current implementation; do not maintain historical product
+versions or promise compatibility across experimental releases. V1/V2/V3 labels
+in qualification fixtures identify application schemas used to test conversion,
+refusal and recovery, not supported release lines. Keep predecessor declarations
+only where an active qualification case needs them, and preserve historical
+evidence. Do not add adapters solely to support earlier pre-1.0 releases.
+Experimental APIs and formats may change; unknown or incompatible retained data
+must still be rejected rather than silently reset or misinterpreted.
+
 The product crate currently implements M0, a safe, byte-defined record model with
 a fixture-only live-memory kernel. Separate qualification fixtures now exercise
 bounded native-vector allocation, compatible upgrades and portable recovery.
@@ -172,12 +181,25 @@ now defines concrete V1/V2 payloads and an explicit counter/ceiling conversion.
 Host and installed IC tests preserve the unchanged vector, convert under explicit
 scalar metadata admission, and recover both record fields through a versioned
 checkpoint. The installed profile checks failed-upgrade rollback and fresh recovery
-in both allocation domains. General record ownership and derive support remain
-future work; the vector still contains only u64 elements.
+in both allocation domains. The first scalar-only Store derive now generates metadata, bounded logical
+field codecs and scoped getters for V1/V2. Checked mutation, validation and
+conversion remain application policy. Host and installed fixtures exercise the
+generated code, including confinement, poisoning, rollback and recovery. General
+record ownership remains future work, and the vector still contains only u64
+elements. See the [derive subset](../crates/ic-storage-native-derive/README.md).
+
+The derive also supports u32 fields with explicit scalar-kind metadata and packed
+logical encoding. V2→V3 counter narrowing now runs in the installed fixture,
+with checked range refusal, unchanged vector storage, publication rollback and
+portable recovery through checkpoint envelope v4. Its unchanged outer native
+size does not hide the changed field representation. Native admission checks
+V3's four-byte counter and canonical reserved word. Logical widening is tested
+on the host; an installed V3→V2 converter is not implemented.
 
 Use ordinary-looking Rust records with a derive-based persistence declaration
 as the intended application surface. The following syntax and collection names
-are illustrative, not implemented APIs or a decision to retain std Vec:
+are illustrative beyond the implemented scalar-only subset; owning fields and
+StoredVec are not implemented by the derive or a decision to retain std Vec:
 
 ```rust,ignore
 #[derive(Store)]

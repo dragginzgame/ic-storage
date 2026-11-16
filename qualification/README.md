@@ -27,8 +27,8 @@ The [governed job profile](ic-storage-native-feasibility/migration-job.md), run 
 staged import and explicit checkpoint-based restart of unfinished imports.
 
 The [record profile](ic-storage-native-feasibility/records.md), run with
-`make native-record-test`, adds installed V1→V2 scalar conversion, rollback and
-portable recovery while preserving the unchanged vector.
+`make native-record-test`, adds installed V1→V2 field addition and checked
+V2→V3 narrowing, rollback and portable recovery while preserving the vector.
 
 These fixtures cover M0 and a bounded native scalar/vector contract, including
 installed lifecycle and portable migration between two allocation domains.

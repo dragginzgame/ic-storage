@@ -119,6 +119,24 @@ impl ProviderHost {
             .map_err(Failure::Checkpoint)
     }
 
+    fn update_record<R>(
+        &mut self,
+        operation: impl for<'scope> FnOnce(record::V2View<'scope>) -> R,
+    ) -> Result<R, Failure> {
+        if self.poisoned {
+            return Err(Failure::Poisoned);
+        }
+        let Record::V2(value) = &mut self.record else {
+            return Err(Failure::RecordVersion);
+        };
+        // There is no vector loan and no record owner transfer. Keep poison
+        // outside the view so forgetting it cannot skip host finalization.
+        self.poisoned = true;
+        let result = value.store_with(operation);
+        self.poisoned = false;
+        Ok(result)
+    }
+
     fn convert(&mut self, ceiling: u64, fail_before_publish: bool) -> Result<(), Failure> {
         if self.poisoned {
             return Err(Failure::Poisoned);

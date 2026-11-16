@@ -110,6 +110,23 @@ the added field. The legacy installed checkpoint adapters and migration jobs sti
 reader. The separately selected [native-record profile](records.md#installed-record-profile)
 uses `decode_record` and admits V2 under its explicit metadata contract.
 
+## Record schema 3, envelope version 4
+
+The narrowing fixture explicitly selects envelope v4/schema 3. The header remains
+80 bytes and the complete bound stays 4216 bytes. Counter occupies bytes 56–59 as
+a little-endian u32; bytes 60–63 must be zero. Ceiling remains a little-endian u64
+at bytes 72–79. The writer adapts the generated 12-byte logical payload to those
+established envelope slots without copying native padding. All other identity,
+epoch, vector, ownership, seal and digest rules remain unchanged.
+
+`decode_record` requires the exact envelope/schema pairing and canonical reserved
+word, then validates integrity, epoch and counter ≤ ceiling before allocating
+the vector. The scalar is constructed fresh through its generated codec; oversized
+counter words are rejected, never truncated. `decode` still accepts only v1/v2
+and rejects v4. The selected installed destination also checks its expected schema;
+an executable for V2 cannot silently import a V3 record. These are qualification
+formats, not a pre-1.0 release compatibility promise.
+
 ## Handoff from a frozen live source
 
 The arena integration tests now connect this codec to

@@ -1,0 +1,22 @@
+[package]
+name = "ic-storage-native-derive"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+description = "Experimental declarations for bounded scalar storage records"
+
+[target.'cfg(any())'.dev-dependencies]
+toko-tooling.workspace = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2.workspace = true
+quote.workspace = true
+syn.workspace = true
+
+[lints]
+workspace = true

@@ -144,14 +144,24 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
                 "record_schema",
                 "record_ceiling",
                 "record_restore",
-                "record_source_counter",
+                "record_source",
                 "record_publish",
+                "record_read",
+                "record_write",
             ]);
             expected.sort_unstable();
         }
         assert_eq!(callbacks, expected);
         assert_eq!(
             result.exports.contains_key("checkpoint_convert"),
+            callbacks.contains(&"record_schema")
+        );
+        assert_eq!(
+            result.exports.contains_key("checkpoint_narrow"),
+            callbacks.contains(&"record_schema")
+        );
+        assert_eq!(
+            result.exports.contains_key("checkpoint_record_add"),
             callbacks.contains(&"record_schema")
         );
         assert_eq!(
@@ -194,6 +204,8 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
                     | "checkpoint_batch"
                     | "checkpoint_stage_damage"
                     | "checkpoint_convert"
+                    | "checkpoint_narrow"
+                    | "checkpoint_record_add"
             ));
         }
     } else {
@@ -228,7 +240,7 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
             if result.exports.contains_key("ncp_domain") {
                 19
             } else if result.exports.contains_key("ncp_record_schema") {
-                13
+                15
             } else {
                 7
             }
@@ -299,6 +311,7 @@ pub(super) enum Post {
     Restart,
     Importing,
     Convert,
+    Narrow,
 }
 
 pub(super) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
@@ -328,7 +341,7 @@ pub(super) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
     );
     let reset = matches!(
         post,
-        Post::Reopen | Post::Frozen | Post::Importing | Post::Convert
+        Post::Reopen | Post::Frozen | Post::Importing | Post::Convert | Post::Narrow
     )
     .then(|| super::transient::Plan::read(bridge));
     let ic: Vec<_> = p
@@ -477,6 +490,12 @@ pub(super) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
                     pcall("checkpoint_convert"),
                     ncall("__bridge_post"),
                 ],
+                Post::Narrow => vec![
+                    ncall("__bridge_record_source"),
+                    reset_index,
+                    pcall("checkpoint_narrow"),
+                    ncall("__bridge_post"),
+                ],
                 Post::Frozen => vec![
                     ncall("__bridge_frozen"),
                     reset_index,
@@ -505,6 +524,12 @@ pub(super) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
             vec![pcall("checkpoint_damage")],
         ),
     ];
+    if p.exports.contains_key("checkpoint_record_add") {
+        entrypoints.push((
+            "canister_update record_add",
+            vec![pcall("checkpoint_record_add")],
+        ));
+    }
     if p.exports.contains_key("checkpoint_cancel") {
         entrypoints.push((
             "canister_update cancel_checkpoint",

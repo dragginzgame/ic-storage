@@ -27,3 +27,10 @@ The separate [provider-host fixture](../../qualification/ic-storage-native-feasi
 tests caller-owned poisoning across caught unwinds and explicit checkpoint
 replacement using the same core and region controller. The core itself does not
 own that failure policy or make unwinding transactional.
+
+The optional `derive` feature re-exports the experimental
+[`Store` derive](../ic-storage-native-derive/README.md) for bounded u32/u64 records.
+Its support types describe scalar fields and codec errors; the macro generates
+metadata, logical codecs and scoped getters. These are not retained-memory
+admission or a general persistence runtime. The macro runs at compile time and
+is disabled for the standalone raw-vector diagnostic build.

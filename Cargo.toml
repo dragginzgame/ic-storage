@@ -1,16 +1,24 @@
 [workspace]
 resolver = "3"
-members = ["crates/ic-storage-native", "crates/ic-storage-new"]
+members = [
+    "crates/ic-storage-native",
+    "crates/ic-storage-native-derive",
+    "crates/ic-storage-new",
+]
 exclude = ["qualification"]
 
 [workspace.package]
-version = "0.1.12"
+version = "0.1.13"
 edition = "2024"
 rust-version = "1.100.0"
 license-file = "LICENSE.md"
 
 [workspace.dependencies]
+ic-storage-native-derive = { path = "crates/ic-storage-native-derive", version = "0.1.13" }
+proc-macro2 = "1.0.107"
+quote = "1.0.47"
 sha2 = { version = "0.11.1", default-features = false }
+syn = "2.0.119"
 toko-tooling = "=0.44.4"
 
 [workspace.lints.cargo]

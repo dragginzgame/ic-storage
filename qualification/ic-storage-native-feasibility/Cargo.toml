@@ -16,10 +16,8 @@ category = "tests"
 layout-swapped = []
 
 [dependencies]
+ic-storage-native = { workspace = true, features = ["derive"] }
 sha2.workspace = true
-
-[dev-dependencies]
-ic-storage-native.workspace = true
 
 [lints]
 workspace = true

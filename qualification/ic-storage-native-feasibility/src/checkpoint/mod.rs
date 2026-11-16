@@ -84,12 +84,13 @@ pub fn encode_v2(counter: u64, values: &[u64], source_epoch: u64) -> Result<Vec<
     )
 }
 
-/// Encode a concrete record: V1 keeps envelope v2; V2 uses envelope v3/schema 2.
-/// The new ceiling occupies the old reserved word; earlier readers reject v3.
+/// Encode V1/V2/V3 using envelope v2/v3/v4 respectively.
+/// Narrowed counters use four bytes and four checked zero bytes in the old slot.
 pub fn encode_record(record: Record, values: &[u64], source_epoch: u64) -> Result<Vec<u8>, Error> {
     let version = match record {
         Record::V1(_) => 2,
         Record::V2(_) => 3,
+        Record::V3(_) => 4,
     };
     encode_version(record, values, source_epoch, version, V2_MAX_VALUES)
 }
@@ -104,6 +105,33 @@ fn encode_version(
     if values.len() > limit {
         return Err(Error::Limit);
     }
+    // Generated field codecs own the logical scalar payload. The frozen
+    // checkpoint envelope still places counter and ceiling in separate slots.
+    let mut scalar = [0; 16];
+    let schema = match record {
+        Record::V1(value) => {
+            scalar[..8].copy_from_slice(
+                &value
+                    .store_encode()
+                    .map_err(|_| Error::Record(record::Error::Ceiling))?,
+            );
+            record::V1::STORE_VERSION
+        }
+        Record::V2(value) => {
+            scalar = value
+                .store_encode()
+                .map_err(|_| Error::Record(record::Error::Ceiling))?;
+            record::V2::STORE_VERSION
+        }
+        Record::V3(value) => {
+            let payload = value
+                .store_encode()
+                .map_err(|_| Error::Record(record::Error::Ceiling))?;
+            scalar[..4].copy_from_slice(&payload[..4]);
+            scalar[8..].copy_from_slice(&payload[4..]);
+            record::narrow::V3::STORE_VERSION
+        }
+    };
     let mut bytes = Vec::new();
     bytes
         .try_reserve_exact(MIN_BYTES + values.len() * 8)
@@ -113,18 +141,14 @@ fn encode_version(
     bytes.extend_from_slice(&0u16.to_le_bytes());
     bytes.extend_from_slice(&(HEADER_BYTES as u32).to_le_bytes());
     bytes.extend_from_slice(record::SCHEMA_ID);
-    let (schema, ceiling) = match record {
-        Record::V1(_) => (1u32, 0),
-        Record::V2(value) => (2u32, value.ceiling()),
-    };
     bytes.extend_from_slice(&schema.to_le_bytes());
     bytes.extend_from_slice(&(values.len() as u32).to_le_bytes());
     bytes.extend_from_slice(&source_epoch.to_le_bytes());
     bytes.extend_from_slice(&1u64.to_le_bytes());
     bytes.extend_from_slice(&2u64.to_le_bytes());
-    bytes.extend_from_slice(&record.counter().to_le_bytes());
+    bytes.extend_from_slice(&scalar[..8]);
     bytes.extend_from_slice(&(values.len() as u64 * 8).to_le_bytes());
-    bytes.extend_from_slice(&ceiling.to_le_bytes());
+    bytes.extend_from_slice(&scalar[8..]);
     for value in values {
         bytes.extend_from_slice(&value.to_le_bytes());
     }
@@ -153,7 +177,7 @@ pub fn decode_record(bytes: &[u8], expected_epoch: u64) -> Result<RecordCheckpoi
 fn decode_inner(
     bytes: &[u8],
     expected_epoch: u64,
-    allow_v3: bool,
+    allow_records: bool,
 ) -> Result<RecordCheckpoint, Error> {
     if bytes.len() > MAX_CHECKPOINT_BYTES {
         return Err(Error::Limit);
@@ -169,16 +193,21 @@ fn decode_inner(
         1 if bytes.len() <= MAX_BYTES => MAX_VALUES,
         1 => return Err(Error::Limit),
         2 => V2_MAX_VALUES,
-        3 if allow_v3 => V2_MAX_VALUES,
+        3 | 4 if allow_records => V2_MAX_VALUES,
         _ => return Err(Error::Format),
     };
     if bytes[10..12] != [0; 2]
         || bytes[12..16] != (HEADER_BYTES as u32).to_le_bytes()
-        || (version != 3 && bytes[72..80] != [0; 8])
+        || (version < 3 && bytes[72..80] != [0; 8])
+        || (version == 4 && bytes[60..64] != [0; 4])
     {
         return Err(Error::Framing);
     }
-    let schema: u32 = if version == 3 { 2 } else { 1 };
+    let schema: u32 = match version {
+        4 => 3,
+        3 => 2,
+        _ => 1,
+    };
     if &bytes[16..24] != record::SCHEMA_ID || bytes[24..28] != schema.to_le_bytes() {
         return Err(Error::Schema);
     }
@@ -206,11 +235,25 @@ fn decode_inner(
     if source_epoch != expected_epoch {
         return Err(Error::Epoch);
     }
-    let counter = word(bytes, 56)?;
-    let record = if version == 3 {
-        Record::V2(record::V2::new(counter, word(bytes, 72)?).map_err(Error::Record)?)
+    let record = if version == 4 {
+        let mut scalar = [0; 12];
+        scalar[..4].copy_from_slice(&bytes[56..60]);
+        scalar[4..].copy_from_slice(&bytes[72..80]);
+        Record::V3(
+            record::narrow::V3::store_decode(&scalar)
+                .map_err(|_| Error::Record(record::Error::Ceiling))?,
+        )
+    } else if version == 3 {
+        let mut scalar = [0; 16];
+        scalar[..8].copy_from_slice(&bytes[56..64]);
+        scalar[8..].copy_from_slice(&bytes[72..80]);
+        // The exact fixed length is established above; only the existing
+        // application ceiling invariant can fail for this concrete declaration.
+        Record::V2(
+            record::V2::store_decode(&scalar).map_err(|_| Error::Record(record::Error::Ceiling))?,
+        )
     } else {
-        Record::V1(record::V1 { counter })
+        Record::V1(record::V1::store_decode(&bytes[56..64]).map_err(|_| Error::Framing)?)
     };
     let mut values = Vec::new();
     values
