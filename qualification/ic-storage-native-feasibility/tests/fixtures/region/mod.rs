@@ -12,8 +12,20 @@ use core::{
     ptr::NonNull,
 };
 
-const WORD_BYTES: usize = size_of::<u64>();
-const MAX_WORDS: usize = 512;
+const MAX_ELEMENTS: usize = 512;
+
+pub(super) mod sealed {
+    pub trait Sealed {}
+    impl Sealed for u64 {}
+}
+
+// This closed fixture subset excludes owning elements and application Drop.
+// Eligibility is not allocation, schema or initialized-prefix authority.
+pub(super) trait Element: Copy + sealed::Sealed {}
+impl Element for u64 {}
+
+// The installed fixture keeps its existing concrete u64 controller interface.
+pub(super) type Region<'backing, T = u64> = Controller<'backing, T>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct Descriptor {
@@ -37,21 +49,22 @@ enum State {
     Sealed,
 }
 
-pub(super) struct Region<'backing> {
+pub(super) struct Controller<'backing, T: Element> {
     base: NonNull<u8>,
     bytes: usize,
     state: Cell<State>,
     issuing: Cell<bool>,
-    backing: PhantomData<&'backing mut [MaybeUninit<u64>]>,
+    backing: PhantomData<&'backing mut [MaybeUninit<T>]>,
 }
 
-impl<'backing> Region<'backing> {
+impl<'backing, T: Element> Controller<'backing, T> {
     /// Numeric checks do not supply provenance, custody or initialization.
     ///
     /// # Safety
-    /// The provider must loan one live, mutable allocation covering `words`
-    /// u64 slots for 'backing, exclusively to this controller. Its first
-    /// root.length words must be initialized u64s when root is structurally
+    /// The provider must loan one live, mutable allocation covering `elements`
+    /// properly aligned T slots for 'backing, exclusively to this controller.
+    /// Its first root.length slots must be valid initialized T values under the
+    /// admitted schema (including any application invariants) when root is structurally
     /// valid. All prior owners must have ended; no provider access or settlement
     /// is allowed until this controller and all its clients have ended.
     #[expect(
@@ -60,28 +73,31 @@ impl<'backing> Region<'backing> {
     )]
     pub(super) unsafe fn claim(
         base: NonNull<u8>,
-        words: usize,
+        elements: usize,
         root: Descriptor,
     ) -> Result<Self, Error> {
-        if words == 0
-            || words > MAX_WORDS
-            || !base.as_ptr().addr().is_multiple_of(align_of::<u64>())
+        if elements == 0
+            || elements > MAX_ELEMENTS
+            || size_of::<T>() == 0
+            || !base.as_ptr().addr().is_multiple_of(align_of::<T>())
         {
             return Err(Error::Geometry);
         }
-        if root.length > root.capacity || root.capacity > words {
+        if root.length > root.capacity || root.capacity > elements {
             return Err(Error::Root);
         }
         Ok(Self {
             base,
-            bytes: words * WORD_BYTES,
+            bytes: elements
+                .checked_mul(size_of::<T>())
+                .ok_or(Error::Geometry)?,
             state: Cell::new(State::Reserved(root)),
             issuing: Cell::new(false),
             backing: PhantomData,
         })
     }
 
-    pub(super) fn restore(&self) -> Result<Vec<u64, &Self>, Error> {
+    pub(super) fn restore(&self) -> Result<Vec<T, &Self>, Error> {
         let State::Reserved(root) = self.state.get() else {
             return Err(Error::State);
         };
@@ -89,11 +105,11 @@ impl<'backing> Region<'backing> {
             self.state.set(State::Free);
             return Ok(Vec::new_in(self));
         }
-        let layout = Layout::array::<u64>(root.capacity).map_err(|_| Error::Allocation)?;
+        let layout = Layout::array::<T>(root.capacity).map_err(|_| Error::Allocation)?;
         self.issuing.set(true);
         let allocated = self.allocate(layout);
         self.issuing.set(false);
-        let pointer = allocated.map_err(|_| Error::Allocation)?.cast::<u64>();
+        let pointer = allocated.map_err(|_| Error::Allocation)?.cast::<T>();
         // SAFETY: ordinary allocate just issued this exact reserved block from
         // the loaned allocation, without writing payload. claim's caller owns
         // initialization/custody; structural checks bound length and capacity.
@@ -109,8 +125,8 @@ impl<'backing> Region<'backing> {
 
     pub(super) fn release<'region>(
         &self,
-        values: Vec<u64, &'region Self>,
-    ) -> Result<Descriptor, (Error, Vec<u64, &'region Self>)> {
+        values: Vec<T, &'region Self>,
+    ) -> Result<Descriptor, (Error, Vec<T, &'region Self>)> {
         let root = Descriptor {
             length: values.len(),
             capacity: values.capacity(),
@@ -118,7 +134,7 @@ impl<'backing> Region<'backing> {
         let owns_block = match self.state.get() {
             State::Free => root.capacity == 0,
             State::Live(bytes) => {
-                bytes == root.capacity * WORD_BYTES
+                bytes == root.capacity * size_of::<T>()
                     && values.as_ptr().cast::<u8>() == self.base.as_ptr()
             }
             _ => false,
@@ -134,10 +150,10 @@ impl<'backing> Region<'backing> {
     }
 
     fn supported(&self, layout: Layout) -> bool {
-        layout.align() == align_of::<u64>()
+        layout.align() == align_of::<T>()
             && layout.size() > 0
             && layout.size() <= self.bytes
-            && layout.size().is_multiple_of(WORD_BYTES)
+            && layout.size().is_multiple_of(size_of::<T>())
     }
 
     fn current(&self, pointer: NonNull<u8>, layout: Layout) -> bool {
@@ -166,7 +182,7 @@ impl<'backing> Region<'backing> {
 }
 
 // SAFETY: claim supplies one exclusive stable allocation for the borrow lifetime.
-// Only one exact-sized u64-aligned prefix can be issued at once. Reservation is
+// Only one exact-sized T-aligned prefix can be issued at once. Reservation is
 // accessible only during restore; allocation never writes its initialized bytes.
 // Cell metadata is transient, not Sync, and never allocates or invokes callbacks.
 // In-place resizing stays inside the backing; failure preserves the old block.
@@ -175,7 +191,7 @@ impl<'backing> Region<'backing> {
     unsafe_code,
     reason = "bounded single-block provider allocator with explicit loan contract"
 )]
-unsafe impl Allocator for Region<'_> {
+unsafe impl<T: Element> Allocator for Controller<'_, T> {
     fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
         if !self.supported(layout) {
             return Err(AllocError);
@@ -183,7 +199,7 @@ unsafe impl Allocator for Region<'_> {
         match self.state.get() {
             State::Free => {}
             State::Reserved(root)
-                if self.issuing.get() && root.capacity * WORD_BYTES == layout.size() => {}
+                if self.issuing.get() && root.capacity * size_of::<T>() == layout.size() => {}
             _ => return Err(AllocError),
         }
         self.state.set(State::Live(layout.size()));

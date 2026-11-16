@@ -3,3 +3,4 @@
 
 pub mod artifact;
 pub mod startup;
+pub mod vector_provider;

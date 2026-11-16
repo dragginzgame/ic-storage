@@ -135,7 +135,7 @@ belongs under `target/evidence/`. `make fmt` and `make fmt-check` include this
 workspace. `make deps-list` and `make deps-update` discover it through Toko's
 canonical inventory. The qualification catalog selected the latest stable,
 non-yanked registry releases on 15 November 2026: Testkit 0.106.0, Host Artifacts
-0.79.0 and Tokio 1.54.1. Tooling remains the admitted exact 0.44.4 pin.
+0.79.0 and Tokio 1.54.1. Tooling remains the admitted exact 0.44.5 pin.
 
 ## Evidence boundary
 

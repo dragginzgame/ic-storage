@@ -211,6 +211,7 @@ benchmark-simple: benchmark-simple-build
 	+@server="$$($(RETENTION_TOOL) --check)" && "$$server" run -- cargo run $(BENCH_CARGO) --example compare --target-dir target/qualification
 
 native-feasibility-lint:
+	rustfmt --edition 2024 --check qualification/ic-storage-native-feasibility/tests/fixtures/provider_vector.rs qualification/ic-storage-native-feasibility/tests/fixtures/provider_record_vector.rs
 	+cargo clippy -p ic-storage-native-derive --all-targets --locked --offline -- -D warnings
 	+cargo clippy $(NATIVE_FEASIBILITY_CARGO) --all-targets -- -D warnings
 	+cargo clippy $(NATIVE_FEASIBILITY_CARGO) --example layout_probe --features layout-swapped -- -D warnings

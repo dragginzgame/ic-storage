@@ -5,6 +5,7 @@ mod artifact;
 mod entrypoints;
 mod installed_tests;
 mod migration;
+mod record_vector;
 mod vector_access;
 mod vector_diagnostic;
 mod vector_link;

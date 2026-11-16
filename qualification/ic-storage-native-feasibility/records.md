@@ -425,3 +425,42 @@ new IC executable obtains allocation and initialization authority, encode and
 admit its retained element descriptor before references exist, and exercise
 installed rollback and portable recovery. It cannot copy this live token across
 an upgrade or treat the host result as cross-instance pointer evidence.
+
+## Fresh record provider controllers
+
+The [typed provider-controller experiment](provider-region.md#fresh-record-controllers-on-the-host)
+now advances beyond the same-arena token: each operation creates a fresh allocator
+controller and Vec over an exclusively borrowed original host allocation. The
+provider independently owns the V3 initialization descriptor and availability;
+altered schema/layout/length/capacity refuses before creating a typed owner.
+Successful release publishes the next descriptor only after the owner ends.
+
+Five host cases cover continued growth/removal/reuse across controllers, metadata
+refusal, ordinary errors retaining earlier writes, forgotten views, lost owners,
+unwind poisoning and generated logical-payload recovery after source teardown.
+The provider-region suite now passes 24 tests with strict Clippy. The existing
+76 live-arena tests continue to pass. This reuses the installed u64 controller's
+allocation state machine, with a closed host-only V3 element specialization.
+
+The original backing allocation remains live throughout direct reopening. The
+installed gate above is still required; neither this host provider nor its
+descriptor is a new public persistent collection interface or retained IC format.
+
+The subsequent [installed WAT element protocol](../ic-storage-retention-probe/record-vector-provider.md)
+now exercises a byte-defined V3 descriptor and initialized-field admission with
+retained upgrades and full observed header/payload rollback. It reuses vector
+custody transitions and excludes spare slots and padding from logical reads.
+This closes the protocol-only step; it does not yet execute the Rust V3 Vec or
+connect installed record-vector export/import.
+
+The [Rust compiler/access diagnostic](../ic-storage-retention-probe/record-vector-provider.md#rust-compiler-and-access-rewrite)
+now builds that same V3 declaration without std on wasm32 and reconstructs its
+vector in a private entrypoint using the shared controller. Its actual layout,
+64-byte peak stack and 58 rewritten memory sites pass the bounded artifact checks.
+That compiler-only diagnostic ends with unresolved foreign claim/access imports.
+The subsequent [closed installed profile](../ic-storage-retention-probe/record-vector-provider.md#closed-native-allocation-and-linked-entrypoint-contract)
+now binds them and executes the Rust vector through mutations, reclamation,
+retained A→B→A upgrades, ordinary errors and trap rollback. Invalid metadata,
+record invariants, unsettled custody and wrong formats refuse. It uses the explicit
+foreign-allocation argument; installed portable record-vector recovery remains
+unimplemented, so this is still a bounded qualification fixture, not a product API.

@@ -4,10 +4,18 @@
 
 ### 🔧 Changed
 
+- Adopt Toko Tooling 0.44.5 through the canonical exporter in both workspaces.
+  Its dependency checker now admits the required exact tooling pin directly;
+  remove the two redundant local pinning exceptions.
+- Update the Store derive to `syn` 3.0.10 and reconcile both workspace locks.
+  Upstream qualification macros retain their supported 2.x selections; no shared
+  `syn` types cross that boundary. Derive, host and Wasm consumer checks pass.
 - Migrate direct Host artifact use to published `ic-host-artifacts` 0.80.1.
   Use its bounded read/complete-identity API and explicit `wat`/`wasmparser`
   fixture admission, preserving limits, validation and evidence digest text.
   Testkit 0.106.0 retains its own legacy Host dependencies and prepared server CLI.
+  The qualification lock now selects 0.80.2; artifact/benchmark Clippy and
+  installed provider/retention checks pass with that selection.
 
 ### ✨ Added
 
@@ -28,6 +36,21 @@
 
 ### 🧪 Testing
 
+- Qualify a closed native V3 record vector through installed mutation/reclamation,
+  retained upgrades, ordinary errors, rollback and schema/custody refusal. Test
+  record-specific guard bounds and reuse the shared provider/linker. Installed
+  portable record-vector recovery remains a separate gate.
+- Compile the actual derived V3 declaration in a closed no_std Wasm vector fixture.
+  Check its representation, 64-byte peak stack and all 58 guarded memory sites,
+  reusing the controller and access rewriter with a distinct record profile.
+- Add installed WAT record-vector admission for exact V3 schema metadata and
+  initialized field invariants. Exercise retained upgrades, custody and rollback,
+  corrupt-source destination refusal, and old-format rejection in both directions;
+  share its provider builder with the native record-vector profile.
+- Exercise fresh V3 vector controllers over exclusively loaned live host backing,
+  sharing the installed u64 allocator state machine. Check schema/initialization
+  authority, growth/reuse, publication, lost-owner and unwind refusal, and logical
+  payload reconstruction after teardown.
 - Add V3-only host reopening through original live allocation authority. Reject
   schema/layout/length changes, substituted allocations, conflicting u64 claims
   and ledger corruption; forgotten/refused tokens keep their runs unavailable.
@@ -35,7 +58,7 @@
 - Exercise fresh scalar-record vectors in the live host arena: growth/refusal,
   scoped mutation, destruction and run reuse, checked collection conversion and
   bounded portable recovery after source teardown. Failed candidates preserve
-  existing roots; retained record-vector reopening remains unimplemented.
+  existing roots.
 - Fix generated Store names resolving through application imports. Add direct
   `no_std` consumer checks for shadowed names, absent implicit prelude, metadata,
   field ordering and malformed/invariant-invalid codecs to `make native-core-test`.

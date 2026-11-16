@@ -22,15 +22,11 @@ fn checked<T, E>(result: std::result::Result<T, E>) -> Result<T> {
 
 pub(super) fn source(profile: Profile) -> Result<String> {
     profile.check()?;
-    let mut source = include_str!("../provider_custody/vector/provider.wat")
-        .replace("__VERSION__", &profile.version.to_string())
-        .replace("__LENGTH__", &profile.root.0.to_string())
-        .replace("__CAPACITY__", &profile.root.1.to_string())
-        .replace("__EXTENT__", &profile.extent.to_string())
-        .replace("__TRAP__", "0")
-        .replace("__FAULT__", &profile.fault.map_or(String::new(), |(offset, value)| {
+    let mut source = ic_storage_retention_probe::vector_provider::source(
+        profile.version, profile.root, profile.extent, false,
+        &profile.fault.map_or(String::new(), |(offset, value)| {
             format!("(i64.store (i32.const {offset}) (i64.const {value}))")
-        }))
+        }), true)
         .replace(
             "(func $reply))",
             "(func $reply))\n(import \"vector_link\" \"step\" (func $native_step (param i32 i32 i32 i64) (result i64)))",
@@ -39,8 +35,8 @@ pub(super) fn source(profile: Profile) -> Result<String> {
         .replace("(func (export \"canister_post_upgrade\")", "(func $provider_post");
     let end = source.rfind(')').ok_or("provider closing delimiter")?;
     source.truncate(end);
-    source.push_str(include_str!("../provider_custody/vector/access.wat"));
-    let mut glue = include_str!("vector_link/entrypoints.wat").replace(
+    source.push_str(include_str!("../../provider_custody/vector/access.wat"));
+    let mut glue = include_str!("entrypoints.wat").replace(
         "__POST_FAILURE__",
         if profile.post_trap {
             "(call $vector_run (i32.const 1) (i64.const 999)) unreachable"
@@ -109,6 +105,20 @@ pub(super) fn compose(raw: &[u8], provider: &[u8]) -> Result<Vec<u8>> {
     // composition. An arbitrary "guarded" module is never an accepted input.
     let guarded = vector_access::prepare(raw).map_err(|_| "raw vector profile")?;
     let profile = vector_access::inspect(raw).map_err(|_| "raw vector profile")?;
+    compose_admitted(&guarded, &profile, provider)
+}
+
+pub(super) fn compose_record(raw: &[u8], provider: &[u8]) -> Result<Vec<u8>> {
+    let guarded = vector_access::prepare_record(raw).map_err(|_| "raw record vector profile")?;
+    let profile = vector_access::inspect_record(raw).map_err(|_| "raw record vector profile")?;
+    compose_admitted(&guarded, &profile, provider)
+}
+
+fn compose_admitted(
+    guarded: &[u8],
+    profile: &vector_access::Profile,
+    provider: &[u8],
+) -> Result<Vec<u8>> {
     validate_wasm(provider, LIMIT).map_err(|_| "vector provider validation")?;
     let mut provider_functions = 0;
     let mut bindings = BTreeMap::new();
@@ -227,7 +237,7 @@ pub(super) fn compose(raw: &[u8], provider: &[u8]) -> Result<Vec<u8>> {
         types: types.len(),
         globals: globals.len(),
     };
-    for payload in Parser::new(0).parse_all(&guarded) {
+    for payload in Parser::new(0).parse_all(guarded) {
         match checked(payload)? {
             Payload::TypeSection(r) => checked(rust_map.parse_type_section(&mut types, r))?,
             Payload::FunctionSection(r) => {

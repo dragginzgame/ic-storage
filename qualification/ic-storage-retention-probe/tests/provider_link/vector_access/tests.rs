@@ -6,7 +6,11 @@ use wasmparser::{Operator as Op, Parser, Payload};
 use super::{Error, HELPERS, prepare};
 
 fn fixture(body: &str, extra: &str) -> Vec<u8> {
-    let source = format!(
+    fixture_kind(body, extra, false)
+}
+
+fn fixture_kind(body: &str, extra: &str, record: bool) -> Vec<u8> {
+    let mut source = format!(
         r#"(module
         (import "native_vector_diagnostic" "claim_region" (func (result i32)))
         (memory (export "memory") 3 3)
@@ -24,9 +28,63 @@ fn fixture(body: &str, extra: &str) -> Vec<u8> {
             unreachable)
         {extra})"#
     );
+    if record {
+        source = source
+            .replace(
+                "native_vector_diagnostic",
+                "native_record_vector_diagnostic",
+            )
+            .replace("provider_vector_step", "provider_record_vector_step");
+    }
     let bytes = compile_wat(&source, 8192, 8192).unwrap();
     validate_wasm(&bytes, 8192).unwrap();
     bytes
+}
+
+#[test]
+fn record_profile_keeps_numeric_checks_but_refuses_other_element_and_memory_profiles() {
+    let raw = fixture_kind(
+        "i64.const 4294967296 i32.wrap_i64 local.set 0
+         i32.const 0 i32.const 1 i32.lt_u local.set 0
+         i64.const 1 i64.const 2 i64.lt_u local.set 0
+         i64.const 1 i64.const 2 i64.gt_u local.set 0
+         i64.const 1 i64.const 2 i64.ge_u local.set 0
+         i32.const 131072 i32.load local.set 0",
+        "",
+        true,
+    );
+    assert_eq!(prepare(&raw), Err(Error::Profile));
+    let guarded = super::prepare_record(&raw).unwrap();
+    assert_eq!(verify_coverage(&raw, &guarded), [1, 0, 0, 0, 0, 0, 0]);
+    // Numeric instructions are passed through exactly, not replaced by guards.
+    let numeric = |bytes: &[u8]| {
+        let mut ops = Vec::new();
+        for payload in Parser::new(0).parse_all(bytes) {
+            if let Payload::CodeSectionEntry(body) = payload.unwrap() {
+                for op in body.get_operators_reader().unwrap() {
+                    let op = op.unwrap();
+                    if matches!(
+                        op,
+                        Op::I32WrapI64 | Op::I32LtU | Op::I64LtU | Op::I64GtU | Op::I64GeU
+                    ) {
+                        ops.push(format!("{op:?}"));
+                    }
+                }
+            }
+        }
+        ops
+    };
+    assert_eq!(numeric(&raw).len(), 5);
+    assert_eq!(numeric(&raw), numeric(&guarded));
+    assert_eq!(super::prepare_record(&fixture("", "")), Err(Error::Profile));
+    for (body, extra) in [
+        ("loop end", ""),
+        ("i32.const 0 memory.grow local.set 0", ""),
+        ("i32.const 131072 i32.load16_u local.set 0", ""),
+        ("", "(data (i32.const 131072) \"bad\")"),
+    ] {
+        assert!(super::prepare_record(&fixture_kind(body, extra, true)).is_err());
+    }
 }
 
 #[test]

@@ -5,7 +5,7 @@ Motoko. The user authorized this directory on 2026-11-15 and put development of
 `../ic-storage` on hold. Do not modify that repository as part of this experiment.
 
 This repository adopts [TOKO-TOOLING.md](TOKO-TOOLING.md) and its revision-bound
-references. The canonical exporter owns the Toko 0.44.4 snapshot under
+references. The canonical exporter owns the Toko 0.44.5 snapshot under
 `vendor/toko-tooling/` and `.toko-tooling.snapshot`. Product scope and the commands
 below are consumer-owned choices within that baseline; no policy exceptions are
 claimed. Installation alone does not establish native host or product

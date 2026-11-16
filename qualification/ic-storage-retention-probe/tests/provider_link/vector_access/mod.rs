@@ -41,6 +41,16 @@ fn checked<T, E>(value: std::result::Result<T, E>) -> Result<T> {
 }
 
 pub(super) fn inspect(raw: &[u8]) -> Result<Profile> {
+    inspect_element(raw, false)
+}
+
+pub(super) fn inspect_record(raw: &[u8]) -> Result<Profile> {
+    inspect_element(raw, true)
+}
+
+// Closed profiles, not caller-configurable layout admission. The record profile
+// binds the distinct import/export identity and exact current two-body shape.
+fn inspect_element(raw: &[u8], record: bool) -> Result<Profile> {
     validate_wasm(raw, super::artifact::LIMIT).map_err(|_| Error::Malformed)?;
     let mut types = Vec::new();
     let mut imports = Vec::new();
@@ -119,9 +129,18 @@ pub(super) fn inspect(raw: &[u8]) -> Result<Profile> {
     if memories != 1
         || globals != 3
         || bodies.len() != functions.len()
-        || !matches!(functions.len(), 2 | 8)
+        || if record {
+            functions.len() != 2
+        } else {
+            !matches!(functions.len(), 2 | 8)
+        }
         || imports.len() != 1
-        || imports[0].0 != "native_vector_diagnostic"
+        || imports[0].0
+            != if record {
+                "native_record_vector_diagnostic"
+            } else {
+                "native_vector_diagnostic"
+            }
         || imports[0].1 != "claim_region"
     {
         return Err(Error::Profile);
@@ -166,7 +185,15 @@ pub(super) fn inspect(raw: &[u8]) -> Result<Profile> {
             ("__heap_base", ExternalKind::Global, 2),
             ("__stack_pointer", ExternalKind::Global, 0),
             ("memory", ExternalKind::Memory, 0),
-            ("provider_vector_step", ExternalKind::Func, entry),
+            (
+                if record {
+                    "provider_record_vector_step"
+                } else {
+                    "provider_vector_step"
+                },
+                ExternalKind::Func,
+                entry,
+            ),
         ]
     {
         return Err(Error::Profile);
@@ -203,6 +230,15 @@ impl Reencode for Mapping {
 
 pub(super) fn prepare(raw: &[u8]) -> Result<Vec<u8>> {
     inspect(raw)?;
+    rewrite_accesses(raw)
+}
+
+pub(super) fn prepare_record(raw: &[u8]) -> Result<Vec<u8>> {
+    inspect_record(raw)?;
+    rewrite_accesses(raw)
+}
+
+fn rewrite_accesses(raw: &[u8]) -> Result<Vec<u8>> {
     let mut types = TypeSection::new();
     let mut imports = ImportSection::new();
     let mut functions = FunctionSection::new();
@@ -298,11 +334,16 @@ pub(super) fn prepare(raw: &[u8]) -> Result<Vec<u8>> {
                             | Op::I32GeU
                             | Op::I32GtU
                             | Op::I32LeU
+                            | Op::I32LtU
+                            | Op::I32WrapI64
                             | Op::Select
                             | Op::I64Add
                             | Op::I64ExtendI32U
                             | Op::I64Or
                             | Op::I64Shl
+                            | Op::I64GeU
+                            | Op::I64GtU
+                            | Op::I64LtU
                     ) {
                         function.instruction(&checked(mapping.instruction(op))?);
                     } else {

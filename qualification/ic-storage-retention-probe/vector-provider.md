@@ -5,6 +5,10 @@ for the [native vector controller](../ic-storage-native-feasibility/provider-reg
 It executes no Rust. Its metadata checks do not establish Rust allocation validity
 or complete the compiled vector's payload-address admission.
 
+The later [record-element profile](record-vector-provider.md) reuses these custody
+transitions with explicit V3 schema metadata and initialized-record admission.
+Its WAT-only evidence remains separate from the installed native u64 vector.
+
 ## Retained representation
 
 The fixture has exactly three fixed wasm32 pages: transient reply scratch in

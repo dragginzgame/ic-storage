@@ -201,9 +201,21 @@ now exercises scalar records as allocator-backed collection elements, checked
 whole-collection conversion, failed-candidate reclamation and bounded logical
 recovery after source teardown. A V3-only token also checks reopening in the same
 live host allocation, with exact schema/layout/initialized-length admission and
-refusal preserving allocation accounting. This does not admit retained record-vector
-reopening across an IC upgrade. Retained element descriptors, new-instance custody and installed
-rollback/recovery remain the next gate before a persistent collection API.
+refusal preserving allocation accounting. A closed V3 specialization of the
+provider controller additionally checks fresh allocator issuance over exclusively
+borrowed original host backing, descriptor publication, lost-owner/unwind refusal
+and logical-payload reconstruction after teardown. An
+[installed WAT record-element profile](../qualification/ic-storage-retention-probe/record-vector-provider.md)
+now checks exact retained schema metadata, initialized-field invariants, custody
+and upgrade rollback for sixteen V3 records. It executes no Rust vector. A
+[separate Rust compiler diagnostic](../qualification/ic-storage-retention-probe/record-vector-provider.md#rust-compiler-and-access-rewrite)
+reuses the actual V3 declaration, checks its wasm32 representation and bounded
+stack, and rewrites all 58 memory sites through access guards. Its closed native
+profile now links those guards to the record provider and passes installed
+mutation/reclamation, A→B→A retained upgrades, full observed rollback and corrupt
+source refusal under the explicit foreign-allocation contract. Installed portable
+record-vector recovery and broader type/scale coverage remain required before a
+persistent collection API or production cutover.
 
 Use ordinary-looking Rust records with a derive-based persistence declaration
 as the intended application surface. The following syntax and collection names

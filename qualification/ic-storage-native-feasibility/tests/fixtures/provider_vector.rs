@@ -6,46 +6,13 @@
 extern crate alloc;
 
 mod region;
+mod runtime;
 
 use alloc::vec::Vec;
-use core::{
-    alloc::{GlobalAlloc, Layout},
-    ptr::NonNull,
-};
+use core::ptr::NonNull;
 use ic_storage_native::with_vector;
 use region::{Descriptor, Region};
-
-// Linking alloc requires a global allocator even though this client selects
-// Region explicitly. Refuse every Global request; never borrow provider memory.
-struct RejectGlobal;
-
-#[global_allocator]
-static GLOBAL: RejectGlobal = RejectGlobal;
-
-// SAFETY: alloc always reports failure and issues no block. Thus no valid
-// deallocation can reach this implementation; violations trap without unwinding.
-#[expect(
-    unsafe_code,
-    reason = "fail-closed Global allocator for a no_std compiler fixture"
-)]
-unsafe impl GlobalAlloc for RejectGlobal {
-    unsafe fn alloc(&self, _: Layout) -> *mut u8 {
-        core::ptr::null_mut()
-    }
-
-    unsafe fn dealloc(&self, _: *mut u8, _: Layout) {
-        abort();
-    }
-}
-
-#[panic_handler]
-fn panic(_: &core::panic::PanicInfo<'_>) -> ! {
-    abort()
-}
-
-fn abort() -> ! {
-    core::arch::wasm32::unreachable()
-}
+use runtime::abort;
 
 #[expect(
     unsafe_code,

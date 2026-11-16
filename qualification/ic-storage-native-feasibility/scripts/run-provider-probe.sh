@@ -30,16 +30,18 @@ mkdir "$output/vector"
 cp -R crates/ic-storage-native "$output/vector/native-core"
 cp Cargo.toml "$output/vector/native-core/workspace-Cargo.toml"
 cp Cargo.lock "$output/vector/native-core/workspace-Cargo.lock"
-cp qualification/ic-storage-native-feasibility/tests/fixtures/provider_vector.rs \
-    qualification/ic-storage-native-feasibility/tests/fixtures/region.rs "$output/vector/"
+cp qualification/ic-storage-native-feasibility/tests/fixtures/provider_vector.rs "$output/vector/"
+cp qualification/ic-storage-native-feasibility/tests/fixtures/provider_record_vector.rs "$output/vector/"
+cp qualification/ic-storage-native-feasibility/tests/fixtures/runtime.rs "$output/vector/"
 cp -R qualification/ic-storage-native-feasibility/tests/fixtures/region "$output/vector/region"
 cp -R qualification/ic-storage-retention-probe/tests/provider_custody/vector "$output/vector/provider-source"
 cp qualification/ic-storage-native-feasibility/vector-provider-contract.md "$output/vector/"
+cp qualification/ic-storage-retention-probe/record-vector-provider.md "$output/vector/"
+cp -R qualification/ic-storage-native-feasibility/src "$output/feasibility-source"
+cp qualification/ic-storage-native-feasibility/Cargo.toml "$output/feasibility-source/"
+cp -R crates/ic-storage-native-derive "$output/derive-source"
 if [[ "$mode" == migration || "$mode" == job || "$mode" == record ]]; then
     cp -R qualification/ic-storage-checkpoint-provider-probe/src "$output/checkpoint-source"
-    cp -R qualification/ic-storage-native-feasibility/src "$output/feasibility-source"
-    cp qualification/ic-storage-native-feasibility/Cargo.toml "$output/feasibility-source/"
-    cp -R crates/ic-storage-native-derive "$output/derive-source"
     cp qualification/ic-storage-checkpoint-provider-probe/Cargo.toml "$output/checkpoint-source/"
     cp qualification/ic-storage-native-feasibility/native-checkpoint-contract.md "$output/"
     if [[ "$mode" == job ]]; then
@@ -80,6 +82,32 @@ rustc --edition 2024 --crate-type cdylib --target wasm32-unknown-unknown \
     --extern "ic_storage_native=$output/vector/libic_storage_native.rlib" \
     --out-dir "$output/vector" "$output/vector/provider_vector.rs" \
     > "$output/vector/compiler.log" 2>&1
+
+# Reuse the exact V3 declaration and derive, now without std on wasm32. This
+# compiler artifact has its own diagnostic; the u64 admission profile refuses it.
+cargo build --manifest-path qualification/Cargo.toml -p ic-storage-native-feasibility \
+    --lib --release --target wasm32-unknown-unknown \
+    --target-dir target/qualification/record-vector-deps --locked --offline --message-format=json \
+    > "$output/vector/record-dependencies.json" 2> "$output/vector/record-dependencies.log"
+record_deps="$root/target/qualification/record-vector-deps/wasm32-unknown-unknown/release"
+# Cargo owns artifact placement (including its per-package build directories).
+# Admit successful structured output before passing the actual dependency paths.
+jq -e -r -s '[.[] | select(.reason == "compiler-artifact") | .filenames[] | sub("/[^/]+$"; "")] | unique | if length == 0 then error("no compiler artifacts") else .[] end' \
+    "$output/vector/record-dependencies.json" > "$output/vector/record-search-paths.txt"
+record_search=()
+while IFS= read -r record_directory; do
+    record_search+=("-L" "dependency=$record_directory")
+done < "$output/vector/record-search-paths.txt"
+rustc --edition 2024 --crate-type cdylib --target wasm32-unknown-unknown \
+    -C panic=abort -C codegen-units=1 -C lto=fat -C opt-level=3 \
+    -C link-arg=--stack-first -C link-arg=-zstack-size=32768 \
+    -C link-arg=--initial-memory=196608 -C link-arg=--max-memory=196608 \
+    -C link-arg=--export=__stack_pointer -C link-arg=--export=__data_end \
+    -C link-arg=--export=__heap_base -D warnings --emit=link,llvm-ir \
+    --extern "ic_storage_native_feasibility=$record_deps/libic_storage_native_feasibility.rlib" \
+    "${record_search[@]}" \
+    --out-dir "$output/vector" "$output/vector/provider_record_vector.rs" \
+    > "$output/vector/record-compiler.log" 2>&1
 
 NATIVE_PROVIDER_INPUTS="$output" cargo test --manifest-path qualification/Cargo.toml \
     -p ic-storage-retention-probe --target-dir target/qualification --locked --offline \

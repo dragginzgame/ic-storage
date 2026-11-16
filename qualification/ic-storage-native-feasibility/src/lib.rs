@@ -1,4 +1,5 @@
-//! Host-only experiment for scoped ownership of one integer record and vector.
+//! Qualification models for scoped ownership, scalar records and portable codecs.
+//! Compiles without std on wasm32 so compiler fixtures reuse these declarations.
 //!
 //! This uses live Global or explicitly supplied allocator-backed vectors.
 //! It neither retains a Vec header nor reopens pointers. The checkpoint module
@@ -6,11 +7,15 @@
 //! and installed lifecycle admission. This is fixture code, not the proposed
 //! product collection API.
 #![forbid(unsafe_code)]
+#![cfg_attr(target_arch = "wasm32", no_std)]
 
-use std::{
+extern crate alloc;
+
+use alloc::{
     alloc::{Allocator, Global},
-    marker::PhantomData,
+    vec::Vec,
 };
+use core::marker::PhantomData;
 
 pub mod checkpoint;
 pub mod migration_job;
@@ -232,7 +237,7 @@ impl<'scope, A: Allocator + Clone> Frame<'scope, A> {
         // Clone only for an empty replacement. The detached Vec keeps its own
         // allocator, so this does not require interchangeable allocator clones.
         let empty = Vec::new_in(self.host.rooted.allocator().clone());
-        self.host.detached = Some(std::mem::replace(&mut self.host.rooted, empty));
+        self.host.detached = Some(core::mem::replace(&mut self.host.rooted, empty));
         Ok(Ticket { scope: PhantomData })
     }
 

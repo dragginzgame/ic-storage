@@ -2,6 +2,7 @@
 //! This fixture codec does not admit native layouts or own durable publication.
 
 use crate::record::{self, Record};
+use alloc::vec::Vec;
 use sha2::{Digest, Sha256};
 
 // Wire limit: independent of the ownership model's operational capacity.

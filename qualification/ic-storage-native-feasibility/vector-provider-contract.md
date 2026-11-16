@@ -1,7 +1,7 @@
 # Single-vector foreign allocation contract
 
 This extends the [fixed-scalar argument](scalar-provider-contract.md) only for
-the reviewed `provider_vector.rs`, `region.rs`, scoped
+the reviewed `provider_vector.rs`, `region/mod.rs`, shared `runtime.rs`, scoped
 [`ic-storage-native`](../../crates/ic-storage-native/README.md) core, provider WAT and final linker on
 Rust 1.100.0 / LLVM 23.1.5 / wasm32-unknown-unknown. It permits the bounded
 installed qualification fixture; it is not a public safe API or general retained

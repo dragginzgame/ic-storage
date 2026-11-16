@@ -135,6 +135,16 @@ while IFS= read -r -d '' path; do
                     group="$(jq -er '.groups[0].name' "$ROOT/ci/cargo-release-groups.json")" || fail 'invalid release groups'
                     (cd "$ROOT" && RELEASE_COMMIT='' bash "$SCRIPT_DIR/cargo-release-group.sh" plan "$group") > "$temporary/groups.json" || fail 'qualification graph admission failed'
                     group_versions="$(jq -ce '.qualification.versions | select(type == "object")' "$temporary/groups.json")" || fail 'invalid qualification versions'
+                elif [[ "$workspace_root" == "$ROOT/qualification" && ! -e "$ROOT/ci/cargo-release-groups.json" ]]; then
+                    # No release groups are required for a private qualification workspace.
+                    # Admit Cargo's membership/privacy and reverse local edges, not a path label.
+                    CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0 cargo metadata --no-deps --format-version 1 \
+                        --manifest-path "$ROOT/Cargo.toml" > "$temporary/product.json" || fail 'product workspace admission failed'
+                    CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0 cargo metadata --no-deps --format-version 1 \
+                        --manifest-path "$workspace" > "$temporary/qualification.json" || fail 'qualification workspace admission failed'
+                    group_versions="$(jq -ce -L "$SCRIPT_DIR" --slurpfile product "$temporary/product.json" \
+                        --arg directory "$workspace_root" 'include "dependency-pins"; independent_qualification_versions($product[0]; $directory)' \
+                        "$temporary/qualification.json")" || fail 'invalid private qualification workspace'
                 fi
             fi
             jq -c -L "$SCRIPT_DIR" --argjson group_versions "$group_versions" --slurpfile root "$temporary/root.json" \

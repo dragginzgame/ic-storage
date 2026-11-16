@@ -136,11 +136,16 @@ pub(super) fn inspect(
                 | Op::I32GeU
                 | Op::I32GtU
                 | Op::I32LeU
+                | Op::I32LtU
+                | Op::I32WrapI64
                 | Op::Select
                 | Op::I64Add
                 | Op::I64ExtendI32U
                 | Op::I64Or
                 | Op::I64Shl
+                | Op::I64GeU
+                | Op::I64GtU
+                | Op::I64LtU
                 | Op::I32Load { .. }
                 | Op::I32Load8U { .. }
                 | Op::I64Load { .. }

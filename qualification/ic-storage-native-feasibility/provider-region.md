@@ -16,7 +16,10 @@ contract extending [the scalar argument](scalar-provider-contract.md).
 
 The controller does not own a Box, Global allocation or retained Rust reference.
 Its pointer, lifetime marker and Cell bookkeeping are transient. The loan is
-bounded to 512 u64 words, with checked alignment, length and capacity. It reserves
+bounded to 512 elements, with checked element alignment, length and capacity. The
+closed element set is u64 plus the V3 Copy scalar record; the installed
+`Region` name still selects u64. This is not blanket admission of Copy types.
+It reserves
 the root's exact capacity, blocks ordinary allocation, and issues that prefix
 through Allocator::allocate only during restoration. Issuance performs no payload
 writes. Vec::from_raw_parts_in then receives the newly allocated pointer, exact
@@ -26,7 +29,8 @@ intervenes. No private Vec representation is retained or decoded.
 One block may be live at a time. Growth and shrink change its issued prefix in
 place, within the same exclusively loaned backing allocation. Failed allocation
 or growth leaves the current block and bytes intact. The allocator returns exact
-sizes, accepts only nonzero u64-aligned multiples, and never unwinds. Its default
+sizes, accepts only nonzero element-sized multiples with exact element alignment,
+and never unwinds. Its default
 grow_zeroed cannot acquire a second block and refuses without changing the first.
 Ordinary allocate_zeroed is allowed only on a free controller, never a reserved
 root. These restrictions satisfy a bounded allocator, not arbitrary allocation
@@ -37,7 +41,7 @@ issuing controller, pointer and exact block. It seals further access and returns
 only length/capacity. No pointer or private header is retained. Refusal returns
 the original vector; forgotten owners keep their block unavailable. Dropping a
 vector deallocates its block for reuse but cannot replay the old root descriptor.
-No application destructor runs because the only reconstructed element is u64.
+No application destructor runs because both admitted element types are Copy.
 
 The provider must not settle or reissue the loan until the controller and all
 clients have ended. This private unsafe boundary is not the safe application
@@ -46,6 +50,55 @@ must still be enforced by the eventual provider wrapper. A copied descriptor
 alone cannot authorize another claim. The host replacement test retains its
 original backing allocation, so it proves no cross-instance allocation identity.
 Allocator reuse does not return backing capacity or Wasm pages to the platform.
+
+## Fresh record controllers on the host
+
+The private [V3 provider fixture](tests/fixtures/region/tests/records.rs) owns one
+original Box of sixteen `MaybeUninit<V3>` slots. It initializes only the declared
+prefix. Each operation lends this backing exclusively to a fresh typed controller,
+reconstructs a Vec through allocator issuance, and consumes that owner before
+publishing its new descriptor. Spare slots and native record padding need not be
+initialized. The same controller implementation continues to serve the installed
+u64 fixture. The later [record compiler diagnostic](../ic-storage-retention-probe/record-vector-provider.md#rust-compiler-and-access-rewrite)
+also selects V3. Its subsequent [closed installed profile](../ic-storage-retention-probe/record-vector-provider.md#closed-native-allocation-and-linked-entrypoint-contract)
+now admits the sixteen-element record fixture under its own allocation contract.
+
+The provider keeps initialization authority and availability independently of
+caller-supplied metadata. Exact schema ID/version, native size/alignment, generated
+field metadata and length/capacity must match before the loan begins. Numeric
+agreement does not establish pointer validity: the pointer comes from the original
+Box under an exclusive borrow, and no previous client remains accessible.
+
+Availability is cleared before issuance and restored only after successful owner
+release and descriptor publication. Ordinary callback errors publish preceding
+writes. An unwind or lost owning Vec leaves the provider unavailable; no guard
+destructor can clear that state. The callback is trusted private fixture code,
+not an application-facing collection API. Its higher-ranked signature prevents
+returning a controller-bound owner; losing one inside the callback is tested
+separately from forgetting a non-owning scalar view.
+
+Five cases cover empty/spare/full roots, fresh controller replacement, in-place
+growth/refusal, removal/shrink/reuse, schema and initialized-length refusal,
+ordinary errors, forgotten views, lost owners and caught unwinds. Generated
+logical field payloads reconstruct fresh storage after the old provider is
+discarded, then mutation/allocation continue. This last case tests payload
+reconstruction, not a new checkpoint envelope or governed provider; the existing
+[record-vector envelope](records.md#fresh-record-vector-elements) owns framing,
+integrity and epoch checks.
+
+On 16 November 2026, `make native-feasibility-test` passed with 24 provider-region
+tests, including these five cases, and strict Clippy. This proves fresh controller
+issuance over an original live host allocation. It does not establish retained
+record-vector admission or pointer validity after an IC executable replacement.
+
+The shared-controller regression also passed `make native-provider-test
+native-record-test native-checkpoint-test native-job-test`: fourteen artifact
+checks per cohort, three installed provider cases, four record cases, four
+checkpoint cases, and seven installed migration-job cases (plus nine host job
+tests). Completed cohorts are `target/evidence/provider-link/attempt.tvXMZx/`,
+`attempt.O62a8M/`, `attempt.geLbkF/` and `attempt.iCStnH/`, respectively. These
+exercise the existing installed u64 vector and scalar records, not V3 vector
+elements. The source collector now captures the controller at `region/mod.rs`.
 
 ## Validation and next boundary
 

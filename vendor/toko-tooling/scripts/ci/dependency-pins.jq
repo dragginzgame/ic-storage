@@ -34,6 +34,19 @@ def inheritance_checks($root; $member; $group_versions):
     else empty end);
 def inheritance_checks($root; $member): inheritance_checks($root; $member; {});
 
+# Canonical qualification can exist without product release-group metadata.
+# Cargo supplies actual workspace membership, privacy and resolved local paths.
+def independent_qualification_versions($product; $directory):
+  . as $qualification |
+  [.packages[] | select(.id as $id | $qualification.workspace_members | index($id))] as $private |
+  if .workspace_root != $directory or $product.workspace_root == $directory or
+     ($private | length) == 0 or
+     any($private[]; .publish != [] or (.manifest_path | startswith($directory + "/") | not)) or
+     any($product.packages[]; (.manifest_path | startswith($directory + "/")) or
+       any(.dependencies[]; .path != null and (.path + "/" | startswith($directory + "/"))))
+  then error("qualification must be a separate private workspace with no reverse product edges")
+  else $private | map({key:.name,value:.version}) | from_entries end;
+
 def action_refs:
   (.jobs[]? | select(has("uses")) | .uses),
   (.jobs[]?.steps[]? | select(has("uses")) | .uses),
@@ -51,7 +64,12 @@ def checks:
         else finding($file; "cargo-git"; $name; ($spec | tojson); "Git dependency requires a full commit rev, without branch or tag") end
       else empty end),
       (if $spec.version? | type == "string" then
-        if $spec.version | test("(^|,)\\s*=\\s*[0-9]") then
+        if $name == "toko-tooling" and
+           ($data.workspace.dependencies[$name] == $spec or $data.workspace.dependencies[$name] == $spec.version) and
+           ($spec | has("git") or has("path") | not) and
+           ($spec.package? // $name) == "toko-tooling" and
+           ($spec.version | test("^=[0-9]+\\.[0-9]+\\.[0-9]+$")) then empty
+        elif $spec.version | test("(^|,)\\s*=\\s*[0-9]") then
           finding($file; "cargo-exact"; $name; $spec.version; "exact version constraint requires a documented compatibility reason")
         elif $spec.version | contains("*") then
           finding($file; "cargo-range"; $name; $spec.version; "use an explicit compatible version requirement instead of a wildcard")

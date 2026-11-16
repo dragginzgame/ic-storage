@@ -34,7 +34,7 @@ Use the pinned Rust 1.100.0 toolchain (also the support floor). The M0 library i
 `no_std` and allocation-free; the native core uses `no_std` plus `alloc` with a
 caller-supplied allocator. M0's root-owned SHA-256 dependency is `sha2` 0.11.1
 with defaults disabled, selected from the latest stable registry release on
-15 November 2026. The root selects Toko Tooling 0.44.4 exactly as a
+15 November 2026. The root selects Toko Tooling 0.44.5 exactly as a
 development dependency. Its authenticated snapshot is installed through the
 canonical exporter under `vendor/toko-tooling/`; [TOKO-TOOLING.md](TOKO-TOOLING.md)
 owns the common rules and links to immutable upstream references.

@@ -2,6 +2,7 @@
 //! Integrity is not caller authentication; the installed adapter owns authority.
 
 use crate::checkpoint;
+use alloc::{vec, vec::Vec};
 use sha2::{Digest, Sha256};
 
 mod staged;

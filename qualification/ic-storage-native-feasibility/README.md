@@ -7,6 +7,15 @@ Global or explicit live allocators and forbids unsafe code. A separate private
 integration-test kernel exercises an arena allocator under the explicit
 [live allocation boundary](allocation-boundary.md); it reopens no retained data.
 
+The library now builds with `no_std` plus `alloc` on wasm32, allowing closed
+compiler fixtures to reuse its actual scalar declarations and codecs. Native
+tests still use std. This build property does not admit the host ownership model
+as retained state. `make native-provider-probe` includes a
+[V3 vector compiler/access diagnostic](../ic-storage-retention-probe/record-vector-provider.md#rust-compiler-and-access-rewrite);
+`make native-provider-test` now also executes its closed linked record profile,
+including retained upgrades and refusal/rollback. This is not a public collection
+API; installed record-vector portable recovery remains a separate gate.
+
 ## Ownership boundary
 
 The [controlled record experiment](records.md) adds the first concrete scalar
