@@ -22,7 +22,7 @@ private representation. `Map`, `View`, allocator objects and Vec headers are
 transient owners and must never be retained as raw Rust structs. Host layout
 assertions, wasm32 compilation and the host provider loan test establish their
 respective evidence boundaries. The subsequent closed installed profile is
-recorded separately below; it is bounded to a fixed region and one scalar schema.
+recorded separately below; it uses a bounded provider pool and one scalar schema.
 
 Buckets are a power of two, at least eight, and at most 75% occupied. A fixed
 64-bit avalanche mixer and linear probing determine placement. Deletion shifts
@@ -183,15 +183,25 @@ Rustdoc checks passed.
 
 ## Installed map qualification
 
-`make native-map-test` now compiles the actual product map into a closed foreign
-provider fixture. It grows from 8 to 512 native slots (capacity for 6 to 384 live
-entries) by alternating two banks in a preallocated 24 KiB loan. It retains each
-selected table across compatible IC upgrades and tests lookup, deletion and reuse.
-It also checks ordinary business errors, forgotten views, full-table growth
-refusal, malformed metadata/slots, source and target admission, failed upgrade
-rollback and traps during candidate writes, after rehash and before/after
-publication, including upgrade-triggered growth. Separate counterexamples exercise
-the guarded stack and payload boundaries, zero fills and custody restrictions.
+`make native-map-test` compiles the actual product map into a closed foreign
+provider fixture with two roots sharing one pool. Between loans, the provider
+grows from 24 to 48, 96 and 192 KiB, adding Wasm pages without retaining Rust
+owners or pointers across growth. Each table can grow through native rehash
+while the other stays live and unchanged. The installed workload reaches 4,608
+records across 4096- and 2048-slot roots and reopens both across compatible
+upgrades. Contiguous candidate space is still required beside both sources;
+capacity or fragmentation can refuse growth earlier. Explicit retirement makes
+freed runs available for reuse without shrinking physical memory.
+The fixture also qualifies joint growth and publication, lookup, deletion,
+ordinary business errors, forgotten views, malformed metadata/slots, independent
+source/target admission and failed upgrade rollback. Failpoints span candidate
+writes, partial owner release, native return, each root write and settlement.
+Separate counterexamples exercise stack/payload edges, copy bounds and custody.
+Pool-growth failures also check page count, the complete physical payload,
+initialization of previously unloaned space, failed-upgrade rollback and ordinary
+memory.grow refusal under a restricted module maximum. The fill fixture uses
+one scoped native batch; reopening both maps per record exceeded an IC message's
+instruction limit at the larger sizes. Full boundary admission remains in place.
 
 The [installed contract](../../qualification/ic-storage-native-feasibility/native-map-provider.md)
 records the reviewed compiler shape, memory geometry, admission limits and
@@ -201,11 +211,29 @@ the native host load measurements above do not establish IC throughput.
 
 ## Next integration work
 
-- Integrate portable map export/recovery through the governed checkpoint provider
-  and test fresh heap replacement on IC; the current portable path is host qualified.
-- Extend the bounded two-bank growth mechanism to an allocation pool with larger
-  consumer budgets and multiple roots. Current growth is inside a preallocated
-  loan; it does not add IC memory pages or exceed 384 live entries.
+The [governed two-map checkpoint](../../qualification/ic-storage-native-feasibility/native-map-recovery.md)
+now connects the product codec to the existing Storage locator and installed
+fresh-heap reconstruction. It qualifies at most 64 records per map, including
+full-width scalars, frozen-source custody, corruption/epoch refusal, rollback and
+explicit recovery after corrupt native metadata. This separate fixed-domain
+profile does not yet cover recovery of the larger growing-pool workload.
+The [durable map-job profile](../../qualification/ic-storage-native-feasibility/native-map-jobs.md)
+adds controller checks, sequential epochs, cancellation, frozen resumption and
+atomic consumption through the shared migration state machine for that bound.
+
+The [provider pool host experiment](../../qualification/ic-storage-native-feasibility/provider-region.md#multiple-root-host-pool)
+now supports disjoint runs for multiple maps and simultaneous growth candidates.
+Its opt-in `make native-map-pool-firehose` passes a three-root, 1,024,576-record
+growth/reopen/mutation/recovery lifecycle within one 96 MiB loan. Six focused
+host cases cover refusal, reclamation and custody boundaries. The same allocator
+now serves the installed two-root contract above; no allocator object or private
+collection header is retained across entrypoints.
+
+- Extend durable map jobs to bounded import batches, interruption/restart and
+  recovery workloads matching the larger growing pool.
+- Connect bounded provider growth to consumer-facing root custody and a larger
+  operational budget. Current installed execution grows to five Wasm pages;
+  it does not establish million-record IC throughput or automatic elasticity.
 - Decide whether full admission scans fit consumer upgrade budgets; if they do
   not, qualify a trusted retained-root reopen path rather than skipping checks.
 - Extend scalar values to concrete application records with declared layout,

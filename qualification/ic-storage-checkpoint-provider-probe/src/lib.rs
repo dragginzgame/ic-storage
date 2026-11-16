@@ -1,8 +1,22 @@
 //! Governed checkpoint provider fixtures; ordinary and native bridge profiles.
 
+#[cfg(any(
+    feature = "native-job",
+    feature = "native-record-vector-job",
+    feature = "native-map-job"
+))]
+mod job_control;
+
+#[cfg(feature = "native-map")]
+mod native_map;
+
 #[cfg(all(
     feature = "native-bridge",
-    not(any(feature = "native-job", feature = "native-record-vector"))
+    not(any(
+        feature = "native-job",
+        feature = "native-record-vector",
+        feature = "native-map"
+    ))
 ))]
 mod native_bridge;
 #[cfg(any(
@@ -16,6 +30,7 @@ mod native_bridge;
         ))
     )
 ))]
+#[cfg(not(feature = "native-map"))]
 mod native_job;
 #[cfg(not(feature = "native-bridge"))]
 mod ordinary;
@@ -29,8 +44,10 @@ mod provider;
         feature = "native-record-vector-convert"
     )
 ))]
+#[cfg(not(feature = "native-map"))]
 mod record_vector;
 #[cfg(feature = "native-record-vector-source")]
+#[cfg(not(feature = "native-map"))]
 mod record_vector_source;
 
 #[cfg(all(
@@ -40,4 +57,5 @@ mod record_vector_source;
         feature = "native-record-vector-source"
     ))
 ))]
+#[cfg(not(feature = "native-map"))]
 mod record_vector_convert;

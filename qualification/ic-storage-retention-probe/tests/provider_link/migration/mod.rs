@@ -3,10 +3,10 @@
 use super::vector_link;
 use ic_storage_retention_probe::artifact::{compile_wat, validate_wasm};
 
-mod artifact;
+pub(crate) mod artifact;
 mod record_vector;
 mod records;
-mod tests;
+pub(crate) mod tests;
 mod transient;
 
 const LIMIT: usize = 1024 * 1024;

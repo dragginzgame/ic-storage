@@ -5,14 +5,6 @@ use ic_platform_runtime::raw as ic0;
 use ic_storage_native_feasibility::migration_job::Job;
 #[cfg(feature = "native-record-vector-job")]
 use ic_storage_native_feasibility::migration_job::RecordJob as Job;
-#[cfg_attr(
-    feature = "native-record-vector-job",
-    path = "native_job/payload/records.rs"
-)]
-#[cfg_attr(
-    not(feature = "native-record-vector-job"),
-    path = "native_job/payload/scalar.rs"
-)]
 mod payload;
 
 mod staged;
@@ -27,22 +19,7 @@ unsafe extern "C" {
     safe fn thaw(retry: u32);
 }
 
-fn controller() {
-    let len = ic0::msg_caller_size();
-    assert!(len <= 29);
-    let mut bytes = [0; 29];
-    ic0::msg_caller_copy(&mut bytes[..len], 0);
-    if ic0::is_controller(&bytes[..len]) != 1 {
-        ic0::trap(b"migration controller required");
-    }
-}
-
-fn args() -> [u64; 3] {
-    assert_eq!(ic0::msg_arg_data_size(), 24);
-    let mut bytes = [0; 24];
-    ic0::msg_arg_data_copy(&mut bytes, 0);
-    std::array::from_fn(|i| u64::from_le_bytes(bytes[i * 8..i * 8 + 8].try_into().unwrap()))
-}
+use crate::job_control::{args, controller};
 
 #[expect(unsafe_code, reason = "private entry bound by final composer")]
 #[unsafe(no_mangle)]

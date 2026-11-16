@@ -7,11 +7,13 @@ use core::marker::PhantomData;
 use sha2::{Digest, Sha256};
 
 mod payload;
-pub use payload::{Payload, RecordVector, ScalarVector};
+pub use payload::{MapPair, Payload, RecordVector, ScalarVector};
 /// Scalar counter/u64-vector job under the original envelope.
 pub type Job = MigrationJob<ScalarVector>;
 /// V3 record-vector job under its distinct envelope.
 pub type RecordJob = MigrationJob<RecordVector>;
+/// Two-map job under its own envelope and allocation-domain contract.
+pub type MapJob = MigrationJob<MapPair>;
 
 mod staged;
 pub use staged::Batch;
@@ -22,6 +24,8 @@ const OVERHEAD: usize = HEADER + 8 + 32;
 pub const MAX_BYTES: usize = OVERHEAD + ScalarVector::MAX_BYTES;
 /// Maximum record job, including sixteen V3 records.
 pub const RECORD_MAX_BYTES: usize = OVERHEAD + RecordVector::MAX_BYTES;
+/// Maximum two-map job, including both bounded logical checkpoints.
+pub const MAP_MAX_BYTES: usize = OVERHEAD + MapPair::MAX_BYTES;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Phase {
@@ -61,12 +65,14 @@ pub enum Error {
     Checkpoint(checkpoint::Error),
     /// V3 record checkpoint refusal.
     RecordCheckpoint(checkpoint::record_vector::Error),
+    /// Two-map checkpoint refusal.
+    MapCheckpoint(ic_storage_native::map::Error),
     /// Bounded allocation failed.
     Allocation,
 }
 
-fn domain(value: u64) -> Result<(), Error> {
-    if matches!(value, 131072 | 147456) {
+fn domain<P: Payload>(value: u64) -> Result<(), Error> {
+    if P::DOMAINS.contains(&value) {
         Ok(())
     } else {
         Err(Error::Domain)
@@ -76,7 +82,7 @@ fn domain(value: u64) -> Result<(), Error> {
 impl<P: Payload> MigrationJob<P> {
     /// Fresh governed locator only; never used as fallback after decode failure.
     pub fn initial(source: u64) -> Result<Self, Error> {
-        domain(source)?;
+        domain::<P>(source)?;
         Ok(Self {
             payload: PhantomData,
             phase: Phase::Ready,
@@ -100,8 +106,8 @@ impl<P: Payload> MigrationJob<P> {
         if self.phase == Phase::Importing {
             return Err(Error::State);
         }
-        domain(source)?;
-        domain(target)?;
+        domain::<P>(source)?;
+        domain::<P>(target)?;
         if source == target {
             return Err(Error::Domain);
         }
@@ -244,8 +250,8 @@ impl<P: Payload> MigrationJob<P> {
             _ => return Err(Error::State),
         };
         let (epoch, source, target) = (word(16)?, word(24)?, word(32)?);
-        domain(source)?;
-        domain(target)?;
+        domain::<P>(source)?;
+        domain::<P>(target)?;
         let payload = &bytes[HEADER..HEADER + len];
         let count = if phase == Phase::Ready {
             if epoch != 0 || source != target || !payload.is_empty() {
@@ -309,6 +315,24 @@ impl RecordJob {
     }
 }
 
+impl MapJob {
+    /// Seal both logical maps at the next epoch, or retry the identical export.
+    /// The adapter must freeze both roots and authorize its caller first.
+    pub fn export(
+        &self,
+        source: u64,
+        target: u64,
+        epoch: u64,
+        maps: &[ic_storage_native::map::Map; 2],
+    ) -> Result<Self, Error> {
+        self.export_payload(source, target, epoch, || {
+            checkpoint::maps::encode(maps, epoch).map_err(Error::MapCheckpoint)
+        })
+    }
+}
+
+#[cfg(test)]
+mod map_tests;
 #[cfg(test)]
 mod record_tests;
 #[cfg(test)]

@@ -23,9 +23,9 @@ m0-test m0-lint-wasm: export CARGO_NET_OFFLINE := true
 
 .PHONY: m0-test m0-lint-wasm
 m0-test m0-lint-wasm: | toko-execution-check
-.PHONY: native-core-test native-map-firehose
-native-core-test native-map-firehose: export CARGO_NET_OFFLINE := true
-native-core-test native-map-firehose: | toko-execution-check
+.PHONY: native-core-test native-map-firehose native-map-pool-firehose
+native-core-test native-map-firehose native-map-pool-firehose: export CARGO_NET_OFFLINE := true
+native-core-test native-map-firehose native-map-pool-firehose: | toko-execution-check
 retention-test retention-lint retention-tools-check: export CARGO_NET_OFFLINE := true
 
 .PHONY: retention-setup retention-tools-check retention-lint retention-test
@@ -49,8 +49,12 @@ native-feasibility-test native-feasibility-lint native-layout-probe: | toko-exec
 
 .PHONY: native-provider-probe native-provider-test
 .PHONY: native-map-probe native-map-test
-native-map-probe native-map-test: export CARGO_NET_OFFLINE := true
-native-map-probe native-map-test: | toko-execution-check
+.PHONY: native-map-checkpoint-build native-map-checkpoint-test
+.PHONY: native-map-job-build native-map-job-test
+native-map-job-build native-map-job-test: export CARGO_NET_OFFLINE := true
+native-map-job-build native-map-job-test: | toko-execution-check
+native-map-probe native-map-test native-map-checkpoint-build native-map-checkpoint-test: export CARGO_NET_OFFLINE := true
+native-map-probe native-map-test native-map-checkpoint-build native-map-checkpoint-test: | toko-execution-check
 .PHONY: native-checkpoint-build native-checkpoint-test
 .PHONY: native-record-build native-record-test
 .PHONY: native-record-vector-build native-record-vector-test
@@ -87,7 +91,10 @@ help:
 	  'make m0-lint-wasm                Check the no_std image library on wasm32' \
 	  'make native-core-test           Test scoped native operations and Store declarations' \
 	  'make native-map-firehose        Exercise one million keyed records through the public API' \
+	  'make native-map-pool-firehose   Grow and reopen one million records in a shared host pool' \
 	  'make native-map-test            Qualify installed map upgrades, custody and rollback' \
+	  'make native-map-checkpoint-test Recover two maps through the governed checkpoint provider' \
+	  'make native-map-job-test        Qualify durable two-map recovery jobs' \
 	  'make retention-setup             Explicitly prepare the retention-test server' \
 	  'make retention-tools-check       Admit the prepared server offline' \
 	  'make retention-lint              Strict Clippy for the Rust test runner' \
@@ -179,6 +186,9 @@ native-core-test:
 native-map-firehose:
 	+cargo test -p ic-storage-native --features map --release --test map_firehose --locked --offline -- --ignored --nocapture
 
+native-map-pool-firehose:
+	+cargo test $(NATIVE_FEASIBILITY_CARGO) --release --test provider_region_tests million_records_share_a_pool_with_other_roots -- --ignored --nocapture
+
 native-map-probe:
 	rustfmt --edition 2024 --check qualification/ic-storage-native-feasibility/tests/fixtures/provider_map.rs
 	+cargo clippy $(RETENTION_CARGO) --test provider_link -- -D warnings
@@ -188,6 +198,28 @@ native-map-test:
 	rustfmt --edition 2024 --check qualification/ic-storage-native-feasibility/tests/fixtures/provider_map.rs
 	+cargo clippy $(RETENTION_CARGO) --test provider_link -- -D warnings
 	+@server="$$($(RETENTION_TOOL) --check)" && "$$server" run -- bash qualification/ic-storage-native-feasibility/scripts/run-map-probe.sh installed
+
+native-map-job-build:
+	@test -z "$${RUSTFLAGS}$${CARGO_ENCODED_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_LINKER}" || { echo 'Map job probe requires the pinned compiler without overrides' >&2; exit 1; }
+	+cargo test $(NATIVE_FEASIBILITY_CARGO) --lib migration_job
+	+cargo clippy $(CHECKPOINT_CARGO) --target-dir target/qualification --features native-map-job -- -D warnings
+	+cargo rustc $(CHECKPOINT_CARGO) --target-dir target/qualification/checkpoint-map-job --features native-map-job -- $(NATIVE_CHECKPOINT_LINK)
+
+native-map-job-test: native-map-job-build
+	rustfmt --edition 2024 --check qualification/ic-storage-native-feasibility/tests/fixtures/provider_map.rs
+	+cargo clippy $(RETENTION_CARGO) --test provider_link -- -D warnings
+	+@server="$$($(RETENTION_TOOL) --check)" && "$$server" run -- bash qualification/ic-storage-native-feasibility/scripts/run-map-probe.sh job
+
+native-map-checkpoint-build:
+	@test -z "$${RUSTFLAGS}$${CARGO_ENCODED_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_LINKER}" || { echo 'Map checkpoint probe requires the pinned compiler without overrides' >&2; exit 1; }
+	+cargo test $(NATIVE_FEASIBILITY_CARGO) --lib checkpoint::maps
+	+cargo clippy $(CHECKPOINT_CARGO) --target-dir target/qualification --features native-map -- -D warnings
+	+cargo rustc $(CHECKPOINT_CARGO) --target-dir target/qualification/checkpoint-map --features native-map -- $(NATIVE_CHECKPOINT_LINK)
+
+native-map-checkpoint-test: native-map-checkpoint-build
+	rustfmt --edition 2024 --check qualification/ic-storage-native-feasibility/tests/fixtures/provider_map.rs
+	+cargo clippy $(RETENTION_CARGO) --test provider_link -- -D warnings
+	+@server="$$($(RETENTION_TOOL) --check)" && "$$server" run -- bash qualification/ic-storage-native-feasibility/scripts/run-map-probe.sh recovery
 
 retention-setup:
 	+@server="$$($(RETENTION_TOOL))" && "$$server" setup

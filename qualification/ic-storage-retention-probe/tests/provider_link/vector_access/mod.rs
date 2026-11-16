@@ -149,7 +149,9 @@ fn inspect_element(raw: &[u8], record: u32) -> Result<Profile> {
     if memories != 1
         || globals != 3
         || bodies.len() != functions.len()
-        || if matches!(record, 2 | 4) {
+        || if record == 4 {
+            functions.len() != 8
+        } else if record == 2 {
             functions.len() != 6
         } else if record == 3 {
             functions.len() != 2
@@ -180,7 +182,9 @@ fn inspect_element(raw: &[u8], record: u32) -> Result<Profile> {
             FuncType::new([I32, I32, I32], []),
             FuncType::new([I32, I32, I64, I64], []),
             FuncType::new([I32, I32], []),
-            FuncType::new([I32, I32, I32, I64], [I64]),
+            FuncType::new([I32, I32, I32], []),
+            FuncType::new([I32, I32, I32, I64, I64], [I64]),
+            FuncType::new([I32, I32, I32], [I32]),
             FuncType::new([], []),
         ]
     } else if record == 2 {
@@ -218,7 +222,7 @@ fn inspect_element(raw: &[u8], record: u32) -> Result<Profile> {
         return Err(Error::Profile);
     }
     let (entry, peak) = if record == 4 {
-        (5, 176)
+        (6, 2688)
     } else if record == 2 {
         (4, 80)
     } else if functions.len() == 2 {

@@ -4,6 +4,19 @@ This unpublished fixture tests independent checkpoint opening after an ordinary
 IC upgrade discards the source Wasm heap. It does not retain native pointers,
 admit native layouts or complete the design's incompatible-runtime gate.
 
+The separately selected `native-map` feature connects two native maps to the
+[bounded two-map envelope and recovery contract](../ic-storage-native-feasibility/native-map-recovery.md).
+Its locator is `native.checkpoint.maps.v1`, with a 2256-byte load limit and at most
+64 records per map. It uses the product map codecs and scalar staging, followed
+by actual native construction after checkpoint Rust returns. Run
+`make native-map-checkpoint-test`. Select fixture features independently;
+`native-map-job` takes precedence in an all-features build. The additional
+`native-map-job` feature uses `native.checkpoint.maps.job.v1` and native format 6
+for [durable two-map jobs](../ic-storage-native-feasibility/native-map-jobs.md),
+with a 2360-byte load limit, controller authority, epochs, cancellation, frozen
+resumption and atomic consumption. Run `make native-map-job-test`. Bare map
+checkpoints are not silently enrolled; staged map import/restart remains unqualified.
+
 The separately selected `native-job` feature uses the same governed provider
 under `native.checkpoint.job.v1` for [durable migration admission](../ic-storage-native-feasibility/migration-job.md).
 Its controller/epoch/consumption contract does not change the ordinary fixture.
@@ -26,7 +39,7 @@ It reuses the governed reader and scalar-only bridge composition, with six
 record-specific callbacks. Run `make native-record-vector-test`. Select fixture
 features independently. `native-record-vector-source` selects an ordinary Rust
 `Vec<V2>` source for portable narrowing into V3; it takes precedence in an
-all-features build. The target never implicitly converts V2 during V3 recovery.
+all-features build without `native-map`. The target never implicitly converts V2 during V3 recovery.
 The same Make target builds and qualifies both source and target profiles.
 It also builds `native-record-vector-v2` for full-width native predecessor
 export/recovery and `native-record-vector-convert` for explicit retained conversion

@@ -32,9 +32,14 @@ The reusable core now also provides a scoped `u64 → u64` native hash table wit
 growth, deletion, host poisoning and portable recovery. Its
 [million-key workload](docs/design/native-map.md) exercises sustained mixed
 operations through the public API. A separate closed installed IC map profile
-now qualifies retained slots, compatible upgrades, custody and rollback with up
-to 384 entries. It grows from 8 to 512 slots by rebuilding into a second retained
-bank before publication. General allocation pools, governed map recovery and application
+now qualifies two independent maps sharing a pool that grows from 24 to 192 KiB,
+including added Wasm pages, compatible upgrades and atomic publication rollback.
+The installed workload retains 4,608 records across both roots and checks growth
+refusal, fragmentation and reuse. A host pool also grows and reopens
+three maps containing over one million records within a shared 96 MiB allocation.
+A separate [governed map recovery profile](qualification/ic-storage-native-feasibility/native-map-recovery.md)
+now restores two maps of up to 64 records each after full heap loss. Larger recovery
+budgets, durable job governance, consumer-facing root custody and application
 record values remain next; the million-key figures are host measurements.
 
 This is the intended successor to `ic-storage`, aiming to subsume the persistence
@@ -49,7 +54,7 @@ Use the pinned Rust 1.100.0 toolchain (also the support floor). The M0 library i
 `no_std` and allocation-free; the native core uses `no_std` plus `alloc` with a
 caller-supplied allocator. M0's root-owned SHA-256 dependency is `sha2` 0.11.1
 with defaults disabled, selected from the latest stable registry release on
-15 November 2026. The root selects Toko Tooling 0.44.9 exactly as a
+15 November 2026. The root selects Toko Tooling 0.44.11 exactly as a
 development dependency. Its authenticated snapshot is installed through the
 canonical exporter under `vendor/toko-tooling/`; [TOKO-TOOLING.md](TOKO-TOOLING.md)
 owns the common rules and links to immutable upstream references.
@@ -78,6 +83,9 @@ make m0-test
 make m0-lint-wasm
 make native-core-test
 make native-map-firehose
+make native-map-pool-firehose
+make native-map-checkpoint-test
+make native-map-job-test
 make native-map-probe
 make native-feasibility-test
 make native-layout-probe
@@ -127,6 +135,13 @@ tests, wasm32 library checks
 and Rustdoc. GitHub Actions runs it and the
 retention/startup/graph tests on Linux and both macOS architectures after explicit setup, with
 one separate Gitleaks scan per run.
+Setup steps retain their original exit status and print a bounded sanitized
+diagnostic. On failure, CI uploads selected sanitized logs and attempt identifiers
+(at most 64 selected files of 64 KiB each plus an index, retained seven days), including hidden setup
+attempts. Raw evidence trees, caches and binaries are excluded. The result reports
+missing evidence and collection/upload failures separately and links the artifact
+when available. `bash scripts/ci/tests/diagnostics.sh` exercises the local failure
+path offline; it does not prove hosted upload/retrieval.
 The separate `retention-test` runs the first installed Wasm probe through
 Testkit/PocketIC. The [Rust startup probe](qualification/ic-storage-rust-startup-probe/README.md)
 adds controlled transient initialization and artifact admission; neither is a

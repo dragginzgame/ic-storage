@@ -1,157 +1,186 @@
-//! Closed native map entrypoint; the foreign provider owns admission and custody.
+//! Closed two-root map entrypoint under one exclusive foreign pool loan.
 #![no_std]
 #![deny(unsafe_code, unsafe_op_in_unsafe_fn, missing_docs, dead_code)]
 
+#[expect(
+    dead_code,
+    reason = "shared region module also owns the separate single-vector fixture"
+)]
 mod region;
 mod runtime;
 
 use core::ptr::NonNull;
 use ic_storage_native::map::{Error, Map, Slot};
-use region::{Descriptor, Region};
+use region::pool::{Pool, Root};
 use runtime::abort;
 
 impl region::sealed::Sealed for Slot {}
 impl region::Element for Slot {}
-
 const _: () = assert!(size_of::<Slot>() == 24 && align_of::<Slot>() == 8);
 
-#[expect(
-    unsafe_code,
-    reason = "exclusive foreign loan for the closed map schema"
-)]
+#[expect(unsafe_code, reason = "exclusive foreign pool loan")]
 #[link(wasm_import_module = "native_map_diagnostic")]
 unsafe extern "C" {
     fn claim_region() -> *mut u8;
 }
 
-/// Reopen a native map, optionally rebuild in the other bank, and release owners.
+fn decode(word: u32) -> (Root, usize) {
+    let exponent = (word >> 12) & 15;
+    if !(3..=12).contains(&exponent) {
+        abort();
+    }
+    let buckets = 1usize << exponent;
+    let count = (word & 4095) as usize;
+    if count > buckets - buckets / 4 {
+        abort();
+    }
+    (
+        Root {
+            start: (word >> 16) as usize,
+            length: buckets,
+            capacity: buckets,
+        },
+        count,
+    )
+}
+
+fn encode(root: Root, count: usize) -> u32 {
+    if root.length != root.capacity
+        || !(8..=4096).contains(&root.capacity)
+        || !root.capacity.is_power_of_two()
+        || root.start >= 8192
+        || count > root.capacity - root.capacity / 4
+    {
+        abort();
+    }
+    (root.start as u32) << 16 | root.capacity.trailing_zeros() << 12 | count as u32
+}
+
+/// Reopen both maps, perform one closed operation and release the complete pool.
 ///
 /// # Safety
-/// Requires the closed map provider's exclusive live aligned 24 KiB allocation,
-/// split into two disjoint 512-Slot banks. `root` encodes buckets in its low 16
-/// bits and the active bank in its upper 16 bits. The active prefix is initialized
-/// and its schema/root admitted; the inactive bank has no owning client. All
-/// previous owners have ended. The provider publishes the returned entry count
-/// and bucket descriptor only after return; unexpected failures trap the message.
+/// The provider supplies one exclusive live aligned allocation containing the
+/// admitted number of initialized Slots (encoded in operation's upper 16 bits).
+/// Provider growth occurs only between loans, with all former owners ended;
+/// no pointer or allocator survives it. The two roots must have admitted representation,
+/// counts and disjoint spans. Previous owners have ended. No provider access is
+/// allowed during the loan. The returned roots are published only after return;
+/// every unexpected failure traps the complete IC message.
 #[expect(
     unsafe_code,
-    reason = "private entrypoint under the foreign map loan contract"
+    reason = "closed foreign allocation and ownership boundary"
 )]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn provider_map_step(
-    count: u32,
-    root: u32,
+    first: u32,
+    second: u32,
     operation: u32,
-    argument: u64,
+    key: u64,
+    value: u64,
 ) -> u64 {
-    if operation > 10 || root >> 16 > 1 {
+    let elements = (operation >> 16) as usize;
+    let operation = operation & 65535;
+    let selected = (operation >> 8) as usize;
+    let command = operation & 255;
+    if selected > 1 || command > 11 || !matches!(elements, 1024 | 2048 | 4096 | 8192) {
         abort();
     }
-    let buckets = root & 0xffff;
-    let active = root >> 16;
-    // SAFETY: pointer custody and initialized native Slot representation are
-    // supplied by the trusted foreign provider, before any Rust interpretation.
-    let (controller, spare) = unsafe {
-        let base = NonNull::new(claim_region()).unwrap_or_else(|| abort());
-        let source = Region::<Slot>::claim(
-            NonNull::new_unchecked(base.as_ptr().add(active as usize * 12288)),
-            512,
-            Descriptor {
-                length: buckets as usize,
-                capacity: buckets as usize,
-            },
+    let (a, count_a) = decode(first);
+    let (b, count_b) = decode(second);
+    // SAFETY: the foreign claim creates the live loan; Pool separately checks
+    // complete-span bounds and nonoverlap before issuing either allocation.
+    let pool = unsafe {
+        Pool::<Slot>::claim(
+            NonNull::new(claim_region()).unwrap_or_else(|| abort()),
+            elements,
+            &[a, b],
         )
-        .unwrap_or_else(|_| abort());
-        let spare = Region::<Slot>::claim(
-            NonNull::new_unchecked(base.as_ptr().add((1 - active) as usize * 12288)),
-            512,
-            Descriptor {
-                length: 0,
-                capacity: 0,
-            },
-        )
-        .unwrap_or_else(|_| abort());
-        (source, spare)
-    };
-    let slots = controller.restore().unwrap_or_else(|_| abort());
-    let mut map = Map::admit(slots, count as usize, 512).unwrap_or_else(|_| abort());
-    // The closed operation wire uses two u32 fields, independently of the
-    // product's full-width u64 key/value representation.
-    let key = argument & 0xffff_ffff;
-    let value = argument >> 32;
-    let mut bank = active;
-    if matches!(operation, 1 | 5 | 6 | 7 | 9 | 10)
-        && map
-            .with(|view| view.get(key).is_none())
+    }
+    .unwrap_or_else(|_| abort());
+    let mut maps = [
+        Map::admit(pool.restore(0).unwrap_or_else(|_| abort()), count_a, 6144)
+            .unwrap_or_else(|_| abort()),
+        Map::admit(pool.restore(1).unwrap_or_else(|_| abort()), count_b, 6144)
+            .unwrap_or_else(|_| abort()),
+    ];
+    if command == 4 {
+        // Explicit destructive reset retires this root first. Any subsequent
+        // failure traps the IC message and restores the entire prior pool.
+        maps[selected] = Map::new_in(6144, &pool);
+        maps[selected]
+            .with(|mut view| view.reserve(6))
             .unwrap_or_else(|_| abort())
-        && count as usize == map.capacity().unwrap_or_else(|_| abort())
-    {
-        // The source remains live until every native entry has been copied.
-        // A zero-capacity restoration opens the disjoint destination allocator.
-        drop(spare.restore().unwrap_or_else(|_| abort()));
-        match map.rebuild_in(count as usize + 1, &spare) {
-            Ok(candidate) => {
-                if operation == 10 {
-                    abort();
-                } // complete candidate, old owner live
-                map = candidate; // retire the old header only after full construction
-                bank = 1 - active;
-            }
-            Err(Error::Allocation) if operation == 7 => {}
-            _ => abort(),
+            .unwrap_or_else(|_| abort());
+    } else {
+        let result = maps[selected]
+            .with(|mut view| {
+                match command {
+                    0 => {}
+                    1 | 5 | 6 | 8 | 9 | 10 => {
+                        view.insert(key, value).unwrap_or_else(|_| abort());
+                        if command == 5 {
+                            return Err(());
+                        }
+                        if command == 6 {
+                            #[expect(
+                                clippy::forget_non_drop,
+                                reason = "forgotten view must not skip settlement"
+                            )]
+                            core::mem::forget(view);
+                        }
+                    }
+                    2 => {
+                        if view.remove(key) != Some(value) {
+                            abort();
+                        }
+                    }
+                    3 => {
+                        if view.get(key) != Some(value) {
+                            abort();
+                        }
+                    }
+                    7 => {
+                        if view.insert(key, value) != Err(Error::Allocation) {
+                            abort();
+                        }
+                    }
+                    11 => {
+                        if key > value || value > 3072 {
+                            abort();
+                        }
+                        for key in key..value {
+                            view.insert(key, key + 1000).unwrap_or_else(|_| abort());
+                        }
+                    }
+                    _ => abort(),
+                }
+                Ok(())
+            })
+            .unwrap_or_else(|_| abort());
+        if result.is_err() != (command == 5) {
+            abort();
         }
     }
-    let outcome = map
-        .with(|mut view| {
-            match operation {
-                0 => {}
-                1 | 5 | 6 | 9 => {
-                    view.insert(key, value).unwrap_or_else(|_| abort());
-                    if operation == 5 {
-                        return Err(());
-                    }
-                    if operation == 6 {
-                        #[expect(
-                            clippy::forget_non_drop,
-                            reason = "installed forgotten-view settlement"
-                        )]
-                        core::mem::forget(view);
-                    }
-                }
-                2 => {
-                    if view.remove(key) != Some(value) {
-                        abort();
-                    }
-                }
-                3 => {
-                    if view.get(key) != Some(value) {
-                        abort();
-                    }
-                }
-                4 => {
-                    if view.get(key).is_some() {
-                        abort();
-                    }
-                }
-                7 => {
-                    if view.insert(key, value) != Err(Error::Allocation) {
-                        abort();
-                    }
-                }
-                8 => view.clear(),
-                _ => abort(),
-            }
-            Ok(())
-        })
-        .unwrap_or_else(|_| abort());
-    if outcome.is_err() != (operation == 5) {
+    if command == 9 || command == 10 {
+        maps[1 - selected]
+            .with(|mut view| view.insert(key, value + 1))
+            .unwrap_or_else(|_| abort())
+            .unwrap_or_else(|_| abort());
+    }
+    let [a, b] = maps;
+    let (slots, count_a) = a.release().unwrap_or_else(|_| abort());
+    let a = pool
+        .release(slots)
+        .unwrap_or_else(|_| abort())
+        .unwrap_or_else(|| abort());
+    if command == 8 || command == 10 {
         abort();
     }
-    let (slots, count) = map.release().unwrap_or_else(|_| abort());
-    let owner = if bank == active { &controller } else { &spare };
-    let root = owner.release(slots).unwrap_or_else(|_| abort());
-    if root.length != root.capacity {
-        abort();
-    }
-    ((count as u64) << 32) | ((bank as u64) << 16) | root.capacity as u64
+    let (slots, count_b) = b.release().unwrap_or_else(|_| abort());
+    let b = pool
+        .release(slots)
+        .unwrap_or_else(|_| abort())
+        .unwrap_or_else(|| abort());
+    pool.finish().unwrap_or_else(|_| abort());
+    u64::from(encode(a, count_a)) | (u64::from(encode(b, count_b)) << 32)
 }

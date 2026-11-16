@@ -66,8 +66,8 @@ refuses growth and replacement without changing the original state.
 loan while the original map stays live. The host test checks destination
 allocation refusal, simultaneous source/candidate ownership, independent
 mutation, release/readmission and a portable round trip. The installed map
-profile now uses two such controllers under one exclusive foreign allocation
-loan; its [contract](native-map-provider.md) owns bank selection and publication.
+profile now uses the shared pool below; its [contract](native-map-provider.md)
+owns two-root admission and publication within one exclusive allocation loan.
 
 The streamed map importer also runs against this one-block controller. Read
 errors at every phase, final-digest corruption and a source panic discard the
@@ -75,9 +75,72 @@ private candidate. A subsequent successful import reuses the same destination
 loan, while the original source map remains unchanged. This establishes host
 candidate reclamation, not durable checkpoint custody or installed recovery.
 
-This addition is host-only and does not change either installed provider's
-element admission or capacity. The [product map contract](../../docs/design/native-map.md)
+These one-block recovery cases are host-only. The [product map contract](../../docs/design/native-map.md)
 owns layout, hash placement, portable encoding and sustained-load evidence.
+
+## Multiple-root host pool
+
+The private [pool controller](tests/fixtures/region/pool/mod.rs) extends the same
+exclusive provider-loan model to disjoint allocation runs. The earlier live-Box
+arena remains historical host evidence; this experiment follows the selected
+foreign-loan direction used by installed collections. Product libraries still
+forbid unsafe code, and the pool is not an application-facing allocator yet.
+
+The provider loans one stable aligned allocation for a closed element type.
+Admission checks the total layout, every root's initialized length/capacity and
+offset, arithmetic overflow, and pairwise span disjointness before issuance.
+Those checks do not supply provenance or initialization: the unsafe caller must
+establish both from its actual backing and source custody. Fresh construction
+supplies no roots; reopening supplies only released roots from the same live
+backing after all old owners end. No unknown native state is silently reset.
+
+There are at most 32 simultaneous nonempty runs, including candidates, reserved
+roots and released roots awaiting settlement. Metadata is a transient fixed-size
+array, independent of backing size; no per-slot bitmap or retained allocator
+header is introduced. Allocation selects a free contiguous run, so geometric
+map growth can keep the source alive while building a replacement. Deallocation
+frees only the exact issuing controller's live run. Adjacent freed spans can be
+reused together without relocating surviving roots. Fragmentation and run-slot
+exhaustion return allocation refusal even when total free bytes remain.
+
+An unopened root remains reserved. Restoration freshly issues its exact span
+through Allocator before reconstructing the public Vec header, without writing
+its initialized prefix. Release validates controller identity and exact span,
+consumes the Vec, then seals that span against reuse. Settlement requires every
+run to be free or sealed and blocks subsequent allocation/restoration. Forgotten
+live owners and unopened reservations prevent settlement. The provider still
+owns complete application-root binding, counts, loan teardown and publication;
+these transient host descriptors are not a new retained metadata ABI.
+
+Six focused host tests pass for independent map growth, out-of-order reopening,
+portable reconstruction after source-backing destruction, fragmentation and
+capacity refusal, failed recovery reclamation, malformed/overlapping roots,
+wrong-controller release, sealed-span protection, default Vec grow/shrink,
+run-budget exhaustion and forgotten-owner refusal. Strict Clippy passes for the
+owning `provider_region_tests` target. Ordinary CI includes these tests through
+the existing native-feasibility target.
+
+`make native-map-pool-firehose` selects the separate ignored release-profile
+case: three maps containing 1,000,000, 16,384 and 8,192 records share a 96 MiB
+provider allocation. They grow through the product API, release/reopen under
+fresh controllers, delete/reinsert every third key, then recover all three maps
+into one fresh pool after the source backing is destroyed. Every key/value and
+continued mutation is checked; final drops make the entire loan reusable.
+On 16 November 2026 this 1,024,576-record lifecycle passed in 0.316382 seconds on
+the existing x86_64 Linux host. This is a host lifecycle timing, not sustained
+IC throughput. Portable checkpoints still occupy transient host buffers in this
+pool test; the separate map firehose qualifies file-backed streamed recovery.
+
+The same Pool implementation now also serves the installed two-map profile.
+Its [Wasm contract](native-map-provider.md) qualifies foreign loan custody,
+artifact/access guards, atomic multi-root publication and installed upgrades and
+rollback. Its idle provider can now grow the allocation from 24 to 192 KiB,
+including additional Wasm pages, before issuing a fresh loan. No Pool object or
+client pointer survives that expansion. The installed workload retains 4,608
+records; dynamic rehash still needs contiguous candidate space and may refuse
+earlier. Pool itself never grows memory during a loan. Neither component returns
+physical pages, implements compaction, admits arbitrary owning elements or
+provides a production root catalog. Those remain explicit integration work.
 
 ## Fresh record controllers on the host
 

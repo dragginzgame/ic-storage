@@ -18,6 +18,8 @@ defaults:
 
 jobs:
   rust:
+    env:
+      TOKO_TOOLING_STORE: ${{ github.workspace }}/target/ci-tool-store
     strategy:
       fail-fast: false
       matrix:
@@ -30,22 +32,24 @@ jobs:
           persist-credentials: false
       - name: Prepare host parsers and pinned compiler
         run: |
+          bash scripts/ci/setup-step.sh compiler bash -e -o pipefail <<'SETUP'
           make install-host-tools
           make host-tools-check
           export PATH="$PWD/.tools/host/bin:$PATH"
           bash vendor/toko-tooling/scripts/dev/prepare-rust-toolchain.sh --toolchain-file rust-toolchain.toml
-      - uses: ./vendor/toko-tooling/.github/actions/prepare-common-tools
-        with:
-          cache: 'true'
-          cache-save: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          SETUP
+      - name: Prepare and admit common tools
+        run: bash scripts/ci/setup-step.sh common-tools bash vendor/toko-tooling/scripts/ci/prepare-common-tools.sh
       - name: Prepare locked dependencies
         run: |
+          bash scripts/ci/setup-step.sh dependencies bash -e -o pipefail <<'SETUP'
           cargo fetch --locked
           cargo fetch --manifest-path qualification/Cargo.toml --locked
+          SETUP
       - name: Validate research library
         run: make ci
       - name: Prepare pinned retention-test server
-        run: make retention-setup
+        run: bash scripts/ci/setup-step.sh retention-server make retention-setup
       - name: Validate installed Wasm retention
         run: |
           mkdir -p target/evidence
@@ -74,21 +78,38 @@ jobs:
         run: make native-record-vector-test 2>&1 | tee target/evidence/native-record-vector-test.log
       - name: Validate governed native migration jobs
         run: make native-job-test 2>&1 | tee target/evidence/native-job-test.log
-      - name: Retain diagnostics
+      - name: Validate durable map recovery jobs
+        run: make native-map-job-test 2>&1 | tee target/evidence/native-map-job-test.log
+      - name: Collect bounded sanitized diagnostics
+        id: collect
+        if: failure()
+        run: perl scripts/ci/diagnostics.pl collect "$GITHUB_WORKSPACE" "$RUNNER_TEMP" "$TOKO_TOOLING_STORE" target/ci-diagnostics
+      - name: Retain sanitized diagnostics
+        id: diagnostics
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: diagnostics-${{ matrix.os }}
-          path: |
-            target/toko-tooling/
-            target/evidence/
-            ${{ runner.temp }}/tools-install.log
-            ${{ runner.temp }}/tools-check.log
-            ${{ runner.temp }}/formatting.*
-          if-no-files-found: ignore
+          path: target/ci-diagnostics/
+          if-no-files-found: error
           retention-days: 7
+      - name: Report diagnostic retention
+        if: failure()
+        env:
+          ARTIFACT_URL: ${{ steps.diagnostics.outputs.artifact-url }}
+          COLLECTION: ${{ steps.collect.outcome }}
+          UPLOAD: ${{ steps.diagnostics.outcome }}
+        run: |
+          printf 'Diagnostics collection=%s upload=%s\n' "$COLLECTION" "$UPLOAD" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [[ -n "$ARTIFACT_URL" ]]; then
+            printf '[Sanitized diagnostics](%s)\n' "$ARTIFACT_URL" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Diagnostic artifact unavailable; inspect the failed collection/upload step.' | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
 
   security-and-workflow:
+    env:
+      TOKO_TOOLING_STORE: ${{ github.workspace }}/target/ci-tool-store
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -98,8 +119,37 @@ jobs:
           persist-credentials: false
       - name: Prepare and run pinned validators
         run: |
+          bash scripts/ci/tests/diagnostics.sh
+          bash scripts/ci/setup-step.sh validators bash -e -o pipefail <<'SETUP'
           tool_dir="$RUNNER_TEMP/ci-tools"
           actionlint_bin="$(bash vendor/toko-tooling/scripts/ci/install-ci-tool.sh actionlint --install-dir "$tool_dir")"
           gitleaks_bin="$(bash vendor/toko-tooling/scripts/ci/install-ci-tool.sh gitleaks --install-dir "$tool_dir")"
           "$actionlint_bin" .github/workflows/ci.yml
           "$gitleaks_bin" git --redact=100 --no-banner --no-color --log-level warn "$GITHUB_WORKSPACE"
+          SETUP
+      - name: Collect bounded sanitized diagnostics
+        id: collect
+        if: failure()
+        run: perl scripts/ci/diagnostics.pl collect "$GITHUB_WORKSPACE" "$RUNNER_TEMP" "$TOKO_TOOLING_STORE" target/ci-diagnostics
+      - name: Retain sanitized diagnostics
+        id: diagnostics
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: diagnostics-security-and-workflow
+          path: target/ci-diagnostics/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Report diagnostic retention
+        if: failure()
+        env:
+          ARTIFACT_URL: ${{ steps.diagnostics.outputs.artifact-url }}
+          COLLECTION: ${{ steps.collect.outcome }}
+          UPLOAD: ${{ steps.diagnostics.outcome }}
+        run: |
+          printf 'Diagnostics collection=%s upload=%s\n' "$COLLECTION" "$UPLOAD" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [[ -n "$ARTIFACT_URL" ]]; then
+            printf '[Sanitized diagnostics](%s)\n' "$ARTIFACT_URL" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Diagnostic artifact unavailable; inspect the failed collection/upload step.' | tee -a "$GITHUB_STEP_SUMMARY"
+          fi

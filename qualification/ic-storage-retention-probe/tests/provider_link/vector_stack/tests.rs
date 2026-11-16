@@ -82,6 +82,28 @@ fn map_loops_preserve_frames_and_do_not_expand_vector_admission() {
         .replace("(local i32)", "(local i32 i64)");
     assert_eq!(inspect(&memory), Err(Error::Unsupported));
     assert!(inspect_map(&memory).is_ok());
+    for expression in [
+        "i32.const 8 i32.ctz",
+        "i32.const 8 i32.const 2 i32.div_u",
+        "i32.const 8 i32.const 2 i32.or",
+        "i64.const 8 i64.const 2 i64.le_u",
+    ] {
+        let arithmetic = source("", &format!("{expression} local.set 1"), 32, 32)
+            .replace("(local i32)", "(local i32 i32)");
+        assert_eq!(inspect(&arithmetic), Err(Error::Unsupported));
+        assert!(inspect_map(&arithmetic).is_ok());
+    }
+    let packed = source("", "", 32, 32).replace(
+        "i64.const 7 return",
+        "i32.const 8 i32.ctz i32.const 12 i32.shl i32.const 6 i32.or i64.extend_i32_u return",
+    );
+    assert!(inspect_map(&packed).is_ok());
+    assert!(inspect(&packed).is_err());
+    for suffix in ["i32.const 32736 i64.load", "call 1 i64.const 7"] {
+        let after_restore =
+            source("", "", 32, 32).replace("i64.const 7 return", &format!("{suffix} return"));
+        assert!(inspect_map(&after_restore).is_err());
+    }
 }
 
 #[test]

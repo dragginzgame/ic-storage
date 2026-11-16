@@ -123,6 +123,17 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
         let mut expected = vec![
             "begin", "counter", "finish", "freeze", "fresh", "put", "value",
         ];
+        if callbacks.contains(&"map_count") {
+            expected = vec![
+                "freeze",
+                "fresh",
+                "map_begin",
+                "map_count",
+                "map_finish",
+                "map_put",
+                "map_word",
+            ];
+        }
         if callbacks.contains(&"record_value") {
             expected = vec![
                 "begin",
@@ -134,18 +145,19 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
             ];
         }
         if callbacks.contains(&"domain") {
-            expected.insert(2, "domain");
-            expected.insert(7, "thaw");
-            expected.extend([
-                "stage_begin",
-                "stage_count",
-                "stage_counter",
-                "stage_damage",
-                "stage_value",
-                "stage_put",
-                "stage_finish",
-                "stage_ready",
-            ]);
+            expected.extend(["domain", "thaw"]);
+            if !callbacks.contains(&"map_count") {
+                expected.extend([
+                    "stage_begin",
+                    "stage_count",
+                    "stage_counter",
+                    "stage_damage",
+                    "stage_value",
+                    "stage_put",
+                    "stage_finish",
+                    "stage_ready",
+                ]);
+            }
             if callbacks.contains(&"record_value") {
                 expected.retain(|name| *name != "stage_counter");
             }
@@ -229,7 +241,7 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
         ] {
             assert_eq!(
                 result.exports.contains_key(name),
-                callbacks.contains(&"domain")
+                callbacks.contains(&"domain") && !callbacks.contains(&"map_count")
             );
         }
         for name in result.exports.keys() {
@@ -288,20 +300,23 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
             .iter()
             .filter(|(name, _)| {
                 name.starts_with("ncp_")
-                    || matches!(
-                        name.as_str(),
-                        "__bridge_frozen"
-                            | "__bridge_importing"
-                            | "__bridge_record_source"
-                            | "__bridge_vector_source"
-                    )
+                    || (!result.exports.contains_key("ncp_map_count")
+                        && matches!(
+                            name.as_str(),
+                            "__bridge_frozen"
+                                | "__bridge_importing"
+                                | "__bridge_record_source"
+                                | "__bridge_vector_source"
+                        ))
             })
             .map(|(_, (_, index))| *index)
             .collect();
         assert_eq!(
             pending.len(),
             if result.exports.contains_key("ncp_domain") {
-                if result.exports.contains_key("ncp_record_value") {
+                if result.exports.contains_key("ncp_map_count") {
+                    9
+                } else if result.exports.contains_key("ncp_record_value") {
                     17
                 } else {
                     19
@@ -373,7 +388,7 @@ impl Reencode for Mapping {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum Post {
+pub(crate) enum Post {
     Refuse,
     Recover,
     RecoverWiden,
@@ -391,9 +406,17 @@ pub(super) enum Post {
     ConvertVector,
 }
 
-pub(super) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
+pub(crate) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
     let p = inventory(bridge, true);
     let n = inventory(native, false);
+    let maps = p
+        .imports
+        .iter()
+        .any(|(module, name)| module == "native_checkpoint" && name == "map_count");
+    assert_eq!(maps, n.exports.contains_key("__bridge_export"));
+    assert_eq!(maps, n.exports.contains_key("ncp_map_count"));
+    assert!(!maps || matches!(post, Post::Recover | Post::Reopen | Post::Frozen));
+    assert!(!maps || post != Post::Frozen || n.exports.contains_key("ncp_domain"));
     assert_eq!(
         p.exports.contains_key("checkpoint_convert"),
         n.exports.contains_key("ncp_record_schema")
@@ -414,7 +437,7 @@ pub(super) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
     );
     assert_eq!(
         n.exports.contains_key("__bridge_importing"),
-        n.exports.contains_key("ncp_domain")
+        n.exports.contains_key("ncp_domain") && !maps
     );
     assert_eq!(
         p.imports
@@ -648,7 +671,11 @@ pub(super) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
         ),
         (
             "canister_update export_checkpoint",
-            vec![pcall("checkpoint_export")],
+            if maps {
+                vec![ncall("__bridge_export"), pcall("checkpoint_export")]
+            } else {
+                vec![pcall("checkpoint_export")]
+            },
         ),
         (
             "canister_query checkpoint_bytes",
@@ -668,8 +695,14 @@ pub(super) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
     if p.exports.contains_key("checkpoint_cancel") {
         entrypoints.push((
             "canister_update cancel_checkpoint",
-            vec![pcall("checkpoint_cancel")],
+            if maps {
+                vec![ncall("__bridge_cancel"), pcall("checkpoint_cancel")]
+            } else {
+                vec![pcall("checkpoint_cancel")]
+            },
         ));
+    }
+    if p.exports.contains_key("checkpoint_batch") {
         entrypoints.push((
             "canister_update import_batch",
             vec![pcall("checkpoint_batch")],

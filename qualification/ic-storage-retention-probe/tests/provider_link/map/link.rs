@@ -1,4 +1,4 @@
-//! Recompute the exact closed provider composition before installed admission.
+//! Recompute the exact pooled provider composition before installed admission.
 use super::super::{artifact::LIMIT, vector_access, vector_link};
 use ic_storage_retention_probe::artifact::compile_wat;
 
@@ -7,15 +7,18 @@ pub(super) struct Profile {
     pub(super) version: u64,
     pub(super) buckets: u64,
     pub(super) post_trap: bool,
+    pub(super) post_pool_trap: bool,
+    pub(super) max_pages: u64,
     pub(super) source_guard: bool,
     pub(super) fault: Option<(u32, u64)>,
 }
-
 impl Profile {
     pub(super) const A: Self = Self {
         version: 1,
-        buckets: 512,
+        buckets: 8,
         post_trap: false,
+        post_pool_trap: false,
+        max_pages: 5,
         source_guard: true,
         fault: None,
     };
@@ -24,24 +27,26 @@ impl Profile {
         ..Self::A
     };
 }
-
 pub(super) fn source(profile: Profile) -> Result<String, &'static str> {
     if !matches!(profile.version, 1 | 2)
         || !matches!(profile.buckets, 8 | 512)
+        || !matches!(profile.max_pages, 3 | 5)
         || profile.fault.is_some_and(|(offset, _)| {
             !matches!(
                 offset,
                 65536
                     | 65544
+                    | 65552
+                    | 65560
                     | 65568
                     | 65576
                     | 65584
                     | 65592
                     | 65600
                     | 65608
-                    | 65616
                     | 131072
                     | 131080
+                    | 131264
             )
         })
     {
@@ -54,34 +59,60 @@ pub(super) fn source(profile: Profile) -> Result<String, &'static str> {
             "(export \"__link_{helper}\" (func $access_{helper}))\n"
         ));
     }
-    for (name, operation, key, value, fail, trap) in [
-        ("insert", 1, 7u64, 70u64, 0, false),
-        ("insert_second", 1, 42, 420, 0, false),
-        ("replace", 1, 7, 71, 0, false),
-        ("lookup", 3, 7, 71, 0, false),
-        ("delete", 2, 42, 420, 0, false),
-        ("absent", 4, 42, 0, 0, false),
-        ("business_error", 5, 99, 990, 0, false),
-        ("forget", 6, 100, 1000, 0, false),
-        ("refuse_growth", 7, 999, 999, 0, false),
-        ("delete_full", 2, 2, 1002, 0, false),
-        ("reuse", 1, 999, 999, 0, false),
-        ("clear", 8, 0, 0, 0, false),
-        ("trap", 1, 0, 9999, 0, true),
-        ("finalize_trap", 5, 0, 9999, 1, false),
-        ("grow", 1, 999, 999, 0, false),
-        ("grow_business_error", 5, 999, 999, 0, false),
-        ("grow_forget", 6, 999, 999, 0, false),
-        ("grow_write_trap", 9, 999, 999, 0, false),
-        ("grow_candidate_trap", 10, 999, 999, 0, false),
-        ("grow_finalize_trap", 1, 999, 999, 1, false),
-        ("grow_published_trap", 1, 999, 999, 2, false),
-    ] {
-        helpers.push_str(&format!("(func (export \"canister_update {name}\") (call $run (i32.const {operation}) (i64.const {}) (i32.const {fail})) {} (call $reply))\n", key | value << 32, if trap { "unreachable" } else { "" }));
+    for fault in 1..=4 {
+        helpers.push_str(&format!("(func (export \"canister_update pool_failure_{fault}\") (drop (call $expand_pool (i32.const {fault}))) (call $reply))\n"));
+    }
+    for (id, suffix) in [(0, "a"), (1, "b")] {
+        for (name, command, key, value, fail, trap) in [
+            ("insert", 1, 7u64, 70u64, 0, false),
+            ("replace", 1, 7, 71, 0, false),
+            ("lookup", 3, 7, 71, 0, false),
+            ("delete", 2, 7, 71, 0, false),
+            ("business_error", 5, 99, 990, 0, false),
+            ("forget", 6, 100, 1000, 0, false),
+            ("reset", 4, 0, 0, 0, false),
+            ("reset_finalize_failure", 4, 0, 0, 1, false),
+            ("reset_first_root_failure", 4, 0, 0, 2, false),
+            ("grow", 1, 65535, 999, 0, false),
+            ("grow_business_error", 5, 65535, 999, 0, false),
+            ("grow_forget", 6, 65535, 999, 0, false),
+            ("remove_growth", 2, 65535, 999, 0, false),
+            ("refuse_growth", 7, 65535, 999, 0, false),
+            ("delete_full", 2, 2, 1002, 0, false),
+            ("lookup_full", 3, 2, 1002, 0, false),
+            ("both", 9, 65535, 999, 0, false),
+            ("partial_release", 10, 65535, 999, 0, false),
+            ("native_release", 8, 65535, 999, 0, false),
+            ("write_failure", 1, 65535, 999, 5, false),
+            ("finalize_failure", 9, 65535, 999, 1, false),
+            ("first_root_failure", 9, 65535, 999, 2, false),
+            ("second_root_failure", 9, 65535, 999, 3, false),
+            ("settled_failure", 9, 65535, 999, 4, false),
+            ("trap", 1, 65535, 999, 0, true),
+        ] {
+            helpers.push_str(&format!("(func (export \"canister_update {name}_{suffix}\") (call $run (i32.const {}) (i64.const {}) (i32.const {fail})) {} (call $reply))\n", command | id << 8, key | value << 32, if trap { "unreachable" } else { "" }));
+        }
     }
     Ok(include_str!("provider.wat")
         .replace("__VERSION__", &profile.version.to_string())
-        .replace("__BUCKETS__", &profile.buckets.to_string())
+        .replace("__MAX_PAGES__", &profile.max_pages.to_string())
+        .replace(
+            "__ROOT_A__",
+            &(u64::from(profile.buckets.trailing_zeros()) << 12).to_string(),
+        )
+        .replace(
+            "__ROOT_B__",
+            &((u64::from(profile.buckets.trailing_zeros()) << 12) | (profile.buckets << 16))
+                .to_string(),
+        )
+        .replace(
+            "__POST_POOL_FAILURE__",
+            if profile.post_pool_trap {
+                "(drop (call $expand_pool (i32.const 4))) unreachable"
+            } else {
+                ""
+            },
+        )
         .replace(
             "__PRE_EXPORT__",
             if profile.source_guard {
@@ -93,7 +124,7 @@ pub(super) fn source(profile: Profile) -> Result<String, &'static str> {
         .replace(
             "__POST_FAILURE__",
             if profile.post_trap {
-                "(call $run (i32.const 1) (i64.const 42945377993703) (i32.const 0)) unreachable"
+                "(call $run (i32.const 9) (i64.const 42945378058239) (i32.const 0)) unreachable"
             } else {
                 ""
             },
@@ -106,12 +137,13 @@ pub(super) fn source(profile: Profile) -> Result<String, &'static str> {
         )
         .replace("__HELPERS_AND_METHODS__", &helpers))
 }
-
 pub(super) fn prepare(raw: &[u8], profile: Profile) -> Result<Vec<u8>, &'static str> {
-    let provider = compile_wat(&source(profile)?, LIMIT, LIMIT).map_err(|_| "map provider WAT")?;
+    let provider = compile_wat(&source(profile)?, LIMIT, LIMIT).map_err(|error| {
+        eprintln!("map provider WAT: {error:?}");
+        "map provider WAT"
+    })?;
     vector_link::compose_map(raw, &provider)
 }
-
 pub(super) fn admit_final(bytes: &[u8], raw: &[u8], profile: Profile) -> Result<(), &'static str> {
     if bytes != prepare(raw, profile)? {
         return Err("final map mismatch");

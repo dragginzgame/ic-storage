@@ -119,7 +119,7 @@ fn bridge_artifact_has_disjoint_initialization_and_resolved_calls() {
     );
 }
 
-pub(super) mod installed;
+pub(crate) mod installed;
 mod job;
 mod records;
 mod reopen;

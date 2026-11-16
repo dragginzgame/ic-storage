@@ -2,8 +2,8 @@
 # Closed map artifacts and optional installed execution, using prepared tools.
 set -euo pipefail
 mode="${1:-artifact}"
-if [[ $# -gt 1 || ( "$mode" != artifact && "$mode" != installed ) ]]; then
-    echo 'usage: run-map-probe.sh [artifact|installed]' >&2
+if [[ $# -gt 1 || ( "$mode" != artifact && "$mode" != installed && "$mode" != recovery && "$mode" != job ) ]]; then
+    echo 'usage: run-map-probe.sh [artifact|installed|recovery|job]' >&2
     exit 1
 fi
 root="$(CDPATH='' cd -- "$(dirname -- "$0")/../../.." && pwd)"
@@ -22,6 +22,16 @@ cp -R crates/ic-storage-native "$output/native-core"
 cp qualification/ic-storage-native-feasibility/tests/fixtures/provider_map.rs qualification/ic-storage-native-feasibility/tests/fixtures/runtime.rs "$output/"
 cp -R qualification/ic-storage-native-feasibility/tests/fixtures/region "$output/region"
 cp -R qualification/ic-storage-retention-probe/tests/provider_link "$output/admission-source"
+if [[ "$mode" == recovery || "$mode" == job ]]; then
+    profile=map
+    [[ "$mode" != job ]] || profile=map-job
+    cp "target/qualification/checkpoint-$profile/wasm32-unknown-unknown/release/ic_storage_checkpoint_provider_probe.wasm" "$output/checkpoint-$profile.wasm"
+    cp -R qualification/ic-storage-checkpoint-provider-probe "$output/checkpoint-source"
+    cp -R qualification/ic-storage-native-feasibility/src "$output/feasibility-source"
+    mkdir "$output/qualification-workspace"
+    cp qualification/Cargo.toml qualification/Cargo.lock "$output/qualification-workspace/"
+    cp qualification/ic-storage-native-feasibility/Cargo.toml "$output/feasibility-source/"
+fi
 cargo build -p ic-storage-native --features map --lib --release --target wasm32-unknown-unknown \
     --config 'profile.release.lto=true' --config 'profile.release.codegen-units=1' --config 'profile.release.panic="abort"' \
     --target-dir target/qualification/map-deps --locked --offline --message-format=json \
@@ -31,7 +41,7 @@ jq -e -r -s '[.[] | select(.reason == "compiler-artifact") | .filenames[] | sub(
     "$output/dependencies.json" > "$output/search-paths.txt"
 search=()
 while IFS= read -r directory; do search+=("-L" "dependency=$directory"); done < "$output/search-paths.txt"
-rustc --edition 2024 --crate-type cdylib --target wasm32-unknown-unknown \
+rustc --edition 2024 --crate-type cdylib --target wasm32-unknown-unknown --cfg 'feature="provider-pool"' \
     -C panic=abort -C codegen-units=1 -C lto=fat -C opt-level=3 \
     -C link-arg=--stack-first -C link-arg=-zstack-size=32768 \
     -C link-arg=--initial-memory=196608 -C link-arg=--max-memory=196608 \
@@ -48,5 +58,17 @@ if [[ "$mode" == installed ]]; then
         -p ic-storage-retention-probe --target-dir target/qualification --locked --offline \
         --test provider_link map::installed_tests -- --ignored --nocapture 2>&1 | tee "$output/installed.log"
     test -f "$output/INSTALLED"
+fi
+if [[ "$mode" == recovery ]]; then
+    NATIVE_MAP_INPUTS="$output" cargo test --manifest-path qualification/Cargo.toml \
+        -p ic-storage-retention-probe --target-dir target/qualification --locked --offline \
+        --test provider_link map::recovery::installed_tests -- --ignored --nocapture 2>&1 | tee "$output/recovery.log"
+    test -f "$output/RECOVERED"
+fi
+if [[ "$mode" == job ]]; then
+    NATIVE_MAP_INPUTS="$output" cargo test --manifest-path qualification/Cargo.toml \
+        -p ic-storage-retention-probe --target-dir target/qualification --locked --offline \
+        --test provider_link map::recovery::job_installed_tests -- --ignored --nocapture 2>&1 | tee "$output/job.log"
+    test -f "$output/JOB_RECOVERED"
 fi
 printf 'Closed native map %s checks passed.\n' "$mode" > "$output/COMPLETE"

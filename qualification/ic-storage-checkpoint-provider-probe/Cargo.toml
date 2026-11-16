@@ -19,6 +19,8 @@ doctest = false
 
 [features]
 native-bridge = []
+native-map = ["native-bridge", "dep:ic-storage-native"]
+native-map-job = ["native-map"]
 native-job = ["native-bridge"]
 native-record = ["native-bridge"]
 native-record-vector = ["native-bridge"]
@@ -31,6 +33,7 @@ version-b = []
 [dependencies]
 ic-platform-runtime = { workspace = true, features = ["system-raw"] }
 ic-storage-legacy.workspace = true
+ic-storage-native = { workspace = true, features = ["map"], optional = true }
 ic-storage-native-feasibility.workspace = true
 
 [lints]

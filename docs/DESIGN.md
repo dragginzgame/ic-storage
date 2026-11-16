@@ -58,14 +58,25 @@ hash table, scoped access, poisoning and streaming portable export/recovery.
 Its synchronous reader path uses a bounded record buffer and validates a private
 candidate before returning it; a million-record file-backed host round trip
 avoids holding the complete checkpoint in memory. This does not implement a
-durable import job or installed map recovery.
+durable import job. Bounded installed map recovery is now qualified separately below.
 The [map contract](design/native-map.md) records its controlled slot representation,
 host region-controller admission, sustained public-API workload and integration
-limits. A closed installed map profile now exercises retained slots, compatible
-upgrades, custody and rollback for up to 384 entries. It now grows through six
-capacity doublings within two preallocated banks using the product's native
-candidate-rebuild API. General allocation pools, governed map checkpoint
-integration and general record values remain incomplete.
+limits. A closed installed profile now exercises two native maps within one
+provider pool, independent growth, compatible upgrades, custody and atomic
+multi-root publication rollback. The idle provider grows the loan from 24 to
+192 KiB, adding Wasm pages only after every Rust owner has ended. Installed tests
+retain 4,608 records, check rollback of page count as well as bytes, and exercise
+actual memory.grow refusal. Rehash still needs contiguous candidate space beside
+both source roots and can refuse earlier. The same private pool has host evidence
+for several maps,
+fresh-controller reopening and portable recovery of over one million records.
+A separate governed checkpoint profile now freezes and exports two maps of up
+to 64 records each, then reconstructs them after whole-heap replacement in another
+allocation domain, including explicit recovery after corrupt native metadata.
+A distinct durable map-job profile now adds controller-authorized export,
+sequential epochs, cancellation, frozen resumption and atomic single-use recovery.
+Recovery for the larger growing pool, multi-message map imports, consumer-facing
+root custody and general record values remain incomplete.
 These are shared native collection components, not a complete Store API.
 Keep the existing M0 format, tests and evidence; do not reinterpret those bytes
 as native Rust values or expand M0 into a competing collection architecture.
@@ -681,6 +692,19 @@ pins the published reader and owned locator. The [native bridge](../qualificatio
 connects retained scalar/vector state to independent checkpoint storage, compatible
 reopening and reconstruction in a different allocation domain. Checkpoint runtime
 headers remain transient; their memory is rebuilt before entering checkpoint Rust.
+
+The [two-map bridge](../qualification/ic-storage-native-feasibility/native-map-recovery.md)
+now binds two product map checkpoints to one epoch and distinct root identities
+under `native.checkpoint.maps.v1`. It freezes both maps, stages at most 64 records
+each through non-reentrant scalar callbacks, and constructs fresh native maps
+only after checkpoint Rust returns. Installed tests cover whole-heap replacement
+in both allocation directions, full-width values, failure rollback and explicit
+source-hook bypass when native metadata is corrupt. Its separate
+[durable map-job profile](../qualification/ic-storage-native-feasibility/native-map-jobs.md)
+shares the existing job transition owner, adding controller checks, domain-bound
+epochs, cancellation, frozen-source continuity and single-use consumption in the
+same transaction as native reconstruction. It does not qualify multi-message map
+import/restart or the larger growing-pool workload.
 
 The [governed job](../qualification/ic-storage-native-feasibility/migration-job.md)
 adds controller authority, durable epochs, consumption, pre-cutover cancellation

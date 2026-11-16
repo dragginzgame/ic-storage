@@ -7,10 +7,26 @@ use ic_storage_legacy::{
 
 const OWNER: &str = "native-checkpoint";
 const PREFIX: &str = "native.checkpoint.";
-#[cfg(not(any(feature = "native-job", feature = "native-record-vector")))]
+#[cfg(feature = "native-map-job")]
+pub(crate) fn map_job_cell(create: bool) -> StableCell<Vec<u8>> {
+    open(
+        "native.checkpoint.maps.job.v1",
+        create,
+        ic_storage_native_feasibility::migration_job::MAP_MAX_BYTES,
+    )
+}
+#[cfg(not(any(
+    feature = "native-job",
+    feature = "native-record-vector",
+    feature = "native-map"
+)))]
 const KEY: &str = "native.checkpoint.scalar.v1";
 
-#[cfg(not(any(feature = "native-job", feature = "native-record-vector")))]
+#[cfg(not(any(
+    feature = "native-job",
+    feature = "native-record-vector",
+    feature = "native-map"
+)))]
 pub(crate) fn cell(create: bool) -> StableCell<Vec<u8>> {
     open(
         KEY,
@@ -19,7 +35,19 @@ pub(crate) fn cell(create: bool) -> StableCell<Vec<u8>> {
     )
 }
 
-#[cfg(all(feature = "native-job", not(feature = "native-record-vector")))]
+#[cfg(all(feature = "native-map", not(feature = "native-map-job")))]
+pub(crate) fn map_cell(create: bool) -> StableCell<Vec<u8>> {
+    open(
+        "native.checkpoint.maps.v1",
+        create,
+        ic_storage_native_feasibility::checkpoint::maps::MAX_BYTES,
+    )
+}
+
+#[cfg(all(
+    feature = "native-job",
+    not(any(feature = "native-record-vector", feature = "native-map"))
+))]
 pub(crate) fn job_cell(create: bool) -> StableCell<Vec<u8>> {
     open(
         "native.checkpoint.job.v1",
@@ -37,6 +65,7 @@ pub(crate) fn job_cell(create: bool) -> StableCell<Vec<u8>> {
         feature = "native-record-vector-convert"
     )
 ))]
+#[cfg(not(feature = "native-map"))]
 pub(crate) fn record_vector_cell(create: bool) -> StableCell<Vec<u8>> {
     open(
         "native.checkpoint.record_vector.v1",

@@ -242,3 +242,6 @@ fn invalid() -> ! {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(any(test, feature = "provider-pool"))]
+pub(super) mod pool;

@@ -1,8 +1,33 @@
 # Changelog
 
-## [0.75.0] - Unreleased
+## [0.75.1] - 2026-11-16
+
+### ▶️ Try it
+
+From the repository root, with Rust 1.100.0 and the locked dependencies prepared
+as described in [the bootstrap instructions](README.md), prepare tools once
+(network access and local tool installation):
+
+```sh
+make install-tools retention-setup
+```
+
+Then run the locked, offline map-job qualification against the local PocketIC
+server:
+
+```sh
+make native-map-job-test
+```
+
+Expected result: passing host, artifact and installed recovery checks, with a
+`JOB_RECOVERED` marker under `target/evidence/native-map-provider/`. The crates
+remain experimental and unpublished; map-job recovery supports 64 records per map.
 
 ### 🔧 Changed
+
+- Adopt Toko Tooling 0.44.11 through the canonical exporter in both workspaces;
+  admit prepared tools and retain bounded sanitized CI setup diagnostics,
+  including hidden attempts, without replacing the original failure status.
 
 - Rename the primary unpublished package and directory from `ic-storage-new`
   to `ic-storage`. Update consumers and keep the frozen registry oracle under
@@ -54,6 +79,35 @@
 
 ### ✨ Added
 
+- Add durable two-map recovery jobs through the shared migration state machine:
+  controller-authorized export/cancellation, domain-bound sequential epochs,
+  frozen-source resumption, exact retries and atomic single-use recovery of up
+  to 64 records per map. Qualify heap replacement, corruption refusal, replay
+  prevention and stable/native publication rollback on installed Wasm. Larger
+  workloads and multi-message map import/restart remain separate qualification.
+
+- Extend provider-loan qualification with a host allocation pool for simultaneous
+  maps and growth candidates. Check fresh-controller reopening, fragmented-space
+  refusal, failed-candidate reclamation and lost-owner settlement refusal. Add
+  `make native-map-pool-firehose` for a three-root, million-record lifecycle in a
+  96 MiB loan. Qualify the same pool on IC with two map roots, independent and
+  joint growth, compatible upgrades and atomic publication rollback. Exercise
+  768 records in the initial 24 KiB allocation, early growth refusal when candidates
+  lack space, and reclamation after explicit root retirement.
+
+- Add bounded provider-owned pool growth from 24 to 192 KiB between native loans.
+  Qualify 4,608 retained records, compatible upgrades after adding Wasm pages,
+  actual memory.grow refusal, dynamic access bounds and rollback of bytes and
+  page count. Fill maps through a single scoped native batch.
+
+- Connect two map checkpoints to the governed Storage adapter with explicit root
+  identities, a shared epoch and complete-bundle integrity. Qualify full-width
+  recovery after heap replacement, source freezing, corrupt/missing checkpoints,
+  over-limit refusal and rollback through native reconstruction. Add explicit
+  salvage after native metadata corruption. This profile supports 64 records per
+  map; larger recovery, multi-message map imports and production root custody
+  remain open. The separate durable job profile adds consumption and cancellation.
+
 - Add `Map::from_reader` and `from_reader_in` for single-pass portable recovery
   using a 4 KiB record buffer. Share envelope/record validation with slice import,
   preserve checkpoint bytes and publish no candidate before integrity succeeds.
@@ -61,8 +115,8 @@
   after source failures, corruption and panic.
 
 - Add `Map::rebuild_in` for native rehash into another allocator while preserving
-  the source. Use it to grow the installed map through six capacity doublings
-  within two preallocated retained banks, publishing only a complete candidate.
+  the source. The initial installed two-bank evidence is retained; the current
+  shared-pool fixture uses ordinary product reserve/insert growth.
 
 - Add the optional native `map` API for allocator-owned u64 keys and values:
   scoped access, geometric growth, tombstone-free deletion, bounded admission,
@@ -111,9 +165,9 @@
 
 ### 🧪 Testing
 
-- Exercise growth rollback during destination writes, after candidate construction,
-  before/after publication and during failed upgrades. Verify both bank directions,
-  source preservation, business-error/forgotten-view growth and budget exhaustion.
+- Exercise growth rollback during destination writes, partial owner release,
+  before/between/after root publication and during failed upgrades. Verify both
+  maps, source preservation, business-error/forgotten-view growth and pool exhaustion.
   Extend the million-key workload with native relocation and portable recovery.
 
 - Add independent-model mixed histories, collision-chain and malformed-image

@@ -1,46 +1,34 @@
-;; Map-only guard: fixed 176-byte peak stack, or an admitted native bank prefix
-;; while one exclusive provider claim is active. Metadata is never accessible.
+;; Pool-only guard: proved 2688-byte transient stack or the exclusive live loan.
+;; Run disjointness/issuance is owned by Pool; these guards enforce the foreign
+;; allocation boundary and exclude provider metadata, unrelated pages and wrap.
 (func $address (param $address i32) (param $offset i64) (param $bytes i64) (result i32)
-  (local $start i64) (local $end i64) (local $base i64) (local $buckets i64)
+  (local $start i64) (local $end i64)
   (local.set $start (i64.add (i64.extend_i32_u (local.get $address)) (local.get $offset)))
   (if (i64.lt_u (local.get $start) (local.get $offset)) (then unreachable))
   (local.set $end (i64.add (local.get $start) (local.get $bytes)))
   (if (i64.lt_u (local.get $end) (local.get $start)) (then unreachable))
-  (if (i32.and (i64.ge_u (local.get $start) (i64.const 32592))
+  (if (i32.and (i64.ge_u (local.get $start) (i64.const 30080))
                (i64.le_u (local.get $end) (i64.const 32768)))
     (then (return (i32.wrap_i64 (local.get $start)))))
   (if (i32.ne (global.get $phase) (i32.const 2)) (then unreachable))
+  (call $static_header)
   (if (i64.ne (i64.load (i32.const 65584)) (i64.const 0)) (then unreachable))
-  (if (i32.gt_u (global.get $operation) (i32.const 10)) (then unreachable))
-  (call $shape (i64.load (i32.const 65568)) (i64.load (i32.const 65576)))
-  (if (i64.gt_u (i64.load (i32.const 65616)) (i64.const 1)) (then unreachable))
-  (local.set $buckets (i64.load (i32.const 65576)))
-  (local.set $base (i64.add (i64.const 131072) (i64.mul (i64.load (i32.const 65616)) (i64.const 12288))))
-  (if (i32.and (i64.ge_u (local.get $start) (local.get $base))
-    (i64.le_u (local.get $end) (i64.add (local.get $base) (i64.mul (local.get $buckets) (i64.const 24)))))
-    (then (return (i32.wrap_i64 (local.get $start)))))
-  ;; A full source may build the doubled table only for an insertion operation.
-  ;; Both banks are provider-initialized scalar storage; the inactive bank has
-  ;; no retained owner. The runtime separately clears and constructs its candidate.
-  (if (i64.ge_u (local.get $buckets) (i64.const 512)) (then unreachable))
-  (if (i64.ne (i64.load (i32.const 65568))
-    (i64.sub (local.get $buckets) (i64.shr_u (local.get $buckets) (i64.const 2)))) (then unreachable))
-  (if (i32.eqz (i32.or (i32.eq (global.get $operation) (i32.const 1))
-    (i32.or (i32.and (i32.ge_u (global.get $operation) (i32.const 5)) (i32.le_u (global.get $operation) (i32.const 7)))
-      (i32.ge_u (global.get $operation) (i32.const 9))))) (then unreachable))
-  (local.set $base (i64.add (i64.const 131072) (i64.mul (i64.sub (i64.const 1) (i64.load (i32.const 65616))) (i64.const 12288))))
-  (if (i64.lt_u (local.get $start) (local.get $base)) (then unreachable))
-  (if (i64.gt_u (local.get $end) (i64.add (local.get $base) (i64.mul (local.get $buckets) (i64.const 48)))) (then unreachable))
+  (if (i32.gt_u (global.get $operation) (i32.const 511)) (then unreachable))
+  (if (i32.gt_u (i32.and (global.get $operation) (i32.const 255)) (i32.const 11)) (then unreachable))
+  (call $roots (i64.load (i32.const 65568)) (i64.load (i32.const 65576)))
+  (if (i64.lt_u (local.get $start) (i64.const 131072)) (then unreachable))
+  (if (i64.gt_u (local.get $end) (i64.add (i64.const 131072) (i64.load (i32.const 65560)))) (then unreachable))
   (i32.wrap_i64 (local.get $start)))
-
-;; Test-only failure after an actual destination write, before native rehash ends.
-(func $written (param $address i64) (local $destination i64)
-  (if (i32.eq (global.get $operation) (i32.const 9))
-    (then
-      (local.set $destination (i64.add (i64.const 131072) (i64.mul (i64.sub (i64.const 1) (i64.load (i32.const 65616))) (i64.const 12288))))
-      (if (i32.and (i64.ge_u (local.get $address) (local.get $destination))
-        (i64.lt_u (local.get $address) (i64.add (local.get $destination) (i64.const 12288)))) (then unreachable)))))
-
+(func $inside_root (param $address i64) (param $root i64) (result i32) (local $base i64)
+  (local.set $base (i64.add (i64.const 131072) (i64.mul (call $start (local.get $root)) (i64.const 24))))
+  (i32.and (i64.ge_u (local.get $address) (local.get $base))
+    (i64.lt_u (local.get $address) (i64.add (local.get $base) (i64.mul (call $buckets (local.get $root)) (i64.const 24))))))
+;; Fail after an actual candidate write outside both source root spans.
+(func $written (param $address i64)
+  (if (i32.and (i32.eq (global.get $failure) (i32.const 5)) (i64.ge_u (local.get $address) (i64.const 131072)))
+    (then (if (i32.eqz (i32.or
+      (call $inside_root (local.get $address) (i64.load (i32.const 65568)))
+      (call $inside_root (local.get $address) (i64.load (i32.const 65576))))) (then unreachable)))))
 (func $access_load_i32 (param $address i32) (param $offset i64) (result i32)
   (i32.load (call $address (local.get $address) (local.get $offset) (i64.const 4))))
 (func $access_load_u8 (param $address i32) (param $offset i64) (result i32)
@@ -56,10 +44,10 @@
 (func $access_store_i64 (param $address i32) (param $value i64) (param $offset i64)
   (i64.store (call $address (local.get $address) (local.get $offset) (i64.const 8)) (local.get $value))
   (call $written (i64.add (i64.extend_i32_u (local.get $address)) (local.get $offset))))
-;; No memory.copy instruction occurs in the admitted map artifact.
-(func $access_copy (param i32 i32 i32) unreachable)
-(func $access_fill (param $destination i32) (param $value i32) (param $bytes i32)
-  (if (i32.ne (local.get $value) (i32.const 0)) (then unreachable))
+(func $access_copy (param $destination i32) (param $source i32) (param $bytes i32)
   (drop (call $address (local.get $destination) (i64.const 0) (i64.extend_i32_u (local.get $bytes))))
-  (memory.fill (local.get $destination) (local.get $value) (local.get $bytes))
+  (drop (call $address (local.get $source) (i64.const 0) (i64.extend_i32_u (local.get $bytes))))
+  (memory.copy (local.get $destination) (local.get $source) (local.get $bytes))
   (call $written (i64.extend_i32_u (local.get $destination))))
+;; This compiler artifact emits no memory.fill.
+(func $access_fill (param i32 i32 i32) unreachable)

@@ -110,7 +110,7 @@ while IFS= read -r record_directory; do
     record_search+=("-L" "dependency=$record_directory")
 done < "$output/vector/record-search-paths.txt"
 for record_schema in v3 v2; do
-    record_flags=(--check-cfg 'cfg(record_v2,test)')
+    record_flags=(--check-cfg 'cfg(record_v2,test)' --check-cfg 'cfg(feature, values("provider-pool"))')
     record_output="$output/vector"
     if [[ "$record_schema" == v2 ]]; then
         record_flags+=(--cfg record_v2)

@@ -52,6 +52,9 @@ pub(super) fn map_operator(op: &Op<'_>) -> bool {
         Op::Loop {
             blockty: BlockType::Empty
         } | Op::I32Mul
+            | Op::I32Ctz
+            | Op::I32DivU
+            | Op::I32Or
             | Op::I32Popcnt
             | Op::I32RemU
             | Op::I32ShrU
@@ -61,6 +64,7 @@ pub(super) fn map_operator(op: &Op<'_>) -> bool {
             | Op::I64Eqz
             | Op::I64Mul
             | Op::I64Ne
+            | Op::I64LeU
             | Op::I64ShrU
             | Op::I64Xor
     )
@@ -92,7 +96,7 @@ fn inspect_profile(
             .iter()
             .any(|op| matches!(op, Op::GlobalGet { .. } | Op::GlobalSet { .. }))
         {
-            let frame = frame(&ops, stack_global)?;
+            let frame = frame(&ops, stack_global, map)?;
             frames[index] = frame.bytes;
             Some(frame)
         } else {
@@ -273,7 +277,7 @@ struct Frame {
     exit_at: usize,
 }
 
-fn frame(ops: &[Op<'_>], stack: u32) -> Result<Frame, Error> {
+fn frame(ops: &[Op<'_>], stack: u32, map: bool) -> Result<Frame, Error> {
     let [
         Op::GlobalGet { global_index },
         Op::I32Const { value: bytes },
@@ -321,7 +325,8 @@ fn frame(ops: &[Op<'_>], stack: u32) -> Result<Frame, Error> {
                 | Op::I64ExtendI32U
                 | Op::I64Or
                 | Op::I64Shl
-        ) {
+        ) && !(map && matches!(op, Op::I32Shl | Op::I32Or | Op::I32Ctz))
+        {
             return Err(Error::Control);
         }
     }

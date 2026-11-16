@@ -10,7 +10,7 @@ frozen published oracle as `ic-storage-legacy`. Preserve M0's historical digest
 domain bytes despite the package rename.
 
 This repository adopts [TOKO-TOOLING.md](TOKO-TOOLING.md) and its revision-bound
-references. The canonical exporter owns the Toko 0.44.9 snapshot under
+references. The canonical exporter owns the Toko 0.44.11 snapshot under
 `vendor/toko-tooling/` and `.toko-tooling.snapshot`. Product scope and the commands
 below are consumer-owned choices within that baseline; no policy exceptions are
 claimed. Installation alone does not establish native host or product

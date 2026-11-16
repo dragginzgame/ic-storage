@@ -6,6 +6,7 @@ use wasmparser::{Parser, Payload};
 
 mod installed_tests;
 mod link;
+mod recovery;
 
 fn inputs() -> (PathBuf, Vec<u8>) {
     let directory =
@@ -71,15 +72,19 @@ fn compiled_map_contract() {
     }
     fs::write(directory.join("operators.txt"), listing).unwrap();
     println!("operators={inventory:?}");
+    println!(
+        "pool stack={:?}",
+        super::vector_stack::inspect_map(&bodies, 6, 0, 32768)
+    );
     assert!(super::vector_access::inspect(&raw).is_err());
     assert!(super::vector_access::inspect_record(&raw).is_err());
     assert!(super::vector_access::inspect_record_v2(&raw).is_err());
     let profile = super::vector_access::inspect_map(&raw).unwrap();
-    assert_eq!((profile.functions, profile.entry), (6, 5));
+    assert_eq!((profile.functions, profile.entry), (8, 6));
     let guarded = super::vector_access::prepare_map(&raw).unwrap();
     assert_eq!(
         super::vector_access::tests::verify_map_coverage(&raw, &guarded),
-        [61, 4, 47, 40, 7, 63, 0, 1]
+        [167, 13, 34, 82, 11, 54, 17, 0]
     );
     let linked = link::prepare(&raw, link::Profile::A).unwrap();
     link::admit_final(&linked, &raw, link::Profile::A).unwrap();
