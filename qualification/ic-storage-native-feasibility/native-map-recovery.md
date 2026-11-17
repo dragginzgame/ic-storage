@@ -36,13 +36,13 @@ two fresh transient candidates only after both succeed. Allocation failure or
 invalid input publishes neither root. The digest detects corruption; it does
 not authenticate an untrusted checkpoint or establish freshness by itself.
 
-The existing provider opens `native.checkpoint.maps.v1` under owner
-`native-checkpoint` and prefix `native.checkpoint.` using governed MemoryRuntime,
-AllocationGrants, MemoryAuthority and StableCell handles. The reader remains
-published `ic-storage` 0.74.1, aliased as `ic-storage-legacy`; its repository is
-unchanged. Every open reconstructs runtime/lease ownership. Recovery refuses a
-missing locator and never creates one as a fallback. The target requires an
-explicit expected epoch.
+The provider opens region 2 with `ic_storage::checkpoint::Record<Vec<u8>>`
+under the [owned backing contract](../../docs/design/checkpoint-storage.md).
+Every operation reconstructs transient handles through exact read-only layout
+admission. Recovery refuses missing storage and never creates it as a fallback.
+The target requires an explicit expected epoch. Historical cohorts below used
+the former 0.74.1 provider and named locator; those bytes are not imported by the
+current provider.
 
 ## Runtime domains and sequencing
 

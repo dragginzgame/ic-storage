@@ -291,8 +291,8 @@ behavior through admitted code after upgrade.
 Structure choice still controls lookup/traversal cost, allocation overhead,
 locality, fragmentation and migration work. A linked sequence and a vector can
 serve the same logical workload with different costs. The
-[simple benchmarks](../../qualification/ic-storage-simple-benchmarks/README.md) compare these
-current implementations and do not establish that every collection is equally
+[historical benchmarks](../../qualification/ic-storage-simple-benchmarks/README.md#historical-m0-comparison-retired) compared these
+implementations and did not establish that every collection is equally
 fast. Qualify a small contiguous collection before extrapolating from Node
 traversal to general collection performance.
 

@@ -23,13 +23,12 @@ decoder returns bounded transient scalar records; no old native owner is decoded
 The digest detects byte changes, not malicious authorship or replay.
 
 The [checkpoint adapter](../ic-storage-checkpoint-provider-probe/README.md) owns
-key `native.checkpoint.record_vector.v1`, owner `native-checkpoint` and authority
-prefix `native.checkpoint.`. It uses published Storage 0.74.1's governed
-`StableCell<Vec<u8>>` reader and existing directory/cell formats. A fresh transient
-runtime opens the owned locator for every operation. Import requires that locator
+region 4 through the product `checkpoint::Record<Vec<u8>>` reader and
+[owned backing format](../../docs/design/checkpoint-storage.md). Fresh transient
+handles open the exact layout for every operation. Import requires that region
 and a complete bounded envelope; it never creates a missing checkpoint or repairs
-unknown bytes. This is a separate fixture key, not a second provider or changes
-to the frozen sibling repository.
+unknown bytes. Historical cohorts below used the former named 0.74.1 locator;
+the current provider does not import its bytes or depend on that implementation.
 
 ## Native and checkpoint domains
 

@@ -105,7 +105,7 @@ fn observations(maps: &[Map; 2]) -> [Vec<(u64, u64)>; 2] {
 #[test]
 fn durable_page_batches_reopen_retry_and_publish_both_roots() {
     for counts in [[0, 0], [0, 65], [65, 0], [129, 65], [2304, 2304]] {
-        let backing = MeteredMemory::<VectorMemory>::default();
+        let backing = TestMemory::default();
         let mut store = Jobs::open(backing.clone(), true);
         let source = create_sources(counts);
         let expected = observations(&source);
@@ -164,7 +164,7 @@ fn durable_page_batches_reopen_retry_and_publish_both_roots() {
 #[test]
 fn damaged_prefix_or_later_page_refuses_before_progress_and_target_writes() {
     for fault in 0..6 {
-        let backing = MeteredMemory::<VectorMemory>::default();
+        let backing = TestMemory::default();
         let mut store = Jobs::open(backing.clone(), true);
         store.publish(&create_sources([129, 129]));
         let mut candidates = store.begin();
@@ -185,14 +185,14 @@ fn damaged_prefix_or_later_page_refuses_before_progress_and_target_writes() {
             2 => {
                 let mut bytes = *store.continuation.get();
                 bytes[128] ^= 1;
-                store.continuation.set(bytes);
+                store.continuation.set(bytes).unwrap();
             }
             3 => {
                 // Root-2 first page after a valid newly staged root-1 last page.
                 let index = 5;
                 let mut page = store.data.pages.get(index).unwrap();
                 page[80] ^= 1;
-                store.data.pages.set(index, &page);
+                store.data.pages.set(index, &page).unwrap();
             }
             4 => {
                 store.data.pages.pop().unwrap();
@@ -200,7 +200,7 @@ fn damaged_prefix_or_later_page_refuses_before_progress_and_target_writes() {
             _ => {
                 let other = paged::export(&create_sources([129, 65]), 1, |_, _, _| Ok::<_, ()>(()))
                     .unwrap();
-                store.data.manifest.set(other.encode());
+                store.data.manifest.set(other.encode()).unwrap();
             }
         }
         let before = observations(&candidates);
@@ -230,14 +230,14 @@ fn damaged_prefix_or_later_page_refuses_before_progress_and_target_writes() {
 
 #[test]
 fn already_consumed_page_damage_is_checked_on_explicit_restart() {
-    let backing = MeteredMemory::<VectorMemory>::default();
+    let backing = TestMemory::default();
     let mut store = Jobs::open(backing.clone(), true);
     store.publish(&create_sources([129, 129]));
     let mut candidates = store.begin();
     assert!(!store.advance(&mut candidates, 0, 2));
     let mut page = store.data.pages.get(2).unwrap(); // already imported page 0
     page[80] ^= 1;
-    store.data.pages.set(2, &page);
+    store.data.pages.set(2, &page).unwrap();
     drop(store);
     let mut store = Jobs::open(backing.clone(), false);
     backing.reset();
@@ -259,7 +259,7 @@ fn already_consumed_page_damage_is_checked_on_explicit_restart() {
 #[test]
 fn mixed_job_and_continuation_publication_never_advances() {
     for restore_metadata in [false, true] {
-        let backing = MeteredMemory::<VectorMemory>::default();
+        let backing = TestMemory::default();
         let mut store = Jobs::open(backing.clone(), true);
         store.publish(&create_sources([129, 129]));
         let mut candidates = store.begin();
@@ -267,9 +267,9 @@ fn mixed_job_and_continuation_publication_never_advances() {
         let continuation = *store.continuation.get();
         assert!(!store.advance(&mut candidates, 0, 2));
         if restore_metadata {
-            store.metadata.set(metadata);
+            store.metadata.set(metadata).unwrap();
         } else {
-            store.continuation.set(continuation);
+            store.continuation.set(continuation).unwrap();
         }
         let before = observations(&candidates);
         drop(store);
@@ -291,7 +291,7 @@ fn mixed_job_and_continuation_publication_never_advances() {
 
 #[test]
 fn absent_job_metadata_and_unsealed_publication_refuse_without_writes() {
-    let backing = MeteredMemory::<VectorMemory>::default();
+    let backing = TestMemory::default();
     let mut plain = Store::open(backing.clone(), true);
     plain.publish(&create_sources([1, 1]));
     drop(plain);
@@ -299,28 +299,26 @@ fn absent_job_metadata_and_unsealed_publication_refuse_without_writes() {
     assert!(catch_unwind(AssertUnwindSafe(|| Jobs::open(backing.clone(), false))).is_err());
     assert_eq!(backing.counts().writes, 0);
     // An older host job namespace cannot silently acquire a continuation cell.
-    let backing = MeteredMemory::<VectorMemory>::default();
-    let runtime = super::super::runtime(backing.clone(), &[MANIFEST, PAGES, METADATA], true);
-    let store = Store::from_runtime(&runtime, true);
-    let memory = runtime
-        .open_memory(&StableKey::parse(METADATA).unwrap())
-        .unwrap();
-    drop(StableCell::create(memory, [0; METADATA_BYTES]).unwrap());
+    let backing = TestMemory::default();
+    let mut storage = super::super::backing(backing.clone(), &[MANIFEST, PAGES, METADATA], true);
+    let store = Store::from_backing(&mut storage, true);
+    let memory = storage.take(METADATA).unwrap();
+    drop(Record::create(memory, [0; METADATA_BYTES]).unwrap());
     drop(store);
-    drop(runtime);
+    drop(storage);
     backing.reset();
     assert!(catch_unwind(AssertUnwindSafe(|| Jobs::open(backing.clone(), false))).is_err());
     assert_eq!(backing.counts().writes, 0);
     for part in 0..3 {
-        let backing = MeteredMemory::<VectorMemory>::default();
+        let backing = TestMemory::default();
         let mut store = Jobs::open(backing.clone(), true);
         store.publish(&create_sources([65, 65]));
         match part {
             0 => {
-                store.metadata.set([0; METADATA_BYTES]);
+                store.metadata.set([0; METADATA_BYTES]).unwrap();
             }
             1 => {
-                store.data.manifest.set([0; MANIFEST_BYTES]);
+                store.data.manifest.set([0; MANIFEST_BYTES]).unwrap();
             }
             _ => {
                 store.data.pages.pop().unwrap();

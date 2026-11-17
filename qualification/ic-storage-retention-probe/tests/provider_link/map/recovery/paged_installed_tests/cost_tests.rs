@@ -30,7 +30,7 @@ pub(super) async fn record(
     );
     // Qualification budgets for this admitted shape, not network limits or an SLO.
     assert!(values[1] <= 2 * 1024 * 1024, "initial Wasm pages suffice");
-    assert!(values[2] <= 50 * 65536, "governed stable allocation budget");
+    assert_eq!(values[2], 3 * 65536, "fixed checkpoint backing allocation");
     assert!(values[9] <= 196608, "bounded retained native loan");
     values
 }
@@ -128,7 +128,14 @@ async fn complete_entrypoint_costs_include_native_work_and_backing_io() {
             run(&pic, id, page as u64, 0).await;
             let values = record(&pic, id, &path, &mut report, shape, "batch", page).await;
             assert_eq!(values[6], 616, "continuation plus progress backing writes");
-            assert_eq!(values[4], if shape == "0+0" { 5552 } else { 6656 });
+            // Plan and commit each reopen: directory 128, three record headers
+            // 48, page framing 24, manifest/metadata/continuation 328+104+512.
+            // A nonempty batch additionally reads exactly one 1,104-byte page.
+            let reopen_bytes = 128 + 48 + 24 + 328 + 104 + 512;
+            assert_eq!(
+                values[4],
+                2 * reopen_bytes + if shape == "0+0" { 0 } else { 1104 }
+            );
             assert_eq!(values[7], 0, "import reuses existing stable allocations");
             prefix(&pic, id, &expected, page + 1, page + 1 == pages).await;
             if [0, 6, 12, 24, 47, 48, 71].contains(&page) {

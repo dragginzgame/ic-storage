@@ -1,14 +1,11 @@
 //! Installed M0 fixture. No allocator, async execution or borrowed reply buffer.
 //! All raw linear-memory custody is confined to `kernel`.
 
-#[cfg(feature = "managed-bench")]
-mod benchmark;
 mod kernel;
 
 use ic_platform_runtime::raw as ic0;
 use ic_storage_m0::m0::image::Error;
 
-#[cfg(not(feature = "managed-bench"))]
 pub(super) fn initialize() {
     kernel::initialize();
     if !kernel::grow() {
@@ -20,11 +17,6 @@ pub(super) fn initialize() {
         let root = s.allocate_counter(41, Some(node), Some(node))?;
         s.publish_root(root)
     });
-}
-
-#[cfg(feature = "managed-bench")]
-pub(super) fn initialize() {
-    benchmark::initialize();
 }
 
 pub(super) fn admit() {

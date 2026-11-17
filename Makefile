@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-FORMAT_RUST_ARGS := --extra-workspace qualification
+FORMAT_RUST_ARGS := --extra-workspace qualification --rustfmt-source qualification/ic-storage-native-feasibility/tests/fixtures/provider_ordered.rs --rustfmt-edition 2024 --rustfmt rustfmt
 CARGO_PUBLISH_PACKAGES := ic-storage-derive ic-storage
 CARGO_PUBLISH_REGISTRY := crates-io
 CARGO_PUBLISH_ALL_FEATURES := 1
@@ -37,6 +37,17 @@ m0-test m0-lint-wasm: | toko-execution-check
 .PHONY: native-core-test native-map-firehose native-map-pool-firehose
 native-core-test native-map-firehose native-map-pool-firehose: export CARGO_NET_OFFLINE := true
 native-core-test native-map-firehose native-map-pool-firehose: | toko-execution-check
+.PHONY: ordered-native-probe ordered-native-test
+ordered-native-probe ordered-native-test: export CARGO_NET_OFFLINE := true
+ordered-native-probe ordered-native-test: | toko-execution-check
+ordered-native-probe:
+	rustfmt --edition 2024 --check qualification/ic-storage-native-feasibility/tests/fixtures/provider_ordered.rs
+	+cargo clippy $(RETENTION_CARGO) --test ordered_native -- -D warnings
+	+bash qualification/ic-storage-native-feasibility/scripts/run-ordered-probe.sh
+ordered-native-test:
+	rustfmt --edition 2024 --check qualification/ic-storage-native-feasibility/tests/fixtures/provider_ordered.rs
+	+cargo clippy $(RETENTION_CARGO) --test ordered_native -- -D warnings
+	+@$(call retention-run,bash qualification/ic-storage-native-feasibility/scripts/run-ordered-probe.sh installed)
 retention-test retention-lint retention-tools-check: export CARGO_NET_OFFLINE := true
 
 .PHONY: retention-setup retention-tools-check retention-lint retention-test
@@ -50,15 +61,15 @@ rust-startup-build rust-startup-lint rust-startup-test: | toko-execution-check
 managed-graph-build managed-graph-lint managed-graph-test: export CARGO_NET_OFFLINE := true
 managed-graph-build managed-graph-lint managed-graph-test: | toko-execution-check
 
-.PHONY: benchmark-simple benchmark-simple-build benchmark-simple-lint
+.PHONY: benchmark-lint
 .PHONY: benchmark-map benchmark-map-build
 .PHONY: benchmark-matrix benchmark-matrix-smoke benchmark-matrix-build
 benchmark-matrix benchmark-matrix-smoke benchmark-matrix-build: export CARGO_NET_OFFLINE := true
 benchmark-matrix benchmark-matrix-smoke benchmark-matrix-build: | toko-execution-check
 benchmark-map benchmark-map-build: export CARGO_NET_OFFLINE := true
 benchmark-map benchmark-map-build: | toko-execution-check
-benchmark-simple benchmark-simple-build benchmark-simple-lint: export CARGO_NET_OFFLINE := true
-benchmark-simple benchmark-simple-build benchmark-simple-lint: | toko-execution-check
+benchmark-lint: export CARGO_NET_OFFLINE := true
+benchmark-lint: | toko-execution-check
 
 .PHONY: native-feasibility-test native-feasibility-lint native-layout-probe
 native-feasibility-test native-feasibility-lint native-layout-probe: export CARGO_NET_OFFLINE := true
@@ -138,11 +149,12 @@ help:
 	  'make managed-graph-build          Build managed graph A/B fixtures' \
 	  'make managed-graph-lint           Lint the graph kernel and fixtures' \
 	  'make managed-graph-test           Test installed graph upgrades and rollback' \
-	  'make benchmark-simple            Build and measure M0 vs published Storage' \
 	  'make benchmark-map               Compare native map with ic-stable-structures' \
 	  'make benchmark-matrix            Full generation-owned map / stable-structures matrix' \
 	  'make benchmark-matrix-smoke      One paired matrix scenario' \
-	  'make benchmark-simple-lint       Lint both benchmark backends and runner' \
+	  'make benchmark-lint              Lint stable-structures backends and comparison runner' \
+	  'make ordered-native-probe        Admit ordered-node compiler artifacts' \
+	  'make ordered-native-test         Qualify ordered row/index upgrades and recovery' \
 	  'make native-feasibility-test     Test host-only scoped ownership boundaries' \
 	  'make native-feasibility-lint     Lint the native ownership experiment' \
 	  'make native-layout-probe         Inspect host/wasm compiler layout diagnostics' \
@@ -179,27 +191,29 @@ doc-check:
 	+cargo doc $(RUST_STARTUP_CARGO) --target-dir target/qualification --features managed-graph --no-deps
 
 # Host setup and locked dependency fetching happen explicitly before this gate.
-ci: fmt-check deps-check lint doc-check m0-test m0-lint-wasm native-core-test native-map-page-test retention-lint rust-startup-lint managed-graph-lint benchmark-simple-lint native-feasibility-test native-layout-probe native-provider-probe native-map-probe native-session-probe checkpoint-provider-lint
+ci: fmt-check deps-check lint doc-check m0-test m0-lint-wasm native-core-test native-map-page-test retention-lint rust-startup-lint managed-graph-lint benchmark-lint native-feasibility-test native-layout-probe native-provider-probe native-map-probe native-session-probe checkpoint-provider-lint ordered-native-probe
 
 deps-check: toko-tooling-check deps-pins deps-boundaries
 
 deps-pins:
 	+bash "$(TOKO_TOOLING_ROOT)/scripts/ci/check-dependency-pins.sh" --consumer "$(CURDIR)" --cargo-inheritance
 
-# The frozen Storage 0.74.1 oracle retains Runtime 0.22.5/ic0; our callers use
-# 0.23.13/system-raw (requirement 0.23.12). Neither selects an executor or shares Runtime Rust types.
-# Admit both only for oracle-bearing fixtures; startup still requires one.
+# All qualification now uses one Runtime and the local Storage implementation.
+# Testkit is test-only now: its normal/build tree is empty, so metadata admits
+# the default PocketIC-only client profile directly.
 deps-boundaries:
 	+bash "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-dependency-boundaries.sh" --consumer "$(CURDIR)" --external-ic
-	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)/qualification" --package ic-testkit --target all --require pocket-ic=1 --forbid ic-host-artifacts --forbid ic-host-fs --forbid ic-host-process --forbid ic-platform --forbid ic-platform-types --forbid ic-platform-protocol --forbid toko-tooling --forbid-feature ic-testkit/held-reply-fixtures
+	@mkdir -p target/dependency-checks
+	+cargo metadata --manifest-path qualification/Cargo.toml --format-version 1 --locked --offline > target/dependency-checks/qualification.json
+	@jq -e '. as $$m | [.packages[] | select(.name == "ic-testkit")] as $$testkit | [.packages[] | select(.name == "pocket-ic")] as $$pocket | [$$m.resolve.nodes[] | select(.id == $$testkit[0].id)] as $$nodes | ($$testkit | length) == 1 and ($$pocket | length) == 1 and ($$nodes | length) == 1 and $$nodes[0].features == ["default"] and ($$nodes[0].deps | length) == 1 and $$nodes[0].deps[0].pkg == $$pocket[0].id' target/dependency-checks/qualification.json
 	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)" --package ic-storage --target all --forbid toko-tooling
 	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)" --package ic-storage-m0 --target all --forbid toko-tooling
 	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)/qualification" --package ic-storage-retention-probe --target all --forbid toko-tooling
 	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)/qualification" --package ic-storage-native-feasibility --target all --forbid toko-tooling
-	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)/qualification" --package ic-storage-checkpoint-provider-probe --target wasm32-unknown-unknown --all-features --require ic-storage=2 --require ic-platform-runtime=2 --forbid ic-platform --forbid ic-platform-types --forbid ic-platform-runtime-guard --forbid toko-tooling
+	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)/qualification" --package ic-storage-checkpoint-provider-probe --target wasm32-unknown-unknown --all-features --require ic-storage=1 --require ic-platform-runtime=1 --forbid ic-platform --forbid ic-platform-types --forbid ic-platform-runtime-guard --forbid toko-tooling
 	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)/qualification" --package ic-storage-rust-startup-probe --target wasm32-unknown-unknown --require ic-platform-runtime=1 --forbid ic-platform --forbid ic-platform-types --forbid ic-platform-runtime-guard --forbid toko-tooling
 	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)/qualification" --package ic-storage-rust-startup-probe --target wasm32-unknown-unknown --all-features --require ic-storage-m0=1 --require ic-platform-runtime=1 --forbid ic-platform --forbid ic-platform-types --forbid ic-platform-runtime-guard --forbid toko-tooling
-	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)/qualification" --package ic-storage-simple-benchmarks --target wasm32-unknown-unknown --all-features --require ic-storage=1 --require ic-platform-runtime=2 --forbid ic-platform --forbid ic-platform-types --forbid ic-platform-runtime-guard --forbid toko-tooling
+	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)/qualification" --package ic-storage-simple-benchmarks --target wasm32-unknown-unknown --all-features --require ic-stable-structures=1 --require ic-platform-runtime=1 --forbid ic-storage --forbid ic-platform --forbid ic-platform-types --forbid ic-platform-runtime-guard --forbid toko-tooling
 
 deps-tree:
 	+cargo tree -p ic-storage --locked --offline
@@ -213,11 +227,11 @@ m0-lint-wasm:
 
 native-core-test:
 	+cargo test -p ic-storage --locked --offline
-	+cargo test -p ic-storage --features derive,map --locked --offline
-	+cargo clippy -p ic-storage --all-targets --features derive,map --locked --offline -- -D warnings
+	+cargo test -p ic-storage --features derive,map,checkpoint,ordered --locked --offline
+	+cargo clippy -p ic-storage --all-targets --features derive,map,checkpoint,ordered --locked --offline -- -D warnings
 	+cargo clippy -p ic-storage --lib --target wasm32-unknown-unknown --locked --offline -- -D warnings
-	+cargo clippy -p ic-storage --lib --features derive,map --target wasm32-unknown-unknown --locked --offline -- -D warnings
-	+RUSTDOCFLAGS='-D warnings' cargo doc -p ic-storage --features derive,map --no-deps --locked --offline
+	+cargo clippy -p ic-storage --lib --features derive,map,checkpoint,ordered --target wasm32-unknown-unknown --locked --offline -- -D warnings
+	+RUSTDOCFLAGS='-D warnings' cargo doc -p ic-storage --features derive,map,checkpoint,ordered --no-deps --locked --offline
 
 native-map-firehose:
 	+cargo test -p ic-storage --features map --release --test map_firehose --locked --offline -- --ignored --nocapture
@@ -334,12 +348,7 @@ managed-graph-lint:
 managed-graph-test:
 	+@$(call retention-run,cargo test $(RETENTION_CARGO) --test rust_startup graph_tests -- --nocapture)
 
-# Opt-in measurements, not a timing threshold or release gate.
-benchmark-simple-build:
-	@test -z "$${RUSTFLAGS}$${CARGO_ENCODED_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_LINKER}" || { echo 'Benchmarks require no environment flag/linker overrides' >&2; exit 1; }
-	+cargo rustc $(RUST_STARTUP_CARGO) --target-dir target/qualification/bench-managed --features managed-bench -- $(RUST_STARTUP_LINK)
-	+cargo rustc $(BENCH_CARGO) --example storage-wasm --features storage --target wasm32-unknown-unknown --release --target-dir target/qualification/bench-storage -- $(RUST_STARTUP_LINK)
-
+# Opt-in measurements against ic-stable-structures only.
 benchmark-map-build:
 	@test -z "$${RUSTFLAGS}$${CARGO_ENCODED_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_LINKER}" || { echo 'Benchmarks require no environment flag/linker overrides' >&2; exit 1; }
 	+cargo clippy $(BENCH_CARGO) --example stable-map-wasm --features stable-map --target wasm32-unknown-unknown --release --target-dir target/qualification -- -D warnings
@@ -362,13 +371,9 @@ benchmark-matrix: benchmark-matrix-build
 benchmark-matrix-smoke: benchmark-matrix-build
 	+@$(call retention-run,env STORAGE_MATRIX_PROFILE=smoke bash qualification/ic-storage-native-feasibility/scripts/run-session-probe.sh matrix)
 
-benchmark-simple-lint:
-	+cargo clippy $(BENCH_CARGO) --example compare --target-dir target/qualification -- -D warnings
-	+cargo clippy $(BENCH_CARGO) --example storage-wasm --features storage --target wasm32-unknown-unknown --release --target-dir target/qualification -- -D warnings
-	+cargo clippy $(RUST_STARTUP_CARGO) --features managed-bench --target-dir target/qualification -- -D warnings
-
-benchmark-simple: benchmark-simple-build
-	+@$(call retention-run,cargo run $(BENCH_CARGO) --example compare --target-dir target/qualification)
+benchmark-lint:
+	+cargo clippy $(BENCH_CARGO) --examples --all-features --target wasm32-unknown-unknown --release --target-dir target/qualification -- -D warnings
+	+cargo clippy $(RETENTION_CARGO) --test provider_link -- -D warnings
 
 native-feasibility-lint:
 	rustfmt --edition 2024 --check qualification/ic-storage-native-feasibility/tests/fixtures/provider_vector.rs qualification/ic-storage-native-feasibility/tests/fixtures/provider_record_vector.rs

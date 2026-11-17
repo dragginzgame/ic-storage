@@ -1,13 +1,13 @@
 //! Installed storage transaction probe, not a retained native import adapter.
 //! Each request reconstructs transient maps from pages solely to exercise the
 //! shared continuation codec. This deliberately does not claim bounded reads.
+use crate::provider::memory::StableMemory;
 use crate::{
     job_control::{args, controller},
     provider::paged::{Jobs, WritePoint},
 };
 use ic_platform_runtime::raw as ic0;
 use ic_storage::map::{Map, paged::Reader};
-use ic_storage_legacy::DefaultMemoryImpl;
 use ic_storage_native_feasibility::migration_job::paged_continuation::NativePrefix;
 use ic_storage_native_feasibility::{
     checkpoint::maps::paged::Manifest, migration_job::PagedMapJob,
@@ -23,7 +23,7 @@ const BUILD: u64 = if cfg!(feature = "version-b") {
 };
 
 fn open() -> Jobs {
-    Jobs::open(DefaultMemoryImpl::default(), false)
+    Jobs::open(StableMemory::default(), false)
 }
 fn fault(point: WritePoint, selected: u64) {
     if point as u64 == selected {
@@ -68,7 +68,7 @@ fn materialize(store: &Jobs, job: &PagedMapJob) -> ([Reader; 2], [Map; 2]) {
 #[unsafe(export_name = "canister_init")]
 extern "C" fn init() {
     assert_eq!(ic0::msg_arg_data_size(), 0);
-    drop(Jobs::open(DefaultMemoryImpl::default(), true));
+    let _ = Jobs::open(StableMemory::default(), true);
 }
 
 #[expect(unsafe_code, reason = "fixture-owned ordinary reopening")]

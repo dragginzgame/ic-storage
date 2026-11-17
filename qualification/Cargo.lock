@@ -761,15 +761,6 @@ dependencies = [
 
 [[package]]
 name = "ic-platform-runtime"
-version = "0.22.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92a494623fc12ba0673eb18518612e95e9a103d88ba71d4bd8fa902a227fde80"
-dependencies = [
- "ic0",
-]
-
-[[package]]
-name = "ic-platform-runtime"
 version = "0.23.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dfc857c146215a6f2ae50e724c70b7afffaebeb407c54c283f6860357d5da439"
@@ -785,18 +776,7 @@ dependencies = [
 
 [[package]]
 name = "ic-storage"
-version = "0.74.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26d2520d368ccea2560cd496efce6408652ad681296111f9fe45561796c92ed0"
-dependencies = [
- "ic-platform-runtime 0.22.5",
- "serde",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "ic-storage"
-version = "0.76.0"
+version = "0.76.1"
 dependencies = [
  "ic-storage-derive",
  "sha2 0.11.1",
@@ -806,16 +786,15 @@ dependencies = [
 name = "ic-storage-checkpoint-provider-probe"
 version = "0.1.0"
 dependencies = [
- "ic-platform-runtime 0.23.17",
- "ic-storage 0.74.1",
- "ic-storage 0.76.0",
+ "ic-platform-runtime",
+ "ic-storage",
  "ic-storage-native-feasibility",
  "toko-tooling",
 ]
 
 [[package]]
 name = "ic-storage-derive"
-version = "0.76.0"
+version = "0.76.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -824,7 +803,7 @@ dependencies = [
 
 [[package]]
 name = "ic-storage-m0"
-version = "0.76.0"
+version = "0.76.1"
 dependencies = [
  "sha2 0.11.1",
 ]
@@ -833,7 +812,7 @@ dependencies = [
 name = "ic-storage-native-feasibility"
 version = "0.1.0"
 dependencies = [
- "ic-storage 0.76.0",
+ "ic-storage",
  "sha2 0.11.1",
  "toko-tooling",
 ]
@@ -855,9 +834,8 @@ dependencies = [
 name = "ic-storage-rust-startup-probe"
 version = "0.1.0"
 dependencies = [
- "ic-platform-runtime 0.23.17",
+ "ic-platform-runtime",
  "ic-storage-m0",
- "ic-storage-simple-benchmarks",
  "toko-tooling",
 ]
 
@@ -865,14 +843,8 @@ dependencies = [
 name = "ic-storage-simple-benchmarks"
 version = "0.1.0"
 dependencies = [
- "ic-host-artifacts",
- "ic-platform-runtime 0.23.17",
+ "ic-platform-runtime",
  "ic-stable-structures",
- "ic-storage 0.74.1",
- "ic-storage-retention-probe",
- "ic-testkit",
- "serde_json",
- "tokio",
  "toko-tooling",
 ]
 
@@ -902,12 +874,6 @@ dependencies = [
  "sha2 0.10.9",
  "thiserror 2.0.18",
 ]
-
-[[package]]
-name = "ic0"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f05349d5c51ab6cc962c8963f877f826997ee6b737c6be3aafc9779eb8a4dd05"
 
 [[package]]
 name = "ic_principal"

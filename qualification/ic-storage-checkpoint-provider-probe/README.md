@@ -4,17 +4,24 @@ This unpublished fixture tests independent checkpoint opening after an ordinary
 IC upgrade discards the source Wasm heap. It does not retain native pointers,
 admit native layouts or complete the design's incompatible-runtime gate.
 
+Current builds use local `ic-storage::checkpoint` records/pages and the
+[owned backing contract](../../docs/design/checkpoint-storage.md). No legacy
+Storage package is linked. The format and region IDs below replace the former
+named locators; older provider bytes need explicit migration. Dated cohorts and
+cost figures later in this document retain their original 0.74.1 provenance.
+The [replacement qualification](../../docs/design/checkpoint-storage.md#replacement-qualification--17-november-2026)
+records the current passing recovery cohorts and measured backing/entrypoint costs.
+
 The separately selected `native-map` feature connects two native maps to the
 [bounded two-map envelope and recovery contract](../ic-storage-native-feasibility/native-map-recovery.md).
-Its locator is `native.checkpoint.maps.v1`, with a 2256-byte load limit and at most
+Its region ID is 2, with a 2256-byte load limit and at most
 64 records per map. It uses the product map codecs and scalar staging, followed
 by actual native construction after checkpoint Rust returns. Run
 `make native-map-checkpoint-test`. Select fixture features independently;
 `native-map-job` takes precedence over the non-map bridge profiles. The additional
-`native-map-job` feature uses native format 8 and two governed cells
+`native-map-job` feature uses native format 8 and two bounded records
 for [durable two-map jobs](../ic-storage-native-feasibility/native-map-jobs.md),
-at `native.checkpoint.maps.job.metadata.v1` (104-byte limit) and
-`native.checkpoint.maps.job.checkpoint.v1` (2256-byte limit). Progress updates write
+at IDs 10 (104-byte limit) and 11 (2256-byte limit). Progress updates write
 only metadata; checkpoint bytes remain unchanged until a new export. The shared
 job digest binds both parts. The profile retains controller authority, epochs,
 cancellation, frozen
@@ -23,11 +30,11 @@ private prefixes and commit at most 64 records together with durable progress;
 completed retries preserve newer writes. Run `make native-map-job-test`. Bare map
 checkpoints, the former single-cell job locator and previous native formats are
 not silently enrolled. The Make target includes host tests of this actual adapter
-using Storage's metered backing; installed tests supply IC transaction evidence.
+using a fixture-owned metered backing; installed tests supply IC transaction evidence.
 
 `native-map-paged` selects the paged adapter instead of the bounded-envelope job
-adapter. It uses native format 11, the existing 64-record staging ABI and the four governed paged
-locators with the host/storage fixture. It accepts sequential export epochs, one
+adapter. It uses native format 11, the existing 64-record staging ABI and regions
+20–23 shared with the host/storage fixture. It accepts sequential export epochs, one
 page per batch and at most 3,072 first-root and 1,536 second-root records. Up to
 72 pages recover a pair. The private target grows from 24 to 192 KiB between
 ended native loans within the batch transaction. Disjoint windows at 131072 and
@@ -65,8 +72,8 @@ not include System metadata, rounding, fragmentation or native rehash peaks.
 The three diagnostic exports are admitted only as a complete set in the paged
 profile. Normal and instruction-metered builds keep their existing allocator.
 
-The separately selected `native-job` feature uses the same governed provider
-under `native.checkpoint.job.v1` for [durable migration admission](../ic-storage-native-feasibility/migration-job.md).
+The separately selected `native-job` feature uses the same provider
+at region 3 for [durable migration admission](../ic-storage-native-feasibility/migration-job.md).
 Its controller/epoch/consumption contract does not change the ordinary fixture.
 
 The separate `native-record` feature reuses the scalar bridge for
@@ -81,7 +88,7 @@ profile remains schema 1 and takes precedence when both features are enabled.
 
 The separate `native-record-vector` feature stores the bounded
 [record-vector envelope](../ic-storage-retention-probe/record-vector-recovery.md)
-under `native.checkpoint.record_vector.v1`, with a 320-byte loaded-value limit
+at region 4, with a 320-byte loaded-value limit
 (256 bytes for V3, 320 for the explicit V2 conversion source).
 It reuses the governed reader and scalar-only bridge composition, with six
 record-specific callbacks. Run `make native-record-vector-test`. Select fixture
@@ -100,7 +107,7 @@ by the linker: it accepts only a complete V3 checkpoint, reconstructs fresh V2
 records, and leaves the checkpoint unchanged. Exact V2 recovery still rejects V3.
 
 The `native-record-vector-job` feature selects the shared job adapter with V3
-record fields, under `native.checkpoint.record_vector.job.v1` (360-byte maximum).
+record fields, at region 5 (360-byte maximum).
 Run `make native-record-job-test`. Its envelope is `ICJRV001`; no V2 conversion
 or adoption of the ordinary record checkpoint is implicit. Source, V2 and
 conversion fixture features take precedence when combined; qualify this job
@@ -113,40 +120,36 @@ verification and does not retain native roots. `make paged-store-test` qualifies
 four-allocation publication, failed-update/upgrade rollback, retries and
 missing/corrupt-store refusal. See the
 [installed storage boundary](../../docs/design/paged-map-checkpoint.md#installed-storage-transaction-boundary)
-for the exact scope and evidence. The native job remains on its bounded payload
-until combined native/progress publication is qualified.
+for the exact scope and evidence. The separate `native-map-paged` profile combines
+native publication with this backing.
 
-## Frozen provider boundary
+## Owned provider boundary
 
-- Reader/writer: published `ic-storage` **0.74.1**, selected by the qualification
-  lockfile, registry checksum
-  `26d2520d368ccea2560cd496efce6408652ad681296111f9fe45561796c92ed0`.
-- Provider directory: Storage `STORNAM1` version 1; cell: `STORCELL` version 1.
-  Storage owns these formats and their checked reader, including the backing
-  memory manager. This fixture never implements a parallel reader.
-- Owner `native-checkpoint`, authority prefix `native.checkpoint.`, stable key
-  `native.checkpoint.scalar.v1`. Allocation numbers are provider-owned.
-- Value: `StableCell<Vec<u8>>`, maximum loaded payload 4216 bytes, containing the
+- Reader/writer: local product `ic-storage`, feature `checkpoint`.
+- Directory `ICKPT001`, record `ICREC001`, page array `ICPAG001`; the
+  [byte contract](../../docs/design/checkpoint-storage.md) owns exact framing.
+- The fixture owns the entire stable-memory namespace. Fresh installation creates
+  the declared regions; every later open validates the exact existing layout.
+- Scalar profile region 1: `Record<Vec<u8>>`, maximum loaded payload 4216 bytes, containing the
   [scalar/vector checkpoint](../ic-storage-native-feasibility/checkpoint-format.md).
   Its schema, epoch, seal and digest checks precede root publication.
 
 The reader accepts envelope versions 1 (at most 16 elements) and 2 (at most 512).
-The named key is the original locator, not an envelope-version discriminator.
+The region ID is a storage identity, not an envelope-version discriminator.
 An empty `export_checkpoint` argument preserves the version-1 command; one
 little-endian u64 argument equal to 2 explicitly selects version 2. Oversized
 version-1 exports trap without updating the cell or freezing the source.
 
-This repository owns this locator, adapter, envelope and conformance tests and
-the maintenance obligation for the pinned reader while these checkpoints are
-supported. The sibling Storage repository remains frozen. Changing provider,
-locator or format requires an explicit conversion and matching reader evidence.
+This repository owns the backing, adapter, envelope and conformance tests. The
+sibling Storage repository remains frozen. Changing layout or format requires an
+explicit conversion and matching reader evidence. The former provider's formats
+are neither read nor rewritten by this implementation.
 
-Initialization creates the owned cell. Import creates a new transient
-`MemoryRuntime`, requires the existing allocation key before bootstrap, opens a
-new governed lease, and calls `StableCell::load`; it never creates a missing cell.
-The runtime constructor can initialize an empty provider directory, but a missing
-locator then traps and the failed upgrade must roll back those writes. Neither
-old Rust handles nor source module/allocator metadata locate the checkpoint.
+Import creates transient `Store`/`Record` handles and calls `Record::load`; it
+never initializes missing storage. Failed admission performs no writes, including
+on empty memory. Neither old Rust handles nor source module/allocator metadata
+locate the checkpoint. IC message rollback supplies atomicity across record/page
+writes and native publication; host write order alone does not.
 
 ## Protocol under test
 

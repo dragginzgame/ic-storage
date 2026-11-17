@@ -1,10 +1,12 @@
 //! Scoped scalar-vector operations for an already valid live allocation.
 //!
-//! This crate neither opens retained bytes nor establishes allocator custody.
+//! Native collection APIs neither open retained bytes nor establish allocator custody.
 //! The vector caller owns admission, initialization, publication and failure policy.
 //! The optional `map` feature adds an allocator-owned scalar hash table with
 //! scoped access, host poisoning and portable recovery. No private Vec header
 //! is admitted for persistence. The installed provider uses the vector API.
+//! The optional `checkpoint` feature supplies byte-defined bounded records and
+//! pages over caller-owned backing memory, independently of native admission.
 #![no_std]
 #![forbid(unsafe_code)]
 
@@ -12,9 +14,17 @@ extern crate alloc;
 
 pub mod record;
 
+/// Byte-defined checkpoint storage over explicitly owned backing memory.
+#[cfg(feature = "checkpoint")]
+pub mod checkpoint;
+
 /// Native scalar hash tables, scoped mutation and portable recovery.
 #[cfg(feature = "map")]
 pub mod map;
+
+/// Ordered bounded byte keys and values with scoped access and portable recovery.
+#[cfg(feature = "ordered")]
+pub mod ordered;
 
 /// Declare a bounded scalar record; this does not grant persistence admission.
 ///

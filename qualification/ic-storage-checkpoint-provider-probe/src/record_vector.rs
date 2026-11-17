@@ -65,7 +65,7 @@ extern "C" fn checkpoint_export() {
     let encoded = codec::encode(&records, epoch);
     #[cfg(feature = "native-record-vector-v2")]
     let encoded = codec::encode_v2(&records, epoch);
-    cell(false).set(encoded.unwrap());
+    cell(false).set(encoded.unwrap()).unwrap();
     if fault == 1 {
         ic0::trap(b"record vector export after stable write");
     }
@@ -121,7 +121,7 @@ fn restore(convert: bool) {
         other => panic!("record vector checkpoint: {other:?}"),
     });
     if fault == 1 {
-        cell.set(codec::encode(&[], epoch).unwrap());
+        cell.set(codec::encode(&[], epoch).unwrap()).unwrap();
         ic0::trap(b"record vector restore after stable write");
     }
     // Complete decoding precedes target initialization. These callbacks cannot
@@ -163,6 +163,6 @@ extern "C" fn checkpoint_damage() {
         2 => bytes[16] = 255,
         _ => panic!("unknown checkpoint damage"),
     }
-    cell.set(bytes);
+    cell.set(bytes).unwrap();
     ic0::msg_reply();
 }

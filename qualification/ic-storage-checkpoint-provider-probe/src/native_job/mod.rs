@@ -24,7 +24,9 @@ use crate::job_control::{args, controller};
 #[expect(unsafe_code, reason = "private entry bound by final composer")]
 #[unsafe(no_mangle)]
 extern "C" fn checkpoint_create() {
-    job_cell(true).set(Job::initial(domain()).unwrap().encode().unwrap());
+    job_cell(true)
+        .set(Job::initial(domain()).unwrap().encode().unwrap())
+        .unwrap();
 }
 
 #[expect(unsafe_code, reason = "private entry bound by final composer")]
@@ -38,7 +40,7 @@ extern "C" fn checkpoint_export() {
     let count = freeze();
     let values = payload::read(count, epoch);
     let next = payload::seal(&job, domain(), target, epoch, &values);
-    cell.set(next.encode().unwrap());
+    cell.set(next.encode().unwrap()).unwrap();
     if fault == 1 {
         ic0::trap(b"job export after stable write");
     }
@@ -55,7 +57,7 @@ extern "C" fn checkpoint_restore() {
     let mut job = Job::decode(cell.get()).unwrap();
     let decoded = job.consume(domain(), source, epoch).unwrap();
     if fault == 1 {
-        cell.set(job.encode().unwrap());
+        cell.set(job.encode().unwrap()).unwrap();
         ic0::trap(b"job restore after consumed write");
     }
     payload::restore_begin(&decoded);
@@ -66,7 +68,7 @@ extern "C" fn checkpoint_restore() {
         }
     }
     finish(payload::len(&decoded));
-    cell.set(job.encode().unwrap());
+    cell.set(job.encode().unwrap()).unwrap();
     if fault == 3 {
         ic0::trap(b"job restore after native publication");
     }
@@ -105,7 +107,7 @@ extern "C" fn checkpoint_cancel() {
     let mut job = Job::decode(cell.get()).unwrap();
     let changed = job.cancel(domain(), target, epoch).unwrap();
     if changed {
-        cell.set(job.encode().unwrap());
+        cell.set(job.encode().unwrap()).unwrap();
     }
     if fault == 1 {
         ic0::trap(b"job cancellation after stable write");
@@ -138,7 +140,7 @@ extern "C" fn checkpoint_damage() {
         assert_eq!([epoch, target], [0, 0]);
         let mut bytes = cell.get().clone();
         bytes[24] ^= 1;
-        cell.set(bytes);
+        cell.set(bytes).unwrap();
     } else {
         // Deliberate, correctly encoded disagreement with the frozen native
         // source, using the real codec/provider rather than host stable writes.
@@ -151,7 +153,7 @@ extern "C" fn checkpoint_damage() {
             epoch,
             &state,
         );
-        cell.set(job.encode().unwrap());
+        cell.set(job.encode().unwrap()).unwrap();
     }
     ic0::msg_reply();
 }

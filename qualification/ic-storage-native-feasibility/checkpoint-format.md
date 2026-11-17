@@ -90,7 +90,8 @@ field order to demonstrate that the logical bytes do not depend on that layout.
 This is neither compatible direct reopen nor the installed incompatible-runtime
 proof. It does not qualify independent opening of governed Storage handles,
 canister upgrade modes, rollback, interruption/resume or persistent checkpoint
-storage. The required published Storage 0.74.1 provider boundary remains unchanged.
+storage. Installed backing qualification belongs to the separate
+[owned checkpoint provider](../../docs/design/checkpoint-storage.md).
 
 ## Record schema 2, envelope version 3
 

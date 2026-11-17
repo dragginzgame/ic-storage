@@ -8,7 +8,7 @@ const B: u64 = 393216;
 
 #[test]
 fn cancelled_epochs_replace_page_counts_and_reject_stale_or_unknown_state() {
-    let backing = MeteredMemory::<VectorMemory>::default();
+    let backing = TestMemory::default();
     let mut store = Jobs::open(backing.clone(), true);
     assert!(catch_unwind(AssertUnwindSafe(|| store.read())).is_err());
     store.initialize(A);
@@ -65,7 +65,7 @@ fn cancelled_epochs_replace_page_counts_and_reject_stale_or_unknown_state() {
         store = Jobs::open(backing.clone(), false);
     }
     // An empty or corrupt envelope is never a reset instruction.
-    store.metadata.set([0; 104]);
+    store.metadata.set([0; 104]).unwrap();
     backing.reset();
     assert!(
         catch_unwind(AssertUnwindSafe(|| store.publish_epoch(
@@ -82,7 +82,7 @@ fn cancelled_epochs_replace_page_counts_and_reject_stale_or_unknown_state() {
 
 #[test]
 fn next_epoch_requires_the_completed_continuation_but_preserves_newer_values() {
-    let backing = MeteredMemory::<VectorMemory>::default();
+    let backing = TestMemory::default();
     let mut store = Jobs::open(backing.clone(), true);
     store.initialize(A);
     let mut source = create_sources([1, 1]);
@@ -121,7 +121,7 @@ fn next_epoch_requires_the_completed_continuation_but_preserves_newer_values() {
         bytes[120] ^= 1;
         bytes
     }] {
-        store.continuation.set(bad);
+        store.continuation.set(bad).unwrap();
         backing.reset();
         assert!(
             catch_unwind(AssertUnwindSafe(|| store.publish_epoch(
@@ -135,7 +135,7 @@ fn next_epoch_requires_the_completed_continuation_but_preserves_newer_values() {
         );
         assert_eq!(backing.counts().writes, 0);
     }
-    store.continuation.set(saved);
+    store.continuation.set(saved).unwrap();
     store.publish_epoch(&source, B, A, 2, |_| {});
     assert_eq!(store.continuation.get(), &[0; 512]);
     let manifest = store.read().frozen(B, A, 2).unwrap();

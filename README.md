@@ -15,6 +15,20 @@ The [delivery roadmap](docs/DESIGN.md#delivery-roadmap) records current prioriti
 sibling requirements and completion gates. Larger installed recovery is next;
 Canic profiles supply the first planned consumer-shaped qualification.
 
+Portable recovery uses our own optional `ic-storage::checkpoint` backing for
+bounded records and pages. Qualification binds it directly to Platform stable
+memory; no legacy Storage dependency remains. See the
+[backing contract](docs/design/checkpoint-storage.md) for ownership, format and
+rollback requirements. Existing legacy formats require explicit migration.
+
+The R4 [ordered storage slice](docs/design/ordered-storage.md) adds bounded byte
+keys and values for IC DB, with compact nodes and separately allocated payloads,
+including ranges, prefixes, batches and portable
+reconstruction. Its row/index and aggregate-job profiles have host provider-pool
+evidence; a closed 64-row installed profile now reuses owners across messages and
+covers compatible upgrades, row/index rollback, query isolation and two-domain
+recovery. Consumer adoption remains pending.
+
 The public entry point is `ic-storage` at `crates/ic-storage/`, with optional
 `Store` macros from `ic-storage-derive`. The implementation is partial: the
 [native collection core](crates/ic-storage/README.md)
@@ -132,9 +146,9 @@ make managed-graph-lint
 make managed-graph-build
 make managed-graph-test
 
-# Optional installed instruction measurements against published ic-storage:
-make benchmark-simple-lint
-make benchmark-simple
+# Optional installed instruction measurements against ic-stable-structures:
+make benchmark-lint
+make benchmark-matrix
 ```
 
 `make deps-check` aggregates snapshot admission, declaration/pinning checks and
@@ -175,10 +189,9 @@ graphs, allocator continuation and selected installed rollback cases. Local
 development uses the individual commands above. The canonical pre-commit hook
 formats the selected commit payload without modifying unrelated work.
 
-[Simple structure benchmarks](qualification/ic-storage-simple-benchmarks/README.md) compare
-the current M0 scalar and linked sequence with Storage 0.74.1's cell and vector.
-They report IC instruction counts and check complete state after every sample;
-these are implementation costs, not raw memory-speed measurements.
+The legacy Storage comparison has been retired. Its
+[historical results](qualification/ic-storage-simple-benchmarks/README.md#historical-m0-comparison-retired)
+remain archived; all maintained benchmarks compare against ic-stable-structures.
 
 For the current on-demand comparison, run **`make benchmark-matrix`**, or
 `make benchmark-matrix-smoke` for one scenario. The

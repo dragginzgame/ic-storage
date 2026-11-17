@@ -82,7 +82,9 @@ extern "C" fn export_checkpoint() {
     STATE.with(|state| {
         let mut state = state.borrow_mut();
         let state = state.as_mut().unwrap();
-        cell(false).set(codec::encode_v2(&state.values, epoch).unwrap());
+        cell(false)
+            .set(codec::encode_v2(&state.values, epoch).unwrap())
+            .unwrap();
         state.frozen = true;
     });
     if fault == 1 {
@@ -103,7 +105,7 @@ extern "C" fn cancel_export() {
         let state = state.as_mut().unwrap();
         assert!(state.frozen);
         // Clear the obsolete checkpoint before allowing newer application writes.
-        cell(false).set(Vec::new());
+        cell(false).set(Vec::new()).unwrap();
         state.frozen = false;
     });
     ic0::msg_reply();

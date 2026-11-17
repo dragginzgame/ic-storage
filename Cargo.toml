@@ -4,14 +4,14 @@ members = ["crates/ic-storage", "crates/ic-storage-derive", "crates/ic-storage-m
 exclude = ["qualification"]
 
 [workspace.package]
-version = "0.76.0"
+version = "0.76.1"
 edition = "2024"
 rust-version = "1.100.0"
 license-file = "LICENSE.md"
 repository = "https://github.com/dragginzgame/ic-storage"
 
 [workspace.dependencies]
-ic-storage-derive = { path = "crates/ic-storage-derive", version = "0.76.0" }
+ic-storage-derive = { path = "crates/ic-storage-derive", version = "0.76.1" }
 proc-macro2 = "1.0.107"
 quote = "1.0.47"
 sha2 = { version = "0.11.1", default-features = false }

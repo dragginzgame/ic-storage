@@ -23,22 +23,23 @@ map support does not widen their representation admission. Roots retain IDs 1/2
 and all u64 key/value bits. Unknown identity, phase, geometry, length, epoch or
 integrity refuses without resetting state.
 
-Every open reconstructs transient governed Storage 0.74.1 handles under owner
-`native-checkpoint` and authority prefix `native.checkpoint.`. The current adapter
-uses two `StableCell<Vec<u8>>` allocations:
+Every open reconstructs transient product checkpoint handles under the
+[owned backing contract](../../docs/design/checkpoint-storage.md). The current
+adapter uses two `Record<Vec<u8>>` regions:
 
-| Locator | Cell payload |
+| Region ID | Record payload |
 | --- | --- |
-| `native.checkpoint.maps.job.metadata.v1` | Exactly 104 bytes: canonical job header (64), `JOBDONE1` (8), digest (32) |
-| `native.checkpoint.maps.job.checkpoint.v1` | Unchanged nested `NKPAIR01` checkpoint, at most 2,256 bytes; empty only for Ready |
+| 10 | Exactly 104 bytes: canonical job header (64), `JOBDONE1` (8), digest (32) |
+| 11 | Unchanged nested `NKPAIR01` checkpoint, at most 2,256 bytes; empty only for Ready |
 
 The metadata digest still covers **header + checkpoint + completeness marker**
 in the original canonical order. The shared job codec splits/reassembles that
 envelope and performs its existing complete validation. The evidence query returns
 the validated canonical envelope, at most 2,360 bytes. Missing, oversized, corrupt,
 truncated or mismatched parts refuse without replacement initialization. Recovery
-requires both locators to exist before opening allocations; entirely empty backing refuses
-before constructing a provider directory.
+requires the exact declared layout before opening regions; entirely empty backing
+refuses without writes. Historical cohorts below used 0.74.1 and named locators;
+their backing bytes are not accepted by the current provider.
 
 Export writes a changed checkpoint first, then metadata. Subsequent start,
 progress, restart, cancellation and consumption write only the 104-byte metadata
@@ -364,7 +365,7 @@ The single-cell bare-map regression passed in `attempt.CJ79gh` (three artifact
 checks and one installed matrix, 3.45 seconds). These cohorts use native job
 format 8; earlier format-7 cohorts below retain their historical scope.
 
-Four host adapter tests use the published Storage `MeteredMemory`, running the
+Those four host adapter tests used the published Storage `MeteredMemory`, running the
 same two-cell code as the Wasm fixture. At 0, 2 and 128 records, each new progress
 update writes exactly 104 backing bytes in one write, with no growth; exact
 retries write zero bytes. Cancellation, restart and atomic consumption preserve

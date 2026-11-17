@@ -3,19 +3,16 @@
 mod job_tests;
 mod lifecycle_tests;
 use super::paged::{MANIFEST, PAGES, Store};
+use crate::provider::memory::TestMemory;
+use ic_storage::checkpoint::{Memory, Pages, Record};
 use ic_storage::map::{Error, Map, paged::PAGE_BYTES};
-use ic_storage_legacy::{
-    Memory, MemoryBacking, StableKey, VectorMemory,
-    adapter::{StableCell, StableVec},
-    testing::MeteredMemory,
-};
 use ic_storage_native_feasibility::checkpoint::maps::paged::{self, MANIFEST_BYTES, Manifest};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
-impl<M: MemoryBacking> Store<M> {
+impl<M: Memory> Store<M> {
     fn open(memory: M, create: bool) -> Self {
-        let runtime = super::runtime(memory, &[MANIFEST, PAGES], create);
-        Self::from_runtime(&runtime, create)
+        let mut backing = super::backing(memory, &[MANIFEST, PAGES], create);
+        Self::from_backing(&mut backing, create)
     }
 }
 
@@ -26,12 +23,12 @@ impl<M: Memory> Store<M> {
         assert!(self.pages.is_empty());
         assert_eq!(self.manifest.get(), &[0; MANIFEST_BYTES]);
         let manifest = paged::export(source, 17, |_, _, page| {
-            self.pages.push(page);
+            self.pages.push(page).unwrap();
             Ok::<_, ()>(())
         })
         .unwrap();
         assert_eq!(self.pages.len(), manifest.page_count() as u64);
-        self.manifest.set(manifest.encode());
+        self.manifest.set(manifest.encode()).unwrap();
     }
 
     fn admit(&self, limit: usize) -> Manifest {
@@ -77,7 +74,7 @@ fn selected_page_reads_stay_fixed_after_independent_governed_reopening() {
     let mut open_bytes = None;
     for counts in [[0, 0], [0, 65], [65, 0], [1, 1], [64, 65], [2304, 2304]] {
         let limit = counts[0].max(counts[1]);
-        let backing = MeteredMemory::<VectorMemory>::default();
+        let backing = TestMemory::default();
         let mut store = Store::open(backing.clone(), true);
         let source = create_sources(counts);
         store.publish(&source);
@@ -135,13 +132,13 @@ fn selected_page_reads_stay_fixed_after_independent_governed_reopening() {
 #[test]
 fn failed_publication_missing_extra_mixed_and_corrupt_pages_refuse() {
     for fault in 0..8 {
-        let backing = MeteredMemory::<VectorMemory>::default();
+        let backing = TestMemory::default();
         let mut store = Store::open(backing.clone(), true);
         let source = create_sources([129, 129]);
         if fault == 0 {
             // A sink can retain partial pages, but no successful manifest escapes.
             let result = paged::export(&source, 17, |root, _, page| {
-                store.pages.push(page);
+                store.pages.push(page).unwrap();
                 if root == 2 {
                     Err("interrupted second root")
                 } else {
@@ -156,23 +153,23 @@ fn failed_publication_missing_extra_mixed_and_corrupt_pages_refuse() {
                     store.pages.pop().unwrap();
                 }
                 2 => {
-                    store.pages.push(&[0; PAGE_BYTES]);
+                    store.pages.push(&[0; PAGE_BYTES]).unwrap();
                 }
                 3 => {
                     let mut bad = *store.manifest.get();
                     bad[56] ^= 1;
-                    store.manifest.set(bad);
+                    store.manifest.set(bad).unwrap();
                 }
                 4 => {
                     let first = store.pages.get(2).unwrap();
                     let second = store.pages.get(5).unwrap();
-                    store.pages.set(2, &second);
-                    store.pages.set(5, &first);
+                    store.pages.set(2, &second).unwrap();
+                    store.pages.set(5, &first).unwrap();
                 }
                 5 => {
                     let mut bad = store.pages.get(3).unwrap();
                     bad[88] ^= 1; // last page of root 2: root 1 still verifies
-                    store.pages.set(3, &bad);
+                    store.pages.set(3, &bad).unwrap();
                     let manifest = store.admit(129);
                     let mut first = manifest.roots()[0].reader();
                     while let Some(index) = first.next_page() {
@@ -193,10 +190,10 @@ fn failed_publication_missing_extra_mixed_and_corrupt_pages_refuse() {
                         .with(|mut view| view.insert(u64::MAX, 777).unwrap())
                         .unwrap();
                     let foreign = paged::export(&other, 17, |_, _, _| Ok::<_, ()>(())).unwrap();
-                    store.manifest.set(foreign.encode());
+                    store.manifest.set(foreign.encode()).unwrap();
                 }
                 _ => {
-                    store.manifest.set([0; MANIFEST_BYTES]);
+                    store.manifest.set([0; MANIFEST_BYTES]).unwrap();
                 }
             }
         }
@@ -215,27 +212,16 @@ fn failed_publication_missing_extra_mixed_and_corrupt_pages_refuse() {
 
 #[test]
 fn absent_paged_locators_never_create_replacement_state() {
-    for keys in [
-        vec![],
-        vec![MANIFEST],
-        vec![PAGES],
-        vec!["native.checkpoint.maps.job.checkpoint.v1"],
-        vec![
-            "native.checkpoint.paged.map.manifest.v1",
-            "native.checkpoint.paged.map.pages.v1",
-        ],
-    ] {
-        let backing = MeteredMemory::<VectorMemory>::default();
+    for keys in [vec![], vec![MANIFEST], vec![PAGES], vec![11], vec![98, 99]] {
+        let backing = TestMemory::default();
         if !keys.is_empty() {
-            let runtime = super::runtime(backing.clone(), &keys, true);
+            let mut storage = super::backing(backing.clone(), &keys, true);
             for key in keys {
-                let memory = runtime
-                    .open_memory(&StableKey::parse(key).unwrap())
-                    .unwrap();
+                let memory = storage.take(key).unwrap();
                 if key == PAGES {
-                    drop(StableVec::<[u8; PAGE_BYTES], _>::create(memory).unwrap());
+                    drop(Pages::<PAGE_BYTES, _>::create(memory).unwrap());
                 } else {
-                    drop(StableCell::create(memory, [0; MANIFEST_BYTES]).unwrap());
+                    drop(Record::create(memory, [0; MANIFEST_BYTES]).unwrap());
                 }
             }
         }

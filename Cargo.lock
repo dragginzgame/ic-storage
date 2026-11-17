@@ -56,7 +56,7 @@ dependencies = [
 
 [[package]]
 name = "ic-storage"
-version = "0.76.0"
+version = "0.76.1"
 dependencies = [
  "ic-storage-derive",
  "sha2",
@@ -65,7 +65,7 @@ dependencies = [
 
 [[package]]
 name = "ic-storage-derive"
-version = "0.76.0"
+version = "0.76.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -75,7 +75,7 @@ dependencies = [
 
 [[package]]
 name = "ic-storage-m0"
-version = "0.76.0"
+version = "0.76.1"
 dependencies = [
  "sha2",
  "toko-tooling",

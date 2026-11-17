@@ -1,6 +1,6 @@
 use super::*;
+use crate::provider::memory::TestMemory;
 use ic_storage::map::Map;
-use ic_storage_legacy::{VectorMemory, testing::MeteredMemory};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 const A: u64 = 131072;
@@ -22,7 +22,7 @@ fn maps(count: u64) -> [Map; 2] {
 #[test]
 fn progress_writes_are_fixed_size_and_retries_write_nothing() {
     for count in [0, 1, 64] {
-        let backing = MeteredMemory::<VectorMemory>::default();
+        let backing = TestMemory::default();
         let mut store = Store::open(backing.clone(), true);
         let ready = MapJob::initial(A).unwrap();
         store.write(&ready);
@@ -32,7 +32,8 @@ fn progress_writes_are_fixed_size_and_retries_write_nothing() {
         let payload = store.checkpoint.get().clone();
         assert_eq!(
             backing.counts().write_bytes,
-            (payload.len() + METADATA_BYTES + 24) as u64
+            // Only the checkpoint length changes; metadata was already initialized.
+            (payload.len() + METADATA_BYTES + 8) as u64
         );
         assert!(!backing.counts().overflowed);
         drop(store);
@@ -78,7 +79,7 @@ fn progress_writes_are_fixed_size_and_retries_write_nothing() {
 
 #[test]
 fn cancel_restart_and_atomic_consumption_preserve_payload() {
-    let backing = MeteredMemory::<VectorMemory>::default();
+    let backing = TestMemory::default();
     let mut store = Store::open(backing.clone(), true);
     let ready = MapJob::initial(A).unwrap();
     store.write(&ready);
@@ -112,20 +113,13 @@ fn cancel_restart_and_atomic_consumption_preserve_payload() {
 
 #[test]
 fn missing_parts_and_old_single_cell_locators_refuse_without_creating_state() {
-    for keys in [
-        vec![],
-        vec![METADATA],
-        vec![CHECKPOINT],
-        vec!["native.checkpoint.maps.job.v1"],
-    ] {
-        let backing = MeteredMemory::<VectorMemory>::default();
+    for keys in [vec![], vec![METADATA], vec![CHECKPOINT], vec![99]] {
+        let backing = TestMemory::default();
         if !keys.is_empty() {
-            let runtime = super::super::runtime(backing.clone(), &keys, true);
+            let mut storage = super::super::backing(backing.clone(), &keys, true);
             for key in keys {
-                let memory = runtime
-                    .open_memory(&StableKey::parse(key).unwrap())
-                    .unwrap();
-                drop(StableCell::create(memory, Vec::<u8>::new()).unwrap());
+                let region = storage.take(key).unwrap();
+                drop(Record::create(region, Vec::<u8>::new()).unwrap());
             }
         }
         backing.reset();
@@ -137,7 +131,7 @@ fn missing_parts_and_old_single_cell_locators_refuse_without_creating_state() {
 #[test]
 fn corrupt_truncated_and_mixed_parts_refuse_without_writes() {
     for mode in 0..7 {
-        let backing = MeteredMemory::<VectorMemory>::default();
+        let backing = TestMemory::default();
         let mut store = Store::open(backing.clone(), true);
         let ready = MapJob::initial(A).unwrap();
         let mut job = ready.export(A, B, 1, &maps(64)).unwrap();
@@ -148,12 +142,12 @@ fn corrupt_truncated_and_mixed_parts_refuse_without_writes() {
             2 => {
                 let mut bytes = store.metadata.get().clone();
                 bytes.pop();
-                store.metadata.set(bytes);
+                store.metadata.set(bytes).unwrap();
             }
             3 => {
                 let mut bytes = store.checkpoint.get().clone();
                 bytes.pop();
-                store.checkpoint.set(bytes);
+                store.checkpoint.set(bytes).unwrap();
             }
             4 => {
                 let mut changed = maps(64);
@@ -163,13 +157,14 @@ fn corrupt_truncated_and_mixed_parts_refuse_without_writes() {
                 let other = ready.export(A, B, 1, &changed).unwrap();
                 store
                     .checkpoint
-                    .set(other.encode_split().unwrap().1.to_vec());
+                    .set(other.encode_split().unwrap().1.to_vec())
+                    .unwrap();
             }
             5 => {
-                store.metadata.set(vec![0; METADATA_BYTES + 1]);
+                store.metadata.set(vec![0; METADATA_BYTES + 1]).unwrap();
             }
             6 => {
-                store.checkpoint.set(vec![0; maps::MAX_BYTES + 1]);
+                store.checkpoint.set(vec![0; maps::MAX_BYTES + 1]).unwrap();
             }
             _ => unreachable!(),
         }

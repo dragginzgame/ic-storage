@@ -17,7 +17,7 @@ layout-swapped = []
 provider-pool = []
 
 [dependencies]
-ic-storage = { workspace = true, features = ["derive", "map"] }
+ic-storage = { workspace = true, features = ["derive", "map", "ordered"] }
 sha2.workspace = true
 
 [lints]

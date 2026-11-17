@@ -14,26 +14,6 @@ pub fn input() -> [u64; 2] {
     [u64::from_le_bytes(words[0]), u64::from_le_bytes(words[1])]
 }
 
-/// Admit the fixed small population and seed, outside timing.
-#[must_use]
-pub fn setup() -> (u64, u64) {
-    let [rows, seed] = input();
-    if ![1, 16, 64].contains(&rows) || !(1..=3).contains(&seed) {
-        core::arch::wasm32::unreachable();
-    }
-    (rows, seed)
-}
-
-/// Admit one operation and batch, outside timing.
-#[must_use]
-pub fn request() -> (usize, u64) {
-    let [operation, batch] = input();
-    if operation >= super::OPERATIONS.len() as u64 || ![1, 8].contains(&batch) {
-        core::arch::wasm32::unreachable();
-    }
-    (operation as usize, batch)
-}
-
 /// Append fixed scalar replies synchronously.
 pub fn reply(words: &[u64]) {
     for word in words {

@@ -7,13 +7,13 @@ use super::{
         map_stage_state, map_stage_verified, stage_ready,
     },
 };
+use crate::provider::memory::StableMemory;
 use crate::{
     job_control::{args, controller},
     provider::paged::{Jobs, WritePoint},
 };
 use ic_platform_runtime::raw as ic0;
 use ic_storage::map::paged::Reader;
-use ic_storage_legacy::DefaultMemoryImpl;
 use ic_storage_native_feasibility::{
     checkpoint::maps::{Records, paged, verify_records},
     migration_job::{PagedMapJob, paged_continuation::NativePrefix},
@@ -60,7 +60,7 @@ fn pending(plan: Pending) {
     });
 }
 fn open() -> Jobs {
-    Jobs::open(DefaultMemoryImpl::default(), false)
+    Jobs::open(StableMemory::default(), false)
 }
 fn admit_pages(store: &Jobs, manifest: &paged::Manifest) {
     store.admit_pages(manifest, LIMIT);
@@ -95,7 +95,7 @@ fn observe(mut record: impl FnMut(usize, (u64, u64))) -> [NativePrefix; 2] {
 #[unsafe(no_mangle)]
 extern "C" fn checkpoint_create() {
     idle();
-    Jobs::open(DefaultMemoryImpl::default(), true).initialize(domain());
+    Jobs::open(StableMemory::default(), true).initialize(domain());
 }
 #[expect(unsafe_code, reason = "private controller-authorized paged export")]
 #[unsafe(no_mangle)]

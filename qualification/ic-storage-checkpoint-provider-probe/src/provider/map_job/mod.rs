@@ -1,34 +1,33 @@
 //! Two governed cells; the shared job codec owns framing and cross-part integrity.
-use ic_storage_legacy::{DefaultMemoryImpl, Memory, MemoryBacking, StableKey, adapter::StableCell};
+use super::memory::StableMemory;
+use ic_storage::checkpoint::{Memory, Record};
 use ic_storage_native_feasibility::{
     checkpoint::maps,
     migration_job::{Batch, METADATA_BYTES, MapJob, MapPair},
 };
 
-const METADATA: &str = "native.checkpoint.maps.job.metadata.v1";
-const CHECKPOINT: &str = "native.checkpoint.maps.job.checkpoint.v1";
+const METADATA: u64 = 10;
+const CHECKPOINT: u64 = 11;
 
-pub(crate) struct Store<M: Memory = DefaultMemoryImpl> {
-    metadata: StableCell<Vec<u8>, M>,
-    checkpoint: StableCell<Vec<u8>, M>,
+pub(crate) struct Store<M: Memory = StableMemory> {
+    metadata: Record<Vec<u8>, M>,
+    checkpoint: Record<Vec<u8>, M>,
 }
 
 #[cfg(target_arch = "wasm32")]
 pub(crate) fn open(create: bool) -> Store {
-    Store::open(DefaultMemoryImpl::default(), create)
+    Store::open(StableMemory::default(), create)
 }
 
-impl<M: MemoryBacking> Store<M> {
+impl<M: Memory> Store<M> {
     fn open(memory: M, create: bool) -> Self {
-        let runtime = super::runtime(memory, &[METADATA, CHECKPOINT], create);
-        let cell = |key, limit| {
-            let memory = runtime
-                .open_memory(&StableKey::parse(key).unwrap())
-                .unwrap();
+        let mut backing = super::backing(memory, &[METADATA, CHECKPOINT], create);
+        let mut cell = |key, limit| {
+            let memory = backing.take(key).unwrap();
             if create {
-                StableCell::create(memory, Vec::new()).unwrap()
+                Record::create(memory, Vec::new()).unwrap()
             } else {
-                StableCell::load(memory, limit).unwrap()
+                Record::load(memory, limit).unwrap()
             }
         };
         Self {
@@ -72,14 +71,14 @@ impl<M: Memory> Store<M> {
     pub(crate) fn write_with_fault(&mut self, job: &MapJob, after_checkpoint: bool) {
         let (metadata, checkpoint) = job.encode_split().unwrap();
         if self.checkpoint.get() != checkpoint {
-            self.checkpoint.set(checkpoint.to_vec());
+            self.checkpoint.set(checkpoint.to_vec()).unwrap();
         }
         assert!(
             !after_checkpoint,
             "map job after checkpoint write, before metadata"
         );
         if self.metadata.get() != &metadata {
-            self.metadata.set(metadata.to_vec());
+            self.metadata.set(metadata.to_vec()).unwrap();
         }
     }
 
@@ -91,7 +90,7 @@ impl<M: Memory> Store<M> {
         };
         let mut bytes = cell.get().clone();
         bytes[24] ^= 1;
-        cell.set(bytes);
+        cell.set(bytes).unwrap();
     }
 }
 

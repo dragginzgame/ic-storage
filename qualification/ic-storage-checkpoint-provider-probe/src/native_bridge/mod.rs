@@ -58,7 +58,7 @@ extern "C" fn checkpoint_export() {
     let encoded = checkpoint::encode_v2(counter(), &values, epoch).unwrap();
     #[cfg(feature = "native-record")]
     let encoded = records::encode(counter(), &values, epoch);
-    cell(false).set(encoded);
+    cell(false).set(encoded).unwrap();
     if fault == 1 {
         ic0::trap(b"native export fault after stable write");
     }
@@ -132,7 +132,8 @@ fn restore_checkpoint(mode: Recovery) {
         decoded
     };
     if fault == 1 {
-        cell.set(checkpoint::encode_v2(999, &decoded.values, epoch).unwrap());
+        cell.set(checkpoint::encode_v2(999, &decoded.values, epoch).unwrap())
+            .unwrap();
         ic0::trap(b"native restore fault after stable write");
     }
     #[cfg(not(feature = "native-record"))]
@@ -190,6 +191,6 @@ extern "C" fn checkpoint_damage() {
         }
         _ => panic!("unknown damage mode"),
     }
-    cell.set(bytes);
+    cell.set(bytes).unwrap();
     ic0::msg_reply();
 }

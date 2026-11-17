@@ -23,6 +23,8 @@ pub(super) mod sealed {
 // Eligibility is not allocation, schema or initialized-prefix authority.
 pub(super) trait Element: Copy + sealed::Sealed {}
 impl Element for u64 {}
+impl sealed::Sealed for u8 {}
+impl Element for u8 {}
 
 // The installed fixture keeps its existing concrete u64 controller interface.
 pub(super) type Region<'backing, T = u64> = Controller<'backing, T>;

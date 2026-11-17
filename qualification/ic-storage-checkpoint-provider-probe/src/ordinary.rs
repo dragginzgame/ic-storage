@@ -7,8 +7,9 @@ use std::{
 };
 
 use crate::provider::cell;
+use crate::provider::memory::StableMemory;
 use ic_platform_runtime::raw as ic0;
-use ic_storage_legacy::adapter::StableCell;
+use ic_storage::checkpoint::Record;
 use ic_storage_native_feasibility::checkpoint;
 
 const BUILD: u64 = if cfg!(feature = "version-b") {
@@ -19,7 +20,7 @@ const BUILD: u64 = if cfg!(feature = "version-b") {
 static TRANSIENT: AtomicU64 = AtomicU64::new(BUILD);
 
 struct State {
-    cell: StableCell<Vec<u8>>,
+    cell: Record<Vec<u8>, StableMemory>,
     counter: u64,
     values: Vec<u64>,
     epoch: u64,
@@ -74,7 +75,8 @@ extern "C" fn post_upgrade() {
     let mut cell = cell(false);
     let decoded = checkpoint::decode(cell.get(), epoch).unwrap();
     if fail_after_write == 1 {
-        cell.set(checkpoint::encode_v2(99999, &decoded.values, epoch).unwrap());
+        cell.set(checkpoint::encode_v2(99999, &decoded.values, epoch).unwrap())
+            .unwrap();
         ic0::trap(b"injected failure after stable checkpoint mutation");
     }
     STATE.with(|slot| {
@@ -124,7 +126,7 @@ extern "C" fn export_checkpoint() {
             _ => panic!("unknown export envelope"),
         }
         .unwrap();
-        state.cell.set(encoded);
+        state.cell.set(encoded).unwrap();
         state.frozen = true;
     });
     ic0::msg_reply();
@@ -189,7 +191,7 @@ extern "C" fn damage_checkpoint() {
             }
             _ => panic!("unknown corruption mode"),
         }
-        state.cell.set(bytes);
+        state.cell.set(bytes).unwrap();
     });
     ic0::msg_reply();
 }

@@ -137,14 +137,14 @@ async fn fresh_heap_import_and_failed_upgrade_rollback() {
     }
 
     // Infrastructure-only fault injection: corrupt provider framing without
-    // teaching the adapter raw allocation IDs or bypassing governed handles.
+    // changing the adapter's logical checkpoint records.
     let id = install(pic, &a).await;
     update(pic, id, "export_checkpoint", &[]).await;
     let mut stable = pic.get_stable_memory(id).await;
     let offsets: Vec<_> = stable
         .windows(8)
         .enumerate()
-        .filter_map(|(i, bytes)| (bytes == b"STORCELL").then_some(i))
+        .filter_map(|(i, bytes)| (bytes == b"ICREC001").then_some(i))
         .collect();
     assert_eq!(offsets.len(), 1, "one provider cell in isolated fixture");
     stable[offsets[0]] ^= 1;

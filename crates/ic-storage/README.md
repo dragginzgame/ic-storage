@@ -2,7 +2,7 @@
 
 ```toml
 [dependencies]
-ic-storage = { version = "0.76.0", features = ["map", "derive"] }
+ic-storage = { version = "0.76.1", features = ["map", "derive"] }
 ```
 
 Experimental `no_std` + `alloc` library for operations over an
@@ -33,6 +33,11 @@ the optional derive's application-facing codec/layout tests, plus strict host an
 Wasm lint checks with and without that feature;
 `make native-provider-test` exercises the library through the installed provider.
 The existing checkpoint/job gates additionally exercise portable reconstruction.
+Enable `checkpoint` for bounded byte records and fixed-width pages over explicitly
+owned backing memory. Exact layout admission rejects missing or foreign storage
+without writes; no legacy Storage dependency or legacy-format reader is involved.
+The [checkpoint backing contract](https://github.com/dragginzgame/ic-storage/blob/main/docs/design/checkpoint-storage.md)
+defines ownership, framing, capacity and the enclosing transaction requirement.
 Installed scope cases cover normal callback errors, full-capacity refusal and
 forgotten views across compatible upgrades. They check settlement before reply
 and distinguish these outcomes from whole-message trap rollback.
@@ -55,6 +60,24 @@ These declaration rules are tested here; qualification fixtures own their
 application-specific retained layouts, conversion, rollback and recovery cases.
 
 ## Keyed collections
+
+The optional `ordered` feature adds
+[`ordered::Map<K, V>`](https://github.com/dragginzgame/ic-storage/blob/main/docs/design/ordered-storage.md)
+for bounded encoded byte keys and values. It provides lookup, replacement,
+deletion/reuse, double-ended ranges, prefix scans, preflighted batches and portable
+recovery. Compact nodes refer to a separately owned byte arena; short indexes
+do not reserve a full row's capacity. `new_in_allocators` accepts separate node
+and byte authorities, and admission validates both allocations. Free blocks are
+scrubbed, reused and split; coalescing and large-scale churn qualification remain
+open. `Map<512, 4096>` covers the reviewed IC DB row/index byte bounds;
+`Map<1, 16384>` covers its separate aggregate-job slots. DB retains field encoding
+and schema policy. Both have host/provider-pool evidence; a closed installed
+row/index profile additionally covers compatible upgrades, rollback, pagination
+and two-domain recovery. Its generation-owned service reuses the map and both
+allocators across messages, closes before upgrade and freshly admits after
+controlled startup. `allocation_usage` observes current sizes without scanning
+records. This is bounded fixture evidence, not a general runtime, DB adoption or
+installed qualification of the separate aggregate-job profile.
 
 Enable `features = ["map"]` for `map::Map`: a reusable `u64 → u64` native hash
 table with scoped lookup, insertion/replacement, deletion, reservation and clear.

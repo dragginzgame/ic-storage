@@ -11,30 +11,15 @@ autobenches = false
 [target.'cfg(any())'.dev-dependencies]
 toko-tooling.workspace = true
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-ic-host-artifacts.workspace = true
-ic-storage-retention-probe.workspace = true
-ic-testkit.workspace = true
-serde_json.workspace = true
-tokio = { workspace = true, features = ["macros", "rt"] }
-
 [package.metadata.toko-tooling.loc]
 category = "benchmarks"
 
 [features]
-storage = ["dep:ic-storage-legacy"]
 stable-map = ["dep:ic-stable-structures"]
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 ic-platform-runtime = { workspace = true, features = ["system-raw"] }
 ic-stable-structures = { workspace = true, optional = true }
-ic-storage-legacy = { workspace = true, optional = true }
-
-[[example]]
-name = "storage-wasm"
-path = "benches/storage/mod.rs"
-crate-type = ["cdylib"]
-required-features = ["storage"]
 
 [[example]]
 name = "stable-map-wasm"
@@ -47,10 +32,6 @@ name = "stable-matrix-wasm"
 path = "benches/stable_matrix.rs"
 crate-type = ["cdylib"]
 required-features = ["stable-map"]
-
-[[example]]
-name = "compare"
-path = "benches/runner.rs"
 
 [lints]
 workspace = true

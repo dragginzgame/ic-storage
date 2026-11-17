@@ -41,7 +41,7 @@ fn start(restart: bool) {
     }
     .unwrap();
     payload::start(&decoded);
-    cell.set(job.encode().unwrap());
+    cell.set(job.encode().unwrap()).unwrap();
     if fault == 1 {
         ic0::trap(b"import start after publication");
     }
@@ -98,7 +98,7 @@ extern "C" fn checkpoint_batch() {
         );
     }
     if !batch.retry {
-        cell.set(job.encode().unwrap());
+        cell.set(job.encode().unwrap()).unwrap();
         if fault == 1 {
             ic0::trap(b"import batch after stable write");
         }
@@ -129,7 +129,7 @@ extern "C" fn checkpoint_stage_damage() {
         let mut cell = job_cell(false);
         let mut bytes = cell.get().clone();
         bytes[24] ^= 1;
-        cell.set(bytes);
+        cell.set(bytes).unwrap();
     } else {
         stage_damage(mode as u32);
     }

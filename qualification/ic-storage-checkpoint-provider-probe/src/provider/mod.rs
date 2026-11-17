@@ -1,14 +1,11 @@
-//! Single owner of the governed locator and reader for both fixture profiles.
-
-use ic_storage_legacy::{
-    AllocationGrants, GenericAllocationPolicy, MemoryAuthority, MemoryBacking, MemoryRequest,
-    MemoryRuntime, SealedDeclarationSnapshot, StableKey,
-};
+//! Single owner of the checkpoint layout and backing for each fixture profile.
+pub(crate) mod memory;
 #[cfg(not(any(feature = "native-map-job", feature = "paged-store")))]
-use ic_storage_legacy::{DefaultMemoryImpl, adapter::StableCell};
+use ic_storage::checkpoint::Record;
+use ic_storage::checkpoint::{Memory, Specification, Store as BackingStore};
+#[cfg(not(any(feature = "native-map-job", feature = "paged-store")))]
+use memory::StableMemory;
 
-const OWNER: &str = "native-checkpoint";
-const PREFIX: &str = "native.checkpoint.";
 #[cfg(all(feature = "native-map-job", not(feature = "native-map-paged")))]
 pub(crate) mod map_job;
 #[cfg(any(
@@ -25,7 +22,7 @@ mod paged_tests;
     feature = "native-map",
     feature = "paged-store"
 )))]
-const KEY: &str = "native.checkpoint.scalar.v1";
+const KEY: u64 = 1;
 
 #[cfg(not(any(
     feature = "native-job",
@@ -33,7 +30,7 @@ const KEY: &str = "native.checkpoint.scalar.v1";
     feature = "native-map",
     feature = "paged-store"
 )))]
-pub(crate) fn cell(create: bool) -> StableCell<Vec<u8>> {
+pub(crate) fn cell(create: bool) -> Record<Vec<u8>, StableMemory> {
     open(
         KEY,
         create,
@@ -42,9 +39,9 @@ pub(crate) fn cell(create: bool) -> StableCell<Vec<u8>> {
 }
 
 #[cfg(all(feature = "native-map", not(feature = "native-map-job")))]
-pub(crate) fn map_cell(create: bool) -> StableCell<Vec<u8>> {
+pub(crate) fn map_cell(create: bool) -> Record<Vec<u8>, StableMemory> {
     open(
-        "native.checkpoint.maps.v1",
+        2,
         create,
         ic_storage_native_feasibility::checkpoint::maps::MAX_BYTES,
     )
@@ -54,9 +51,9 @@ pub(crate) fn map_cell(create: bool) -> StableCell<Vec<u8>> {
     feature = "native-job",
     not(any(feature = "native-record-vector", feature = "native-map"))
 ))]
-pub(crate) fn job_cell(create: bool) -> StableCell<Vec<u8>> {
+pub(crate) fn job_cell(create: bool) -> Record<Vec<u8>, StableMemory> {
     open(
-        "native.checkpoint.job.v1",
+        3,
         create,
         ic_storage_native_feasibility::migration_job::MAX_BYTES,
     )
@@ -72,9 +69,9 @@ pub(crate) fn job_cell(create: bool) -> StableCell<Vec<u8>> {
     )
 ))]
 #[cfg(not(feature = "native-map"))]
-pub(crate) fn record_vector_cell(create: bool) -> StableCell<Vec<u8>> {
+pub(crate) fn record_vector_cell(create: bool) -> Record<Vec<u8>, StableMemory> {
     open(
-        "native.checkpoint.record_vector.v1",
+        4,
         create,
         ic_storage_native_feasibility::checkpoint::record_vector::MAX_BYTES,
     )
@@ -89,53 +86,40 @@ pub(crate) fn record_vector_cell(create: bool) -> StableCell<Vec<u8>> {
     ))
 ))]
 #[cfg(not(feature = "native-map"))]
-pub(crate) fn job_cell(create: bool) -> StableCell<Vec<u8>> {
+pub(crate) fn job_cell(create: bool) -> Record<Vec<u8>, StableMemory> {
     open(
-        "native.checkpoint.record_vector.job.v1",
+        5,
         create,
         ic_storage_native_feasibility::migration_job::RECORD_MAX_BYTES,
     )
 }
 
 #[cfg(not(any(feature = "native-map-job", feature = "paged-store")))]
-fn open(key: &str, create: bool, limit: usize) -> StableCell<Vec<u8>> {
-    let runtime = runtime(DefaultMemoryImpl::default(), &[key], create);
-    let memory = runtime
-        .open_memory(&StableKey::parse(key).unwrap())
-        .unwrap();
+fn open(key: u64, create: bool, limit: usize) -> Record<Vec<u8>, StableMemory> {
+    let mut store = backing(StableMemory::default(), &[key], create);
+    let region = store.take(key).unwrap();
     if create {
-        StableCell::create(memory, Vec::new()).unwrap()
+        Record::create(region, Vec::new()).unwrap()
     } else {
-        StableCell::load(memory, limit).unwrap()
+        Record::load(region, limit).unwrap()
     }
 }
 
-fn runtime<M: MemoryBacking>(memory: M, keys: &[&str], create: bool) -> MemoryRuntime<M> {
-    // Every open constructs new runtime/lease ownership. Import never creates
-    // a missing locator or relies on a handle retained from the previous heap.
-    if !create {
-        assert!(memory.size() != 0, "missing checkpoint provider");
+fn backing<M: Memory>(memory: M, keys: &[u64], create: bool) -> BackingStore<M> {
+    let specs: Vec<_> = keys
+        .iter()
+        .map(|&id| Specification {
+            id,
+            bytes: if id == 21 {
+                24 + 128 * ic_storage::map::paged::PAGE_BYTES as u64
+            } else {
+                16 + 16 * 1024
+            },
+        })
+        .collect();
+    if create {
+        BackingStore::create(memory, &specs).unwrap()
+    } else {
+        BackingStore::open(memory, &specs).unwrap()
     }
-    let mut runtime = MemoryRuntime::new(memory).unwrap();
-    if !create {
-        for key in keys {
-            assert!(
-                runtime
-                    .allocation_id(&StableKey::parse(key).unwrap())
-                    .is_some(),
-                "missing checkpoint locator"
-            );
-        }
-    }
-    let declarations = SealedDeclarationSnapshot::new(
-        keys.iter()
-            .map(|key| MemoryRequest::new(OWNER, key).unwrap())
-            .collect(),
-    )
-    .unwrap();
-    let grants = AllocationGrants::new(vec![MemoryAuthority::new(OWNER, PREFIX).unwrap()]).unwrap();
-    runtime
-        .bootstrap(&declarations, &grants, &GenericAllocationPolicy)
-        .unwrap();
-    runtime
 }

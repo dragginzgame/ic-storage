@@ -1,22 +1,20 @@
 //! Governed paged checkpoint storage shared by host and installed qualification.
 //! Callers own authority, native custody and transition/record verification.
+use super::memory::StableMemory;
+use ic_storage::checkpoint::{Memory, Pages, Record, Store as BackingStore};
 use ic_storage::map::{
     Map,
     paged::{PAGE_BYTES, Reader},
-};
-use ic_storage_legacy::{
-    DefaultMemoryImpl, Memory, MemoryBacking, MemoryRuntime, StableKey,
-    adapter::{StableCell, StableVec},
 };
 use ic_storage_native_feasibility::{
     checkpoint::maps::paged::{self, MANIFEST_BYTES, Manifest},
     migration_job::{METADATA_BYTES, PagedMapJob, paged_continuation},
 };
 
-pub(super) const MANIFEST: &str = "native.checkpoint.paged.maps.manifest.v1";
-pub(super) const PAGES: &str = "native.checkpoint.paged.maps.pages.v1";
-pub(super) const METADATA: &str = "native.checkpoint.paged.maps.job.metadata.v1";
-pub(super) const CONTINUATION: &str = "native.checkpoint.paged.maps.job.continuation.v1";
+pub(super) const MANIFEST: u64 = 20;
+pub(super) const PAGES: u64 = 21;
+pub(super) const METADATA: u64 = 22;
+pub(super) const CONTINUATION: u64 = 23;
 
 /// Fault-injection boundaries, after the named governed write has completed.
 #[derive(Clone, Copy)]
@@ -28,27 +26,23 @@ pub(crate) enum WritePoint {
 }
 
 pub(super) struct Store<M: Memory> {
-    pub(super) manifest: StableCell<[u8; MANIFEST_BYTES], M>,
-    pub(super) pages: StableVec<[u8; PAGE_BYTES], M>,
+    pub(super) manifest: Record<[u8; MANIFEST_BYTES], M>,
+    pub(super) pages: Pages<PAGE_BYTES, M>,
 }
 
-impl<M: MemoryBacking> Store<M> {
-    pub(super) fn from_runtime(runtime: &MemoryRuntime<M>, create: bool) -> Self {
-        let metadata = runtime
-            .open_memory(&StableKey::parse(MANIFEST).unwrap())
-            .unwrap();
-        let data = runtime
-            .open_memory(&StableKey::parse(PAGES).unwrap())
-            .unwrap();
+impl<M: Memory> Store<M> {
+    pub(super) fn from_backing(backing: &mut BackingStore<M>, create: bool) -> Self {
+        let metadata = backing.take(MANIFEST).unwrap();
+        let data = backing.take(PAGES).unwrap();
         if create {
             Self {
-                manifest: StableCell::create(metadata, [0; MANIFEST_BYTES]).unwrap(),
-                pages: StableVec::create(data).unwrap(),
+                manifest: Record::create(metadata, [0; MANIFEST_BYTES]).unwrap(),
+                pages: Pages::create(data).unwrap(),
             }
         } else {
             Self {
-                manifest: StableCell::load(metadata, MANIFEST_BYTES).unwrap(),
-                pages: StableVec::load(data).unwrap(),
+                manifest: Record::load(metadata, MANIFEST_BYTES).unwrap(),
+                pages: Pages::load(data).unwrap(),
             }
         }
     }
@@ -68,32 +62,29 @@ impl<M: Memory> Store<M> {
     }
 }
 
-pub(crate) struct Jobs<M: Memory = DefaultMemoryImpl> {
+pub(crate) struct Jobs<M: Memory = StableMemory> {
     pub(super) data: Store<M>,
-    pub(super) metadata: StableCell<[u8; METADATA_BYTES], M>,
-    pub(super) continuation: StableCell<[u8; paged_continuation::BYTES], M>,
+    pub(super) metadata: Record<[u8; METADATA_BYTES], M>,
+    pub(super) continuation: Record<[u8; paged_continuation::BYTES], M>,
 }
 
-impl<M: MemoryBacking> Jobs<M> {
+impl<M: Memory> Jobs<M> {
     pub(crate) fn open(memory: M, create: bool) -> Self {
-        let runtime = super::runtime(memory, &[MANIFEST, PAGES, METADATA, CONTINUATION], create);
-        let metadata = runtime
-            .open_memory(&StableKey::parse(METADATA).unwrap())
-            .unwrap();
-        let continuation = runtime
-            .open_memory(&StableKey::parse(CONTINUATION).unwrap())
-            .unwrap();
+        let mut backing =
+            super::backing(memory, &[MANIFEST, PAGES, METADATA, CONTINUATION], create);
+        let metadata = backing.take(METADATA).unwrap();
+        let continuation = backing.take(CONTINUATION).unwrap();
         Self {
-            data: Store::from_runtime(&runtime, create),
+            data: Store::from_backing(&mut backing, create),
             metadata: if create {
-                StableCell::create(metadata, [0; METADATA_BYTES]).unwrap()
+                Record::create(metadata, [0; METADATA_BYTES]).unwrap()
             } else {
-                StableCell::load(metadata, METADATA_BYTES).unwrap()
+                Record::load(metadata, METADATA_BYTES).unwrap()
             },
             continuation: if create {
-                StableCell::create(continuation, [0; paged_continuation::BYTES]).unwrap()
+                Record::create(continuation, [0; paged_continuation::BYTES]).unwrap()
             } else {
-                StableCell::load(continuation, paged_continuation::BYTES).unwrap()
+                Record::load(continuation, paged_continuation::BYTES).unwrap()
             },
         }
     }
@@ -117,13 +108,13 @@ impl<M: Memory> Jobs<M> {
         assert_eq!(self.continuation.get(), &[0; paged_continuation::BYTES]);
         let ready = PagedMapJob::initial(source).unwrap();
         let pair = paged::export(maps, epoch, |_, _, page| {
-            self.data.pages.push(page);
+            self.data.pages.push(page).unwrap();
             after(WritePoint::Page);
             Ok::<_, ()>(())
         })
         .unwrap();
         let job = ready.seal(source, target, epoch, &pair).unwrap();
-        self.data.manifest.set(pair.encode());
+        self.data.manifest.set(pair.encode()).unwrap();
         after(WritePoint::Manifest);
         self.write(&job);
         after(WritePoint::Metadata);
@@ -144,7 +135,7 @@ impl<M: Memory> Jobs<M> {
         let (metadata, payload) = job.encode_split().unwrap();
         assert_eq!(payload, self.data.manifest.get());
         if self.metadata.get() != &metadata {
-            self.metadata.set(metadata);
+            self.metadata.set(metadata).unwrap();
         }
     }
 
@@ -165,7 +156,7 @@ impl<M: Memory> Jobs<M> {
     ) {
         let continuation = paged_continuation::encode_observed(job, readers, prefixes).unwrap();
         assert_eq!(job.encode_split().unwrap().1, self.data.manifest.get());
-        self.continuation.set(continuation);
+        self.continuation.set(continuation).unwrap();
         after(WritePoint::Continuation);
         self.write(job);
         after(WritePoint::Metadata);
@@ -207,17 +198,17 @@ impl<M: Memory> Jobs<M> {
             0 => {
                 let mut bytes = *self.metadata.get();
                 bytes[24] ^= 1;
-                self.metadata.set(bytes);
+                self.metadata.set(bytes).unwrap();
             }
             1 => {
                 let mut bytes = *self.data.manifest.get();
                 bytes[32] ^= 1;
-                self.data.manifest.set(bytes);
+                self.data.manifest.set(bytes).unwrap();
             }
             2 => {
                 let mut bytes = *self.continuation.get();
                 bytes[120] ^= 1;
-                self.continuation.set(bytes);
+                self.continuation.set(bytes).unwrap();
             }
             3 => {
                 self.damage_page(0);
@@ -233,7 +224,7 @@ impl<M: Memory> Jobs<M> {
     pub(crate) fn damage_page(&mut self, physical: u64) {
         let mut bytes = self.data.pages.get(physical).unwrap();
         bytes[80] ^= 1;
-        self.data.pages.set(physical, &bytes);
+        self.data.pages.set(physical, &bytes).unwrap();
     }
 }
 
@@ -249,7 +240,7 @@ impl<M: Memory> Jobs<M> {
             .unwrap()
             .encode_split()
             .unwrap();
-        self.metadata.set(metadata);
+        self.metadata.set(metadata).unwrap();
     }
 
     /// Replace a retired checkpoint only after next-epoch and continuation
@@ -282,9 +273,9 @@ impl<M: Memory> Jobs<M> {
         let mut index = 0;
         let written = paged::export(maps, epoch, |_, _, page| {
             if index < self.data.pages.len() {
-                self.data.pages.set(index, page);
+                self.data.pages.set(index, page).unwrap();
             } else {
-                self.data.pages.push(page);
+                self.data.pages.push(page).unwrap();
             }
             index += 1;
             after(WritePoint::Page);
@@ -296,9 +287,11 @@ impl<M: Memory> Jobs<M> {
             assert!(self.data.pages.pop().is_some());
             after(WritePoint::Page);
         }
-        self.data.manifest.set(manifest.encode());
+        self.data.manifest.set(manifest.encode()).unwrap();
         after(WritePoint::Manifest);
-        self.continuation.set([0; paged_continuation::BYTES]);
+        self.continuation
+            .set([0; paged_continuation::BYTES])
+            .unwrap();
         after(WritePoint::Continuation);
         self.write(&job);
         after(WritePoint::Metadata);

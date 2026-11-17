@@ -1,5 +1,52 @@
 # Changelog
 
+## [0.76.1] - 2026-11-17
+
+### ✨ Added
+
+- Qualify ordered owners across separate messages, with explicit dual-allocation
+  close/reopen, controlled transient startup, query isolation and failed
+  source/target upgrade rollback. Reuse the scalar-session startup builder and
+  requalify its installed lifecycle. Add constant-time ordered allocation usage
+  observation, host relocation/poisoning tests and isolated lookup cost samples.
+- Add optional `ordered` bounded byte-key/value storage for the R4 DB workload:
+  allocator-owned AVL nodes, forward/reverse ranges, prefixes, key continuation,
+  deletion/reuse, preflighted batches and sealed portable checkpoints. Qualify
+  512-byte keys, 4-KiB rows and separate 16-KiB aggregate-job values on host,
+  including provider-pool readmission and allocation-failure preservation.
+  A closed installed 64-row/index profile now covers compatible upgrades,
+  full-width cursor pagination, native/stable publication rollback and portable
+  recovery in both allocation directions. DB cutover remains pending.
+- Add optional `ic-storage::checkpoint` backing: byte-defined bounded records,
+  fixed-width pages, exact layout admission and one-use region claims over
+  caller-owned memory. Opening never initializes or repairs existing storage.
+
+### 🔄 Changed
+
+- Replace ordered nodes' maximum-sized inline arrays with 56-byte nodes and
+  separately owned variable-size payload blocks. Preflight both allocations,
+  scrub/reuse/split freed blocks and validate complete payload ownership on
+  admission. Native format identity changes; logical `ORDMAP01` stays unchanged.
+  The installed 64-row/index profile uses 54% fewer initialized native bytes.
+  Coalescing and larger sustained-churn qualification remain open.
+- Replace qualification's legacy Storage dependency with the product checkpoint
+  backing and a Platform stable-memory binding. The new format does not import
+  legacy bytes; IC message rollback owns multi-record/native publication atomicity.
+  Remove the older transitive Platform runtime and `ic0` dependency.
+
+### 🧪 Testing
+
+- Add `ordered-native-probe` to CI and `ordered-native-test` for on-demand IC
+  lifecycle qualification. Preserve source/artifact identities and entry-body
+  instruction/transient-memory samples across two export/recovery epochs.
+- Requalify scalar, record, vector, map and paged recovery through the owned
+  backing, including durable jobs and failed-upgrade/publication rollback. Paged
+  batches read one new page, write 616 progress bytes and reserve three stable
+  pages; existing instruction and requested-allocation ceilings still pass.
+- Retire the M0-versus-legacy-Storage benchmark, its runner, canister and startup
+  profile. Keep ic-stable-structures as the only benchmark baseline and enforce
+  that exclusion in the benchmark dependency graph. Preserve historical results.
+
 ## [0.76.0] - 2026-11-17
 
 ### 🔄 Changed

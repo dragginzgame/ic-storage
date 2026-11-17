@@ -16,8 +16,10 @@ toko-tooling.workspace = true
 ignored = ["toko-tooling"]
 
 [features]
+checkpoint = []
 derive = ["dep:ic-storage-derive"]
 map = ["dep:sha2"]
+ordered = ["dep:sha2"]
 
 [dependencies]
 ic-storage-derive = { workspace = true, optional = true }

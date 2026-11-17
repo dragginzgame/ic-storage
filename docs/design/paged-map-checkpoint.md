@@ -11,9 +11,13 @@ This is the storage boundary for larger recovery. The existing installed
 `NKPAIR01` job keeps its lifecycle qualification. A new paged native profile
 uses a 64-record staging call and admits 3,072 first-root and 1,536 second-root records, qualifying
 combined root/continuation/progress transactions over multiple pages. The codec
-also has host qualification through governed Storage 0.74.1 handles and a
+also has host qualification through product checkpoint handles and a
 no_std Wasm compile/lint check. Neither these tests nor a valid manifest
 authorize a consumer cutover.
+
+Current builds use the [owned checkpoint backing](checkpoint-storage.md).
+Dated cost/evidence cohorts below predate that replacement and retain their
+original provider provenance; current measurements must come from a new run.
 
 ## Byte contract
 
@@ -147,20 +151,20 @@ pages followed by root 2's, descending within each, and returns the pair only
 after both succeed. Host recovery keeps both candidate maps private until both
 page chains finish. It cannot expose root 1 after failure in root 2.
 
-The shared `provider::paged` owner in the existing checkpoint-provider package uses the published
-provider API through fresh governed handles with owner `native-checkpoint`:
+The shared `provider::paged` owner uses product checkpoint containers through
+fresh handles in the fixture's exclusive stable-memory namespace:
 
-| Locator | Stored shape |
+| Region ID | Stored shape |
 | --- | --- |
-| `native.checkpoint.paged.maps.manifest.v1` | `StableCell<[u8; 328]>` |
-| `native.checkpoint.paged.maps.pages.v1` | `StableVec<[u8; 1104]>` |
+| 20 | `Record<[u8; 328]>` |
+| 21 | `Pages<1104>` |
 
 The fixture appends pages in exporter order, reversing logical order within each
 root's segment. It checks exact vector length against the admitted
 manifest. It publishes the manifest last and writes only to fresh storage;
 partial exports stay unsealed. Missing locators, earlier checkpoint locators or
-unknown/corrupt data are refused without initializing replacement state. No raw
-stable-memory format is inferred or recreated, and the legacy repository is not
+unknown/corrupt data are refused without initializing replacement state. The new
+backing format is defined here, and the legacy repository is neither copied nor
 modified. Host execution does not supply crash transactions. Installed storage
 rollback has the separate scope described below.
 The earlier single-root `native.checkpoint.paged.map.*.v1` locators are not
@@ -209,9 +213,8 @@ pairs complete with the first valid request. Admission rejects total page counts
 above `u32::MAX`, including on hosts whose `usize` is wider. All decoded counts
 must also fit the target's `usize`.
 
-The shared store adds `native.checkpoint.paged.maps.job.metadata.v1` as a
-`StableCell<[u8; 104]>` and `native.checkpoint.paged.maps.job.continuation.v1` as
-a `StableCell<[u8; 512]>` beside the pair manifest and pages. Fresh publication
+The shared store adds region 22 as a `Record<[u8; 104]>` and region 23 as
+a `Record<[u8; 512]>` beside the pair manifest and pages. Fresh publication
 writes both chains, then the manifest, then job metadata; the continuation stays
 zero until explicit import begins. Each importing transition writes 512 bytes
 of continuation then 104 bytes of metadata, for **616 bytes**, independent of

@@ -1,33 +1,25 @@
-# Simple structure benchmarks
+# Storage benchmarks
 
 For the current comparison against **ic-stable-structures only**, run
 `make benchmark-matrix` or `make benchmark-matrix-smoke` and read the
 [matrix guide](../../docs/design/native-map-matrix.md). The older guarded-loan
 comparison remains available as `make benchmark-map` with its
 [two-way results](../../docs/design/native-map-comparison.md).
-The remainder of this document records the separate historical M0 experiment.
+`make benchmark-lint` checks both stable-structures backends and their runner;
+it is included in CI. Measurements remain on demand, without timing thresholds.
+The benchmark package has no legacy Storage dependency, including with all
+features enabled; dependency checks enforce this boundary.
 
-This opt-in experiment compares the current M0 retained-memory implementation
-with published `ic-storage` **0.74.1**. It measures installed Wasm on local
-PocketIC, not native Rust timings or RPC latency. The existing `../ic-storage`
-checkout is not a dependency and is not modified.
+## Historical M0 comparison (retired)
 
-## Run
+The M0-versus-Storage **0.74.1** benchmark was retired on 17 November 2026.
+Its runner, canister, M0 benchmark mode and Make commands have been removed.
+The remaining sections preserve the recorded workloads and results; they do not
+describe a maintained benchmark. The original implementation remains in
+[v0.76.0](https://github.com/dragginzgame/ic-storage/tree/v0.76.0/qualification/ic-storage-simple-benchmarks).
 
-Use the repository's pinned Rust 1.100.0 with the wasm32 target. Prepare locked
-dependencies and the Testkit server explicitly, as described in
-[qualification setup](../README.md#run). Then, from the repository root:
-
-```sh
-make benchmark-simple-lint
-make benchmark-simple
-```
-
-The second command builds both release Wasm artifacts, admits the managed
-artifact and runs the fixed matrix through the already prepared server. All
-Cargo commands are locked and offline; missing inputs fail rather than install.
-`make benchmark-simple-build` builds without starting a server. CI compiles and
-lints the benchmark code; measurements are opt-in, with no performance threshold.
+That experiment measured installed Wasm on local PocketIC, not native Rust
+timings or RPC latency, without modifying the legacy repository.
 
 ## Workloads and boundaries
 

@@ -18,12 +18,25 @@ compiles the reusable product table against the same region-controller custody
 direction. `make native-map-probe` admits artifacts; `make native-map-test` adds
 installed retained upgrades, growth between two banks, refusal and rollback for
 up to 384 live entries, starting from capacity for six entries.
-The frozen published `ic-storage` 0.74.1 checkpoint/benchmark oracle is imported
-as `ic-storage-legacy`; the new native `ic-storage` API is independent. The M0
-evidence baseline now lives in private `ic-storage-m0`.
+The native collections and checkpoint backing both use local `ic-storage`.
+There is no legacy Storage dependency. The M0 evidence baseline lives in private
+`ic-storage-m0`.
+
+`make ordered-native-probe` admits the closed ordered-node compiler artifacts;
+`make ordered-native-test` adds installed 64-row/index lifecycle, forward/reverse
+pagination, rollback and portable recovery between disjoint native windows.
+The current profile reuses compact-node and payload owners across messages,
+settles both on close, and applies the shared controlled-startup boundary before
+fresh target admission. It checks query isolation, missing/failed source close,
+obsolete native-format and truncated-payload refusal, and reports initialized
+native bytes separately from allocation capacity and reserved provider windows.
+The [ordered storage contract](../docs/design/ordered-storage.md#installed-ordered-root-lifecycle)
+records the memory/custody assumptions, measured body costs and remaining limits.
+Both use prepared inputs and the existing provider pool, with no DB cutover.
 
 The [checkpoint provider experiment](ic-storage-checkpoint-provider-probe/README.md) uses
-published Storage 0.74.1 through governed handles. Ordinary installed upgrades
+the product's [owned checkpoint backing](../docs/design/checkpoint-storage.md).
+Ordinary installed upgrades
 discard the source heap and reconstruct scalar/vector values from the bounded
 checkpoint. It exercises independent opening and failed-import rollback, not
 retained native allocation validity. Run `make checkpoint-provider-lint`,
@@ -196,12 +209,11 @@ cycles, page-crossing allocation and selected rollback boundaries. Its unsafe
 custody kernel is confined to the qualification fixture; product code remains
 `no_std` and forbids unsafe Rust.
 
-The [simple structure benchmarks](ic-storage-simple-benchmarks/README.md) compare this M0
-kernel with published Storage 0.74.1 using installed scalar and sequence
-workloads. `make benchmark-simple` records 216 checked instruction measurements;
-it is opt-in and does not impose a CI timing threshold. Artifact admission is
-shared through the retention runner library, with a separate import/export
-profile for the benchmark canister.
+The former M0-versus-legacy-Storage benchmark is retired; its
+[historical results](ic-storage-simple-benchmarks/README.md#historical-m0-comparison-retired)
+remain available. Maintained benchmarks use ic-stable-structures only, through
+`make benchmark-map`, `make benchmark-matrix` and `make benchmark-matrix-smoke`.
+Legacy Storage remains solely in the checkpoint-provider qualification graph.
 
 ## Testkit 0.107.1 adoption (16 November 2026)
 

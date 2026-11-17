@@ -78,7 +78,11 @@ pub(super) async fn followup(
             .unwrap();
         let values = record(pic, id, &path, &mut report, shape, "reverse_batch", page).await;
         assert_eq!(values[6], 616);
-        assert_eq!(values[4], if pages == 0 { 5552 } else { 6656 });
+        // Two exact layout/record reopens, plus one page for a nonempty batch.
+        assert_eq!(
+            values[4],
+            2 * (128 + 48 + 24 + 328 + 104 + 512) + if pages == 0 { 0 } else { 1104 }
+        );
         assert_eq!(values[7], 0);
         prefix(pic, id, &expected, (page + 1).min(pages), page + 1 >= pages).await;
         if [0, 6, 12, 24, 47, 48, 71].contains(&page) {

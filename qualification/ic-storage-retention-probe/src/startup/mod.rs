@@ -5,15 +5,18 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 use wasm_encoder::{
-    BlockType, CodeSection, CustomSection, DataCountSection, DataSection, EntityType, ExportKind,
-    ExportSection, Function, FunctionSection, ImportSection, Instruction as I, MemArg, Module,
-    RawSection, StartSection, TypeSection,
+    BlockType, CodeSection, CustomSection, DataCountSection, EntityType, ExportKind, ExportSection,
+    Function, FunctionSection, ImportSection, Instruction as I, MemArg, Module, RawSection,
+    StartSection, TypeSection,
     reencode::{Reencode, RoundtripReencoder},
 };
 use wasmparser::{DataKind, ExternalKind, Operator, Parser, Payload, TypeRef, ValType};
 
 mod growth;
+mod ordered;
+mod reset;
 use growth::Mode;
+pub use ordered::{admit_ordered, prepare_ordered};
 
 /// First retained linear-memory address.
 pub const BOUNDARY: i32 = 8 * 1024 * 1024;
@@ -81,11 +84,6 @@ pub fn prepare(raw: &[u8]) -> Result<Artifact, Refusal> {
 /// Admit and transform the installed graph qualification profile.
 pub fn prepare_graph(raw: &[u8]) -> Result<Artifact, Refusal> {
     prepare_profile(raw, true, false, false)
-}
-
-/// Admit and transform the graph benchmark, including argument/counter bindings.
-pub fn prepare_benchmark(raw: &[u8]) -> Result<Artifact, Refusal> {
-    prepare_profile(raw, true, true, false)
 }
 
 /// Admit the closed native owner-session probe and connect its scalar host protocol.
@@ -432,10 +430,11 @@ fn prepare_profile(
         ]);
     }
     if benchmark {
-        expected_exports.extend(["canister_update bench_run", "canister_query bench_state"]);
-        if session {
-            expected_exports.push("canister_update bench_setup");
-        }
+        expected_exports.extend([
+            "canister_update bench_run",
+            "canister_query bench_state",
+            "canister_update bench_setup",
+        ]);
     }
     if exports.len() != expected_exports.len()
         || expected_exports
@@ -515,31 +514,7 @@ fn prepare_profile(
     for body in bodies {
         code.raw(body);
     }
-    let mut start = Function::new([]);
-    for op in [
-        I::I32Const(0),
-        I::I32Const(0),
-        I::I32Const(BOUNDARY),
-        I::MemoryFill(0),
-    ] {
-        start.instruction(&op);
-    }
-    let mut data = DataSection::new();
-    for (i, &(offset, bytes)) in segments.iter().enumerate() {
-        data.passive(bytes.iter().copied());
-        for op in [
-            I::I32Const(offset),
-            I::I32Const(0),
-            I::I32Const(bytes.len() as i32),
-            I::MemoryInit {
-                mem: 0,
-                data_index: i as u32,
-            },
-        ] {
-            start.instruction(&op);
-        }
-    }
-    start.instruction(&I::End);
+    let (start, data) = reset::build(BOUNDARY, &segments);
     code.function(&start);
     if !managed && !session {
         let mem = MemArg {
@@ -654,8 +629,6 @@ fn prepare_profile(
         name: Cow::Borrowed(MARKER),
         data: Cow::Borrowed(if session {
             b"native-owner-session-v1"
-        } else if benchmark {
-            b"rust-managed-benchmark-v1"
         } else if managed {
             b"rust-managed-graph-v1"
         } else {

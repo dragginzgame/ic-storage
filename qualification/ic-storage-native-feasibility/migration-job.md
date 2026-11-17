@@ -1,10 +1,12 @@
 # Bounded governed migration job
 
 This qualification profile adds controller-authorized export/cancellation and durable
-single-use admission to the native checkpoint bridge. It uses published Storage
-handles at `native.checkpoint.job.v1`; the original scalar checkpoint locator and
+single-use admission to the native checkpoint bridge. It uses the product's
+[owned checkpoint backing](../../docs/design/checkpoint-storage.md) at region 3;
 version-1/2 logical checkpoint formats are unchanged. Source and target share
-the governed reader independently of discarded native memory.
+the reader independently of discarded native memory. Dated cohorts below used
+the former published provider and named locators; those backing bytes require
+explicit migration and are not accepted by the current implementation.
 The [staged import extension](staged-import.md) adds an explicit version-2 job
 envelope and unpublished native construction across bounded updates/upgrades,
 with explicit checkpoint-based restart after an interrupted import.
@@ -305,7 +307,7 @@ complete job is at most 360 bytes. Unknown schemas, V2 payloads, another job's
 magic, invalid fields and inconsistent progress are rejected before construction.
 There is no schema inference or automatic narrowing in this profile.
 
-The published Storage reader opens `native.checkpoint.record_vector.job.v1`;
+The product checkpoint reader opens region 5;
 failed loads never create or reset it. The native provider marker is
 `0x4e5650524f563035`, distinct from standalone record-vector and recovery fixtures.
 Domains remain the actual bases 131072 and 147456, now with a 256-byte allocation

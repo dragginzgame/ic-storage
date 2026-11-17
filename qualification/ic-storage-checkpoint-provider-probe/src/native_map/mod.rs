@@ -51,7 +51,9 @@ extern "C" fn checkpoint_export() {
     let [epoch, fault] = args();
     assert!(fault <= 1);
     freeze(); // The wrapper has already ended native admission and frozen both roots.
-    map_cell(false).set(maps::encode(&read_source(maps::LIMIT), epoch).unwrap());
+    map_cell(false)
+        .set(maps::encode(&read_source(maps::LIMIT), epoch).unwrap())
+        .unwrap();
     if fault == 1 {
         ic0::trap(b"map export after stable write");
     }
@@ -85,7 +87,7 @@ extern "C" fn checkpoint_restore() {
     let mut cell = map_cell(false);
     let decoded = maps::decode(cell.get(), epoch).unwrap();
     if fault == 1 {
-        cell.set(Vec::new());
+        cell.set(Vec::new()).unwrap();
         ic0::trap(b"map recovery after stable write");
     }
     stage(&decoded, fault);
@@ -131,6 +133,6 @@ extern "C" fn checkpoint_damage() {
         2 => bytes[24] = 255,
         _ => panic!("unknown damage"),
     }
-    cell.set(bytes);
+    cell.set(bytes).unwrap();
     ic0::msg_reply();
 }

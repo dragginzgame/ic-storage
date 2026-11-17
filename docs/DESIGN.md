@@ -692,19 +692,20 @@ old native objects through new layouts. A bootstrap/migration entry point must
 distinguish normal reopen from explicitly authorized fresh reconstruction.
 Unknown or corrupt anchors never trigger that path automatically.
 
-### Transitional checkpoint provider
+### Owned checkpoint backing
 
-Use published ic-storage 0.74.1 as the initial legacy provider baseline behind
-a narrow checkpoint adapter. This is
-a transitional dependency on a frozen provider contract, not resumption of
-development in the sibling repository or a second product architecture. Maintain
-the qualified package/artifact, lockfile, stable format and owned checkpoint
-key/locator as explicit inputs. Production access continues to use
-governed Storage handles; this design does not authorize raw ungoverned stable
-allocations or silently select a different provider version.
+`ic-storage::checkpoint` owns bounded records and fixed-width pages over an
+explicitly owned memory namespace. The [backing contract](design/checkpoint-storage.md)
+defines its byte format, region identities, refusal rules and transaction boundary.
+This replaces the initial published 0.74.1 provider; it neither reads its stored
+formats nor copies its implementation. Existing legacy checkpoints need an
+explicit migration before a consumer cutover; no such migration is claimed here.
+The sibling repository remains frozen and qualification has no legacy dependency.
 
 The [checkpoint provider](../qualification/ic-storage-checkpoint-provider-probe/README.md)
-pins the published reader and owned locator. The [native bridge](../qualification/ic-storage-retention-probe/native-checkpoint.md)
+binds this library to Platform stable-memory IO in fixtures that own the complete
+stable namespace. Production integration needs its own namespace custody and
+transaction qualification. The [native bridge](../qualification/ic-storage-retention-probe/native-checkpoint.md)
 connects retained scalar/vector state to independent checkpoint storage, compatible
 reopening and reconstruction in a different allocation domain. Checkpoint runtime
 headers remain transient; their memory is rebuilt before entering checkpoint Rust.
@@ -791,14 +792,13 @@ domain clearing is fixture machinery, not a production cost commitment. Detailed
 protocols, artifact identities and historical outcomes belong to the linked
 qualification records rather than this architecture.
 
-This repository owns the checkpoint envelope, locator/adapter specification,
-source/target conformance fixtures and maintenance of the qualified reader
-dependency for supported checkpoints. The legacy provider implementation and
-stored-format contract remain owned by ic-storage. Preserve the matching reader,
-source and reproducible artifacts for as long as those checkpoints are supported.
-A required provider fix or format change is separately governed work; the sibling
-freeze does not authorize patching it here. If a supported reader cannot be
-maintained, block cutover instead of guessing its format.
+This repository owns the checkpoint backing format, logical envelopes, adapter,
+source/target conformance fixtures and matching readers. Preserve source and
+reproducible artifacts for as long as those checkpoints are supported. Historical
+legacy-provider evidence remains tied to its original reader; it does not imply
+compatibility with the new backing. The sibling freeze does not authorize
+patching that implementation. If a supported reader cannot be maintained, block
+cutover instead of guessing its format.
 
 The adapter must locate and open a checkpoint through an admitted stable-provider
 format using new transient handles, with no retained Rust handle, old native
@@ -919,7 +919,7 @@ automatically qualify a later source revision:
 | [Governed migration job](../qualification/ic-storage-native-feasibility/migration-job.md) | Controller-authorized export, sequential durable epochs, allocation-domain binding, consumed-job refusal and atomic rollback; no executable authentication or protection against restoring an entire old canister snapshot |
 | [Rust startup/growth probe](../qualification/ic-storage-rust-startup-probe/README.md) | Controlled transient initialization and bounded growth for the admitted wasm32 artifacts |
 | [M0 graph probe](../qualification/ic-storage-rust-startup-probe/managed-graph.md) | Byte-defined sharing/cycles, allocator continuation and selected installed rollback cases |
-| [M0 vs Storage benchmarks](../qualification/ic-storage-simple-benchmarks/README.md) | Current implementation instruction costs, including session read reuse |
+| [Historical M0 vs Storage benchmarks](../qualification/ic-storage-simple-benchmarks/README.md#historical-m0-comparison-retired) | Archived implementation costs, including session read reuse; benchmark code retired, current comparisons use ic-stable-structures only |
 | [Native ownership experiment](../qualification/ic-storage-native-feasibility/README.md) | Host-only scalar/vector confinement, tracked moves, forgotten-ticket quarantine and ordinary Err/panic behavior |
 | [Compiler layout diagnostics](../qualification/ic-storage-native-feasibility/README.md#compiler-layout-diagnostics) | Stable-compiler debug metadata exposes selected private Vec header fields on host/wasm32; equal-sized reordered records are distinguished |
 | [Live allocation custody](../qualification/ic-storage-native-feasibility/allocation-boundary.md) | A private host arena supports real std vectors, same-domain parking/reopening, run reuse and selected failure/forgetting cases |
@@ -1098,6 +1098,14 @@ non-control cells; single insertion across the largest tested rehash boundary
 remains slower. Ordered ranges, larger values/populations and lifecycle costs
 remain outside that matrix.
 
+The [ordered owner session](design/ordered-storage.md#owner-session-evidence--17-november-2026)
+now qualifies the same generation boundary for compact tree nodes and a separate
+payload allocation. Ordinary messages reuse one owner; source close ends both
+loans before publication, and shared startup clears private headers before fresh
+target admission. Query isolation, omitted/failed close, failed target startup
+and checkpoint recovery are exercised. These remain closed service fixtures;
+general application runtime integration is still an R2 completion gate.
+
 Use the existing map/vector callers to move qualified responsibilities into
 product libraries under `crates/`, with tests beside their owner.
 
@@ -1140,10 +1148,31 @@ Completion gates:
   Extend derive support only for the demonstrated field contracts; keep semantic
   conversion policy explicit.
 
-#### R4 — Ordered collections and indexes (queued)
+#### R4 — Ordered collections and indexes (in progress)
 
 Add ordered storage within the same allocation, ownership and recovery contract.
 DB range traversal and Auth expiry indexes supply concrete consumers.
+
+The first [ordered byte-storage slice](design/ordered-storage.md) now supplies
+bounded keys/values in a separately owned byte arena, compact AVL nodes,
+forward/reverse ranges,
+prefixes, exclusive-key continuation, preflighted physical batches and portable
+recovery. Host tests cover DB's 512-byte keys, 4-KiB rows, 16-KiB aggregate-job
+frames and expanded row/index batches. Existing provider-pool tests cover native
+settlement/readmission, allocator refusal and source-independent reconstruction.
+The [closed installed profile](design/ordered-storage.md#installed-ordered-root-lifecycle)
+now qualifies 64 full-size rows plus secondary entries through compatible upgrades,
+row/index and descriptor rollback, and two-domain portable recovery across two
+epochs. Full-width cursor keys and forward/reverse pagination are exercised.
+Compact nodes and a splitting/reusing payload allocator now pass the same
+installed lifecycle, with independent node/byte custody and allocation refusal.
+Initialized storage for 64 full rows plus indexes falls from 594,944 to 273,408
+bytes. The installed generation-owned session now removes per-message admission
+and preserves both allocator owners across calls, with explicit close/reopen,
+query isolation, shared controlled startup and recovery qualification.
+Fragmentation/coalescing policy, larger workloads, general application runtime
+integration, incremental ordered recovery and DB integration remain open;
+this does not complete R4 or authorize a consumer cutover.
 
 Completion gates:
 

@@ -1,9 +1,13 @@
 # Connected native checkpoint recovery
 
 This bounded experiment connects the real retained `Vec<u64>` fixture to the
-existing governed Storage checkpoint adapter and logical version-2 codec. Export
+product-owned checkpoint adapter and logical version-2 codec. Export
 and import execute inside the canister. The host does not copy observed values
 into a target, transfer stable bytes or substitute a parallel checkpoint reader.
+The current adapter uses region 1 of the
+[owned backing format](../../docs/design/checkpoint-storage.md). Dated evidence
+below retains its original provider provenance; current builds have no legacy
+Storage dependency and do not import legacy backing bytes.
 
 ## Source and target
 
@@ -21,7 +25,7 @@ The counter is initialized to 41; the vector supports the linked native operatio
 
 Checkpoint export validates and freezes the source, reads its logical values
 through checked scalar callbacks and publishes the complete envelope through
-fresh governed Storage handles. Freeze and stable writes share the IC transaction.
+fresh product checkpoint handles. Freeze and stable writes share the IC transaction.
 Normal mutation refuses while frozen. Failed export restores both domains.
 
 The bridge runtime's private Global allocator is not admitted across EOP. In the

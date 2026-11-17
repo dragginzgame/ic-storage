@@ -45,3 +45,7 @@ path = "tests/paged_store.rs"
 [[test]]
 name = "provider_link"
 path = "tests/provider_link/mod.rs"
+
+[[test]]
+name = "ordered_native"
+path = "tests/ordered_native/mod.rs"

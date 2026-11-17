@@ -23,7 +23,7 @@ fn spare_capacity_need_not_be_initialized() {
         unsafe_code,
         reason = "test the minimal initialized-prefix loan contract"
     )]
-    let region = unsafe {
+    let region: Region<'_, u64> = unsafe {
         Region::claim(
             NonNull::from(&mut backing).cast(),
             16,
