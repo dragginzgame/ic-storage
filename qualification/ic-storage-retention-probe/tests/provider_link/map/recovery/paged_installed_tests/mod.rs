@@ -1,5 +1,10 @@
 //! Combined retained-root, continuation and progress transactions on the IC.
+mod cost_tests;
+mod costs;
 mod growth_tests;
+mod large_tests;
+mod lifecycle_tests;
+mod reader_tests;
 use super::{
     Post, Profile, inputs,
     installed_tests::{query, records, word},
@@ -71,7 +76,7 @@ fn artifacts() -> (PathBuf, Artifacts) {
             }
         }
         assert!(exports.contains_key("canister_query checkpoint_page"));
-        assert!(!exports.contains_key("canister_update cancel_checkpoint"));
+        assert!(exports.contains_key("canister_update cancel_checkpoint"));
         let calls = |name: &str| {
             bodies[exports[name] as usize - imports]
                 .get_operators_reader()
@@ -120,16 +125,19 @@ async fn run(pic: &PocketIc, id: CanisterId, start: u64, fault: u64) {
         .unwrap();
 }
 fn snapshot(bytes: &[u8], phase: u16, cursor: [u32; 3]) {
+    snapshot_epoch(bytes, phase, cursor, [1, A, B]);
+}
+fn snapshot_epoch(bytes: &[u8], phase: u16, cursor: [u32; 3], identity: [u64; 3]) {
     assert_eq!(bytes.len(), 952);
     assert_eq!(&bytes[..8], b"ICJPG001");
     assert_eq!(
         &bytes[8..10],
-        &(if phase == 1 { 1u16 } else { 2 }).to_le_bytes()
+        &(if phase == 1 || phase == 3 { 1u16 } else { 2 }).to_le_bytes()
     );
     assert_eq!(&bytes[10..12], &phase.to_le_bytes());
     assert_eq!(
         [word(bytes, 16), word(bytes, 24), word(bytes, 32)],
-        [1, A, B]
+        identity
     );
     let u32_at = |offset| u32::from_le_bytes(bytes[offset..offset + 4].try_into().unwrap());
     assert_eq!([u32_at(44), u32_at(48), u32_at(52)], cursor);
@@ -141,7 +149,7 @@ fn snapshot(bytes: &[u8], phase: u16, cursor: [u32; 3]) {
     let manifest = &bytes[104..432];
     assert_eq!(&manifest[..8], b"NKPPAIR1");
     assert_eq!(&manifest[296..], &sha256(&manifest[..296]));
-    if phase == 1 {
+    if phase == 1 || phase == 3 {
         assert!(bytes[432..944].iter().all(|b| *b == 0));
     } else {
         let continuation = &bytes[432..944];
@@ -151,13 +159,22 @@ fn snapshot(bytes: &[u8], phase: u16, cursor: [u32; 3]) {
     }
 }
 async fn publish(pic: &PocketIc, id: CanisterId) -> [BTreeMap<u64, u64>; 2] {
+    publish_epoch(pic, id, 1, A, B).await
+}
+async fn publish_epoch(
+    pic: &PocketIc,
+    id: CanisterId,
+    epoch: u64,
+    source: u64,
+    target: u64,
+) -> [BTreeMap<u64, u64>; 2] {
     let native = query(pic, id, "observe").await;
     let expected = [records(&native, 0), records(&native, 1)];
-    pic.update_call(id, id, "export_checkpoint", args(1, B, 0))
+    pic.update_call(id, id, "export_checkpoint", args(epoch, target, 0))
         .await
         .unwrap();
     let bytes = query(pic, id, "checkpoint_bytes").await;
-    snapshot(&bytes, 1, [0, 0, 0]);
+    snapshot_epoch(&bytes, 1, [0, 0, 0], [epoch, source, target]);
     let mut pages = 0;
     for (root, values) in expected.iter().enumerate() {
         let manifest = &bytes[136 + root * 128..264 + root * 128];
@@ -165,7 +182,7 @@ async fn publish(pic: &PocketIc, id: CanisterId) -> [BTreeMap<u64, u64>; 2] {
         assert_eq!(&manifest[96..], &sha256(&manifest[..96]));
         assert_eq!(
             [word(manifest, 16), word(manifest, 24), word(manifest, 32)],
-            [1, root as u64 + 1, values.len() as u64]
+            [epoch, root as u64 + 1, values.len() as u64]
         );
         let count = values.len().div_ceil(64) as u64;
         pages += count;
@@ -173,7 +190,7 @@ async fn publish(pic: &PocketIc, id: CanisterId) -> [BTreeMap<u64, u64>; 2] {
         let mut expected_hash = manifest[56..88].to_vec();
         for index in 0..count {
             let page = pic
-                .query_call(id, id, "checkpoint_page", args(1, root as u64, index))
+                .query_call(id, id, "checkpoint_page", args(epoch, root as u64, index))
                 .await
                 .unwrap();
             assert_eq!(page.len(), 1104);
@@ -191,7 +208,7 @@ async fn publish(pic: &PocketIc, id: CanisterId) -> [BTreeMap<u64, u64>; 2] {
                     word(&page, 40)
                 ],
                 [
-                    1,
+                    epoch,
                     root as u64 + 1,
                     index,
                     (values.len() as u64 - index * 64).min(64),
@@ -225,7 +242,7 @@ async fn prefix(
     complete: bool,
 ) {
     let native = query(pic, id, "observe").await;
-    assert_eq!(word(&native, 32), 10);
+    assert_eq!(word(&native, 32), 11);
     assert_eq!(word(&native, 72), if complete { 1 } else { 3 });
     let mut remaining = next;
     for (root, values) in expected.iter().enumerate() {

@@ -1,6 +1,6 @@
 # Architecture
 
-Status: selected research direction, revised 16 November 2026. Native retained
+Status: selected research direction, revised 17 November 2026. Native retained
 collections with explicit application-type conversion and a portable migration
 path for incompatible runtimes. This supersedes the
 [M0 research plan](design/m0-research-plan.md); it is not a production contract,
@@ -79,18 +79,23 @@ map imports now span messages with prefix validation, exact retries, compatible
 interruption and explicit restart of unfinished imports from the checkpoint.
 The paged adapter now commits retained native writes, verifier continuations and
 durable progress in one installed IC message, with compatible interruption and
-explicit restart. Its current profile admits 192 records per root in native
-format 10, with one page per batch and a single export epoch. Same-root rehashing
-and six-page pair recovery fit the initial 24 KiB pool. Disjoint native windows
-now admit pool growth to 192 KiB; checkpoint initialization/reset preserve
-occupied grown tails across upgrades, and recovery reconstructs them in the
-separate target. Recovery above 192 records per root, consumer-facing
-root custody and general record values remain incomplete.
+explicit restart. Its current profile admits 3,072 first-root and 1,536 second-root
+records in native format 11, with one page per batch, source cancellation and
+sequential export/recovery epochs.
+The 72-page recovery grows the private target from 24 to 192 KiB only between
+ended native loans. Traps roll back growth, records and durable progress together.
+Disjoint native windows preserve occupied grown tails across checkpoint resets
+and upgrades. Applying each page in one admitted scope reduces the worst measured
+batch from 1.41 billion to about 102 million instructions. Live allocation peaks,
+consumer-facing root custody and general record values remain incomplete.
 These are shared native collection components, not a complete Store API.
 Keep the existing M0 format, tests and evidence; do not reinterpret those bytes
 as native Rust values or expand M0 into a competing collection architecture.
 This direction does not select an upstream dependency or adoption of cdk-rsx
 code.
+
+The [delivery roadmap](#delivery-roadmap) owns current priorities and completion
+gates, including the sibling consumer requirements reviewed on 17 November.
 
 ### Successor rule
 
@@ -750,11 +755,14 @@ interruption. Completed exact retries preserve later application writes. The
 adapter captures bucket-order fingerprints directly through scalar callbacks.
 Its transient expected-record list is discarded before the message ends and is
 never used as cross-message recovery state. The paged native profile now uses
-native format 10 with 192 records per root, one page per batch and one fresh
-export epoch. It qualifies three pages per root and native rehashing between
-pages. Disjoint memory reservations and a matching checkpoint reset boundary
-now permit idle loan growth to 192 KiB. Larger recovery jobs still require
-private-target expansion; bounded prefix-validation costs also remain open.
+native format 11 with limits of 3,072 and 1,536 records, one page per batch,
+source cancellation and sequential epochs. It qualifies 72-page recovery with
+private-target growth from 24 to 192 KiB only after native owners end. Disjoint memory reservations
+isolate both pools from checkpoint reset. Instrumented entrypoint measurements
+now peak near 102 million instructions after applying each page in one admitted
+scope, with fixed page I/O. Four installed epochs cover cancellation, shrinking
+and growing checkpoints, reverse-domain recovery and stale retries. Live
+allocation peaks and larger workloads remain open.
 
 The [governed job](../qualification/ic-storage-native-feasibility/migration-job.md)
 adds controller authority, durable epochs, consumption, pre-cutover cancellation
@@ -919,6 +927,8 @@ automatically qualify a later source revision:
 | [Backing transfer](../qualification/ic-storage-native-feasibility/transfer.md) | Fresh controller issuance over the original live host allocation, with refusal and reclamation checks |
 | [Scalar/vector checkpoint](../qualification/ic-storage-native-feasibility/checkpoint-format.md) | Bounded logical bytes, refusal cases and reconstruction after source-arena teardown; candidate failure preserves the existing host root |
 | [Installed checkpoint provider](../qualification/ic-storage-checkpoint-provider-probe/README.md) | Fresh governed handles reconstruct scalar/vector state after ordinary upgrades discard Wasm memory; selected failed imports preserve the previous module, heap observations and stable bytes |
+| [Native map workloads](design/native-map.md) | Million-key host operations/recovery and a separate 4,608-record installed two-root growth workload; host throughput does not establish IC throughput |
+| [Paged native recovery](design/paged-map-checkpoint.md#installed-paged-native-recovery) | Installed recovery of 3,072 + 1,536 records, private 24–192 KiB growth, combined native/progress rollback, one-scope page application, cancellation and sequential epochs; live allocation peaks remain open |
 
 These do not qualify retained private allocator metadata or standard-library
 headers, arbitrary owning-element destruction, old Rust pointer retention,
@@ -948,41 +958,185 @@ debug-metadata fidelity, controlled std provenance and binding to the actual
 optimized executable remain unresolved. Do not use a diagnostic report or its
 successful collection marker to authorize retained interpretation.
 
-Continue from the existing bounded lifecycle and portable evidence in this order:
+### Delivery roadmap
 
-1. **Controlled records and declarations.** Define the first concrete versioned
-   scalar record under the supported runtime contract, with stable schema identity,
-   explicit retained layout and scoped access. Inventory only representations
-   actually retained; establish their initialization, pointer and ownership rules.
-   Extend logical export/import and exercise a round trip with the record. Keep
-   transient services and private std headers outside persistent state.
-2. **Application conversion and lifecycle.** Add a field with an explicit default
-   while preserving an unchanged admitted vector. Implement a hand-written V1→V2
-   conversion, then exercise compatible reopening, source-version refusal,
-   conversion failure/rollback, continued allocation and portable recovery of V2.
-   Preserve existing poison, forgotten-view and owner-confinement regressions.
-   Do not require an actual compiler transition to run this experiment.
-3. **Derive-backed application surface.** Generate declarations, scoped views and
-   codecs from those demonstrated contracts. Keep conversion policy explicit and
-   reject unsupported fields. Add changed scalar/element types with checked range
-   and meaning conversions. Extend collections only as concrete use requires;
-   each new representation needs its own lifecycle and portable round trip.
-   Shared owners require tracked sharing and identity-preserving recovery before
-   admission; arbitrary private collection layouts remain outside this scope.
-4. **Selected runtime replacement.** When a compiler, allocator or heap change is
-   needed, qualify its planned migration using a compatible source exporter and
-   fresh destination. Verify incompatible direct reopen refuses, checkpoints can
-   be read independently of the discarded heap, failures preserve a recoverable
-   state, and allocation continues after reconstruction. Accept maintenance
-   downtime. This work is scheduled for the actual transition, not imposed as a
-   universal portability gate on steps 1–3.
-5. **Scale and recovery.** Qualify the chosen large-state protocol, capacity
-   failures, bounded progress, downtime and post-cutover recovery policy before
-   any consumer requires them.
-6. **Matched performance and consumer pilot.** Measure equivalent native
-   collections against Storage and M0 where semantics match, including body and
-   complete-call costs, memory, allocation/reclamation and all upgrade paths.
-   Select a separately authorized consumer only after migration gates pass.
+Updated 17 November 2026 against Storage development baseline
+[`9f27fcd`](https://github.com/dragginzgame/ic-storage/commit/9f27fcd741b77ff45d35a4466de2d7bf4d5ba9aa)
+and the format-11 qualification recorded below. This is the single ordering of
+upcoming work; collection/provider documents own their detailed contracts and
+evidence. Update a gate here when its qualifying
+implementation lands, linking the results and recording any remaining limit.
+The gates are evidence requirements, not calendar or release promises.
+
+The former first steps now have bounded evidence: controlled scalar declarations,
+explicit field addition and width conversion, scoped vector/map operations,
+compatible installed upgrades and portable reconstruction. They do not establish
+general owning records or a reusable persistence runtime. The current paged
+profile has sequential epochs, one 64-record page per batch and limits of 3,072
+first-root and 1,536 second-root records. Private imports now expand their loan
+from 24 to 192 KiB between ended native owners, within the batch transaction.
+
+#### Consumer requirements
+
+The following source review informs priorities; it is not consumer qualification.
+The linked files were checked against the pinned local HEAD revisions. Sibling
+worktrees also contain unrelated work, which this review does not certify or
+modify. The inspected Canic, DB, Wasm Store and Blob Storage lockfiles selected
+published legacy `ic-storage 0.74.1`; no inspected sibling uses the new native
+crate. Auth's reference to `ic-storage-new` is the former name of this experiment.
+
+| Consumer and reviewed source | Required storage behavior | Roadmap consequence |
+| --- | --- | --- |
+| [Canic profiles](https://github.com/dragginzgame/canic/blob/632e900485722bf87f5ca4c9464d47b985ad3339/apps/profile/canic-profile-worker/src/state/mod.rs) | ID→profile and principal→ID maps, bounded names, revisions, consistent two-root mutations | First consumer-shaped qualification in R3; no Canic cutover yet |
+| [IC DB](https://github.com/dragginzgame/ic-db/blob/ab36e93fd918f550c8c2c0d112f5cd01ec98fd91/crates/ic-db/src/store/mod.rs) | Encoded records, composite keys, secondary indexes, ordered range/prefix scans, pagination and atomic batches | R4 needs ordered traversal; a larger scalar hash map alone cannot satisfy DB |
+| [Auth receiver](https://github.com/dragginzgame/ic-auth/blob/a05b5ddd4099a3f64b95deb173a0c16746d98ac5/crates/ic-auth/src/receiver_memory/mod.rs) | Principal and digest keys, session/replay records, expiry indexes and coordinated accounting | R3/R4 type and index coverage, followed by preservation of Auth's no-reset and security-state contracts |
+| [Wasm Store](https://github.com/dragginzgame/ic-wasm-store/blob/0701c5c8b13284d2f9c13efee6142e626a454a99/crates/ic-wasm-store/src/state/mod.rs) | Release catalog, hash-keyed artifacts/chunks, settings and coordinated reference/quota accounting | R4 ordered catalog traversal and R5 variable-length payloads/multiple-root updates |
+| [Blob Storage control state](https://github.com/dragginzgame/ic-blob-storage/blob/6a369f850e5853ad3e0c41ed55c56cd904b65d31/crates/ic-blob-storage/src/local/persistence/mod.rs) | Upload/reference records and a separate callback receipt allocation; current bounded cells rewrite complete records | R3/R5 durable records and transaction composition; this is not evidence for native bulk-blob storage |
+| [Scheduling checkpoints](https://github.com/dragginzgame/ic-scheduling/blob/d7f8a69caef0af274e802382d9a510999fd18a0a/crates/ic-jobs/src/checkpoint/mod.rs) | Job progress atomically bound to job identity, schedule and execution policy | R5 record adapters; timer capabilities and futures remain transient |
+| [Logging history](https://github.com/dragginzgame/ic-observability/blob/ba4e4f19c046dff092f9f27abe2a180b50d86880/crates/ic-logging/src/history/mod.rs) and [Metrics restoration](https://github.com/dragginzgame/ic-observability/blob/ba4e4f19c046dff092f9f27abe2a180b50d86880/crates/ic-metrics/src/persistence/mod.rs) | Bounded append/eviction, cursor continuity and validated metric state | R5 retention/record adapters; existing heap types are not automatically retained layouts |
+
+#### R1 — Larger installed recovery (next)
+
+Build on the current paged job and disjoint windows. Extend the existing
+qualification rather than adding another recovery owner.
+
+Completion gates:
+
+- Recover the existing 4,608-record two-root installed workload, including its
+  asymmetric distribution, with private-target pool expansion only between
+  ended native loans. Keep incomplete roots unavailable to application access.
+- Exercise mixed lookup/write/delete traffic before export and after recovery;
+  allocation/fragmentation refusal; traps around growth, rehash, continuation,
+  progress and publication; compatible interruption, restart, corruption and
+  exact retries. Failed batches preserve both native and governed state.
+- Measure complete-call instructions, transient/retained memory and backing
+  reads/writes for export, batches, admission and upgrades. State tested size
+  and operational limits. Fixed page reads alone do not bound full-prefix scans
+  or export sorting; redesign work that cannot stay within the selected budget
+  before increasing the supported size.
+- Extend the paged lifecycle to cancellation and repeated export/recovery epochs
+  through the shared job state machine. Demonstrate at least two cycles with
+  intervening application writes, stale-job refusal and completed retries that
+  cannot overwrite newer state.
+
+The first slice now passes: private-target growth and installed 4,608-record
+recovery, including rollback, interruption, corrupt-prefix restart and newer
+writes surviving consumed retries. See the
+[format-11 evidence](design/paged-map-checkpoint.md#format-11-large-recovery-evidence).
+The [entrypoint cost evidence](design/paged-map-checkpoint.md#complete-entrypoint-cost-evidence)
+now covers export, all batches, sampled retries, native admission and post-upgrade
+hooks through the large pair. [One-scope page application](design/paged-map-checkpoint.md#one-scope-page-application-evidence)
+reduces the worst batch from 1.41 billion to 101,728,323 instructions and the
+72-batch total from 51.07 billion to 3.57 billion. Full validation, transactional
+publication, 6,656-byte reads and 616-byte writes remain.
+[Cancellation and repeated epochs](design/paged-map-checkpoint.md#cancellation-and-repeated-epoch-evidence)
+now pass across four installed epochs, including three recoveries, intervening
+writes, reverse-domain reconstruction, stale-job refusal and replacement rollback.
+Next measure live allocation peaks before increasing size.
+The fixture gates sampled calls at 150 million instructions, 2 MiB Wasm memory and
+50 stable pages. Live allocator peaks, failed-call/whole management-upgrade costs,
+application service budgets and costs of repeated lifecycle calls remain open.
+The earlier standalone growth profile owns fragmentation/refusal evidence.
+Larger workloads follow measured limits; a host million-key result is not an
+installed acceptance substitute.
+
+#### R2 — Reusable application ownership and lifecycle (queued)
+
+Use the existing map/vector callers to move qualified responsibilities into
+product libraries under `crates/`, with tests beside their owner.
+
+Completion gates:
+
+- Applications can declare named roots and allocation budgets, obtain scoped
+  access, and distinguish fresh creation, compatible reopen, schema conversion
+  and authorized recovery. Missing/incompatible retained state refuses.
+- One runtime owns allocation custody and publication. Tests cover multiple
+  roots, reclamation, forbidden escaping owners/references, ordinary errors,
+  forgotten views, host poisoning and IC trap rollback.
+- Existing installed fixtures consume that surface. Admission, transient service
+  reconstruction and mutation/publication occur in the documented order; no
+  provider loan, allocator object or executable pointer crosses its lifetime.
+
+Do not require every future collection or a general plugin framework before the
+first caller. R3's concrete requirements should guide the surface.
+
+#### R3 — Real records and a profile qualification (queued)
+
+Select the Canic profile workload as the first concrete application-shaped case
+inside this repository's qualification boundary. This does not authorize editing
+or migrating Canic.
+
+Completion gates:
+
+- Admit a concrete record family covering IDs, revisions, principal/byte keys
+  and bounded display names. Define representation, initialization, ownership,
+  reclamation and portable codecs for every newly retained field. Existing std
+  String/Vec or Principal layouts are not admitted merely by accepting the type.
+- Maintain ID→profile and owner→ID roots through the consumer's create, read,
+  name update, revision checks and exact retries, preserving immutable ownership.
+  Duplicate-owner and foreign-owner refusals preserve invariants; installed traps
+  cannot publish only one side of the relationship. Add storage-level deletion
+  and reuse cases for both roots; the current profile API has no delete operation.
+- Demonstrate compatible upgrades, explicit versioned record conversion,
+  source-version and invalid-value refusal, allocation failure and whole-heap
+  portable reconstruction of both roots, followed by further writes/deletes.
+- Use the R2 public surface with representative sizes and measured budgets.
+  Extend derive support only for the demonstrated field contracts; keep semantic
+  conversion policy explicit.
+
+#### R4 — Ordered collections and indexes (queued)
+
+Add ordered storage within the same allocation, ownership and recovery contract.
+DB range traversal and Auth expiry indexes supply concrete consumers.
+
+Completion gates:
+
+- Specify composite/byte-key ordering, uniqueness, forward/reverse ranges,
+  prefix bounds and continuation semantics under intervening writes. Retained
+  node/element layouts need their own admission; std BTreeMap is not assumed safe.
+- Exercise representative DB primary/secondary-index operations and Auth expiry
+  insert/remove/prune workloads, including cross-root consistency and capacity
+  refusal. Storage supplies collection/transaction mechanisms; DB and Auth keep
+  query, authorization and business policy.
+- Qualify growth, reclamation, compatible reopening, explicit conversions and
+  portable recovery with the same failure and budget evidence as other roots.
+
+#### R5 — Payloads and service adapters (queued, selected by consumer need)
+
+Reuse R2/R3/R4 for bounded byte/chunk payloads, settings/control records,
+scheduling checkpoints, metrics and append/evict logs. Prioritize an actual
+consumer; do not prebuild all standard-library containers.
+
+Each selected adapter must establish its size/count limits, ownership and
+reclamation, atomic updates, cursor/retention behavior, versioned portable path
+and installed recovery costs. Scheduler effects remain application-owned and
+timer/executor state is reconstructed. Entropy is refreshed rather than restored
+as a persistent stream. Whole-canister backup restore needs separate lifecycle
+and external-effect qualification; it does not replace logical recovery evidence.
+
+#### R6 — Authorized consumer pilot and cutover (per-consumer gate)
+
+The first candidate is Canic profiles after R1–R3. It need not wait for unrelated
+R4/R5 features. DB, Auth and other consumers add their own applicable gates.
+
+For each separately authorized pilot:
+
+- Inventory its actual data sizes, operations, schemas, transaction boundaries,
+  upgrade/downgrade expectations and external-effect reconciliation needs.
+- Supply an explicit importer for any legacy data using its admitted reader and
+  governed handles. Preserve source artifacts and prove corruption refusal,
+  interruption recovery and the policy for restoring a checkpoint after new
+  writes. Neither package-name reuse nor matching keys proves format compatibility.
+- Run the consumer's installed lifecycle and matched workload, measuring body
+  and complete-call costs, memory peaks, growth/reclamation and all selected
+  conversion/recovery paths. Record the supported operational envelope before
+  claiming readiness or scheduling cutover.
+
+An actual compiler/allocator/runtime replacement is qualified when selected:
+incompatible direct reopening must refuse, a compatible source exporter must
+remain usable, and a fresh target must reconstruct independently of the old heap.
+Universal cross-compiler migration, arbitrary owning graphs and automatic
+semantic conversion are not prerequisites for R1–R3 within the supported contract.
 
 Scope admission to each concrete feature rather than blocking all application
 work on general heap portability. Stop or revise an affected feature if its

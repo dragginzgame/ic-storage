@@ -158,7 +158,7 @@ fn inspect_element(raw: &[u8], record: u32) -> Result<Profile> {
         } else {
             !matches!(functions.len(), 2 | 8)
         }
-        || imports.len() != 1
+        || imports.len() != if record == 4 { 2 } else { 1 }
         || imports[0].0
             != if record == 4 {
                 "native_map_diagnostic"
@@ -176,6 +176,17 @@ fn inspect_element(raw: &[u8], record: u32) -> Result<Profile> {
     let TypeRef::Func(import_type) = imports[0].2 else {
         return Err(Error::Profile);
     };
+    if record == 4 {
+        let TypeRef::Func(staged_type) = imports[1].2 else {
+            return Err(Error::Profile);
+        };
+        if imports[1].0 != "native_map_diagnostic"
+            || imports[1].1 != "staged_word"
+            || signature(staged_type) != Some(&FuncType::new([I32, I32], [I64]))
+        {
+            return Err(Error::Profile);
+        }
+    }
     let expected = if record == 4 {
         vec![
             FuncType::new([I32, I32], [I32]),
@@ -222,7 +233,7 @@ fn inspect_element(raw: &[u8], record: u32) -> Result<Profile> {
         return Err(Error::Profile);
     }
     let (entry, peak) = if record == 4 {
-        (6, 2688)
+        (7, 2688)
     } else if record == 2 {
         (4, 80)
     } else if functions.len() == 2 {
@@ -255,7 +266,7 @@ fn inspect_element(raw: &[u8], record: u32) -> Result<Profile> {
     // This closed operator profile refuses unhandled memory operations before
     // rewriting. A new opcode must qualify both stack/control and access handling.
     let report = if record == 4 {
-        super::vector_stack::inspect_map(&bodies, entry, 0, 32768)
+        super::vector_stack::inspect_staged_map(&bodies, entry, 0, 32768)
     } else {
         super::vector_stack::inspect(&bodies, entry, 0, 32768)
     }
@@ -272,6 +283,7 @@ fn inspect_element(raw: &[u8], record: u32) -> Result<Profile> {
 
 struct Mapping {
     helpers: u32,
+    imports: u32,
 }
 
 impl Reencode for Mapping {
@@ -281,7 +293,11 @@ impl Reencode for Mapping {
         &mut self,
         index: u32,
     ) -> std::result::Result<u32, wasm_encoder::reencode::Error<Self::Error>> {
-        Ok(if index == 0 { 0 } else { index + self.helpers })
+        Ok(if index < self.imports {
+            index
+        } else {
+            index + self.helpers
+        })
     }
 }
 
@@ -316,6 +332,7 @@ fn rewrite_accesses(raw: &[u8], map: bool) -> Result<Vec<u8>> {
     let helpers: &[&str] = if map { &MAP_HELPERS } else { &HELPERS };
     let mut mapping = Mapping {
         helpers: helpers.len() as u32,
+        imports: if map { 2 } else { 1 },
     };
     let mut helper_types = 0;
     for payload in Parser::new(0).parse_all(raw) {
@@ -378,14 +395,14 @@ fn rewrite_accesses(raw: &[u8], map: bool) -> Result<Vec<u8>> {
                         // Preserve the full unsigned memory immediate. Existing
                         // stack operands remain address/value in their original order.
                         function.instruction(&I::I64Const(memarg.offset as i64));
-                        function.instruction(&I::Call(helper));
+                        function.instruction(&I::Call(helper + u32::from(map)));
                         if matches!(op, Op::I64Load32U { .. }) {
                             function.instruction(&I::I64ExtendI32U);
                         }
                     } else if map && matches!(op, Op::MemoryFill { mem: 0 }) {
-                        function.instruction(&I::Call(8));
+                        function.instruction(&I::Call(9));
                     } else if matches!(op, Op::MemoryCopy { .. }) {
-                        function.instruction(&I::Call(7));
+                        function.instruction(&I::Call(7 + u32::from(map)));
                     } else if map && super::vector_stack::map_operator(&op)
                         || matches!(
                             op,

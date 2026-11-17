@@ -1,20 +1,32 @@
 # Changelog
 
-## [0.75.5] - Unreleased
+## [0.75.5] - 2026-11-17
 
 ### ➕ Added
 
 - Connect the shared paged store to installed retained-map recovery. Verify
   native writes before committing continuation and progress, then publish both
   roots in the same IC message. Qualify compatible interruption, exact retries
-  and explicit unfinished-target restart. The paged profile now admits 192
-  records per root in native format 10, with one epoch and one page per call.
-  Qualify same-root rehashing, partial final pages and six-page pair recovery
-  within the initial 24 KiB pool. Reserve disjoint native windows and move
+  and explicit unfinished-target restart. The paged profile now admits 3,072
+  first-root and 1,536 second-root records in native format 11, with sequential epochs
+  and one page per call. Qualify same-root rehashing, partial final pages and
+  72-page pair recovery. Reserve disjoint native windows and move
   checkpoint initialization/reset above them, enabling idle pool growth to
   192 KiB. Qualify growth rollback, retained occupied tails across upgrades,
-  recovery into the separate target and refusal during frozen/private custody.
-  Keep the 192-record/root export limit; larger recovery jobs remain unfinished.
+  recovery into the separate target and ordinary growth refusal during
+  frozen/private custody. Reserve each import page through the product map,
+  ending both owners before expanding the private loan and retrying. Qualify
+  combined growth/record/progress rollback, restart after corruption, empty-root
+  variants and newer writes surviving consumed retries at 4,608 records.
+  Live allocation peaks and application service budgets remain unfinished.
+- Add controller-authorized paged source cancellation and repeated export/recovery
+  epochs through the shared job state machine. Persist an explicit Ready envelope;
+  reject unknown state, stale epochs and corrupt continuations before replacement.
+  Reuse and trim the governed page vector, clearing prior continuation state in
+  the export transaction. Qualify four installed epochs, three recoveries,
+  reverse-domain reconstruction, cancellation/replacement rollback and completed
+  retries preserving intervening application writes. No whole-checkpoint consume
+  or production recovery authority is introduced.
 - Observe continuation fingerprints directly from admitted scalar record scans,
   preserving native bucket order without reconstructing maps. Reuse the product
   portable encoder and keep existing checkpoint/continuation bytes unchanged.
@@ -27,31 +39,58 @@
 
 ### 🔧 Changed
 
+- Update the [delivery roadmap](docs/DESIGN.md#delivery-roadmap) from inspected
+  sibling requirements. Define completion gates for larger installed recovery,
+  application root custody, a Canic-profile-shaped record qualification, ordered
+  collections, service adapters and separately authorized consumer cutovers.
 - Move the paged job's target domain from 163840 to 393216 and reject the old
   overlapping domain. Update independent job/continuation golden bytes; their
   framing and logical checkpoint formats are unchanged.
 - Adopt Testkit 0.108.0 in the qualification workspace. Keep the PocketIC-only
   dependency graph and validate installed retention and map recovery with the
   existing prepared 0.106.0 server launcher.
+- Verify first-party registry freshness for this release: Runtime 0.23.16,
+  Host Artifacts 0.80.3, Testkit 0.108.0 and Toko Tooling 0.44.11 match current
+  stable, non-yanked index entries. Keep the prepared 0.106.0 launcher until the
+  next tooling-maintenance boundary. The frozen Storage oracle remains 0.74.1,
+  also the latest published Storage version. This experimental 0.75.5 release is
+  Git-only; all product crates remain unpublished.
 
 ### ⚡ Performance
 
+- Measure complete successful paged entrypoints and actual backing I/O in
+  instrumented qualification copies. Preserve TSV rows and executable hashes;
+  calibrate read/write/grow counts and rollback. Apply each page in one admitted
+  native scope through a checked scalar staging callback, preserving full
+  validation and atomic publication. The 4,608-record workload's worst batch
+  falls from 1,412,361,148 to 101,728,323 instructions (13.9× lower), and its total
+  falls from 51.07 billion to 3.57 billion. Reads/writes remain 6,656/616 bytes.
+  Tighten the sampled-call ceiling to 150 million instructions, retaining 2 MiB
+  Wasm memory and 50 stable pages. These are fixture budgets, not production
+  throughput or allocator-peak evidence. See the
+  [measured scope and results](docs/design/paged-map-checkpoint.md#complete-entrypoint-cost-evidence).
 - Verify installed map-import prefixes directly through the scalar reader,
   without rebuilding transient native hash tables. Sorted checkpoint lookup and
   an eight-byte seen bitmap reject wrong, missing and duplicate records before
   staging and after native writes. Full checkpoint decoding and prefix scans
   remain; the `NKPAIR01` job's 64-record-per-root limit is unchanged. The shared
-  verifier now takes a compile-time bitmap bound, using 24 bytes for paged
+  verifier now takes a compile-time bitmap bound, using 384 bytes for paged
   native prefixes without allocating another native map or bitmap.
 
 ### 🧪 Testing
 
+- Qualify the new scalar staging import's exact signature/name, sequential
+  key/value/acknowledgement protocol, custody and bounds. Refuse invalid native
+  batch arguments, unbound staging, oversized counts and wrong read order.
+  Preserve the 2688-byte native stack bound and test two-import leaf accounting,
+  cycle refusal and complete memory-guard coverage. Installed mid-insert traps
+  now roll back while both native owners remain live.
 - Compare scalar fingerprints with independent installed native-slot observations
   under frozen-source and private-import custody. Active roots refuse this query.
   Revalidate governed storage rollback with the observation-based continuation
   boundary. Add installed combined native/progress fault coverage through final
   root publication, authority rejection, corruption refusal and explicit restart.
-- Cover every supported prefix length, record position and duplicate placement.
+- Cover every supported 64-record job prefix length, record position and duplicate placement.
   Inject duplicate native records after real insertion and verify that the
   post-apply verifier traps, preserving the prior heap and stable bytes across
   partial, root-crossing and completing batches.
@@ -60,8 +99,17 @@
   missing-store refusal without replacement writes.
 - Extend installed paged recovery through 192+192 records. Verify rehash rollback,
   later-page corruption, continuation past damaged consumed pages, and restart
-  after root 1 is complete but both roots remain private. Refuse a 193-record
-  source before checkpoint publication; preserve the old bounded job profile.
+  after root 1 is complete but both roots remain private. The subsequent large
+  cohort recovers 3,072+1,536 records and refuses a 1,537-record second root before
+  checkpoint publication. Preserve the old bounded job profile and check large
+  prefix bitmap boundaries, distant duplicates and oversized input refusal.
+
+### ▶️ Try it
+
+With the documented dependencies and PocketIC server already prepared, run
+`make native-map-paged-test` for installed growth, recovery, cancellation,
+repeated epochs and cost evidence. `make native-map-page-test` checks the shared
+governed store on the host; `make paged-store-test` checks its installed rollback.
 
 ## [0.75.4] - 2026-11-17
 

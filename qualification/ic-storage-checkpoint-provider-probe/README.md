@@ -26,20 +26,29 @@ not silently enrolled. The Make target includes host tests of this actual adapte
 using Storage's metered backing; installed tests supply IC transaction evidence.
 
 `native-map-paged` selects the paged adapter instead of the bounded-envelope job
-adapter. It uses native format 10, the existing 64-record staging ABI and the four governed paged
-locators with the host/storage fixture. It accepts one fresh export epoch, one
-page per batch and at most 192 records per root. Up to six pages recover a pair,
-including same-root rehashing, within the initial 24 KiB native pool. Disjoint
-windows at 131072 and 393216 permit idle pool growth to 192 KiB; checkpoint data
-and reset start at 655360. Growth refuses during frozen/private custody. The
-portable record limit remains 192 per root. Native writes are checked against
+adapter. It uses native format 11, the existing 64-record staging ABI and the four governed paged
+locators with the host/storage fixture. It accepts sequential export epochs, one
+page per batch and at most 3,072 first-root and 1,536 second-root records. Up to
+72 pages recover a pair. The private target grows from 24 to 192 KiB between
+ended native loans within the batch transaction. Disjoint windows at 131072 and
+393216 isolate native pools from checkpoint data/reset starting at 655360.
+Ordinary growth still refuses during frozen/private custody. Native writes are checked against
 a transient expected-record list before continuation/metadata commit and final
 root publication. All frames execute in one IC message, without native Rust
 reentry from checkpoint Rust. It supports frozen resumption, interrupted private
-imports, completed exact retries and explicit unfinished-target restart; it has
-no cancellation, atomic whole-checkpoint consume or later export epochs yet.
+imports, completed exact retries, explicit unfinished-target restart and source
+cancellation before recovery. Next-epoch export validates the retired job and
+continuation, replaces/trims pages, and clears continuation state atomically.
+Installed histories cover four epochs and recovery in both domain directions.
+There is no atomic whole-checkpoint consume in this profile.
 Run `make native-map-paged-test` for installed transactions and refusals; see
 the [paged recovery contract](../../docs/design/paged-map-checkpoint.md#installed-paged-native-recovery).
+The same target now meters separate copies of the composed executables and
+preserves whole-entrypoint instructions, physical memory sizes and actual stable
+I/O in `paged-costs.tsv`. Calibration and budget checks accompany the logical
+record oracles. One-scope page application reduces the worst large batch from
+1.41 billion to about 102 million instructions, with full validation and fixed
+backing I/O. Sampled calls now have a 150-million-instruction fixture ceiling.
 
 The separately selected `native-job` feature uses the same governed provider
 under `native.checkpoint.job.v1` for [durable migration admission](../ic-storage-native-feasibility/migration-job.md).

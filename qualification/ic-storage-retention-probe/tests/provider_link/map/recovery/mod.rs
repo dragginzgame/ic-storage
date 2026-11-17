@@ -152,29 +152,59 @@ fn prepare_mode(
         replace(
             &mut source,
             "(i64.load (i32.const 65544)) (i64.const 8)",
-            "(i64.load (i32.const 65544)) (i64.const 10)",
+            "(i64.load (i32.const 65544)) (i64.const 11)",
         );
         replace(
             &mut source,
             "(i64.store (i32.const 65544) (i64.const 8))",
-            "(i64.store (i32.const 65544) (i64.const 10))",
+            "(i64.store (i32.const 65544) (i64.const 11))",
         );
-        for root in [65568, 65576] {
+        for (root, limit) in [(65568, 3072), (65576, 1536)] {
             replace(
                 &mut source,
                 &format!("(call $count (i64.load (i32.const {root}))) (i64.const 64)"),
-                &format!("(call $count (i64.load (i32.const {root}))) (i64.const 192)"),
+                &format!("(call $count (i64.load (i32.const {root}))) (i64.const {limit})"),
             );
         }
-        for name in ["expected_a", "expected_b"] {
+        for (name, limit) in [("expected_a", 3072), ("expected_b", 1536)] {
             replace(
                 &mut source,
                 &format!("(global.get ${name}) (i32.const 64)"),
-                &format!("(global.get ${name}) (i32.const 192)"),
+                &format!("(global.get ${name}) (i32.const {limit})"),
             );
         }
+        replace(
+            &mut source,
+            "(i32.gt_u (local.get $fault) (i32.const 10))",
+            "(i32.gt_u (local.get $fault) (i32.const 14))",
+        );
+        replace(
+            &mut source,
+            "(i64.store (i32.const 65584) (i64.const 1)) (global.set $phase (i32.const 1))\n      (call $build_map (i32.const 0) (global.get $stage_a))",
+            "(i64.store (i32.const 65584) (i64.const 1)) (global.set $phase (i32.const 1))\n      (call $reserve_page (i32.const 0) (global.get $stage_a))\n      (call $reserve_page (i32.const 1) (global.get $stage_b))\n      (call $build_map (i32.const 0) (global.get $stage_a))",
+        );
+        let end = source.rfind(')').unwrap();
+        source.insert_str(end, include_str!("paged_growth.wat"));
+        replace(
+            &mut source,
+            "(func $staged_word (param i32 i32) (result i64) unreachable)",
+            include_str!("paged_apply.wat"),
+        );
+        // Only the private paged batch changes. Older checkpoint/job builders
+        // keep their qualified scalar-at-a-time application path.
+        replace(
+            &mut source,
+            "(call $reserve_page (i32.const 1) (global.get $stage_b))\n      (call $build_map (i32.const 0) (global.get $stage_a))\n      (call $build_map (i32.const 1) (global.get $stage_b))",
+            "(call $reserve_page (i32.const 1) (global.get $stage_b))\n      (call $apply_page (i32.const 0) (global.get $stage_a))\n      (call $apply_page (i32.const 1) (global.get $stage_b))",
+        );
         let end = source.rfind(')').unwrap();
         source.insert_str(end, include_str!("paged_tests.wat"));
+        let end = source.rfind(')').unwrap();
+        source.insert_str(end, include_str!("paged_reader_tests.wat"));
+        for mode in 0..=21 {
+            let end = source.rfind(')').unwrap();
+            source.insert_str(end, &format!("(func (export \"canister_query reader_probe_{mode}\") (call $reader_probe (i32.const {mode})))"));
+        }
     }
     let destination = if profile == Profile::Paged {
         393216

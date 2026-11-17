@@ -57,6 +57,39 @@ fn inspect_map(source: &str) -> Result<Report, Error> {
 }
 
 #[test]
+fn staged_map_imports_are_leaves_but_defined_cycles_still_refuse() {
+    for (helper, expected) in [("", Ok(64)), ("call 2", Err(Error::Cycle))] {
+        let input = source(
+            &helper_frame(16, helper, ""),
+            "call 0 call 1 call 2",
+            48,
+            48,
+        )
+        .replace(
+            "(memory 3 3)",
+            "(import \"provider\" \"stage\" (func (type 0))) (memory 3 3)",
+        );
+        let bytes = compile_wat(&input, 65536, 65536).unwrap();
+        validate_wasm(&bytes, 65536).unwrap();
+        let bodies = Parser::new(0)
+            .parse_all(&bytes)
+            .filter_map(|payload| match payload.unwrap() {
+                Payload::CodeSectionEntry(body) => Some(body),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            super::inspect_staged_map(&bodies, 3, 0, 32768).map(|report| report.frame_bytes),
+            expected
+        );
+        assert_eq!(
+            super::inspect_staged_map(&bodies, 1, 0, 32768),
+            Err(Error::Shape)
+        );
+    }
+}
+
+#[test]
 fn map_loops_preserve_frames_and_do_not_expand_vector_admission() {
     let looped = source(
         &helper_frame(16, "", ""),

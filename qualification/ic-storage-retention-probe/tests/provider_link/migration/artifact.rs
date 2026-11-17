@@ -185,7 +185,7 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
         }
         if paged {
             assert!(callbacks.contains(&"map_stage_commit_state"));
-            expected.retain(|name| !matches!(*name, "map_begin" | "thaw"));
+            expected.retain(|name| *name != "map_begin");
             assert!(!result.exports.contains_key("checkpoint_restore"));
         }
         if callbacks.contains(&"record_schema") {
@@ -251,7 +251,7 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
         );
         assert_eq!(
             result.exports.contains_key("checkpoint_cancel"),
-            callbacks.contains(&"domain") && !paged
+            callbacks.contains(&"domain")
         );
         assert_eq!(
             result.exports.contains_key("checkpoint_resume"),

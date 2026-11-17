@@ -787,7 +787,7 @@ dependencies = [
 
 [[package]]
 name = "ic-storage"
-version = "0.75.4"
+version = "0.75.5"
 dependencies = [
  "sha2 0.11.1",
 ]
@@ -805,7 +805,7 @@ dependencies = [
 
 [[package]]
 name = "ic-storage-native"
-version = "0.75.4"
+version = "0.75.5"
 dependencies = [
  "ic-storage-native-derive",
  "sha2 0.11.1",
@@ -813,7 +813,7 @@ dependencies = [
 
 [[package]]
 name = "ic-storage-native-derive"
-version = "0.75.4"
+version = "0.75.5"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -847,7 +847,7 @@ name = "ic-storage-rust-startup-probe"
 version = "0.1.0"
 dependencies = [
  "ic-platform-runtime 0.23.16",
- "ic-storage 0.75.4",
+ "ic-storage 0.75.5",
  "ic-storage-simple-benchmarks",
  "toko-tooling",
 ]

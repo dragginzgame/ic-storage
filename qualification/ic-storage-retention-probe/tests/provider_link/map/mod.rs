@@ -74,17 +74,37 @@ fn compiled_map_contract() {
     println!("operators={inventory:?}");
     println!(
         "pool stack={:?}",
-        super::vector_stack::inspect_map(&bodies, 6, 0, 32768)
+        super::vector_stack::inspect_staged_map(&bodies, 7, 0, 32768)
     );
     assert!(super::vector_access::inspect(&raw).is_err());
     assert!(super::vector_access::inspect_record(&raw).is_err());
     assert!(super::vector_access::inspect_record_v2(&raw).is_err());
     let profile = super::vector_access::inspect_map(&raw).unwrap();
-    assert_eq!((profile.functions, profile.entry), (8, 6));
+    // A valid Wasm module with a different second import must not inherit the
+    // staging callback's non-reentrant authority from its type alone.
+    let mut wrong_import = raw.clone();
+    let import_range = Parser::new(0)
+        .parse_all(&raw)
+        .find_map(|payload| match payload.unwrap() {
+            Payload::ImportSection(reader) => Some(reader.range()),
+            _ => None,
+        })
+        .unwrap();
+    let names = raw[import_range.start as usize..import_range.end as usize]
+        .windows(b"staged_word".len())
+        .enumerate()
+        .filter_map(|(index, bytes)| (bytes == b"staged_word").then_some(index))
+        .collect::<Vec<_>>();
+    assert_eq!(names.len(), 1);
+    wrong_import[import_range.start as usize + names[0] + b"staged_word".len() - 1] = b'x';
+    ic_storage_retention_probe::artifact::validate_wasm(&wrong_import, super::artifact::LIMIT)
+        .unwrap();
+    assert!(super::vector_access::inspect_map(&wrong_import).is_err());
+    assert_eq!((profile.functions, profile.entry), (8, 7));
     let guarded = super::vector_access::prepare_map(&raw).unwrap();
     assert_eq!(
         super::vector_access::tests::verify_map_coverage(&raw, &guarded),
-        [167, 13, 34, 82, 11, 54, 17, 0]
+        [167, 13, 35, 82, 11, 54, 17, 0]
     );
     let linked = link::prepare(&raw, link::Profile::A).unwrap();
     link::admit_final(&linked, &raw, link::Profile::A).unwrap();

@@ -107,8 +107,11 @@ replacement for consumer recovery authority.
 
 ## Compiler and access qualification
 
-The raw module has one `native_map_diagnostic::claim_region` import, eight defined
-functions and a private five-argument scalar entry at function 6. Key and value
+The raw module has two `native_map_diagnostic` imports: `claim_region` returns the
+exclusive pool pointer, and `staged_word(i32, i32) -> i64` reads a scalar or
+acknowledges an insertion. The latter is a trapping stub outside the paged
+recovery composition. There are eight defined functions and a private
+five-argument scalar entry at function 7. Key and value
 are separate u64 arguments; the compact fixture wrapper unpacks its u32 pairs.
 Three i32
 globals initialize to 32768. There are no data/start/table sections, indirect
@@ -124,13 +127,13 @@ entry, all non-trapping exits restore their frame, and branches cannot bypass
 restoration via an implicit function return. Only pure packing operations are
 allowed after restoration; memory accesses and calls there refuse. Loops repeat
 fixed frames without accumulating them. Peak simultaneous stack is 2688 bytes,
-from 30080 through 32768, with 20 direct call edges. This is a space proof, not a
+from 30080 through 32768, with 22 direct call edges. This is a space proof, not a
 time bound. Counterexamples preserve older profiles' refusal of the added
 operators and reject recursion, frame mutation, function-label escapes, memory
 growth and effects after restoration.
 
 All raw linear-memory accesses are rewritten to private provider guards:
-167 i32 reads, 13 byte reads, 34 i64 reads, 82 i32 writes, 11 byte writes,
+167 i32 reads, 13 byte reads, 35 i64 reads, 82 i32 writes, 11 byte writes,
 54 i64 writes and 17 copies. This compiler artifact emits no memory.fill;
 its reserved fill helper traps. Copies include transient allocator bookkeeping.
 Every emitted access must be accounted for after rewriting.
@@ -139,7 +142,14 @@ Guards allow the proven stack window or the complete exclusive payload loan
 while phase=claimed, settlement=0 and the closed map/operation selector is valid.
 The payload endpoint follows the admitted extent, never all currently available
 linear memory. Rust-side memory.grow still fails artifact admission.
-They exclude provider metadata and unrelated memory. Offset/end arithmetic
+The closed selector now also admits command 12: reserve at most 64 additional
+records, returning the unchanged root on allocation refusal. The paged recovery
+wrapper uses it to end both native owners before deciding whether to grow and
+retry; it does not grant native Rust authority to grow backing memory.
+Command 13 inserts 1–64 staged records in one admitted scope, using only the
+scalar callback and refusing replacements. The paged wrapper binds that callback
+to complete staging and claimed custody; it cannot enter Rust or access the
+loan. Native guards still exclude provider metadata, staging and unrelated memory. Offset/end arithmetic
 checks wrap, and copies validate both complete spans before writing. Per-run
 isolation and initialized-value access are obligations of Pool and Map, not a
 second retained bitmap or guard-side allocator. A failpoint traps after an actual

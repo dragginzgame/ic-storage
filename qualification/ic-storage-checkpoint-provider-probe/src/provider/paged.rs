@@ -102,6 +102,7 @@ impl<M: MemoryBacking> Jobs<M> {
 impl<M: Memory> Jobs<M> {
     /// Fresh namespace only. A failed host call can leave unsealed pages; only
     /// an enclosing IC message supplies rollback, never this write ordering.
+    #[cfg(any(test, all(target_arch = "wasm32", feature = "paged-store")))]
     pub(crate) fn publish_checkpoint(
         &mut self,
         maps: &[Map; 2],
@@ -129,6 +130,13 @@ impl<M: Memory> Jobs<M> {
     }
 
     pub(crate) fn read(&self) -> PagedMapJob {
+        if self.data.manifest.get() == &[0; MANIFEST_BYTES] {
+            // Only a valid Ready envelope can decode with an empty payload.
+            // Zeroed or corrupt metadata never becomes a fresh job here.
+            assert!(self.data.pages.is_empty());
+            assert_eq!(self.continuation.get(), &[0; paged_continuation::BYTES]);
+            return PagedMapJob::decode_split(self.metadata.get(), &[]).unwrap();
+        }
         PagedMapJob::decode_split(self.metadata.get(), self.data.manifest.get()).unwrap()
     }
 
@@ -226,5 +234,84 @@ impl<M: Memory> Jobs<M> {
         let mut bytes = self.data.pages.get(physical).unwrap();
         bytes[80] ^= 1;
         self.data.pages.set(physical, &bytes);
+    }
+}
+
+#[cfg(any(test, all(target_arch = "wasm32", feature = "native-map-paged")))]
+impl<M: Memory> Jobs<M> {
+    /// Called only while creating the native profile's fresh governed namespace.
+    pub(crate) fn initialize(&mut self, source: u64) {
+        assert!(self.data.pages.is_empty());
+        assert_eq!(self.data.manifest.get(), &[0; MANIFEST_BYTES]);
+        assert_eq!(self.metadata.get(), &[0; METADATA_BYTES]);
+        assert_eq!(self.continuation.get(), &[0; paged_continuation::BYTES]);
+        let (metadata, _) = PagedMapJob::initial(source)
+            .unwrap()
+            .encode_split()
+            .unwrap();
+        self.metadata.set(metadata);
+    }
+
+    /// Replace a retired checkpoint only after next-epoch and continuation
+    /// admission. The caller freezes the authoritative roots first. These writes
+    /// require an enclosing IC transaction; host unwinding supplies no rollback.
+    pub(crate) fn publish_epoch(
+        &mut self,
+        maps: &[Map; 2],
+        source: u64,
+        target: u64,
+        epoch: u64,
+        mut after: impl FnMut(WritePoint),
+    ) {
+        let previous = self.read();
+        let manifest = paged::export(maps, epoch, |_, _, _| Ok::<_, ()>(())).unwrap();
+        let job = previous.seal(source, target, epoch, &manifest).unwrap();
+        // Preserve this adapter's refusal of repeated exports. Retrying a batch
+        // or a cancellation is distinct from replacing a published checkpoint.
+        assert_ne!(previous, job);
+        paged_continuation::validate_retirement(self.continuation.get(), &previous).unwrap();
+        let (_, payload) = previous.encode_split().unwrap();
+        let old_pages = if payload.is_empty() {
+            0
+        } else {
+            Manifest::decode(payload, epoch - 1, usize::MAX)
+                .unwrap()
+                .page_count()
+        };
+        assert_eq!(self.data.pages.len(), old_pages as u64);
+        let mut index = 0;
+        let written = paged::export(maps, epoch, |_, _, page| {
+            if index < self.data.pages.len() {
+                self.data.pages.set(index, page);
+            } else {
+                self.data.pages.push(page);
+            }
+            index += 1;
+            after(WritePoint::Page);
+            Ok::<_, ()>(())
+        })
+        .unwrap();
+        assert_eq!(written, manifest);
+        while self.data.pages.len() > index {
+            assert!(self.data.pages.pop().is_some());
+            after(WritePoint::Page);
+        }
+        self.data.manifest.set(manifest.encode());
+        after(WritePoint::Manifest);
+        self.continuation.set([0; paged_continuation::BYTES]);
+        after(WritePoint::Continuation);
+        self.write(&job);
+        after(WritePoint::Metadata);
+    }
+
+    /// Commit cancellation metadata; the caller must atomically thaw the source.
+    pub(crate) fn cancel(&mut self, source: u64, target: u64, epoch: u64) -> bool {
+        let mut job = self.read();
+        let changed = job.cancel(source, target, epoch).unwrap();
+        paged_continuation::validate_retirement(self.continuation.get(), &job).unwrap();
+        let manifest = Manifest::decode(job.encode_split().unwrap().1, epoch, usize::MAX).unwrap();
+        assert_eq!(self.data.pages.len(), manifest.page_count() as u64);
+        self.write(&job);
+        changed
     }
 }

@@ -209,6 +209,24 @@ pub fn decode_observed(
     Ok(cursors)
 }
 
+/// Validate the continuation being retired by a new export. Completed jobs
+/// retain their cursor binding but may have newer authoritative native values.
+/// Jobs without progress require the canonical empty continuation. An unfinished
+/// import cannot be retired; the job's `seal` method still owns epoch admission.
+pub fn validate_retirement(bytes: &[u8], job: &PagedMapJob) -> Result<(), Error> {
+    match job.phase {
+        Phase::Importing => Err(Error::State),
+        Phase::Consumed => decode_observed(bytes, job, || Err(Error::State)).map(|_| ()),
+        Phase::Ready | Phase::Sealed | Phase::Cancelled => {
+            if bytes == [0; BYTES] {
+                Ok(())
+            } else {
+                Err(Error::State)
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod observation_tests;
 #[cfg(test)]

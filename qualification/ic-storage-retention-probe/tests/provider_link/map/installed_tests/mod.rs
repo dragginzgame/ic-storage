@@ -165,6 +165,14 @@ async fn maps_retain_records_and_custody_across_upgrades_and_failed_publication(
             BTreeMap::from([(7, 71), (99, 990), (100, 1000)])
         );
         publication_failures(pic, id, suffix).await;
+        for method in [
+            "stage_empty",
+            "stage_overflow",
+            "stage_reserved",
+            "stage_unbound",
+        ] {
+            rejected_update(pic, id, &format!("{method}_{suffix}")).await;
+        }
     }
     for method in ["duplicate_claim", "settle_without_claim"] {
         rejected_update(pic, id, method).await;
@@ -472,7 +480,7 @@ async fn guard_boundaries(pic: &PocketIc, directory: &Path, raw: &[u8]) {
         (
             "bad_operation",
             claim,
-            "(global.set $operation (i32.const 12)) (drop (call $access_load_i64 (i32.const 131072) (i64.const 0)))",
+            "(global.set $operation (i32.const 14)) (drop (call $access_load_i64 (i32.const 131072) (i64.const 0)))",
             "",
             false,
         ),

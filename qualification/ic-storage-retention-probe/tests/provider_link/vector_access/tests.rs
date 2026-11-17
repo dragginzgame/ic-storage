@@ -196,6 +196,7 @@ pub(crate) fn verify_map_coverage(raw: &[u8], guarded: &[u8]) -> [usize; 8] {
 }
 
 fn verify_counts<const N: usize>(raw: &[u8], guarded: &[u8]) -> [usize; N] {
+    let imports = if N == 8 { 2 } else { 1 };
     let mut expected = [0; N];
     let mut observed = [0; N];
     for (bytes, rewritten) in [(raw, false), (guarded, true)] {
@@ -223,10 +224,10 @@ fn verify_counts<const N: usize>(raw: &[u8], guarded: &[u8]) -> [usize; N] {
                         && let Op::Call {
                             function_index: index,
                         } = op
-                        && index > 0
-                        && index as usize <= N
+                        && index as usize >= imports
+                        && (index as usize) < imports + N
                     {
-                        observed[index as usize - 1] += 1;
+                        observed[index as usize - imports] += 1;
                     }
                 }
             }

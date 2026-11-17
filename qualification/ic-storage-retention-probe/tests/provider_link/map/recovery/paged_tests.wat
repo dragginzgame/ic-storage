@@ -16,9 +16,19 @@
 (func (export "canister_update pages_empty_b") (call $page_source (i64.const 129) (i64.const 0)))
 (func (export "canister_update pages_partial") (call $page_source (i64.const 129) (i64.const 65)))
 (func (export "canister_update pages_full") (call $page_source (i64.const 192) (i64.const 192)))
-(func (export "canister_update pages_excess") (call $page_source (i64.const 193) (i64.const 0)))
+(func $large_pool
+  (loop $grow
+    (if (i32.eq (call $expand_pool (i32.const 0)) (i32.const 1)) (then (br $grow)))))
+(func (export "canister_update pages_excess")
+  (call $large_pool) (call $page_source (i64.const 0) (i64.const 1537)))
+(func (export "canister_update pages_large")
+  (call $large_pool) (call $page_source (i64.const 3072) (i64.const 1536)))
+(func (export "canister_update pages_large_empty_a")
+  (call $large_pool) (call $page_source (i64.const 0) (i64.const 1536)))
+(func (export "canister_update pages_large_empty_b")
+  (call $large_pool) (call $page_source (i64.const 3072) (i64.const 0)))
 ;; Grow a real root beyond the former checkpoint boundary, then delete back to
-;; the current portable-record limit without shrinking its retained allocation.
+;; 192 records without shrinking its retained allocation.
 (func (export "canister_update pages_tail") (local $key i64)
   (call $run_pair (i32.const 11) (i64.const 0) (i64.const 769) (i32.const 0))
   (call $run_pair (i32.const 267) (i64.const 0) (i64.const 192) (i32.const 0))

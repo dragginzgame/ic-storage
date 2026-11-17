@@ -82,5 +82,9 @@ if [[ "$mode" == paged ]]; then
     test -f "$output/PAGED_NATIVE_REFUSED"
     test -f "$output/PAGED_NATIVE_MULTIPAGE"
     test -f "$output/PAGED_NATIVE_GROWTH"
+    test -f "$output/PAGED_NATIVE_LARGE"
+    test -f "$output/PAGED_NATIVE_COSTS"
+    test -f "$output/PAGED_NATIVE_READER"
+    test -f "$output/PAGED_NATIVE_LIFECYCLE"
 fi
 printf 'Closed native map %s checks passed.\n' "$mode" > "$output/COMPLETE"

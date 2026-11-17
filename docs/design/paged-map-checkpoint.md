@@ -9,7 +9,7 @@ a later page requires the verified preceding chain.
 
 This is the storage boundary for larger recovery. The existing installed
 `NKPAIR01` job keeps its lifecycle qualification. A new paged native profile
-uses a 64-record staging call and admits 192 records per root, qualifying
+uses a 64-record staging call and admits 3,072 first-root and 1,536 second-root records, qualifying
 combined root/continuation/progress transactions over multiple pages. The codec
 also has host qualification through governed Storage 0.74.1 handles and a
 no_std Wasm compile/lint check. Neither these tests nor a valid manifest
@@ -371,23 +371,26 @@ Both evidence directories are under `target/evidence/`.
 ## Installed paged native recovery
 
 `native-map-paged` selects the paged adapter in the existing checkpoint-provider
-fixture. It uses native format 10, the closed scalar staging ABI, the shared job
-state machine and all four governed paged locators. Its fresh namespace accepts
-one export epoch; export freezes both source roots and seals sorted logical page
-chains. Repeated exports refuse. There is no cancellation, whole-checkpoint
-consume or second-epoch export in this profile yet. Existing `NKPAIR01` evidence
-retains those distinct lifecycle cases; no old locator is implicitly converted.
+fixture. It uses native format 11, the closed scalar staging ABI, the shared job
+state machine and all four governed paged locators. Its fresh namespace stores
+an explicit Ready job envelope. Export freezes both source roots and seals sorted
+logical page chains. Repeated exports of the same epoch refuse; cancellation or
+completed recovery permits the next sequential epoch. Source cancellation is
+controller-authorized and atomically restores native custody. Whole-checkpoint
+consume remains outside this profile; no old locator is implicitly converted.
 
-The profile limits each root to 192 records and one staged call to 64 records.
-It accepts exactly one page per batch, with up to three pages per root and six
-per pair. Empty pairs complete on their first batch. Two full roots fit the
-initial 24 KiB pool through the qualified construction/rehash histories.
-Idle pool growth now admits 48, 96 and 192 KiB. Export above 192 records per root refuses.
-The larger host/storage-probe fixtures do not increase this native capacity.
-Earlier paged native formats 8 and 9 are not silently reopened as format 10;
-page, manifest, job and continuation framing is unchanged, but the target domain
-and the binding digests in job/continuation bytes change. No native layout
-compatibility or automatic conversion between experimental formats is implied.
+The profile limits the first root to 3,072 records and the second to 1,536,
+with one 64-record page per batch: at most 48 + 24 pages. Empty pairs complete on
+their first batch. Recovery starts in a 24 KiB pool and grows through 48, 96 and
+192 KiB. The sequential construction keeps the first root's 4096-bucket table
+live while constructing the second root's 2048-bucket table. Those asymmetric
+limits admit the tested rehash candidates; they are not a general capacity claim
+for any two-root allocation history or the reversed distribution. Export above
+either root's bound refuses.
+Earlier paged native formats 8–10 are not silently reopened as format 11.
+Page, manifest, job, continuation framing and domains are unchanged from format
+10; its earlier target-domain transition remains recorded below. No native
+layout compatibility or automatic conversion between experimental formats is implied.
 
 The composed memory contract reserves these half-open byte ranges:
 
@@ -407,6 +410,34 @@ windows fit within the composed module's initial 32 Wasm pages, so these growth
 cases expand the loan without invoking physical `memory.grow`. The separate
 native provider evidence still owns actual page-growth/refusal claims.
 
+During a new private import batch, the closed wrapper temporarily activates the
+roots after checkpoint Rust has returned. Native command 12 reserves at most 64
+additional records through the product `Map::reserve`. Only allocation refusal
+is recoverable: it preserves the old root and records. Both native owners then
+end and release the loan. If the resulting table capacity is insufficient, the
+provider expands the loan and retries reservation before inserting any staged
+record. A maximum-capacity refusal traps the batch. Native frames never span
+pool growth; private custody is restored before verification and progress writes.
+No application endpoint can observe the temporary active state. Growth faults
+11–14 select the provider's four existing rollback points (backing expansion,
+tail initialization, extent publication and readmission); they fire only when
+growth is actually needed. Exact retries neither reserve nor grow.
+
+Page application now uses native command 13: admit both maps once, insert all
+staged records under one scoped view, then release both actual owners. The
+`staged_word(index, field)` callback returns only scalar u64 values from disjoint
+provider staging. It cannot read the loan, enter Rust or retain a pointer. Its
+closed protocol requires claimed custody, a pending uncommitted batch, the
+matching root/operation, complete staging, per-root and total bounds of 64, and
+sequential key/value/acknowledgement calls. Each acknowledgement follows an actual
+insertion; fault 3 now traps there while both owners remain live. Duplicate
+insertions refuse. The native memory guards still exclude staging: Rust receives
+scalars through the provider rather than borrowing those bytes. The new raw
+import is admitted by exact name and signature; native format 11 and all portable
+framing remain unchanged. Reservation is skipped when the already admitted table
+has room; actual page application still freshly admits both maps. No native owner
+spans growth or any checkpoint Rust frame.
+
 Composition admits checkpoint data and heap placement above 655360 before
 selecting that reset floor. Compatible upgrades first admit native state, then
 clear the checkpoint domain through the current memory end, restore pristine
@@ -421,7 +452,8 @@ Every new batch has six closed wrapper steps:
 2. Admit stored metadata/continuation and the retained fingerprints. Capture the
    admitted old records in transient checkpoint memory; read only the requested
    new page and stage its scalar records. Do not write durable progress yet.
-3. End checkpoint Rust, apply native writes and suspend both roots privately.
+3. End checkpoint Rust, reserve the page (growing only between ended native
+   loans), apply native writes and suspend both roots privately.
 4. Return to checkpoint Rust. Compare every resulting native record against the
    old records plus the newly verified page, rejecting duplicates and missing or
    changed values. Capture actual bucket-order fingerprints, then write the
@@ -446,7 +478,7 @@ qualification management call. Compatible interruption validates the retained
 fingerprints and stored cursors. Completed retries validate binding without
 scanning or rewriting active roots, preserving newer application writes.
 
-Installed cases cover empty, asymmetric, 129+65 and 192+192-record pairs, independent
+Installed cases cover empty, asymmetric, 129+65, 192+192 and 3,072+1,536-record pairs, independent
 manifest/page/native-slot checks, frozen resumption, compatible interruption,
 exact retries and restart. Faults after native insertion, semantic verification,
 continuation writes, metadata writes and final native publication preserve the
@@ -461,17 +493,17 @@ and check rollback after rehashing. Restart also covers a complete first root
 and incomplete second root while both remain private. Controller checks guard updates.
 
 The shared logical prefix verifier uses a caller-selected fixed bitmap: one
-u64 for the older 64-record job and three u64s for the paged profile. It checks
+u64 for the older 64-record job and 48 u64s for the paged profile. It checks
 counts and sorted unique expected keys before scanning, and rejects duplicate,
-missing or wrong-value native records across all bitmap words. The 24-byte
+missing or wrong-value native records across all bitmap words. The 384-byte
 bitmap adds no allocation. Expected-record capture, sorting and fingerprint
 scans still grow with imported records; the change is not a bounded-CPU claim.
 
 Use `make native-map-paged-build` for the admitted Wasm build and
 `make native-map-paged-test` for installed qualification. Hosted CI calls the same
 target, and the collector preserves source inputs, all six composed executables
-and `PAGED_NATIVE_RECOVERED`, `PAGED_NATIVE_REFUSED`, `PAGED_NATIVE_MULTIPAGE`
-and `COMPLETE` markers.
+and `PAGED_NATIVE_RECOVERED`, `PAGED_NATIVE_REFUSED`, `PAGED_NATIVE_MULTIPAGE`,
+`PAGED_NATIVE_GROWTH`, `PAGED_NATIVE_LARGE` and `COMPLETE` markers.
 
 On 17 November 2026, the initial 64-record native paged cohort in
 `target/evidence/native-map-provider/attempt.ugEKzt` passed three native artifact
@@ -520,14 +552,209 @@ Strict host/Wasm Clippy passes for the affected callers. The earlier successful
 window run `attempt.YtYI20` remains preserved; it preceded the explicit compiled
 data-placement refusal test. Toolchain and dependency versions are unchanged.
 
+### Format-11 large recovery evidence
+
+The 17 November 2026 cohort in
+`target/evidence/native-map-provider/attempt.cVLsDu` passed three native artifact
+checks, one checkpoint-placement refusal check and five installed cases (45.54
+seconds for the paged group). The new case recovers 3,072 + 1,536 records in
+72 batches and both empty-root variants. The full pair expands its private loan
+before zero-based pages 6, 12 and 24, reaching 48, 96 and 192 KiB. Faults at each
+growth step and after record/progress publication restore the full native window
+and stable state. Compatible interruption preserves private prefixes; a corrupt
+prefix refuses and explicit restart reconstructs it from the independent pages.
+Mixed replacement, lookup, deletion and insertion run before export; replacement,
+lookup and deletion run after recovery. Consumed retries preserve those newer
+writes. Independent slot/page/manifest/fingerprint checks verify the records
+after every batch. Ordinary private growth still refuses.
+
+Six prefix-verifier host tests pass, including all 3,072 expected records across
+48 bitmap words, duplicate/missing records at word boundaries and oversized
+input refusal before observation. The new reservation command preserves the
+admitted native function roster, memory-access coverage and 2688-byte stack
+bound. Strict Wasm and installed-harness Clippy pass. The older bounded map job
+passes in `attempt.drexPp` (three artifact checks, one ordering check and three
+installed cases; 11.92 seconds for the job group). The standalone native map
+profile passes in `attempt.p1taOM` (three artifact checks and its installed
+growth/custody/refusal cohort, 8.95 seconds). Its unknown-operation counterexample
+now uses command 13, preserving refusal beyond the new closed selector.
+Toolchain and dependency
+versions are unchanged from the preceding cohort. Earlier diagnostic attempts
+remain preserved and are not completion evidence.
+
+### Complete-entrypoint cost evidence
+
+`make native-map-paged-test` also preserves `metered-paged-*.wasm`, their hashes,
+`paged-costs.tsv` and a `PAGED_NATIVE_COSTS` completion marker. These are instrumented
+copies of the admitted executables, with unchanged native layout and logical data.
+The ordinary uninstrumented recovery cohort still runs alongside them. A separate
+calibration canister checks exact read/write/grow counters, per-call reset, query
+noninterference and counter/memory rollback after a trap.
+
+The measurement wraps the complete successful exported Wasm entrypoint, including
+native admission, checkpoint Rust, native apply, post-write verification, durable
+progress, publication and reply. It reads
+[`performance_counter(0)`](https://docs.internetcomputer.org/references/ic-interface-spec/canister-interface/#performance-counter)
+after the original entrypoint returns. Counts include instrumentation overhead
+and exclude only the final counter store and wrapper return. They are IC execution
+counter units, not wall time or a cycle-price quote. Stable I/O counters wrap the
+actual `stable64_read/write/grow` calls, including provider metadata work. Grow
+pages count requests; successful end-of-call stable size is recorded separately.
+
+On 17 November 2026, `target/evidence/native-map-provider/attempt.6qQnfa` passed
+three artifact checks, one placement-refusal check and six installed cases
+(44.69 seconds for the paged group), with strict Clippy. The cost TSV is identical
+to the preceding `attempt.zrTGNu` run. Rust, Runtime, Testkit and PocketIC versions
+are unchanged from the format-11 cohort.
+
+| Records | Export instructions | Maximum batch instructions | Batch count | Sum of batch instructions |
+| --- | ---: | ---: | ---: | ---: |
+| 0 + 0 | 1,710,826 | 2,555,237 | 1 | 2,555,237 |
+| 192 + 192 | 4,771,685 | 103,859,740 | 6 | 384,335,250 |
+| 3,072 + 1,536 | 40,409,832 | 1,412,361,148 | 72 | 51,070,508,424 |
+
+The large pair's first batch costs 21,210,864 instructions; its final batch is
+the maximum. Each nonempty batch reads 6,656 backing bytes in 27 calls (including
+one 1,104-byte page), writes 616 bytes in two calls, and requests no stable growth.
+Empty completion reads 5,552 bytes. Sampled retries write/grow nothing; the largest
+sampled retry costs 28,558,937 instructions. Native admission at the full source
+costs 21,452,430; frozen post-upgrade costs 43,922,236; the largest sampled importing
+post-upgrade costs 33,143,793; active post-upgrade costs 26,495,947. Pre-upgrade
+admission is measured through a dedicated update alias. Post-upgrade values cover
+that Wasm hook, including transient reset; they exclude management-canister work,
+compilation and the separate source pre-upgrade hook.
+
+Every sampled entrypoint in this baseline stayed within its qualification ceilings of
+2 billion instructions, 2 MiB Wasm memory, 50 stable pages (3,276,800 bytes) and a
+192 KiB retained native loan. All three shapes occupy 2 MiB of physical Wasm memory
+and the same 50-page governed backing allocation; these sizes include reserved
+space and provider overhead. Since Wasm/stable memory cannot shrink within these
+calls, ending page counts also bound their physical high-water marks. They do not
+measure peak live allocator payload or distinguish all transient allocations.
+The loan grows from 24 to 192 KiB for the large import. These are regression
+ceilings for this fixture, not production service budgets or general IC limits.
+Failed-call costs, allocator-level peaks and whole management-upgrade costs remain
+unmeasured; failed transactions preserve the preceding counter sample.
+
+These baseline measurements exposed a scaling problem. `$build_map` invoked the
+native bridge once per inserted record, and each invocation admits both complete
+maps. The full-source admission cost multiplied by 64 was close to the final
+batch cost; this is evidence for targeting repeated admission, not an exact
+stage attribution. The following change addresses it while retaining staging
+authority, both-root validation and atomic publication. Fixed page I/O still does
+not make recovery CPU independent of the imported prefix.
+
+### One-scope page application evidence
+
+The 17 November 2026 cohort in
+`target/evidence/native-map-provider/attempt.YNnfnO` passes four artifact checks,
+one checkpoint-placement refusal check and seven installed cases (32.82 seconds
+for the paged group). It retains the earlier growth, corruption, interruption,
+restart, exact-retry and publication rollback checks. Two successful query probes
+and twenty refusal modes independently check the scalar callback's root binding,
+custody, complete staging, bounds (including overflow attempts), field ordering,
+duplicates and reads after completion/release. These query probes synthesize
+provider state without a Rust loan; real installed batches separately qualify
+the callback with live native owners and mid-insert rollback.
+
+| Records | Maximum batch instructions | Sum of batch instructions |
+| --- | ---: | ---: |
+| 0 + 0 | 2,555,237 | 2,555,237 |
+| 192 + 192 | 10,171,882 | 43,811,397 |
+| 3,072 + 1,536 | 101,728,323 | 3,565,146,839 |
+
+Against the preceding same-shape baseline, the large pair's worst batch is
+**13.9× lower** and its 72-batch total is **14.3× lower** in instruction-counter
+units. The new maximum occurs at zero-based page 60, when the second root
+rehashes; the final batch costs 91,016,586. Export/admission/post-upgrade costs,
+6,656-byte reads, 616-byte writes and physical memory sizes are unchanged. The
+fixture now gates every sampled successful entrypoint at **150 million
+instructions**, keeping the 2 MiB Wasm, 50-page stable and 192 KiB native budgets.
+Capacity remains 3,072 + 1,536 records. Instrumentation scope and unmeasured costs
+are unchanged from the baseline above.
+
+The raw map now has two exact non-reentrant imports and entry index 7, with eight
+defined functions, 22 direct native call edges and the same 2688-byte stack bound.
+Every memory access remains guarded; the additional i64 load brings that count
+to 35. A valid Wasm module with a renamed staging import refuses admission.
+Twelve shared vector/access/link/stack tests pass, including two-import leaf
+accounting and defined-cycle refusal. The standalone installed map passes in
+`attempt.ibTHia` (four artifact checks and the installed cohort, 8.39 seconds),
+including invalid command-13 arguments and unbound staging refusal. The older
+bounded map job passes in `attempt.ThlUFp` (four artifact checks, one ordering
+check and three installed cases, 11.51 seconds for the job group). Strict Clippy
+passes; compiler and dependencies are unchanged. Preliminary successful runs
+`attempt.j28ufx`, `attempt.bUVTlG` and `attempt.6k40SM` remain preserved with their
+earlier checks; the final cohort owns the current results.
+
+## Cancellation and repeated epoch evidence
+
+The paged adapter now uses the shared job's cancellation and next-epoch rules.
+Cancellation writes only the 104-byte job metadata, then thaws the source in the
+same IC message. An exact cancellation retry writes nothing and preserves later
+native mutations. Ready, importing, consumed, wrong-domain and stale-epoch
+cancellations refuse. A partial target must use the existing explicit restart
+path; cancellation does not publish or thaw incomplete target roots.
+
+Next-epoch export admits the old envelope and continuation before governed
+writes. A completed continuation must retain its checksum and cursor binding,
+but its old native fingerprints are deliberately not compared with newer
+authoritative application values. Ready/cancelled jobs require an empty
+continuation. Unknown or zeroed job metadata is never treated as initialization.
+The adapter calculates the new manifest, admits it through `PagedMapJob::seal`,
+then exports pages into existing vector slots, appending or popping as needed.
+It writes the manifest, clears the continuation and commits the new metadata.
+The two export passes sort logical records; they do not buffer every page.
+IC message rollback, not host write ordering, protects replacement. Trimming
+reduces the logical vector length; it does not release physical stable pages.
+
+`target/evidence/native-map-provider/attempt.Ydm3nq` passes four artifact checks,
+one checkpoint-placement refusal and eight installed cases (32.97 seconds for
+the paged group), including `PAGED_NATIVE_LIFECYCLE` and `COMPLETE`. The new
+history exports 72 pages and cancels, exports/reconstructs five pages A→B,
+exports/reconstructs an empty pair B→A, then exports/reconstructs six pages A→B.
+It checks controller authorization, compatible reopening, intervening application
+writes, exact cancellation/completion retries, and refusal of older jobs after
+later publication. Traps after cancellation metadata and native thaw, and after
+replacement page writes/pops, manifest, continuation and metadata all preserve
+the complete prior stable bytes and native observations. Independent manifest,
+page-chain and record observations cover each epoch. Reverse-direction artifacts
+and hashes are preserved with the usual six composed executables.
+
+All ten governed host tests pass, including malformed-state refusal, zero-write
+transition refusals, page-vector length changes, and completed-continuation
+corruption before replacement. The initial-epoch cost cohort still passes its
+150-million-instruction, 2-MiB-Wasm and 50-stable-page gates. The largest export
+now costs 49,835,869 instructions; the worst batch is 101,728,776 and all 72
+batches total 3,565,179,073. Nonempty batch I/O remains 6,656 bytes read and 616
+written. The TSV contains 110 successful-call rows. Cancellation and later-epoch
+costs are not yet instrumented; the lifecycle tests establish behavior and
+rollback, not a service budget for those calls.
+
+The older bounded map job also passes in `attempt.GNi8Od` (four artifact checks,
+one ordering check and three installed cases; 11.72 seconds for the job group).
+The ordinary paged-store profile passes both installed cases in
+`target/evidence/paged-store/attempt.wmYzlc` (12.14 seconds). All 30 shared
+job/continuation tests and four bounded-store host tests pass. Strict host/Wasm
+Clippy passes with the pinned Rust 1.100.0 and unchanged dependencies.
+
+The Git-only 0.75.5 release repeats the full offline `make ci` gate and rebuilds
+the installed paged artifacts with the versioned workspace. Its
+`native-map-provider/attempt.5taToy` passes all four artifact checks and all nine
+paged checks (34.15 seconds), with the lifecycle/cost markers and `COMPLETE`.
+The earlier directories retain the focused implementation and regression evidence.
+
 ## Remaining capacity and lifecycle work
 
-The next integration is larger recovery jobs, including target pool expansion
-between private import batches and measured message budgets. The window/reset
-separation now permits idle growth, but the importer still starts with a 24 KiB
-loan and limits exports to 192 records per root. Export still sorts complete
+See [roadmap R1](../DESIGN.md#r1--larger-installed-recovery-next) for the next
+implementation slice and completion gates; this section owns the protocol limits.
+
+The next work is measuring live allocation peaks and costs across repeated
+lifecycle epochs before expanding the supported size. Private import growth now
+recovers the
+3,072 + 1,536-record workload from an initial 24 KiB loan. Export still sorts complete
 source maps. Prefix hashing, expected-record capture and
 post-write comparison still scan the imported records; these are not bounded
-total recovery CPU or memory guarantees. Larger workloads, later export epochs,
+total recovery CPU or memory guarantees. Larger workloads,
 consumer-facing recovery authority and actual cross-compiler migration remain
 unqualified by this bounded profile. Historical evidence is unchanged.

@@ -54,6 +54,7 @@ pub(super) fn source(profile: Profile) -> Result<String, &'static str> {
     }
     let mut helpers = include_str!("access.wat").to_owned();
     helpers.push_str("(export \"__link_claim\" (func $claim))\n");
+    helpers.push_str("(export \"__link_staged_word\" (func $staged_word))\n");
     for helper in vector_access::MAP_HELPERS {
         helpers.push_str(&format!(
             "(export \"__link_{helper}\" (func $access_{helper}))\n"
@@ -82,6 +83,10 @@ pub(super) fn source(profile: Profile) -> Result<String, &'static str> {
             ("lookup_full", 3, 2, 1002, 0, false),
             ("both", 9, 65535, 999, 0, false),
             ("partial_release", 10, 65535, 999, 0, false),
+            ("stage_empty", 13, 0, 0, 0, false),
+            ("stage_overflow", 13, 65, 0, 0, false),
+            ("stage_reserved", 13, 1, 1, 0, false),
+            ("stage_unbound", 13, 1, 0, 0, false),
             ("native_release", 8, 65535, 999, 0, false),
             ("write_failure", 1, 65535, 999, 5, false),
             ("finalize_failure", 9, 65535, 999, 1, false),

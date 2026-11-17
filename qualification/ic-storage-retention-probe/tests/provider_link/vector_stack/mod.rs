@@ -31,7 +31,7 @@ pub(super) fn inspect(
     stack_global: u32,
     stack_top: u32,
 ) -> Result<Report, Error> {
-    inspect_profile(bodies, entry, stack_global, stack_top, false)
+    inspect_profile(bodies, entry, stack_global, stack_top, false, 1)
 }
 
 pub(super) fn inspect_map(
@@ -40,7 +40,17 @@ pub(super) fn inspect_map(
     stack_global: u32,
     stack_top: u32,
 ) -> Result<Report, Error> {
-    inspect_profile(bodies, entry, stack_global, stack_top, true)
+    inspect_profile(bodies, entry, stack_global, stack_top, true, 1)
+}
+
+/// Current map artifact: claim plus a scalar-only, non-reentrant staging leaf.
+pub(super) fn inspect_staged_map(
+    bodies: &[FunctionBody<'_>],
+    entry: u32,
+    stack_global: u32,
+    stack_top: u32,
+) -> Result<Report, Error> {
+    inspect_profile(bodies, entry, stack_global, stack_top, true, 2)
 }
 
 // Map-only extension: loops cannot change the one immutable frame local and
@@ -76,11 +86,16 @@ fn inspect_profile(
     stack_global: u32,
     stack_top: u32,
     map: bool,
+    imports: usize,
 ) -> Result<Report, Error> {
     if !stack_top.is_multiple_of(16) {
         return Err(Error::Stack);
     }
-    if bodies.is_empty() || bodies.len() > 16 || entry == 0 || entry as usize > bodies.len() {
+    if bodies.is_empty()
+        || bodies.len() > 16
+        || (entry as usize) < imports
+        || entry as usize >= bodies.len() + imports
+    {
         return Err(Error::Shape);
     }
     let mut edges = vec![Vec::new(); bodies.len()];
@@ -162,13 +177,13 @@ fn inspect_profile(
                     }
                 }
                 Op::Call { function_index } => {
-                    if *function_index as usize > bodies.len() {
+                    if *function_index as usize >= bodies.len() + imports {
                         return Err(Error::Call);
                     }
-                    // The one foreign provider is a non-reentrant leaf under the
-                    // future link contract; no indirect or tail calls are accepted.
-                    if *function_index != 0 {
-                        edges[index].push(*function_index as usize - 1);
+                    // Admitted foreign callbacks are non-reentrant leaves under
+                    // the link contract; indirect and tail calls still refuse.
+                    if *function_index as usize >= imports {
+                        edges[index].push(*function_index as usize - imports);
                     }
                 }
                 Op::I64Load32U { .. } | Op::MemoryFill { mem: 0 } if map => {}
@@ -221,7 +236,7 @@ fn inspect_profile(
         visit(index, &edges, &mut colors)?;
     }
     let frame_bytes = peak(
-        entry as usize - 1,
+        entry as usize - imports,
         &edges,
         &frames,
         &mut vec![None; bodies.len()],

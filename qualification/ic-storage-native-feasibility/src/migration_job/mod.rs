@@ -14,7 +14,8 @@ pub type Job = MigrationJob<ScalarVector>;
 pub type RecordJob = MigrationJob<RecordVector>;
 /// Two-map job under its own envelope and allocation-domain contract.
 pub type MapJob = MigrationJob<MapPair>;
-/// Two paged map roots; progress counts pages, not records. Host-qualified only.
+/// Two paged map roots; progress counts pages, not records. Governed host and
+/// installed native adapters qualify storage transactions and custody separately.
 pub type PagedMapJob = MigrationJob<PagedMapPair>;
 
 mod staged;

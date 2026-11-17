@@ -1,5 +1,5 @@
 //! Installed paged/native transaction qualification within the bounded map ABI.
-//! One checkpoint epoch, one page per call. No cancellation or direct consume.
+//! Sequential checkpoint epochs, source cancellation and one page per call.
 use super::{
     freeze, fresh, map_count, map_finish, map_put, map_word, read_source,
     staging::{
@@ -20,9 +20,11 @@ use ic_storage_native_feasibility::{
 };
 use std::cell::RefCell;
 
-// Three pages per root fit the initial 24 KiB loan, including rehash candidates.
-// Idle pool growth does not raise this record limit or the 64-record staging bound.
-const LIMIT: usize = 192;
+// Closed installed shape: a 4096-bucket first root and 2048-bucket second
+// root, including their sequential rehash candidates in the 192 KiB pool.
+// One staged page remains bounded to 64 records.
+const LIMIT: usize = 3072;
+const SECOND_LIMIT: usize = 1536;
 
 #[expect(
     unsafe_code,
@@ -31,6 +33,7 @@ const LIMIT: usize = 192;
 #[link(wasm_import_module = "native_checkpoint")]
 unsafe extern "C" {
     safe fn domain() -> u64;
+    safe fn thaw(retry: u32);
 }
 
 struct Pending {
@@ -59,6 +62,10 @@ fn pending(plan: Pending) {
 fn open() -> Jobs {
     Jobs::open(DefaultMemoryImpl::default(), false)
 }
+fn admit_pages(store: &Jobs, manifest: &paged::Manifest) {
+    store.admit_pages(manifest, LIMIT);
+    assert!(manifest.roots()[1].len() <= SECOND_LIMIT);
+}
 fn fault(point: WritePoint, selected: u64) {
     if matches!(
         (point, selected),
@@ -70,7 +77,7 @@ fn fault(point: WritePoint, selected: u64) {
 fn observe(mut record: impl FnMut(usize, (u64, u64))) -> [NativePrefix; 2] {
     std::array::from_fn(|id| {
         let count = map_count(id as u32);
-        assert!(count <= LIMIT as u32);
+        assert!(count as usize <= if id == 0 { LIMIT } else { SECOND_LIMIT });
         NativePrefix::from_records(
             count as usize,
             (0..count).map(|index| {
@@ -88,7 +95,7 @@ fn observe(mut record: impl FnMut(usize, (u64, u64))) -> [NativePrefix; 2] {
 #[unsafe(no_mangle)]
 extern "C" fn checkpoint_create() {
     idle();
-    drop(Jobs::open(DefaultMemoryImpl::default(), true));
+    Jobs::open(DefaultMemoryImpl::default(), true).initialize(domain());
 }
 #[expect(unsafe_code, reason = "private controller-authorized paged export")]
 #[unsafe(no_mangle)]
@@ -98,11 +105,33 @@ extern "C" fn checkpoint_export() {
     let [epoch, target, fail] = args();
     assert!(fail <= 4);
     freeze();
-    open().publish_checkpoint(&read_source(LIMIT), domain(), target, epoch, |point| {
+    let maps = read_source(LIMIT);
+    assert!(maps[1].len().unwrap() <= SECOND_LIMIT);
+    open().publish_epoch(&maps, domain(), target, epoch, |point| {
         if point as u64 == fail {
             ic0::trap(b"paged native export after governed write");
         }
     });
+    ic0::msg_reply();
+}
+#[expect(
+    unsafe_code,
+    reason = "private controller-authorized source cancellation"
+)]
+#[unsafe(no_mangle)]
+extern "C" fn checkpoint_cancel() {
+    idle();
+    controller();
+    let [epoch, target, fail] = args();
+    assert!(fail <= 2);
+    let changed = open().cancel(domain(), target, epoch);
+    if fail == 1 {
+        ic0::trap(b"paged cancellation after governed write");
+    }
+    thaw(u32::from(!changed));
+    if fail == 2 {
+        ic0::trap(b"paged cancellation after thaw");
+    }
     ic0::msg_reply();
 }
 #[expect(unsafe_code, reason = "private admitted frozen-source resumption")]
@@ -114,7 +143,7 @@ extern "C" fn checkpoint_resume() {
     freeze();
     let store = open();
     let manifest = store.read().frozen(domain(), target, epoch).unwrap();
-    store.admit_pages(&manifest, LIMIT);
+    admit_pages(&store, &manifest);
     let actual = paged::export(&read_source(LIMIT), epoch, |_, _, _| Ok::<_, ()>(())).unwrap();
     assert_eq!(actual, manifest);
     if fail == 1 {
@@ -144,7 +173,7 @@ fn start(restart: bool) {
         job.begin_import(domain(), source, epoch)
     }
     .unwrap();
-    store.admit_pages(&manifest, LIMIT);
+    admit_pages(&store, &manifest);
     let readers = manifest.roots().each_ref().map(|root| root.reader());
     map_stage_start(fail as u32);
     pending(Pending {
@@ -168,7 +197,7 @@ extern "C" fn checkpoint_stage_resume() {
     let store = open();
     let job = store.read();
     let (manifest, _) = job.importing(domain(), source, epoch).unwrap();
-    store.admit_pages(&manifest, LIMIT);
+    admit_pages(&store, &manifest);
     store.resume(&job, || Ok(observe(|_, _| {})));
     if fail == 1 {
         ic0::trap(b"paged import resume after validation");
@@ -188,7 +217,7 @@ extern "C" fn checkpoint_batch() {
     let [epoch, source, start, limit, fail] =
         std::array::from_fn(|i| u64::from_le_bytes(bytes[i * 8..i * 8 + 8].try_into().unwrap()));
     assert_eq!(limit, 1); // The native staging ABI admits at most 64 new records.
-    assert!(fail <= 10);
+    assert!(fail <= 14);
     let store = open();
     let mut job = store.read();
     job.staged_prefix(domain(), source, epoch).unwrap();
@@ -200,7 +229,7 @@ extern "C" fn checkpoint_batch() {
     let batch = job
         .batch(domain(), source, epoch, start.try_into().unwrap(), 1)
         .unwrap();
-    store.admit_pages(&batch.checkpoint, LIMIT);
+    admit_pages(&store, &batch.checkpoint);
     if batch.retry {
         if batch.complete {
             stage_ready();
@@ -287,6 +316,7 @@ extern "C" fn checkpoint_page() {
     let store = open();
     let job = store.read();
     let manifest = paged::Manifest::decode(job.encode_split().unwrap().1, epoch, LIMIT).unwrap();
+    admit_pages(&store, &manifest);
     assert!(id < 2);
     ic0::msg_reply_data_append(&store.page(&manifest, id as usize, index.try_into().unwrap()));
     ic0::msg_reply();

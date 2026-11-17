@@ -10,6 +10,8 @@
   (global $phase (mut i32) (i32.const 0))
   (global $operation (mut i32) (i32.const -1))
   (global $failure (mut i32) (i32.const 0))
+  ;; Only the paged recovery composition supplies a staged scalar reader.
+  (func $staged_word (param i32 i32) (result i64) unreachable)
   (func $elements (result i64) (i64.div_u (i64.load (i32.const 65560)) (i64.const 24)))
   (func $start (param $root i64) (result i64) (i64.shr_u (local.get $root) (i64.const 16)))
   (func $exponent (param $root i64) (result i64) (i64.and (i64.shr_u (local.get $root) (i64.const 12)) (i64.const 15)))

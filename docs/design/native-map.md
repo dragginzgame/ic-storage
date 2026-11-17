@@ -224,6 +224,11 @@ the native host load measurements above do not establish IC throughput.
 
 ## Next integration work
 
+The [delivery roadmap](../DESIGN.md#delivery-roadmap) owns priority and completion
+gates: larger installed recovery, reusable root custody, concrete records, then
+ordered collections required by sibling consumers. The details below describe
+this collection's evidence and remaining technical boundaries.
+
 The [governed two-map checkpoint](../../qualification/ic-storage-native-feasibility/native-map-recovery.md)
 now connects the product codec to the existing Storage locator and installed
 fresh-heap reconstruction. It qualifies at most 64 records per map, including
@@ -244,15 +249,18 @@ host cases cover refusal, reclamation and custody boundaries. The same allocator
 now serves the installed two-root contract above; no allocator object or private
 collection header is retained across entrypoints.
 
-- Extend durable map recovery to workloads matching the larger growing pool,
-  with bounded checkpoint storage, validation and instruction costs.
-- Connect bounded provider growth to consumer-facing root custody and a larger
-  operational budget. Current installed execution grows to five Wasm pages;
-  it does not establish million-record IC throughput or automatic elasticity.
-- Decide whether full admission scans fit consumer upgrade budgets; if they do
-  not, qualify a trusted retained-root reopen path rather than skipping checks.
-- Extend scalar values to concrete application records with declared layout,
-  conversion and portable encoding, then exercise a representative consumer.
+The [paged native profile](paged-map-checkpoint.md#installed-paged-native-recovery)
+now recovers the 3,072 + 1,536-record installed workload, growing the private target
+from 24 to 192 KiB between ended native loans. Faults roll back growth, records
+and durable progress together. The [entrypoint measurements](paged-map-checkpoint.md#one-scope-page-application-evidence)
+now peak near 102 million instructions, down from 1.41 billion. Each page applies
+within one admitted native scope through a checked scalar staging callback;
+both-root validation and publication checks remain. Live allocator peaks,
+repeated paged epochs and application service budgets remain unqualified.
+The separate native growth profile adds physical Wasm pages, while the paged
+profile reserves its native windows in advance. Neither establishes million-record
+IC throughput or automatic elasticity. Application records and ordered traversal
+need their own representation, lifecycle and portable paths under the same runtime.
 
 These are integration gaps in one native collection direction, not reasons to
 build a second M0 collection system. The package remains experimental and

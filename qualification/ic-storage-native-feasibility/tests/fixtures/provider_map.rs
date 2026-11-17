@@ -22,6 +22,9 @@ const _: () = assert!(size_of::<Slot>() == 24 && align_of::<Slot>() == 8);
 #[link(wasm_import_module = "native_map_diagnostic")]
 unsafe extern "C" {
     fn claim_region() -> *mut u8;
+    // Scalar-only, non-reentrant provider callback. Fields 0/1 read the next
+    // staged key/value; field 2 acknowledges the completed insertion.
+    safe fn staged_word(index: u32, field: u32) -> u64;
 }
 
 fn decode(word: u32) -> (Root, usize) {
@@ -63,8 +66,10 @@ fn encode(root: Root, count: usize) -> u32 {
 /// admitted number of initialized Slots (encoded in operation's upper 16 bits).
 /// Provider growth occurs only between loans, with all former owners ended;
 /// no pointer or allocator survives it. The two roots must have admitted representation,
-/// counts and disjoint spans. Previous owners have ended. No provider access is
-/// allowed during the loan. The returned roots are published only after return;
+/// counts and disjoint spans. Previous owners have ended. No provider access
+/// to the loan is allowed during native ownership. The scalar staging callback
+/// reads only disjoint provider staging, cannot re-enter Rust and transfers no
+/// pointer or reference. The returned roots are published only after return;
 /// every unexpected failure traps the complete IC message.
 #[expect(
     unsafe_code,
@@ -82,7 +87,7 @@ pub unsafe extern "C" fn provider_map_step(
     let operation = operation & 65535;
     let selected = (operation >> 8) as usize;
     let command = operation & 255;
-    if selected > 1 || command > 11 || !matches!(elements, 1024 | 2048 | 4096 | 8192) {
+    if selected > 1 || command > 13 || !matches!(elements, 1024 | 2048 | 4096 | 8192) {
         abort();
     }
     let (a, count_a) = decode(first);
@@ -150,6 +155,35 @@ pub unsafe extern "C" fn provider_map_step(
                         }
                         for key in key..value {
                             view.insert(key, key + 1000).unwrap_or_else(|_| abort());
+                        }
+                    }
+                    12 => {
+                        // Reserve one staged page without inserting records. An
+                        // allocation refusal preserves the old root; after both
+                        // owners return, the provider may expand and retry.
+                        if key > 64 || value != 0 {
+                            abort();
+                        }
+                        match view.reserve(key as usize) {
+                            Ok(()) | Err(Error::Allocation) => {}
+                            Err(_) => abort(),
+                        }
+                    }
+                    13 => {
+                        if key == 0 || key > 64 || value != 0 {
+                            abort();
+                        }
+                        for index in 0..key as u32 {
+                            let key = staged_word(index, 0);
+                            let value = staged_word(index, 1);
+                            if view
+                                .insert(key, value)
+                                .unwrap_or_else(|_| abort())
+                                .is_some()
+                                || staged_word(index, 2) != 0
+                            {
+                                abort();
+                            }
                         }
                     }
                     _ => abort(),

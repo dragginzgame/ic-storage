@@ -11,6 +11,9 @@ under the target. Initially support one explicit runtime contract. Major runtime
 changes may use planned downtime and an operator-run export/import procedure;
 general compiler portability is not a prerequisite for the application API.
 See the [current design](docs/DESIGN.md#supported-runtime-contract).
+The [delivery roadmap](docs/DESIGN.md#delivery-roadmap) records current priorities,
+sibling requirements and completion gates. Larger installed recovery is next;
+Canic profiles supply the first planned consumer-shaped qualification.
 
 The primary unpublished package is `ic-storage` at `crates/ic-storage/`.
 The implementation is partial: an unpublished [native collection core](crates/ic-storage-native/README.md)
@@ -46,13 +49,18 @@ writes use a separate 104-byte governed record while retaining the checkpoint;
 each batch still reads and validates the complete bounded payload. The new
 [paged native profile](docs/design/paged-map-checkpoint.md#installed-paged-native-recovery)
 qualifies combined native/continuation/progress rollback and reads only the next
-checkpoint page. It now recovers up to 192 records per root over multiple pages,
-with a single export epoch. Its pool now grows from 24 to 192 KiB in disjoint
-reserved windows; checkpoint initialization and reset preserve those windows.
-The portable record limit remains 192 per root.
-Larger
-recovery budgets, consumer-facing root custody and application record values
-remain next; the million-key figures are host measurements.
+checkpoint page. It now recovers 3,072 + 1,536 records over 72 pages, with source
+cancellation and sequential export/recovery epochs. The private target grows
+from 24 to 192 KiB between ended native loans, within the batch transaction.
+Disjoint reserved windows survive checkpoint
+initialization/reset; traps roll back growth, records and durable progress together.
+Page application now admits both maps once per page, reducing the worst large
+batch from 1.41 billion to about 102 million instructions (13.9× lower). See the
+[cost evidence and limits](docs/design/paged-map-checkpoint.md#one-scope-page-application-evidence).
+Four installed epochs qualify cancellation, reverse-domain recovery, checkpoint
+replacement rollback and stale retries that preserve newer application writes.
+Consumer-facing root custody and application record values remain ahead;
+the million-key figures are host measurements.
 
 This is the intended successor to `ic-storage`, aiming to subsume the persistence
 capabilities our applications need. The [legacy repository](https://github.com/dragginzgame/ic-storage-legacy)

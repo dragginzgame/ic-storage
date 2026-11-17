@@ -10,6 +10,30 @@ fn expected(count: usize) -> Vec<(u64, u64)> {
 }
 
 #[test]
+fn large_prefix_bitmap_covers_last_word_and_distant_duplicates() {
+    let records = expected(3072);
+    assert_eq!(
+        verify_records::<48>(&records, records.len(), |index| records[3071 - index]),
+        Ok(())
+    );
+    for missing in [0, 63, 64, 1535, 1536, 2048, 3071] {
+        for duplicate in [0, 63, 64, 1535, 1536, 2048, 3071] {
+            if missing != duplicate {
+                assert_eq!(
+                    verify_records::<48>(&records, records.len(), |index| records
+                        [if index == missing { duplicate } else { index }]),
+                    Err(Error::Checkpoint)
+                );
+            }
+        }
+    }
+    assert_eq!(
+        verify_records::<48>(&records, 3073, |_| panic!("over limit")),
+        Err(Error::Limit)
+    );
+}
+
+#[test]
 fn multiword_prefix_bitmap_checks_boundaries_and_cross_word_duplicates() {
     assert_eq!(
         verify_records::<0>(&[], 0, |_| panic!("empty input")),

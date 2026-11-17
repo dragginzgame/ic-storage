@@ -157,7 +157,8 @@ fn compose_admitted(
     } else {
         &vector_access::HELPERS
     };
-    if bindings.len() != helpers.len() + 1 {
+    let native_imports = if profile.map { 2 } else { 1 };
+    if bindings.len() != helpers.len() + native_imports as usize {
         return Err("vector binding roster");
     }
     let first_rust = 2 + provider_functions;
@@ -165,7 +166,7 @@ fn compose_admitted(
         functions: (0..3 + provider_functions)
             .map(|index| match index {
                 0 | 1 => index,
-                2 => first_rust + profile.entry - 1,
+                2 => first_rust + profile.entry - native_imports,
                 _ => index - 1,
             })
             .collect(),
@@ -173,6 +174,13 @@ fn compose_admitted(
         globals: 0,
     };
     let mut rust_functions = vec![*bindings.get("__link_claim").ok_or("missing claim")?];
+    if profile.map {
+        rust_functions.push(
+            *bindings
+                .get("__link_staged_word")
+                .ok_or("missing staged reader")?,
+        );
+    }
     for helper in helpers {
         rust_functions.push(
             *bindings

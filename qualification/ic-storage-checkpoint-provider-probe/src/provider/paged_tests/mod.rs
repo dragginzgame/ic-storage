@@ -1,6 +1,7 @@
 //! Host conformance of the product page codec against governed Storage handles.
 //! The child job fixture persists offsets; neither fixture is an installed adapter.
 mod job_tests;
+mod lifecycle_tests;
 use super::paged::{MANIFEST, PAGES, Store};
 use ic_storage_legacy::{
     Memory, MemoryBacking, StableKey, VectorMemory,

@@ -98,7 +98,14 @@ cover the hash chain, reverse export order and failure rules. The reader can
 checkpoint/resume a 144-byte verifier continuation under trusted custody. The
 governed host adapter binds it to job progress and native-prefix fingerprints;
 this is not authentication of a caller-supplied cursor. Export still sorts the
-complete source, and installed map jobs do not yet use this format.
+complete source. The installed paged map job now uses this format for
+3,072 + 1,536-record recovery, including private-target pool growth and combined
+native/progress rollback. Installed entrypoint costs are now measured in the
+linked contract. Applying each page in one admitted scope removes per-record
+readmission. Source cancellation and repeated recovery epochs now have installed
+evidence, including reverse-domain reconstruction and stale retries. Live
+allocation peaks remain work before larger sizes or production service budgets
+are qualified.
 
 Run `make native-core-test` for behavior, compile-fail and host/Wasm lint checks.
 Run `make native-map-firehose` for one million live keys, 256 million mixed

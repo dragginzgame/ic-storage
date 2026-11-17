@@ -3,7 +3,8 @@
 The `native-map-job` profile applies the shared migration job state machine to
 [two-map checkpoint recovery](native-map-recovery.md). It qualifies atomic recovery
 and staged reconstruction across messages, with at most 64 records in each map.
-It does not qualify recovery of the growing pool's 4,608-record workload.
+The separate [paged profile](../../docs/design/paged-map-checkpoint.md#installed-paged-native-recovery)
+now qualifies recovery of the growing pool's 4,608-record workload.
 
 ## Durable identity and authority
 
@@ -208,10 +209,10 @@ corruption and restart passed in `target/evidence/native-map-provider/attempt.rU
 job still uses native format 8 and its existing 64-record/root limit; it passed
 again in `attempt.xehH5r` (three artifact checks, one ordering check and three
 installed cases, 11.83 seconds for the job group). Thirteen focused host tests
-and strict Clippy also passed. The current format 10 adds disjoint native windows
+and strict Clippy also passed. Format 10 added disjoint native windows
 at 131072 and 393216, with checkpoint initialization/reset starting at 655360.
-Idle loans now grow to 192 KiB; export/recovery remains limited to 192 records
-per root. Frozen sources and private imports refuse ordinary growth.
+Idle loans could then grow to 192 KiB; that cohort limited export/recovery to
+192 records per root. Frozen sources and private imports refuse ordinary growth.
 Format-10 evidence is in `target/evidence/native-map-provider/attempt.9xD1Hd`:
 three native artifact checks, one checkpoint-placement refusal check and four
 installed cases (30.46 seconds for the paged group). It preserves occupied grown
@@ -219,6 +220,17 @@ tails across checkpoint resets and exercises recovery, capacity refusal and
 growth rollback. Thirty job/continuation host tests and eight governed-store
 tests pass; the bounded map job still passes in `attempt.YdOwFg` (11.57 seconds
 for its ordering/installed group). See the linked contract for full scope.
+
+The current format 11 expands private targets between ended native loans and
+recovers 3,072 + 1,536 records over 72 pages. Installed tests cover all three
+growth steps, native/progress rollback, compatible interruption, corrupt-prefix
+restart and later writes surviving consumed retries. Empty first/second roots
+are also qualified. Entrypoint costs are now measured in the linked contract;
+one-scope page application reduces the worst batch to about 102 million
+instructions. Paged source cancellation and four sequential epochs now pass,
+including three recoveries, reverse-domain reconstruction and stale retries.
+Live allocation peaks remain open;
+see the [format-11 evidence](../../docs/design/paged-map-checkpoint.md#format-11-large-recovery-evidence).
 
 The initial 0.75.5 development [paged native adapter](../../docs/design/paged-map-checkpoint.md#installed-paged-native-recovery)
 qualified combined retained-root/continuation/progress rollback within the
