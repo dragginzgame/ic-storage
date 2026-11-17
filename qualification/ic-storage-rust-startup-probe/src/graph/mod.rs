@@ -6,7 +6,7 @@ mod benchmark;
 mod kernel;
 
 use ic_platform_runtime::raw as ic0;
-use ic_storage::m0::image::Error;
+use ic_storage_m0::m0::image::Error;
 
 #[cfg(not(feature = "managed-bench"))]
 pub(super) fn initialize() {

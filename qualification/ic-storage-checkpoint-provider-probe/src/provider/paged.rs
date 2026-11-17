@@ -1,12 +1,12 @@
 //! Governed paged checkpoint storage shared by host and installed qualification.
 //! Callers own authority, native custody and transition/record verification.
+use ic_storage::map::{
+    Map,
+    paged::{PAGE_BYTES, Reader},
+};
 use ic_storage_legacy::{
     DefaultMemoryImpl, Memory, MemoryBacking, MemoryRuntime, StableKey,
     adapter::{StableCell, StableVec},
-};
-use ic_storage_native::map::{
-    Map,
-    paged::{PAGE_BYTES, Reader},
 };
 use ic_storage_native_feasibility::{
     checkpoint::maps::paged::{self, MANIFEST_BYTES, Manifest},

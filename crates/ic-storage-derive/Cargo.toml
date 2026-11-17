@@ -1,10 +1,12 @@
 [package]
-name = "ic-storage-native-derive"
+name = "ic-storage-derive"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license-file.workspace = true
-publish = false
+repository.workspace = true
+publish = ["crates-io"]
+readme = "README.md"
 description = "Experimental declarations for bounded scalar storage records"
 
 [target.'cfg(any())'.dev-dependencies]

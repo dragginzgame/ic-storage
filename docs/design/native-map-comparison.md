@@ -1,5 +1,9 @@
 # Native map versus ic-stable-structures
 
+For the new generation-owned service, use the
+[on-demand matrix](native-map-matrix.md): `make benchmark-matrix`. This page
+preserves the earlier guarded-loan comparison and its original measurement scope.
+
 This installed comparison measures the current guarded native-map fixture
 against `StableBTreeMap<u64, u64>` from **ic-stable-structures 0.7.2**. It uses
 neither the legacy Storage backend nor the transitional checkpoint provider.

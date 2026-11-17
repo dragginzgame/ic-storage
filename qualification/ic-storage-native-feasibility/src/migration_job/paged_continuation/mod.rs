@@ -2,8 +2,8 @@
 //! Checksums detect corruption, not replacement by the trusted storage authority.
 use super::{Error, PagedMapJob, Phase};
 use core::convert::Infallible;
-use ic_storage_native::map::{ExportError, export_records};
-use ic_storage_native::map::{
+use ic_storage::map::{ExportError, export_records};
+use ic_storage::map::{
     Map,
     paged::{CONTINUATION_BYTES, PAGE_RECORDS, Reader},
 };

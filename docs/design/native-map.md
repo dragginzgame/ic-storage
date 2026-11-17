@@ -1,9 +1,9 @@
 # Native keyed collection
 
-The optional `map` feature in `ic-storage-native` implements the first reusable
+The optional `map` feature in `ic-storage` implements the first reusable
 keyed collection: u64 keys and u64 values under an explicit allocator. Product
 code, portable encoding and ordinary tests live beside the owning library.
-The [sustained workload](../../crates/ic-storage-native/tests/map_firehose.rs)
+The [sustained workload](../../crates/ic-storage/tests/map_firehose.rs)
 uses only its public API. This is an independently authored native hash table;
 no upstream implementation was copied or adapted.
 

@@ -1,7 +1,7 @@
 use super::*;
 use crate::checkpoint::maps::paged;
 use alloc::vec::Vec;
-use ic_storage_native::map::paged::PAGE_BYTES;
+use ic_storage::map::paged::PAGE_BYTES;
 
 const A: u64 = 131072;
 const B: u64 = 393216;

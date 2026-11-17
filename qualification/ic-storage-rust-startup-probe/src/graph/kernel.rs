@@ -12,7 +12,7 @@ use std::{
 };
 
 use ic_platform_runtime::raw as ic0;
-use ic_storage::m0::{
+use ic_storage_m0::m0::{
     image::{Error, Image, Session},
     inspect_retained,
 };

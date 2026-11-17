@@ -226,7 +226,7 @@ impl<'memory> Image<'memory> {
     ///
     /// Build a shared, cyclic graph, then resolve fresh handles in a later session:
     /// ```
-    /// use ic_storage::m0::image::{Error, Image};
+    /// use ic_storage_m0::m0::image::{Error, Image};
     /// let mut memory = vec![0; 2 * 65536];
     /// let mut image = Image::initialize_fresh(&mut memory, 129)?;
     /// image.with_update(|s| -> Result<(), Error> {
@@ -249,21 +249,21 @@ impl<'memory> Image<'memory> {
     ///
     /// Handles cannot escape their session:
     /// ```compile_fail
-    /// use ic_storage::m0::image::Image;
+    /// use ic_storage_m0::m0::image::Image;
     /// let mut memory = vec![0; 2 * 65536];
     /// let mut image = Image::initialize_fresh(&mut memory, 130).unwrap();
     /// let escaped = image.with_update(|s| s.allocate_node(7, None).unwrap()).unwrap();
     /// ```
     /// A returned future cannot capture session access:
     /// ```compile_fail
-    /// use ic_storage::m0::image::Image;
+    /// use ic_storage_m0::m0::image::Image;
     /// let mut memory = vec![0; 2 * 65536];
     /// let mut image = Image::initialize_fresh(&mut memory, 130).unwrap();
     /// let future = image.with_update(|s| async move { s.allocate_node(7, None) });
     /// ```
     /// Handles from another image/session cannot be passed into this one:
     /// ```compile_fail
-    /// use ic_storage::m0::image::Image;
+    /// use ic_storage_m0::m0::image::Image;
     /// let mut a = vec![0; 2 * 65536];
     /// let mut b = vec![0; 2 * 65536];
     /// let mut a = Image::initialize_fresh(&mut a, 130).unwrap();

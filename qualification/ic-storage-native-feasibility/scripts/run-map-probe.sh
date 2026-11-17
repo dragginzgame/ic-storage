@@ -18,7 +18,7 @@ output="$(mktemp -d "$root/target/evidence/native-map-provider/attempt.XXXXXX")"
 printf 'Map provider diagnostics: %s\n' "$output"
 rustc --version --verbose > "$output/compiler.txt"
 cp "$0" Cargo.toml Cargo.lock rust-toolchain.toml Makefile "$output/"
-cp -R crates/ic-storage-native "$output/native-core"
+cp -R crates/ic-storage "$output/native-core"
 cp qualification/ic-storage-native-feasibility/tests/fixtures/provider_map.rs qualification/ic-storage-native-feasibility/tests/fixtures/runtime.rs "$output/"
 cp -R qualification/ic-storage-native-feasibility/tests/fixtures/region "$output/region"
 cp -R qualification/ic-storage-retention-probe/tests/provider_link "$output/admission-source"
@@ -48,7 +48,7 @@ if [[ "$mode" == recovery || "$mode" == job || "$mode" == paged ]]; then
     cp qualification/Cargo.toml qualification/Cargo.lock "$output/qualification-workspace/"
     cp qualification/ic-storage-native-feasibility/Cargo.toml "$output/feasibility-source/"
 fi
-cargo build -p ic-storage-native --features map --lib --release --target wasm32-unknown-unknown \
+cargo build -p ic-storage --features map --lib --release --target wasm32-unknown-unknown \
     --config 'profile.release.lto=true' --config 'profile.release.codegen-units=1' --config 'profile.release.panic="abort"' \
     --target-dir target/qualification/map-deps --locked --offline --message-format=json \
     > "$output/dependencies.json" 2> "$output/dependencies.log"
@@ -63,7 +63,7 @@ rustc --edition 2024 --crate-type cdylib --target wasm32-unknown-unknown --cfg '
     -C link-arg=--initial-memory=196608 -C link-arg=--max-memory=196608 \
     -C link-arg=--export=__stack_pointer -C link-arg=--export=__data_end \
     -C link-arg=--export=__heap_base -D warnings --emit=link,llvm-ir \
-    --extern "ic_storage_native=$deps/libic_storage_native.rlib" "${search[@]}" \
+    --extern "ic_storage=$deps/libic_storage.rlib" "${search[@]}" \
     --out-dir "$output" "$output/provider_map.rs" > "$output/compiler.log" 2>&1
 NATIVE_MAP_INPUTS="$output" cargo test --manifest-path qualification/Cargo.toml \
     -p ic-storage-retention-probe --target-dir target/qualification --locked --offline \

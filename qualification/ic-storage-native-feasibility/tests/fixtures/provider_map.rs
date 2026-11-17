@@ -10,7 +10,7 @@ mod region;
 mod runtime;
 
 use core::ptr::NonNull;
-use ic_storage_native::map::{Error, Map, Slot};
+use ic_storage::map::{Error, Map, Slot};
 use region::pool::{Pool, Root};
 use runtime::abort;
 

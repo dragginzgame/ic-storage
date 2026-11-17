@@ -1,5 +1,5 @@
 use super::*;
-use ic_storage_native::map::{Error as MapError, ImportError, Map, Slot};
+use ic_storage::map::{Error as MapError, ImportError, Map, Slot};
 use std::{io::Read, mem};
 
 pub(super) struct Backing<T: Element>(pub(super) Vec<MaybeUninit<T>>);

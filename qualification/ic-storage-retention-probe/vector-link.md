@@ -94,7 +94,7 @@ owning elements, general layout admission or hosted/macOS execution.
 ## Shared scoped core evidence (0.1.10)
 
 On 16 November 2026, the native fixture began using the unpublished
-[`ic-storage-native`](../../crates/ic-storage-native/README.md) library for
+[`ic-storage`](../../crates/ic-storage/README.md) library for
 scoped u64 operations. Its allocator claim, reconstruction and release remain
 in the separately reviewed provider boundary. No private header or new native
 representation is retained. Host checks passed three behavior tests, one usage

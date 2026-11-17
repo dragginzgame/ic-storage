@@ -56,8 +56,8 @@ impl Scalar {
 
     fn metadata(self) -> TokenStream {
         match self {
-            Self::U32 => quote!(::ic_storage_native::record::Scalar::U32),
-            Self::U64 => quote!(::ic_storage_native::record::Scalar::U64),
+            Self::U32 => quote!(::ic_storage::record::Scalar::U32),
+            Self::U64 => quote!(::ic_storage::record::Scalar::U64),
         }
     }
 }
@@ -189,8 +189,8 @@ pub(super) fn expand(input: &DeriveInput) -> syn::Result<TokenStream> {
             /// Alignment of this concrete repr(C) payload.
             pub const STORE_ALIGN: ::core::primitive::usize = ::core::mem::align_of::<Self>();
             /// Scalar field IDs and native offsets, ordered by field identity.
-            pub const STORE_FIELDS: [::ic_storage_native::record::Field; #count] = [
-                #(::ic_storage_native::record::Field {
+            pub const STORE_FIELDS: [::ic_storage::record::Field; #count] = [
+                #(::ic_storage::record::Field {
                     id: #field_ids, offset: ::core::mem::offset_of!(Self, #field_names),
                     scalar: #kinds,
                 }),*
@@ -198,16 +198,16 @@ pub(super) fn expand(input: &DeriveInput) -> syn::Result<TokenStream> {
             fn store_valid(&self) -> ::core::primitive::bool { #validate }
             /// Encode only logical fields in field-ID order, each little endian.
             /// Schema identity/version belong to the enclosing checked envelope.
-            pub fn store_encode(&self) -> ::core::result::Result<[::core::primitive::u8; #length], ::ic_storage_native::record::Error> {
-                if !self.store_valid() { return ::core::result::Result::Err(::ic_storage_native::record::Error::Invariant); }
+            pub fn store_encode(&self) -> ::core::result::Result<[::core::primitive::u8; #length], ::ic_storage::record::Error> {
+                if !self.store_valid() { return ::core::result::Result::Err(::ic_storage::record::Error::Invariant); }
                 let mut bytes = [0; #length];
                 #(bytes[#starts..#ends].copy_from_slice(&self.#field_names.to_le_bytes());)*
                 ::core::result::Result::Ok(bytes)
             }
             /// Decode an exact-size logical payload and validate application rules.
             /// This constructs a fresh value; it never reopens native memory.
-            pub fn store_decode(bytes: &[::core::primitive::u8]) -> ::core::result::Result<Self, ::ic_storage_native::record::Error> {
-                if bytes.len() != #length { return ::core::result::Result::Err(::ic_storage_native::record::Error::Length); }
+            pub fn store_decode(bytes: &[::core::primitive::u8]) -> ::core::result::Result<Self, ::ic_storage::record::Error> {
+                if bytes.len() != #length { return ::core::result::Result::Err(::ic_storage::record::Error::Length); }
                 let value = Self {
                     #(#field_names: {
                         let mut word = [0; #widths];
@@ -215,7 +215,7 @@ pub(super) fn expand(input: &DeriveInput) -> syn::Result<TokenStream> {
                         #primitives::from_le_bytes(word)
                     }),*
                 };
-                if !value.store_valid() { return ::core::result::Result::Err(::ic_storage_native::record::Error::Invariant); }
+                if !value.store_valid() { return ::core::result::Result::Err(::ic_storage::record::Error::Invariant); }
                 ::core::result::Result::Ok(value)
             }
             /// Lend a scoped view of an already valid record, with scalar getters.

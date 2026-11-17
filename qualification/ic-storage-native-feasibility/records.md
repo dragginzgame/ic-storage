@@ -183,7 +183,7 @@ or general retained-type admission is implied by this qualification.
 
 ## Derived scalar declarations (0.1.13)
 
-V1 and V2 now use the experimental [`Store` derive](../../crates/ic-storage-native-derive/README.md).
+V1 and V2 now use the experimental [`Store` derive](../../crates/ic-storage-derive/README.md).
 Both explicitly declare `RECU64V1`, their respective version and field IDs;
 V2 binds the existing ceiling validator. Generation replaces the hand-written
 scope/getters and supplies the scalar payload codec used by checkpoint export

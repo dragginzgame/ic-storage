@@ -2,7 +2,7 @@
 //! Unwinding is not rollback: poison is stored outside the borrowed scope and
 //! only explicit, validated checkpoint replacement can make the host available.
 use super::super::{Descriptor, Error as RegionError, Region};
-use ic_storage_native::{Refusal, Vector, with_vector};
+use ic_storage::{Refusal, Vector, with_vector};
 use ic_storage_native_feasibility::checkpoint;
 use ic_storage_native_feasibility::record::{self, Record};
 use std::{

@@ -233,7 +233,7 @@ follows from compilation, the reported artifact size or the host lifecycle tests
 ## Host poisoning and explicit replacement
 
 The private [provider-host adapter](tests/fixtures/region/tests/host/mod.rs) connects
-the same `Region` controller and `ic-storage-native::with_vector` used by the
+the same `Region` controller and `ic-storage::with_vector` used by the
 installed fixture to a native host with 16 inline u64 slots. This is separate
 from the earlier Global/arena ownership model; it is not a new product API.
 The host owns its backing, descriptor, scalar counter and poison bit. It derives

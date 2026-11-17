@@ -7,7 +7,7 @@ use super::V2;
 /// Logical schema 3: a narrowed counter with the existing u64 ceiling.
 /// The provider separately admits its scalar fields; this value holds no saved reference.
 #[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, ic_storage_native::Store)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ic_storage::Store)]
 #[store(id = "RECU64V1", version = 3, validate = Self::valid)]
 pub struct V3 {
     #[store(field = 1)]

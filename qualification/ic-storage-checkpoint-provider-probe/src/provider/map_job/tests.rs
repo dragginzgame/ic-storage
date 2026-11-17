@@ -1,6 +1,6 @@
 use super::*;
+use ic_storage::map::Map;
 use ic_storage_legacy::{VectorMemory, testing::MeteredMemory};
-use ic_storage_native::map::Map;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 const A: u64 = 131072;

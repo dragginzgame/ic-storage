@@ -60,6 +60,8 @@ jobs:
           make rust-startup-test 2>&1 | tee target/evidence/rust-startup-test.log
       - name: Validate installed scalar and vector provider
         run: make native-provider-test 2>&1 | tee target/evidence/native-provider-test.log
+      - name: Validate generation-owned native map service
+        run: make native-session-test 2>&1 | tee target/evidence/native-session-test.log
       - name: Build and validate installed managed graph
         run: |
           make managed-graph-build 2>&1 | tee target/evidence/managed-graph-build.log

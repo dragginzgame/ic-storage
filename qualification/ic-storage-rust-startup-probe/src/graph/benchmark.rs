@@ -1,7 +1,7 @@
 //! M0 sequence uses existing Node links, not a speculative vector implementation.
 
 use ic_platform_runtime::raw as ic0;
-use ic_storage::m0::image::{Counter, Error, Session};
+use ic_storage_m0::m0::image::{Counter, Error, Session};
 use ic_storage_simple_benchmarks::{Access, run, wire};
 
 use super::kernel;

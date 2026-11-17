@@ -1,6 +1,6 @@
 //! Bounded two-root envelope around the product map's portable codec.
 use alloc::vec::Vec;
-use ic_storage_native::map::{Error, Map};
+use ic_storage::map::{Error, Map};
 use sha2::{Digest, Sha256};
 
 pub mod paged;

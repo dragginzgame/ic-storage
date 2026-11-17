@@ -4,9 +4,10 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license-file.workspace = true
-publish = false
+repository.workspace = true
+publish = ["crates-io"]
 readme = "README.md"
-description = "Experimental Rust orthogonal persistence for the Internet Computer"
+description = "Experimental scoped native collections and portable recovery for the Internet Computer"
 
 [target.'cfg(any())'.dev-dependencies]
 toko-tooling.workspace = true
@@ -14,8 +15,13 @@ toko-tooling.workspace = true
 [package.metadata.cargo-machete]
 ignored = ["toko-tooling"]
 
+[features]
+derive = ["dep:ic-storage-derive"]
+map = ["dep:sha2"]
+
 [dependencies]
-sha2.workspace = true
+ic-storage-derive = { workspace = true, optional = true }
+sha2 = { workspace = true, optional = true }
 
 [lints]
 workspace = true

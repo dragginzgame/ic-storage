@@ -72,7 +72,7 @@ pub enum Error {
     /// V3 record checkpoint refusal.
     RecordCheckpoint(checkpoint::record_vector::Error),
     /// Two-map checkpoint refusal.
-    MapCheckpoint(ic_storage_native::map::Error),
+    MapCheckpoint(ic_storage::map::Error),
     /// Bounded allocation failed.
     Allocation,
 }
@@ -423,7 +423,7 @@ impl MapJob {
         source: u64,
         target: u64,
         epoch: u64,
-        maps: &[ic_storage_native::map::Map; 2],
+        maps: &[ic_storage::map::Map; 2],
     ) -> Result<Self, Error> {
         self.export_payload(source, target, epoch, || {
             checkpoint::maps::encode(maps, epoch).map_err(Error::MapCheckpoint)

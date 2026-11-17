@@ -1,6 +1,6 @@
 # Closed installed native map contract
 
-This profile executes the actual `ic-storage-native::map::Map` implementation
+This profile executes the actual `ic-storage::map::Map` implementation
 against the private shared [pool allocator](provider-region.md#multiple-root-host-pool)
 and a foreign WAT provider. Two independent maps occupy disjoint runs in one
 exclusive loan. It extends the [product map evidence](../../docs/design/native-map.md)
@@ -262,3 +262,114 @@ qualifies two maps with at most 64 records each through whole-heap replacement.
 It uses the same Map and Pool under its own fixed-domain protocol; it does not
 yet recover the larger growing-pool workload. Larger recovery budgets, durable
 job governance and consumer-facing custody remain integration work.
+
+## Host owner session lifetime
+
+The next owner-lifetime increment uses a private host service in
+[`session_tests.rs`](tests/fixtures/region/pool/session_tests.rs). A separately
+owned pool lends allocator references to two actual product `Map` owners. The
+service keeps both maps alive between calls and exposes only their scoped views.
+Its availability bit records poisoning; it grants no admission authority and
+cannot reconstruct a map. Ordinary calls contain no table admission or root
+reconstruction. The provider cannot settle or reissue live runs between calls.
+
+Three checks establish the initial boundary:
+
+- Populate 1,536 entries per root in separate calls, then look up, replace, delete
+  and reinsert through the same owners. End the service and both owners before
+  publishing their descriptors. End the pool loan, copy the initialized slots to
+  a distinct larger host allocation, and create fresh owners with full admission.
+  Check every record after reopening; no former pointer or allocator survives.
+- Refuse a map allocation after a write to the other root. Preserve that earlier
+  write and both owners for subsequent calls. A normal returned error is not a
+  transaction rollback.
+- Catch a host unwind after writes to both roots. Refuse later callbacks and
+  close/publication while preserving the unavailable owners and live pool runs.
+  Only explicit destruction of the failed host generation reclaims those runs;
+  this is neither IC rollback nor automatic recovery from stale descriptors.
+
+The focused locked offline provider-region suite passes 39 tests with one opt-in
+firehose ignored; strict Clippy also passes. Logs are
+`target/native-owner-session-tests-retry.log` and
+`target/native-owner-session-clippy.log`. The earlier failed test setup remains
+in `target/native-owner-session-tests.log`: interleaved small growth exhausted
+the deliberately tiny pool before the intended refusal. Reserving both initial
+tables makes the intended later allocation refusal explicit.
+
+This service is a qualification caller, not a public Store runtime or an installed
+performance result. The existing closed Wasm artifact still reconstructs owners
+once per message. Its stack-local pool cannot simply be cached after return.
+An installed implementation must own the pool and service storage for the whole
+running generation, enforce exclusive custody between messages, and close or
+invalidate them before provider relocation, external writes and upgrade startup.
+Fresh startup must readmit retained slots before exposing a service. Queries,
+traps, failed upgrades, forgotten views and recovery must be qualified at that
+boundary before claiming the per-message admission cost is removed.
+
+## Installed owner session lifetime
+
+`make native-session-probe` builds and admits the closed service artifacts without
+a server; `make native-session-test` also runs them with the prepared Testkit
+server. Both use locked offline inputs. The former joins `make ci`; hosted CI
+runs the installed test after server preparation. The source is
+[`provider_session.rs`](tests/fixtures/provider_session.rs), and the installed
+checks are [session_tests.rs](../ic-storage-retention-probe/tests/rust_startup/session_tests.rs).
+
+The service reuses the product Map and the existing region pool. The pool
+controller and both map headers occupy static addresses below the controlled
+startup boundary at 8 MiB. Their lifetime is the running module generation,
+not an individual message or a stack frame. The raw loan covers the exclusively
+owned, fixed 192 KiB retained payload at `8 MiB + 128`. Pool and owner initialization
+occurs only after layout/custody checks; no stack borrow is extended or forgotten.
+There are no asynchronous entrypoints or reentrant host callbacks.
+
+| State | Authority and permitted transition |
+| --- | --- |
+| Fresh startup | Zeroed transient headers; initialize fresh retained state only in init, otherwise validate published closed roots |
+| Open | Both Rust map owners and their allocator remain live; ordinary calls borrow scoped views without readmission |
+| Executing | Reject overlapping service entry; errors that violate the contract trap the IC message |
+| Closed | Both owners released, pool settled and ended, both descriptors published; operations refuse until full readmission |
+
+While open, the retained header marks root descriptors unavailable: they may be
+stale after table growth and cannot admit a second owner. The source pre-upgrade
+hook closes both maps before publishing complete roots. The target bootstrap
+clears the entire transient interval and restores its own data segments before
+Rust runs; post-upgrade validates the header and fully admits both slot tables.
+A target does not interpret old Vec headers, allocator objects or references.
+If the source fails to close, the target refuses the unavailable roots. A failed
+upgrade restores the original live service through IC rollback, not through a
+local attempt to clear poison or reconstruct stale roots.
+
+Cohort `target/evidence/native-session/attempt.BP4GOR/` passed six artifact
+profiles and the installed test on 17 November 2026. Strict Clippy passed for all
+six raw Rust variants and the host harness. The test populates 1,536 records in
+each root and checks every logical record. Thirty-two separate lookup updates
+leave the admission count at one; explicit close/reopen increases it to two.
+Both upgrade directions reset transient admission/call counters and preserve all
+records. Query writes to both maps, control flags and counters are discarded.
+Update traps and a close trap after first-root publication restore all 196,736
+retained bytes, status and logical records. Target corruption, a trap after
+target admission, omitted source close and partial source-hook publication all
+refuse upgrades and preserve the original executable and usable owners.
+
+The cohort's `costs.csv` records 160,370 instructions inside each two-root lookup
+scope versus 1,099,574 inside explicit readmission. These counters exclude the
+rest of their entrypoints and are not the earlier comparison's outer meter.
+The service also uses source-reviewed memory access instead of the older
+fixture's per-access Wasm guards, and its startup layout reserves 8 MiB of
+transient space. Do not compare these figures directly with stable structures
+or claim a production memory/performance budget from them.
+
+The original controlled startup and managed-graph installed regressions pass
+with the shared bootstrap changes (`target/native-session-startup-regression.log`).
+Earlier failed preparation/negative-test runs remain diagnostic evidence, without
+completion markers; a sandbox-denied localhost server launch was retried with
+the required execution permission.
+
+This is the installed lifetime qualification for the selected native architecture,
+not another collection implementation or a public Store API. It does not yet
+connect runtime pool expansion, named application roots, paged recovery or schema
+conversion to this longer-lived service. The old benchmark remains unchanged.
+The separate [on-demand matrix](../../docs/design/native-map-matrix.md) now measures
+matched requests and the same outer meter against ic-stable-structures. Next
+extract the qualified runtime boundary and integrate close/reopen with those adapters.

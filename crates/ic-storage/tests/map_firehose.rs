@@ -2,7 +2,7 @@
 #![cfg(feature = "map")]
 #![forbid(unsafe_code)]
 
-use ic_storage_native::map::{Error, Map};
+use ic_storage::map::{Error, Map};
 use std::{
     fs::{self, File, OpenOptions},
     hint::black_box,

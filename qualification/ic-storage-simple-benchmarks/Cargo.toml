@@ -43,6 +43,12 @@ crate-type = ["cdylib"]
 required-features = ["stable-map"]
 
 [[example]]
+name = "stable-matrix-wasm"
+path = "benches/stable_matrix.rs"
+crate-type = ["cdylib"]
+required-features = ["stable-map"]
+
+[[example]]
 name = "compare"
 path = "benches/runner.rs"
 

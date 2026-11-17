@@ -5,9 +5,9 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 use wasm_encoder::{
-    BlockType, CodeSection, CustomSection, DataCountSection, DataSection, ExportKind,
-    ExportSection, Function, FunctionSection, Instruction as I, MemArg, Module, RawSection,
-    StartSection, TypeSection,
+    BlockType, CodeSection, CustomSection, DataCountSection, DataSection, EntityType, ExportKind,
+    ExportSection, Function, FunctionSection, ImportSection, Instruction as I, MemArg, Module,
+    RawSection, StartSection, TypeSection,
     reencode::{Reencode, RoundtripReencoder},
 };
 use wasmparser::{DataKind, ExternalKind, Operator, Parser, Payload, TypeRef, ValType};
@@ -75,20 +75,36 @@ fn const_i32(expr: &wasmparser::ConstExpr<'_>) -> Result<i32, Refusal> {
 /// bootstrap. Source review remains required: this is not a sandbox for hostile
 /// Rust code or a proof that arbitrary stores cannot address retained memory.
 pub fn prepare(raw: &[u8]) -> Result<Artifact, Refusal> {
-    prepare_profile(raw, false, false)
+    prepare_profile(raw, false, false, false)
 }
 
 /// Admit and transform the installed graph qualification profile.
 pub fn prepare_graph(raw: &[u8]) -> Result<Artifact, Refusal> {
-    prepare_profile(raw, true, false)
+    prepare_profile(raw, true, false, false)
 }
 
 /// Admit and transform the graph benchmark, including argument/counter bindings.
 pub fn prepare_benchmark(raw: &[u8]) -> Result<Artifact, Refusal> {
-    prepare_profile(raw, true, true)
+    prepare_profile(raw, true, true, false)
 }
 
-fn prepare_profile(raw: &[u8], managed: bool, benchmark: bool) -> Result<Artifact, Refusal> {
+/// Admit the closed native owner-session probe and connect its scalar host protocol.
+/// This trusted-source profile does not sandbox arbitrary native memory accesses.
+pub fn prepare_session(raw: &[u8]) -> Result<Artifact, Refusal> {
+    prepare_profile(raw, false, false, true)
+}
+
+/// Admit the session matrix's additional bounded request and observation methods.
+pub fn prepare_session_benchmark(raw: &[u8]) -> Result<Artifact, Refusal> {
+    prepare_profile(raw, false, true, true)
+}
+
+fn prepare_profile(
+    raw: &[u8],
+    managed: bool,
+    benchmark: bool,
+    session: bool,
+) -> Result<Artifact, Refusal> {
     validate_wasm(raw, LIMIT).map_err(|_| Refusal::Malformed)?;
     let mut sections = Vec::new();
     let mut types = TypeSection::new();
@@ -96,6 +112,7 @@ fn prepare_profile(raw: &[u8], managed: bool, benchmark: bool) -> Result<Artifac
     let mut functions = FunctionSection::new();
     let mut function_types = Vec::new();
     let mut imports = BTreeMap::new();
+    let mut session_imports = ImportSection::new();
     let mut globals = Vec::new();
     let mut exports = BTreeMap::new();
     let mut segments = Vec::new();
@@ -124,11 +141,29 @@ fn prepare_profile(raw: &[u8], managed: bool, benchmark: bool) -> Result<Artifac
                     let TypeRef::Func(ty) = import.ty else {
                         return Err(Refusal::Import);
                     };
-                    if import.module != "ic0"
-                        || !(matches!(import.name, "msg_reply" | "msg_reply_data_append")
+                    let name = if session {
+                        if import.module != "session_provider" {
+                            return Err(Refusal::Import);
+                        }
+                        let name = match import.name {
+                            "reply" => "msg_reply",
+                            "reply_data" => "msg_reply_data_append",
+                            "counter" => "performance_counter",
+                            "arg_size" if benchmark => "msg_arg_data_size",
+                            "arg_copy" if benchmark => "msg_arg_data_copy",
+                            _ => return Err(Refusal::Import),
+                        };
+                        session_imports.import("ic0", name, EntityType::Function(ty));
+                        name
+                    } else {
+                        import.name
+                    };
+                    if (!session && import.module != "ic0")
+                        || !(matches!(name, "msg_reply" | "msg_reply_data_append")
+                            || session && name == "performance_counter"
                             || benchmark
                                 && matches!(
-                                    import.name,
+                                    name,
                                     "msg_arg_data_size"
                                         | "msg_arg_data_copy"
                                         | "performance_counter"
@@ -137,7 +172,7 @@ fn prepare_profile(raw: &[u8], managed: bool, benchmark: bool) -> Result<Artifac
                         return Err(Refusal::Import);
                     }
                     let index = imports.len() as u32;
-                    if imports.insert(import.name, (index, ty)).is_some() {
+                    if imports.insert(name, (index, ty)).is_some() {
                         return Err(Refusal::Import);
                     }
                     function_types.push(ty);
@@ -211,7 +246,7 @@ fn prepare_profile(raw: &[u8], managed: bool, benchmark: bool) -> Result<Artifac
                     let op = parsed(op)?;
                     if matches!(op, Operator::MemoryGrow { mem: 0 }) {
                         growth_instructions += 1;
-                        if !managed {
+                        if !managed && !session {
                             return Err(Refusal::Unsupported);
                         }
                     }
@@ -296,12 +331,22 @@ fn prepare_profile(raw: &[u8], managed: bool, benchmark: bool) -> Result<Artifac
             _ => return Err(Refusal::Unsupported),
         }
     }
-    if !memory_seen || segments.is_empty() || imports.len() != if benchmark { 5 } else { 2 } {
+    if !memory_seen
+        || segments.is_empty()
+        || imports.len()
+            != if benchmark {
+                5
+            } else if session {
+                3
+            } else {
+                2
+            }
+    {
         return Err(Refusal::Layout);
     }
     // The reviewed graph kernel owns exactly one direct memory.grow. Additional
     // growth sites (for example an accidentally linked general allocator) refuse.
-    if growth_instructions != usize::from(managed) {
+    if growth_instructions != usize::from(managed || session) {
         return Err(Refusal::GrowthCount);
     }
     if managed && !table_initialized {
@@ -338,6 +383,13 @@ fn prepare_profile(raw: &[u8], managed: bool, benchmark: bool) -> Result<Artifac
             }
         }
     }
+    if session {
+        let (_, index) = imports.get("performance_counter").ok_or(Refusal::Import)?;
+        let ty = signatures.get(*index as usize).ok_or(Refusal::Import)?;
+        if ty.params() != [ValType::I32] || ty.results() != [ValType::I64] {
+            return Err(Refusal::Import);
+        }
+    }
     let mut expected_exports = vec![
         "memory",
         "__stack_pointer",
@@ -348,6 +400,27 @@ fn prepare_profile(raw: &[u8], managed: bool, benchmark: bool) -> Result<Artifac
         "canister_query transient",
         "canister_update dirty",
     ];
+    if session {
+        expected_exports.truncate(4);
+        expected_exports.extend([
+            "canister_init",
+            "canister_pre_upgrade",
+            "canister_post_upgrade",
+            "canister_query session_status",
+            "canister_query session_state",
+            "canister_query session_bytes",
+            "canister_query session_query_write",
+            "canister_update session_fill",
+            "canister_update session_lookup",
+            "canister_update session_replace",
+            "canister_update session_delete",
+            "canister_update session_reinsert",
+            "canister_update session_trap",
+            "canister_update session_close",
+            "canister_update session_close_trap",
+            "canister_update session_open",
+        ]);
+    }
     if managed {
         expected_exports.extend([
             "canister_query graph",
@@ -360,6 +433,9 @@ fn prepare_profile(raw: &[u8], managed: bool, benchmark: bool) -> Result<Artifac
     }
     if benchmark {
         expected_exports.extend(["canister_update bench_run", "canister_query bench_state"]);
+        if session {
+            expected_exports.push("canister_update bench_setup");
+        }
     }
     if exports.len() != expected_exports.len()
         || expected_exports
@@ -401,7 +477,7 @@ fn prepare_profile(raw: &[u8], managed: bool, benchmark: bool) -> Result<Artifac
     let first = function_types.len() as u32;
     let empty_type = types.len();
     types.ty().function([], []);
-    for _ in 0..if managed { 1 } else { 9 } {
+    for _ in 0..if managed || session { 1 } else { 9 } {
         functions.function(empty_type);
     }
     let mut out_exports = ExportSection::new();
@@ -415,14 +491,14 @@ fn prepare_profile(raw: &[u8], managed: bool, benchmark: bool) -> Result<Artifac
         out_exports.export(
             name,
             kind,
-            if !managed && name == "canister_post_upgrade" {
+            if !managed && !session && name == "canister_post_upgrade" {
                 first + 3
             } else {
                 index
             },
         );
     }
-    if !managed {
+    if !managed && !session {
         out_exports.export("canister_update retain", ExportKind::Func, first + 1);
         out_exports.export("canister_query retained", ExportKind::Func, first + 2);
         for (name, offset) in [
@@ -465,7 +541,7 @@ fn prepare_profile(raw: &[u8], managed: bool, benchmark: bool) -> Result<Artifac
     }
     start.instruction(&I::End);
     code.function(&start);
-    if !managed {
+    if !managed && !session {
         let mem = MemArg {
             offset: 0,
             align: 3,
@@ -545,6 +621,9 @@ fn prepare_profile(raw: &[u8], managed: bool, benchmark: bool) -> Result<Artifac
             1 => {
                 module.section(&types);
             }
+            2 if session => {
+                module.section(&session_imports);
+            }
             3 => {
                 module.section(&functions);
             }
@@ -573,7 +652,9 @@ fn prepare_profile(raw: &[u8], managed: bool, benchmark: bool) -> Result<Artifac
     }
     module.section(&CustomSection {
         name: Cow::Borrowed(MARKER),
-        data: Cow::Borrowed(if benchmark {
+        data: Cow::Borrowed(if session {
+            b"native-owner-session-v1"
+        } else if benchmark {
             b"rust-managed-benchmark-v1"
         } else if managed {
             b"rust-managed-graph-v1"

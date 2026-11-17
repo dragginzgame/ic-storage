@@ -9,7 +9,7 @@ mod paged_job;
 mod staging;
 #[cfg(not(feature = "native-map-paged"))]
 use ic_platform_runtime::raw as ic0;
-use ic_storage_native::map::Map;
+use ic_storage::map::Map;
 #[cfg(not(feature = "native-map-paged"))]
 use ic_storage_native_feasibility::checkpoint::maps;
 

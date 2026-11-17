@@ -52,7 +52,7 @@ fn independent_record_identity_and_nested_validation() {
     assert_eq!(
         RecordJob::decode(&invalid),
         Err(Error::RecordCheckpoint(
-            checkpoint::record_vector::Error::Record(ic_storage_native::record::Error::Invariant)
+            checkpoint::record_vector::Error::Record(ic_storage::record::Error::Invariant)
         ))
     );
     let mut wrong = sealed;

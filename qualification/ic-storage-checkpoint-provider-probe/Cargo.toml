@@ -20,7 +20,7 @@ doctest = false
 [features]
 allocation-metrics = ["native-map-paged"]
 native-bridge = []
-native-map = ["native-bridge", "dep:ic-storage-native"]
+native-map = ["native-bridge", "dep:ic-storage"]
 native-map-job = ["native-map"]
 native-map-paged = ["native-map-job"]
 native-job = ["native-bridge"]
@@ -30,13 +30,13 @@ native-record-vector-job = ["native-record-vector"]
 native-record-vector-v2 = ["native-record-vector"]
 native-record-vector-convert = ["native-record-vector"]
 native-record-vector-source = ["native-record-vector"]
-paged-store = ["dep:ic-storage-native"]
+paged-store = ["dep:ic-storage"]
 version-b = []
 
 [dependencies]
 ic-platform-runtime = { workspace = true, features = ["system-raw"] }
+ic-storage = { workspace = true, features = ["map"], optional = true }
 ic-storage-legacy.workspace = true
-ic-storage-native = { workspace = true, features = ["map"], optional = true }
 ic-storage-native-feasibility.workspace = true
 
 [dev-dependencies]

@@ -2,13 +2,13 @@
 #![cfg(feature = "derive")]
 #![no_std]
 
-use ic_storage_native::record::{Error, Field, Scalar};
+use ic_storage::record::{Error, Field, Scalar};
 
 mod without_prelude {
     #![no_implicit_prelude]
 
     #[repr(C)]
-    #[derive(::core::clone::Clone, ::core::marker::Copy, ::ic_storage_native::Store)]
+    #[derive(::core::clone::Clone, ::core::marker::Copy, ::ic_storage::Store)]
     #[store(id = "NOPRELUD", version = 1)]
     struct Value {
         #[store(field = 1)]
@@ -28,7 +28,7 @@ mod qualified {
     use ::core::primitive::{u16 as u32, u16 as u64};
 
     #[repr(C)]
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, ic_storage_native::Store)]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, ic_storage::Store)]
     #[store(id = "APPRECRD", version = 1)]
     struct Record {
         #[store(field = 9)]
@@ -62,7 +62,7 @@ mod qualified {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, ic_storage_native::Store)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ic_storage::Store)]
 #[store(id = "APPRECRD", version = 1, validate = Self::valid)]
 struct Record {
     #[store(field = 9)]
@@ -159,7 +159,7 @@ mod shadowed {
         Err,
     }
     mod core {}
-    mod ic_storage_native {}
+    mod ic_storage {}
 
     macro_rules! concat {
         () => {
@@ -173,7 +173,7 @@ mod shadowed {
     }
 
     #[repr(C)]
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, ::ic_storage_native::Store)]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, ::ic_storage::Store)]
     #[store(id = "SHADOWED", version = 1, validate = Self::valid)]
     struct Value {
         #[store(field = 1)]
@@ -212,7 +212,7 @@ mod shadowed {
         );
         assert_eq!(
             Value::store_decode(&[]),
-            ::core::result::Result::Err(::ic_storage_native::record::Error::Length)
+            ::core::result::Result::Err(::ic_storage::record::Error::Length)
         );
         assert_eq!(
             Value {
@@ -220,7 +220,7 @@ mod shadowed {
                 record: 9
             }
             .store_encode(),
-            ::core::result::Result::Err(::ic_storage_native::record::Error::Invariant)
+            ::core::result::Result::Err(::ic_storage::record::Error::Invariant)
         );
     }
 }

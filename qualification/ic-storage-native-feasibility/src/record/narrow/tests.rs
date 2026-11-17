@@ -1,5 +1,5 @@
 use super::*;
-use ic_storage_native::record::{Error as CodecError, Field, Scalar};
+use ic_storage::record::{Error as CodecError, Field, Scalar};
 
 #[test]
 fn equal_outer_layout_does_not_hide_the_changed_scalar_kind() {
@@ -110,7 +110,7 @@ fn portable_reconstruction_omits_native_padding_and_continues_checked_mutation()
 #[test]
 fn reordered_mixed_width_fields_keep_id_order_and_typed_getters() {
     #[repr(C)]
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, ic_storage_native::Store)]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, ic_storage::Store)]
     #[store(id = "MIXDTEST", version = 1)]
     struct Reordered {
         #[store(field = 2)]

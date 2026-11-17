@@ -15,8 +15,9 @@ The [delivery roadmap](docs/DESIGN.md#delivery-roadmap) records current prioriti
 sibling requirements and completion gates. Larger installed recovery is next;
 Canic profiles supply the first planned consumer-shaped qualification.
 
-The primary unpublished package is `ic-storage` at `crates/ic-storage/`.
-The implementation is partial: an unpublished [native collection core](crates/ic-storage-native/README.md)
+The public entry point is `ic-storage` at `crates/ic-storage/`, with optional
+`Store` macros from `ic-storage-derive`. The implementation is partial: the
+[native collection core](crates/ic-storage/README.md)
 and installed scalar/vector lifecycle and migration fixtures provide the current
 native foundation. A bounded scalar `Store` derive supplies metadata, logical
 codecs and scoped getters; qualification fixtures exercise explicit field addition
@@ -179,7 +180,14 @@ the current M0 scalar and linked sequence with Storage 0.74.1's cell and vector.
 They report IC instruction counts and check complete state after every sample;
 these are implementation costs, not raw memory-speed measurements.
 
-The current [native-map comparison](docs/design/native-map-comparison.md) uses
+For the current on-demand comparison, run **`make benchmark-matrix`**, or
+`make benchmark-matrix-smoke` for one scenario. The
+[matrix guide](docs/design/native-map-matrix.md) documents workloads, reports and
+results against **ic-stable-structures only**. The full run validates 972 samples
+over generation-owned native maps; it saves CSV and Markdown tables under the
+printed evidence directory. It is separate from routine CI and release gates.
+
+The earlier [native-map comparison](docs/design/native-map-comparison.md) uses
 `ic-stable-structures` only (`make benchmark-map`). All 324 installed samples
 pass state checks. Reusing one admitted loan and both map owners per batch now
 makes native replacement, deletion and reinsertion batches cheaper than stable
@@ -187,6 +195,10 @@ structures at 1,536 records; 64-record lookup and growing insertion remain about
 12% and 26% more expensive. A single lookup still costs about 4× as much because
 owner reconstruction scans the tables. The next ownership boundary is reuse
 between ordinary messages; unknown or incompatible retained data still refuses.
+`make native-session-test` now exercises that longer lifetime in a separate
+[installed service fixture](qualification/ic-storage-native-feasibility/native-map-provider.md#installed-owner-session-lifetime),
+including close/reopen, query isolation and upgrade rollback. The comparison
+above still describes the earlier guarded adapter.
 
 The [native ownership experiment](qualification/ic-storage-native-feasibility/README.md)
 tests scoped moves, owner escape refusals and forgotten-ticket quarantine. It
@@ -208,17 +220,38 @@ The [governed job fixture](qualification/ic-storage-native-feasibility/migration
 adds guarded jobs, cancellation, frozen-source upgrades and staged import.
 `make native-record-job-test` qualifies those transitions for bounded V3 record
 vectors through the same state machine and controller adapter.
-The shared [native core](crates/ic-storage-native/README.md) now supplies scoped
+The shared [native core](crates/ic-storage/README.md) now supplies scoped
 vector operations to that fixture; `make native-core-test` checks ownership limits
 and the optional scalar derive's application-facing contract.
 
 Library code lives in `crates/`. See [qualification/](qualification/README.md)
 for fixture contracts, commands and evidence scope. Production canister
-qualification, publication and deployment are not configured. The package
-remains `publish = false`. The GitHub repository is
+qualification and deployment are not configured. Only `ic-storage` and
+`ic-storage-derive` are eligible for publication; `ic-storage-m0` and all
+qualification packages remain private. Publication does not make arbitrary Rust
+values persistent or supply a production runtime. The GitHub repository is
 [`dragginzgame/ic-storage`](https://github.com/dragginzgame/ic-storage).
 
 Read [AGENTS.md](AGENTS.md) and the
 [research architecture](docs/DESIGN.md) before implementation.
 The design draws on Motoko and the
 [pinned cdk-rsx-store interface description](docs/DESIGN.md#pinned-cdk-rsx-store-design-basis).
+
+## Publication
+
+`ic-storage` is the native library. Enable `map` for keyed collections and
+portable checkpoints, and `derive` for the re-exported `Store` macro. The
+procedural macro implementation publishes separately as `ic-storage-derive`;
+applications normally depend only on `ic-storage`.
+
+The 0.76 API replaces the legacy 0.74 API. It does not read legacy stored formats;
+consumer migration needs separate qualification. M0 remains private evidence in
+`crates/ic-storage-m0`, with its historical bytes preserved.
+
+Release qualification uses `make ci`, followed by the affected installed suites.
+`make publish-check` validates the declared public pair using Cargo's package
+verification; `make publish` uploads that same pair in dependency order. Both
+select all features and retain evidence under `target/publication`. Upload
+requires clean committed source. The shared adapter permits an explicit
+`PACKAGE=ic-storage-derive` or `PACKAGE=ic-storage` subset for a reconciled partial
+publication; inspect registry state and the saved attempt before retrying.

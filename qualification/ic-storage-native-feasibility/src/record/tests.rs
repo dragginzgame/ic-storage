@@ -26,7 +26,7 @@ fn conversion_and_mutation_validate_before_changing_values() {
 
 #[test]
 fn generated_metadata_and_codec_match_the_frozen_record_contract() {
-    use ic_storage_native::record::{Error as CodecError, Field, Scalar};
+    use ic_storage::record::{Error as CodecError, Field, Scalar};
     assert_eq!(V1::STORE_ID, b"RECU64V1");
     assert_eq!(V2::STORE_ID, V1::STORE_ID);
     assert_eq!((V1::STORE_VERSION, V2::STORE_VERSION), (1, 2));
@@ -90,7 +90,7 @@ fn generated_metadata_and_codec_match_the_frozen_record_contract() {
 #[test]
 fn logical_field_order_is_independent_of_native_field_offsets() {
     #[repr(C)]
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, ic_storage_native::Store)]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, ic_storage::Store)]
     #[store(id = "TESTREOR", version = 1)]
     struct Reordered {
         #[store(field = 2)]

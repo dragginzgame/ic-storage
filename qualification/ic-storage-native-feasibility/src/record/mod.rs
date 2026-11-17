@@ -3,7 +3,7 @@
 //! schema selection, never a retained enum or permission to cast stored bytes.
 //!
 //! Declaration and view-confinement compile-fail cases belong to the product
-//! [`ic_storage_native::Store`] API. This fixture owns conversion, mutation,
+//! [`ic_storage::Store`] API. This fixture owns conversion, mutation,
 //! retained-layout and recovery evidence for its concrete application schemas.
 
 pub mod narrow;
@@ -13,7 +13,7 @@ pub const SCHEMA_ID: &[u8; 8] = V1::STORE_ID;
 
 /// Original scalar payload, with counter at byte offset zero.
 #[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, ic_storage_native::Store)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ic_storage::Store)]
 #[store(id = "RECU64V1", version = 1)]
 pub struct V1 {
     /// Current counter, with every u64 value supported.
@@ -39,7 +39,7 @@ pub struct V1 {
 /// assert_eq!(counter, 42);
 /// ```
 #[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, ic_storage_native::Store)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ic_storage::Store)]
 #[store(id = "RECU64V1", version = 2, validate = Self::valid)]
 pub struct V2 {
     #[store(field = 1)]

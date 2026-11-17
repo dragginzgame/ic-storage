@@ -1,6 +1,6 @@
 # Sequential paged map checkpoints
 
-The product `ic_storage_native::map::paged` codec provides a portable checkpoint
+The product `ic_storage::map::paged` codec provides a portable checkpoint
 for one u64-key/u64-value map. A 128-byte manifest commits to a forward chain of
 1,104-byte pages, each containing at most 64 records. A sequential reader verifies
 one page using its expected digest and previous key; it does not reread earlier
@@ -191,7 +191,7 @@ at 0, 1, 64, 65 and 4,608 records; those are historical single-root costs.
 Run the focused codec tests and governed fixture after the documented bootstrap:
 
 ```sh
-cargo test -p ic-storage-native --features map --lib map::paged --locked --offline
+cargo test -p ic-storage --features map --lib map::paged --locked --offline
 cargo test --manifest-path qualification/Cargo.toml -p ic-storage-native-feasibility --target-dir target/qualification --lib checkpoint::maps::paged --locked --offline
 make native-map-page-test
 ```

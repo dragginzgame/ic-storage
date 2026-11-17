@@ -44,12 +44,12 @@ evidence. Do not add adapters solely to support earlier pre-1.0 releases.
 Experimental APIs and formats may change; unknown or incompatible retained data
 must still be rejected rather than silently reset or misinterpreted.
 
-The product crate currently implements M0, a safe, byte-defined record model with
-a fixture-only live-memory kernel. Separate qualification fixtures now exercise
+The private `ic-storage-m0` crate preserves M0, a safe, byte-defined record model
+with a fixture-only live-memory kernel. Separate qualification fixtures exercise
 bounded native-vector allocation, compatible upgrades and portable recovery.
 They do not implement the general native runtime, collection admission or
 application converters described here.
-The unpublished [`ic-storage-native`](../crates/ic-storage-native/README.md) crate
+The public [`ic-storage`](../crates/ic-storage/README.md) crate
 now supplies a safe, reusable scoped scalar-vector interface used by the installed
 provider fixture. It accepts an already valid live Vec under the caller's
 allocator authority; it does not admit retained bytes or expose an owning carrier.
@@ -104,7 +104,7 @@ gates, including the sibling consumer requirements reviewed on 17 November.
 This remains the intended successor to ic-storage, aiming to subsume the
 persistence capabilities our applications need, including capabilities served
 by ic-stable-structures. Develop one product architecture. The sibling
-ic-storage repository remains on hold and unchanged.
+ic-storage-legacy repository remains on hold and unchanged.
 
 Replacement means qualified capabilities and migration, not API, package or
 stored-format compatibility. Consumer cutovers require separate authorization,
@@ -227,7 +227,7 @@ conversion remain application policy. Host and installed fixtures exercise the
 generated code, including confinement, poisoning, rollback and recovery. General
 record ownership remains future work. This scalar-record profile preserves its
 u64 vector; separate record-element profiles follow below. See the
-[derive subset](../crates/ic-storage-native-derive/README.md).
+[derive subset](../crates/ic-storage-derive/README.md).
 
 The derive also supports u32 fields with explicit scalar-kind metadata and packed
 logical encoding. V2→V3 counter narrowing now runs in the installed fixture,
@@ -1071,7 +1071,7 @@ guarded fixture, not intrinsic memory-access speeds. Next qualify reusable
 ownership between ordinary messages, with explicit close/revalidation boundaries,
 alongside the remaining R1 memory measurements before increasing size.
 
-#### R2 — Reusable application ownership and lifecycle (queued)
+#### R2 — Reusable application ownership and lifecycle (started)
 
 The benchmark makes owner lifetime a concrete priority: retain admitted owners
 across ordinary messages only under an explicit runtime custody contract. Keep
@@ -1079,6 +1079,24 @@ private Rust headers transient across upgrades; close or invalidate ownership
 before incompatible reopening, provider-controlled relocation or external writes,
 and qualify fresh admission at those boundaries. Do not replace table validation
 with a caller-supplied trusted flag or an unchecked application constructor.
+
+The first [host session qualification](../qualification/ic-storage-native-feasibility/native-map-provider.md#host-owner-session-lifetime)
+now holds two actual map owners and their pool loan across separate calls. It
+closes both owners before moving backing, readmits on reopening, and quarantines
+the entire session on a caught unwind. A separate
+[installed service qualification](../qualification/ic-storage-native-feasibility/native-map-provider.md#installed-owner-session-lifetime)
+now keeps owners alive between messages in a controlled transient interval. It
+closes both before upgrade and readmits after startup clears that interval, with
+query-write isolation and failed source/target lifecycle rollback. It removes
+per-message admission in this trusted-source fixture; the original guarded
+benchmark and paged recovery adapters still use scoped loans. Next move the
+qualified service responsibilities into the reusable runtime, connect recovery
+and pool growth at explicit close boundaries. The
+[on-demand matched matrix](design/native-map-matrix.md) now compares this service
+with ic-stable-structures across 972 validated samples. Native wins 142 of 144
+non-control cells; single insertion across the largest tested rehash boundary
+remains slower. Ordered ranges, larger values/populations and lifecycle costs
+remain outside that matrix.
 
 Use the existing map/vector callers to move qualified responsibilities into
 product libraries under `crates/`, with tests beside their owner.

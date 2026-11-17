@@ -796,8 +796,9 @@ dependencies = [
 
 [[package]]
 name = "ic-storage"
-version = "0.75.6"
+version = "0.76.0"
 dependencies = [
+ "ic-storage-derive",
  "sha2 0.11.1",
 ]
 
@@ -807,22 +808,14 @@ version = "0.1.0"
 dependencies = [
  "ic-platform-runtime 0.23.17",
  "ic-storage 0.74.1",
- "ic-storage-native",
+ "ic-storage 0.76.0",
  "ic-storage-native-feasibility",
  "toko-tooling",
 ]
 
 [[package]]
-name = "ic-storage-native"
-version = "0.75.6"
-dependencies = [
- "ic-storage-native-derive",
- "sha2 0.11.1",
-]
-
-[[package]]
-name = "ic-storage-native-derive"
-version = "0.75.6"
+name = "ic-storage-derive"
+version = "0.76.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -830,10 +823,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ic-storage-m0"
+version = "0.76.0"
+dependencies = [
+ "sha2 0.11.1",
+]
+
+[[package]]
 name = "ic-storage-native-feasibility"
 version = "0.1.0"
 dependencies = [
- "ic-storage-native",
+ "ic-storage 0.76.0",
  "sha2 0.11.1",
  "toko-tooling",
 ]
@@ -856,7 +856,7 @@ name = "ic-storage-rust-startup-probe"
 version = "0.1.0"
 dependencies = [
  "ic-platform-runtime 0.23.17",
- "ic-storage 0.75.6",
+ "ic-storage-m0",
  "ic-storage-simple-benchmarks",
  "toko-tooling",
 ]
@@ -878,9 +878,9 @@ dependencies = [
 
 [[package]]
 name = "ic-testkit"
-version = "0.108.1"
+version = "0.109.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dae330c65abdc613e8bfdabe5d45bbfcc613c48a1d9f0f250194608f6b1291e9"
+checksum = "6405078e5332b34ab898d4c32c41f39b358655bb3d4aae508d3ff17f781cf66c"
 dependencies = [
  "pocket-ic",
 ]

@@ -156,22 +156,22 @@ impl<A: Allocator + Clone> Map<A> {
     /// cannot skip finalization. IC adapters must trap on unexpected failures.
     ///
     /// ```
-    /// use ic_storage_native::map::Map;
+    /// use ic_storage::map::Map;
     /// let mut map = Map::new(1_000_000);
     /// map.with(|mut view| {
     ///     view.insert(7, 42)?;
     ///     assert_eq!(view.get(7), Some(42));
     ///     assert_eq!(view.remove(7), Some(42));
-    ///     Ok::<_, ic_storage_native::map::Error>(())
+    ///     Ok::<_, ic_storage::map::Error>(())
     /// }).unwrap().unwrap();
     /// ```
     /// ```compile_fail
-    /// use ic_storage_native::map::Map;
+    /// use ic_storage::map::Map;
     /// let mut map = Map::new(8);
     /// let escaped = map.with(|view| view);
     /// ```
     /// ```compile_fail
-    /// use ic_storage_native::map::Map;
+    /// use ic_storage::map::Map;
     /// let mut map = Map::new(8);
     /// let future = map.with(|view| async move { view.get(1) });
     /// ```

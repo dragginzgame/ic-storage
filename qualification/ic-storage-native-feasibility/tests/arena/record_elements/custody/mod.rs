@@ -3,7 +3,7 @@
 
 use super::{Arena, V3};
 use crate::arena::{Block, Refusal, WORD_BYTES, invalid};
-use ic_storage_native::record::Field;
+use ic_storage::record::Field;
 use std::alloc::Layout;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

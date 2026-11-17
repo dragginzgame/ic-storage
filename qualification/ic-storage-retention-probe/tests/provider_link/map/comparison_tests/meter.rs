@@ -15,15 +15,25 @@ struct Meter {
     functions: u32,
     globals: u32,
     entries: Vec<(String, u32)>,
+    existing_counter: Option<u32>,
 }
 
 pub(super) fn instrument(bytes: &[u8]) -> Vec<u8> {
+    instrument_profile(bytes, false)
+}
+
+pub(super) fn instrument_session(bytes: &[u8]) -> Vec<u8> {
+    instrument_profile(bytes, true)
+}
+
+fn instrument_profile(bytes: &[u8], session: bool) -> Vec<u8> {
     let mut meter = Meter {
         types: 0,
         imports: vec![],
         functions: 0,
         globals: 0,
         entries: vec![],
+        existing_counter: None,
     };
     for payload in Parser::new(0).parse_all(bytes) {
         match payload.unwrap() {
@@ -33,7 +43,10 @@ pub(super) fn instrument(bytes: &[u8]) -> Vec<u8> {
                     let import = import.unwrap();
                     assert_eq!(import.module, "ic0");
                     assert!(matches!(import.ty, TypeRef::Func(_)));
-                    assert_ne!(import.name, "performance_counter");
+                    if import.name == "performance_counter" {
+                        assert!(session && meter.existing_counter.is_none());
+                        meter.existing_counter = Some(meter.imports.len() as u32);
+                    }
                     meter.imports.push(import.name.to_owned());
                 }
             }
@@ -49,7 +62,7 @@ pub(super) fn instrument(bytes: &[u8]) -> Vec<u8> {
                     }
                 }
             }
-            Payload::StartSection { .. } => panic!("no implicit start"),
+            Payload::StartSection { .. } => assert!(session, "no implicit start"),
             _ => {}
         }
     }
@@ -64,8 +77,11 @@ pub(super) fn instrument(bytes: &[u8]) -> Vec<u8> {
 }
 
 impl Meter {
+    fn delta(&self) -> u32 {
+        u32::from(self.existing_counter.is_none())
+    }
     fn base(&self) -> u32 {
-        self.imports.len() as u32 + 1 + self.functions
+        self.imports.len() as u32 + self.delta() + self.functions
     }
     fn import(&self, name: &str) -> u32 {
         self.imports.iter().position(|s| s == name).unwrap() as u32
@@ -74,7 +90,7 @@ impl Meter {
 impl Reencode for Meter {
     type Error = std::convert::Infallible;
     fn function_index(&mut self, index: u32) -> Result<u32> {
-        Ok(index + u32::from(index >= self.imports.len() as u32))
+        Ok(index + self.delta() * u32::from(index >= self.imports.len() as u32))
     }
     fn parse_type_section(
         &mut self,
@@ -92,11 +108,13 @@ impl Reencode for Meter {
         r: wasmparser::ImportSectionReader<'_>,
     ) -> Result<()> {
         reencode::utils::parse_import_section(self, out, r)?;
-        out.import(
-            "ic0",
-            "performance_counter",
-            EntityType::Function(self.types),
-        );
+        if self.existing_counter.is_none() {
+            out.import(
+                "ic0",
+                "performance_counter",
+                EntityType::Function(self.types),
+            );
+        }
         Ok(())
     }
     fn parse_function_section(
@@ -160,9 +178,9 @@ impl Reencode for Meter {
             assert!(*original >= self.imports.len() as u32);
             let mut body = Function::new([]);
             for instruction in [
-                I::Call(original + 1),
+                I::Call(original + self.delta()),
                 I::I32Const(0),
-                I::Call(self.imports.len() as u32),
+                I::Call(self.existing_counter.unwrap_or(self.imports.len() as u32)),
                 I::GlobalSet(self.globals),
                 I::End,
             ] {

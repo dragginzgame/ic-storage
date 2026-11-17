@@ -27,7 +27,7 @@ fn split_batch_decodes_once_per_request_and_never_bypasses_integrity() {
     type CountedJob = MigrationJob<CountedMaps>;
     let [a, b] = MapPair::DOMAINS;
     let maps = std::array::from_fn(|id| {
-        let mut map = ic_storage_native::map::Map::new(64);
+        let mut map = ic_storage::map::Map::new(64);
         map.with(|mut view| view.insert(id as u64, u64::MAX).unwrap())
             .unwrap();
         map

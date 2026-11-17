@@ -1,7 +1,10 @@
 # Simple structure benchmarks
 
-For the current native-map comparison against **ic-stable-structures only**, run
-`make benchmark-map` and read the [two-way results](../../docs/design/native-map-comparison.md).
+For the current comparison against **ic-stable-structures only**, run
+`make benchmark-matrix` or `make benchmark-matrix-smoke` and read the
+[matrix guide](../../docs/design/native-map-matrix.md). The older guarded-loan
+comparison remains available as `make benchmark-map` with its
+[two-way results](../../docs/design/native-map-comparison.md).
 The remainder of this document records the separate historical M0 experiment.
 
 This opt-in experiment compares the current M0 retained-memory implementation

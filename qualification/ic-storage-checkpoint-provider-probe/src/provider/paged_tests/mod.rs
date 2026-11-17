@@ -3,12 +3,12 @@
 mod job_tests;
 mod lifecycle_tests;
 use super::paged::{MANIFEST, PAGES, Store};
+use ic_storage::map::{Error, Map, paged::PAGE_BYTES};
 use ic_storage_legacy::{
     Memory, MemoryBacking, StableKey, VectorMemory,
     adapter::{StableCell, StableVec},
     testing::MeteredMemory,
 };
-use ic_storage_native::map::{Error, Map, paged::PAGE_BYTES};
 use ic_storage_native_feasibility::checkpoint::maps::paged::{self, MANIFEST_BYTES, Manifest};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 

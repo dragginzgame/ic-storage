@@ -1,5 +1,5 @@
 use super::*;
-use ic_storage_native::map::Map;
+use ic_storage::map::Map;
 
 const A: u64 = 131072;
 const B: u64 = 163840;
@@ -216,7 +216,7 @@ fn map_jobs_bind_domains_epochs_and_both_payloads() {
         .unwrap();
     assert_eq!(
         ready.export(A, B, 1, &source),
-        Err(Error::MapCheckpoint(ic_storage_native::map::Error::Limit))
+        Err(Error::MapCheckpoint(ic_storage::map::Error::Limit))
     );
     drop(source);
     let bytes = sealed.encode().unwrap();

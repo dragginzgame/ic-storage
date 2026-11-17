@@ -1,6 +1,6 @@
 //! Bind two product page chains to one epoch and complete checkpoint identity.
 //! Durable job progress and native publication remain outside this byte codec.
-use ic_storage_native::map::{
+use ic_storage::map::{
     Error, ExportError, Map,
     paged::{MANIFEST_BYTES as ROOT_BYTES, Manifest as RootManifest, PAGE_BYTES},
 };

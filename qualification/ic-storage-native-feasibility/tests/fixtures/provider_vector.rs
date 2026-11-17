@@ -10,7 +10,7 @@ mod runtime;
 
 use alloc::vec::Vec;
 use core::ptr::NonNull;
-use ic_storage_native::with_vector;
+use ic_storage::with_vector;
 use region::{Descriptor, Region};
 use runtime::abort;
 

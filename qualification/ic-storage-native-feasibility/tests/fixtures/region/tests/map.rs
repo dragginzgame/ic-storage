@@ -1,6 +1,6 @@
 //! The product table uses the real loan/issuance controller, not Global alone.
 use super::super::{Descriptor, Element, Region, sealed};
-use ic_storage_native::map::{Error, ImportError, Map, Slot};
+use ic_storage::map::{Error, ImportError, Map, Slot};
 use std::{
     io::Read,
     mem::MaybeUninit,

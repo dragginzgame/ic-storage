@@ -5,7 +5,7 @@ Motoko. The user authorized this directory on 2026-11-15 and put development of
 the [legacy Storage repository](https://github.com/dragginzgame/ic-storage-legacy)
 on hold. Do not modify that repository as part of this experiment. This research
 repository was renamed from `ic-storage-new` to `ic-storage` on 2026-11-16.
-The primary unpublished package is also `ic-storage`; qualification aliases the
+The public native package is `ic-storage`; qualification aliases the
 frozen published oracle as `ic-storage-legacy`. Preserve M0's historical digest
 domain bytes despite the package rename.
 
@@ -47,8 +47,9 @@ qualification. Do not copy Storage's release machinery.
   contracts and evidence.
 - Unknown or incompatible retained data must be rejected, never silently reset.
 - Native models do not prove installed IC upgrades or rollback behavior.
-- Keep this experimental package unpublished. Using the `ic-storage` name here
-  does not adopt the legacy stored formats or release history.
+- Publish only `ic-storage` and `ic-storage-derive`, as authorized on 2026-11-17.
+  Keep `ic-storage-m0` and qualification packages private. Publication does not
+  establish production readiness or adopt legacy APIs and stored formats.
 - Production stable-memory integration, if selected later, must use governed
   Storage handles. A retained main-memory design needs its own admission and
   custody contract before production integration.

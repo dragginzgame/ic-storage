@@ -3,6 +3,7 @@
 
 mod graph_tests;
 mod growth_tests;
+mod session_tests;
 
 use ic_storage_retention_probe::artifact::sha256;
 use std::{fs, path::PathBuf};

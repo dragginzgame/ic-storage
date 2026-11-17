@@ -20,11 +20,11 @@ ic-platform-runtime = { version = "0.23.12", default-features = false }
 ic-stable-structures = "0.7.2"
 ic-storage = { path = "../crates/ic-storage" }
 ic-storage-legacy = { package = "ic-storage", version = "0.74.1" }
-ic-storage-native = { path = "../crates/ic-storage-native" }
+ic-storage-m0 = { path = "../crates/ic-storage-m0" }
 ic-storage-native-feasibility = { path = "ic-storage-native-feasibility" }
 ic-storage-retention-probe = { path = "ic-storage-retention-probe" }
 ic-storage-simple-benchmarks = { path = "ic-storage-simple-benchmarks" }
-ic-testkit = "0.108.0"
+ic-testkit = "0.109.0"
 serde_json = "1.0.154"
 sha2 = { version = "0.11.1", default-features = false }
 tokio = "1.54.1"

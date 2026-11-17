@@ -19,7 +19,8 @@ direction. `make native-map-probe` admits artifacts; `make native-map-test` adds
 installed retained upgrades, growth between two banks, refusal and rollback for
 up to 384 live entries, starting from capacity for six entries.
 The frozen published `ic-storage` 0.74.1 checkpoint/benchmark oracle is imported
-as `ic-storage-legacy`; the local unpublished `ic-storage` package is independent.
+as `ic-storage-legacy`; the new native `ic-storage` API is independent. The M0
+evidence baseline now lives in private `ic-storage-m0`.
 
 The [checkpoint provider experiment](ic-storage-checkpoint-provider-probe/README.md) uses
 published Storage 0.74.1 through governed handles. Ordinary installed upgrades
@@ -86,9 +87,13 @@ or malformed configuration fails before client construction; tests never fall
 back to downloading or spawning a server. Callers retain their existing request
 limits and manual progression and await instance deletion explicitly.
 
-The existing `ic-testkit-server` 0.106.0 executable remains a separately pinned
-tool in Makefile, prepared through Toko's canonical installer. Testkit 0.107.1
-ships no CLI; its supplier qualification likewise uses an external server session.
+Testkit 0.109.0 supplies both the default client library and the separately pinned
+`ic-testkit-server` executable in Makefile, prepared through Toko's canonical
+installer. Setup selects `.tools/testkit-server` explicitly, applies private
+file permissions, and retains a new attempt under `target/evidence/testkit`.
+Offline `check` and `run` pass that prepared directory and create separate run
+evidence; neither downloads or repairs server assets. Earlier evidence below
+records the previous library and launcher selections at the time of each run.
 The tool owns server startup/shutdown, while each test owns its instance. This
 pin is tooling infrastructure, not a second Testkit library or SDK wrapper in the
 qualification graph. The new library graph removes legacy Host Artifacts/FS/

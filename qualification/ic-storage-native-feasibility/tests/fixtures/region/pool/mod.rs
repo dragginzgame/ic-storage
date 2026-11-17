@@ -281,4 +281,6 @@ unsafe impl<T: Element> Allocator for Pool<'_, T> {
 #[cfg(test)]
 mod peak_tests;
 #[cfg(test)]
+mod session_tests;
+#[cfg(test)]
 mod tests;

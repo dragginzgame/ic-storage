@@ -1,6 +1,6 @@
 use super::*;
 use checkpoint::maps::paged;
-use ic_storage_native::map::Map;
+use ic_storage::map::Map;
 
 const A: u64 = 131072;
 const B: u64 = 393216;

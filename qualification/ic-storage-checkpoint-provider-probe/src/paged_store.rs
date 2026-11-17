@@ -6,8 +6,8 @@ use crate::{
     provider::paged::{Jobs, WritePoint},
 };
 use ic_platform_runtime::raw as ic0;
+use ic_storage::map::{Map, paged::Reader};
 use ic_storage_legacy::DefaultMemoryImpl;
-use ic_storage_native::map::{Map, paged::Reader};
 use ic_storage_native_feasibility::migration_job::paged_continuation::NativePrefix;
 use ic_storage_native_feasibility::{
     checkpoint::maps::paged::Manifest, migration_job::PagedMapJob,

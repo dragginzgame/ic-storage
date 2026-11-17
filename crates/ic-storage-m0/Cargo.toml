@@ -1,12 +1,12 @@
 [package]
-name = "ic-storage-native"
+name = "ic-storage-m0"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license-file.workspace = true
 publish = false
 readme = "README.md"
-description = "Experimental scoped operations over admitted live native vectors"
+description = "Experimental Rust orthogonal persistence for the Internet Computer"
 
 [target.'cfg(any())'.dev-dependencies]
 toko-tooling.workspace = true
@@ -14,13 +14,8 @@ toko-tooling.workspace = true
 [package.metadata.cargo-machete]
 ignored = ["toko-tooling"]
 
-[features]
-derive = ["dep:ic-storage-native-derive"]
-map = ["dep:sha2"]
-
 [dependencies]
-ic-storage-native-derive = { workspace = true, optional = true }
-sha2 = { workspace = true, optional = true }
+sha2.workspace = true
 
 [lints]
 workspace = true

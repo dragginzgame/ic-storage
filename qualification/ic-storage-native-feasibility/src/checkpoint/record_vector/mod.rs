@@ -6,7 +6,7 @@ use crate::record::{
     narrow::{self, V3},
 };
 use alloc::vec::Vec;
-use ic_storage_native::record::Error as CodecError;
+use ic_storage::record::Error as CodecError;
 use sha2::{Digest, Sha256};
 
 /// Maximum initialized records in this closed qualification profile.

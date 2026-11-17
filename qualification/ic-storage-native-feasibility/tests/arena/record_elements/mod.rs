@@ -2,7 +2,7 @@
 //! The shared record-vector codec remains distinct from the scalar/u64 checkpoint.
 
 use super::Arena;
-use ic_storage_native::record::Error as CodecError;
+use ic_storage::record::Error as CodecError;
 use ic_storage_native_feasibility::record::{
     V2,
     narrow::{self, V3},

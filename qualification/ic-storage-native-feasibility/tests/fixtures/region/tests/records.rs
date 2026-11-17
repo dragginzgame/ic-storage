@@ -2,7 +2,7 @@
 //! Metadata is checked against live provider authority, not trusted from bytes.
 
 use super::super::{Controller, Descriptor, Error};
-use ic_storage_native::record::Field;
+use ic_storage::record::Field;
 use ic_storage_native_feasibility::record::narrow::{Error as RecordError, V3};
 use std::{mem::MaybeUninit, ptr::NonNull};
 
@@ -170,7 +170,7 @@ fn schema_and_extent_refusal_precedes_claim_and_preserves_provider_authority() {
         |m| m.schema.id[0] ^= 1,
         |m| m.schema.size = 8,
         |m| m.schema.align = 4,
-        |m| m.schema.fields[0].scalar = ic_storage_native::record::Scalar::U64,
+        |m| m.schema.fields[0].scalar = ic_storage::record::Scalar::U64,
         |m| m.root.length = 3, // Within capacity, but outside initialized authority.
         |m| m.root.length = usize::MAX,
         |m| m.root.capacity = SLOTS + 1,

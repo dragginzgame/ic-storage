@@ -1,6 +1,6 @@
 use super::*;
 use crate::arena::record_elements::{encode, import};
-use ic_storage_native::record::Scalar;
+use ic_storage::record::Scalar;
 
 fn parked(arena: &Arena, length: usize, capacity: usize) -> Parked<'_> {
     let mut values = Vec::new_in(arena);

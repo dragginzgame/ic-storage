@@ -1,12 +1,12 @@
 # Scalar Store declarations
 
-Unpublished experimental derive, re-exported by `ic-storage-native` when its
+Experimental derive, re-exported by `ic-storage` when its
 `derive` feature is enabled. The existing qualification V1/V2 records are its
 first consumers. It generates safe Rust only; it creates no retained allocation,
 root registration, unsafe marker implementation or permission to reopen memory.
 
 ```rust
-use ic_storage_native::Store;
+use ic_storage::Store;
 
 #[repr(C)]
 #[derive(Clone, Copy, Store)]
@@ -66,15 +66,15 @@ validator purity or choose migrations. V1→V2 conversion remains hand-written.
 poison/trap policy and finalization. Validation functions and added view methods
 are reviewed application code, not an escape from those obligations.
 
-The `ic_storage_native` dependency must retain its canonical name for generated
+The `ic_storage` dependency must retain its canonical name for generated
 paths. This first subset supports scalar declarations only; the design's future
 owning collections, nested records and sharing are not admitted by this derive.
 Scalar width changes require explicit conversion, never a cast of retained bytes.
-The [V2→V3 narrowing probe](../../qualification/ic-storage-native-feasibility/records.md#checked-scalar-width-conversion)
+The [V2→V3 narrowing probe](https://github.com/dragginzgame/ic-storage/blob/main/qualification/ic-storage-native-feasibility/records.md#checked-scalar-width-conversion)
 checks the u64→u32 range and preserves the ceiling. The installed qualification
 profile now exercises conversion, publication rollback and reconstruction through
 checkpoint envelope v4. Explicit scalar V3→V2 widening now also has
-[installed admission, rollback and recovery evidence](../../qualification/ic-storage-native-feasibility/records.md#installed-exact-widening);
+[installed admission, rollback and recovery evidence](https://github.com/dragginzgame/ic-storage/blob/main/qualification/ic-storage-native-feasibility/records.md#installed-exact-widening);
 it leaves the vector unchanged and reuses schema-2 checkpoint encoding.
 These schemas are test cases, not maintained pre-1.0 product releases.
 

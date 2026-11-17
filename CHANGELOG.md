@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.76.0] - 2026-11-17
+
+### 🔄 Changed
+
+- Make `ic-storage` the native collection entry point and rename its optional
+  procedural macros to `ic-storage-derive`. Move the unchanged M0 format into
+  private `ic-storage-m0`. Only the main library and derive crate publish; the
+  native API does not preserve the legacy 0.74 API or stored formats.
+- Adopt Testkit 0.109.0 for qualification and its published server launcher,
+  with explicit prepared-server and per-attempt evidence directories.
+
+### 🧪 Testing
+
+- Start reusable owner lifetime qualification with a private host service holding
+  two admitted maps across separate calls. Verify 1,536 records per root, exclusive
+  custody between calls, complete close before relocating the backing, and fresh
+  admission afterward. Expected allocation refusal preserves prior writes; a
+  caught unwind quarantines both owners and refuses publication.
+- Add an installed generation-owned map service using the existing product Map
+  and provider pool. Keep owners alive through separate messages; close both
+  before upgrade and rebuild them after controlled startup clears transient
+  headers. Verify 3,072 records, unchanged admission count across 32 lookups,
+  explicit close/reopen, query-write isolation, complete retained-byte rollback,
+  corrupt target refusal, failed source/target hooks and bidirectional upgrades.
+  Add artifact and installed checks to CI. This trusted-source fixture is not
+  yet the public runtime.
+- Add an on-demand generation-owned map versus ic-stable-structures matrix:
+  `make benchmark-matrix` and `make benchmark-matrix-smoke`. Measure nine operations
+  across three populations, three batches, three key schedules and two sibling-root
+  shapes using the same outer instruction meter. All 972 full-matrix samples pass
+  complete two-root state checks; native admission stays at one. Save CSV, paired
+  median Markdown tables, memory observations, artifacts and source/lock evidence.
+  Native uses fewer instructions in 142 of 144 non-control cells; single inserts
+  crossing the 1,536-record growth boundary remain about 45% more expensive.
+
 ## [0.75.6] - 2026-11-17
 
 ### 🧪 Testing

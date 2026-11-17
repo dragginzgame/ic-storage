@@ -5,6 +5,7 @@ use ic_testkit::pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking:
 use std::{collections::BTreeMap, fs, io::Write};
 
 mod batch_tests;
+mod matrix;
 mod meter;
 mod native;
 const LIMIT: usize = 2 * 1024 * 1024;

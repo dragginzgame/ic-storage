@@ -1,57 +1,124 @@
-# IC Orthogonal Persistence
+# IC Storage
 
-The unpublished `ic-storage` package, for independently implemented Rust orthogonal
-persistence inspired by Motoko.
+```toml
+[dependencies]
+ic-storage = { version = "0.76.0", features = ["map", "derive"] }
+```
 
-This crate currently implements the M0 evidence baseline. The
-[selected native-collection and migration direction](../../docs/DESIGN.md)
-is not implemented here; its native heap will require a separate admitted
-representation. The existing M0 byte contract remains unchanged, including its
-historical digest domain after the package rename from `ic-storage-new`.
+Experimental `no_std` + `alloc` library for operations over an
+already valid `Vec<u64, A>`. It forbids unsafe code. The default vector core has
+no runtime dependencies; the optional `map` feature uses the root-owned SHA-256
+dependency for portable checkpoint integrity.
+Enable `derive` for the re-exported `Store` macro from `ic-storage-derive`.
+This is the native successor API; it is not API- or stored-format-compatible
+with the legacy `ic-storage` 0.74 series. Runtime admission and custody remain
+the caller's responsibility; publication does not establish production readiness.
+The caller retains the owning vector; `with_vector` lends a restricted scoped
+view for scalar reads/writes, append, ordered removal, clear and shrink.
 
-`m0::inspect(&memory_image)` performs read-only admission of the complete
-experimental M0 v1 image and returns accounting/root identity or a typed refusal.
-It checks the metadata digest, exact schemas, every indexed header and every
-declared reference, including unreachable objects and cycles. It never resets
-unknown data. The library is `no_std`, uses no heap allocation or unsafe Rust,
-and obtains SHA-256 from `sha2` with default features disabled.
+The view exposes neither `&mut Vec`, allocator access, owning iteration nor
+Clone. References, views and capturing futures cannot escape the scope. Forgetting
+a view does not forget the vector, so no guard destructor is needed for safety.
+Ordinary returned errors preserve earlier mutations. The caller owns panic/trap
+handling, native-host poisoning and successful-frame publication.
 
-The result is a snapshot summary, not a live-memory capability.
+The installed single-vector provider uses this library after its own admission,
+foreign-allocation claim and fresh allocator issuance. The library does not
+validate retained bytes, reopen pointers, certify private layouts or implement
+a persistence runtime. Its safe constructor accepts live Rust vectors, not saved
+descriptors. Native owners and scalar record conversion remain runtime work.
 
-`m0::inspect_retained` validates just the retained interval, with the same absolute
-error offsets. `m0::image::Image` exclusively borrows that interval, starting at
-linear address 8 MiB; its slice must exclude the stack and all transient bytes.
-The physical-page argument still counts the whole linear memory. `initialize_fresh`
-requires explicitly fresh, zeroed retained storage; `open` only admits existing
-state. A physical-page count separates committed bytes from backing capacity.
-Explicit `grow` zeroes new pages within that capacity without reallocating.
-Sessions append Nodes and CounterState objects, publish roots, and read or mutate
-scalars and Node edges. Sharing and cycles survive reopening, and allocation
-continues from the retained index/cursor. Objects are never freed or reused.
+Run `make native-core-test` for host behavior, ownership compile-fail tests and
+the optional derive's application-facing codec/layout tests, plus strict host and
+Wasm lint checks with and without that feature;
+`make native-provider-test` exercises the library through the installed provider.
+The existing checkpoint/job gates additionally exercise portable reconstruction.
+Installed scope cases cover normal callback errors, full-capacity refusal and
+forgotten views across compatible upgrades. They check settlement before reply
+and distinguish these outcomes from whole-message trap rollback.
+The separate [provider-host fixture](https://github.com/dragginzgame/ic-storage/blob/main/qualification/ic-storage-native-feasibility/provider-region.md#host-poisoning-and-explicit-replacement)
+tests caller-owned poisoning across caught unwinds and explicit checkpoint
+replacement using the same core and region controller. The core itself does not
+own that failure policy or make unwinding transactional.
 
-`with_update` supplies handles bound to one session, with no public conversion
-from a raw reference into an access capability. It is a borrow scope: an ordinary
-callback `Err` preserves successful earlier writes and returns inside `Ok`.
-Panic unwinding or an unexpected post-write failure poisons the owner; later
-sessions refuse. Read-only bytes remain available for diagnosis. Explicitly
-dropping and reopening the buffer is readmission, not rollback or recovery of
-application invariants. The compiled Rustdoc example demonstrates the graph API.
+The optional `derive` feature re-exports the experimental
+[`Store` derive](https://github.com/dragginzgame/ic-storage/blob/main/crates/ic-storage-derive/README.md) for bounded u32/u64 records.
+Its support types describe scalar fields and codec errors; the macro generates
+metadata, logical codecs and scoped getters. These are not retained-memory
+admission or a general persistence runtime. The macro runs at compile time and
+is disabled for the standalone raw-vector diagnostic build.
+The generated API also runs in a `no_std` consumer with no implicit prelude and
+with application names shadowing primitive aliases and result constructors.
+The `Store` API's compile-fail examples check owning/borrowed fields, custom Drop,
+misleading scalar widths, escaped views and attempts to obtain a mutable record.
+These declaration rules are tested here; qualification fixtures own their
+application-specific retained layouts, conversion, rollback and recovery cases.
 
-Session entry, every successful write and session exit inspect the complete
-image. Reads reuse the last admitted accounting while the session exclusively
-owns the bytes; individual handle/schema and reference checks remain. The
-summary is refreshed after writes and cannot authorize access after a mutation
-fault or in another session. The library owns no IC bindings or raw memory access.
-A [qualification kernel](../../qualification/ic-storage-rust-startup-probe/managed-graph.md)
-now exercises the library directly against retained Wasm memory, including
-installed upgrades and selected rollback cases. This API does not make arbitrary
-Rust values persistent or provide production custody.
+## Keyed collections
 
-The [frozen layout](../../docs/design/m0-layout.md) owns the byte contract.
-Run `make m0-test` for native golden-vector, corruption, graph, growth and poison
-tests, plus the runnable example and compile-fail session-isolation checks, and
-`make m0-lint-wasm` for the wasm32 compile/lint check. Neither proves installed
-managed-heap behavior; `make managed-graph-test` supplies separate installed evidence.
+Enable `features = ["map"]` for `map::Map`: a reusable `u64 → u64` native hash
+table with scoped lookup, insertion/replacement, deletion, reservation and clear.
+It accepts an explicit allocator, grows geometrically, and reclaims deleted
+slots without tombstones. A configured live-entry limit bounds growth. Expected
+allocation/limit refusals preserve earlier writes; callback unwinds poison the
+owner until explicit checkpoint replacement succeeds.
 
-See the repository's [research architecture](../../docs/DESIGN.md) for the
-proposed persistence design, experiment plan and acceptance criteria.
+```rust
+use ic_storage::map::{Error, Map};
+
+let mut records = Map::new(1_000_000);
+records.with(|mut table| {
+    table.reserve(10_000)?;
+    table.insert(42, 100)?;
+    assert_eq!(table.get(42), Some(100));
+    table.remove(42);
+    Ok::<_, Error>(())
+}).unwrap().unwrap();
+```
+
+The map owns a native array of controlled scalar slots. It never persists private
+Vec headers or allocator objects. A provider can release/admit the live slot
+allocation; admission validates the complete table and preserves rejected input.
+The existing region controller now exercises this path on the host, including
+fresh issuance and growth refusal. A separate
+[closed installed map profile](https://github.com/dragginzgame/ic-storage/blob/main/qualification/ic-storage-native-feasibility/native-map-provider.md)
+now grows from 8 to 512 slots/384 entries across compatible IC upgrades and tests
+custody, malformed-data refusal and rollback. `Map::rebuild_in` constructs a
+candidate under another allocator while preserving the source. The installed
+provider uses two disjoint retained banks and publishes the candidate only after
+construction and owner release; tests trap during construction and on both sides
+of publication. General allocation pools and installed portable map recovery
+remain outside this bounded profile.
+`checkpoint`/`export` and `from_checkpoint`/`recover` provide a bounded logical
+path into fresh storage. `from_reader`/`from_reader_in` additionally recover from
+an exact-length stream using a 4 KiB record buffer, returning a candidate only
+after complete validation and integrity checks. The streaming encoder needs
+constant scratch space; its caller owns buffering, complete-publication,
+checkpoint custody and freshness. These synchronous APIs do not implement
+resumable cross-message recovery.
+`Map::records_from_checkpoint` validates the same complete portable bytes and
+returns unique `(key, value)` pairs in ascending key order for logical staging.
+It allocates records directly without rebuilding hash buckets; it still reads
+the whole checkpoint and is not a chunked or resumable validator.
+`Map::export_pages` and `map::paged::Manifest` provide a separate byte-defined
+sequential page format with at most 64 records per verified page. The
+[page contract and governed host evidence](https://github.com/dragginzgame/ic-storage/blob/main/docs/design/paged-map-checkpoint.md)
+cover the hash chain, reverse export order and failure rules. The reader can
+checkpoint/resume a 144-byte verifier continuation under trusted custody. The
+governed host adapter binds it to job progress and native-prefix fingerprints;
+this is not authentication of a caller-supplied cursor. Export still sorts the
+complete source. The installed paged map job now uses this format for
+3,072 + 1,536-record recovery, including private-target pool growth and combined
+native/progress rollback. Installed entrypoint costs are now measured in the
+linked contract. Applying each page in one admitted scope removes per-record
+readmission. Source cancellation and repeated recovery epochs now have installed
+evidence, including reverse-domain reconstruction and stale retries. Live
+allocation peaks remain work before larger sizes or production service budgets
+are qualified.
+
+Run `make native-core-test` for behavior, compile-fail and host/Wasm lint checks.
+Run `make native-map-firehose` for one million live keys, 256 million mixed
+operations, native readmission and full portable recovery. The workload uses
+the public API and verifies every operation. See the
+[native map contract and results](https://github.com/dragginzgame/ic-storage/blob/main/docs/design/native-map.md) for retained
+representation, memory cost, performance scope and remaining integration work.

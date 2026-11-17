@@ -1,7 +1,7 @@
 //! Host allocation evidence, not installed-Wasm or whole-heap peak evidence.
 
 use super::{tests::Backing, *};
-use ic_storage_native::map::{
+use ic_storage::map::{
     Error as MapError, Map, Slot,
     paged::{Manifest, PAGE_BYTES, PAGE_RECORDS, Reader},
 };
