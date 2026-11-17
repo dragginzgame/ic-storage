@@ -8,13 +8,15 @@ use wasmparser::{DataKind, ExternalKind, Operator as Op, Parser, Payload, ValTyp
 
 pub(super) struct Plan {
     stack: u32,
+    base: i32,
     segments: Vec<(i32, Vec<u8>)>,
 }
 
 impl Plan {
     /// Additional admission for the exact compiler domain already inventoried
     /// by the composer. Unknown mutable state or dynamic initialization refuses.
-    pub(super) fn read(bytes: &[u8]) -> Self {
+    pub(super) fn read(bytes: &[u8], base: i32) -> Self {
+        assert!(matches!(base, 196608 | 655360));
         let mut stack = None;
         let mut mutable = Vec::new();
         let mut segments = Vec::new();
@@ -56,7 +58,7 @@ impl Plan {
                             panic!("constant initialization offset")
                         };
                         assert!(matches!(ops.read().unwrap(), Op::End) && ops.eof());
-                        assert!(value >= 196608);
+                        assert!(value >= base);
                         segments.push((value, data.data.to_vec()));
                     }
                 }
@@ -84,7 +86,11 @@ impl Plan {
         let stack = stack.unwrap();
         assert_eq!(mutable, [stack], "unreviewed mutable compiler globals");
         assert!(!segments.is_empty());
-        Self { stack, segments }
+        Self {
+            stack,
+            base,
+            segments,
+        }
     }
 
     /// Preserve active initialization for install/recovery; private passive
@@ -93,12 +99,12 @@ impl Plan {
         let mut reset = Function::new([]);
         // Physical memory never shrinks. Include every grown page in the reset;
         // the admitted 256-page maximum makes the byte arithmetic non-wrapping.
-        reset.instruction(&I::I32Const(196608));
+        reset.instruction(&I::I32Const(self.base));
         reset.instruction(&I::I32Const(0));
         reset.instruction(&I::MemorySize(0));
         reset.instruction(&I::I32Const(65536));
         reset.instruction(&I::I32Mul);
-        reset.instruction(&I::I32Const(196608));
+        reset.instruction(&I::I32Const(self.base));
         reset.instruction(&I::I32Sub);
         reset.instruction(&I::MemoryFill(0));
         reset.instruction(&I::I32Const(0));

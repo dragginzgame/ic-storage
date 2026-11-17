@@ -12,7 +12,7 @@ fn post_apply_verification_precedes_publication_and_reply() {
     let (directory, raw) = inputs();
     let bridge = fs::read(directory.join("checkpoint-map-job.wasm")).unwrap();
     for post in [Post::Stage, Post::Restart] {
-        let bytes = prepare_mode(&raw, &bridge, true, post, true);
+        let bytes = prepare_mode(&raw, &bridge, true, post, Profile::Job);
         let mut imports = 0;
         let mut exports = std::collections::BTreeMap::new();
         let mut bodies = Vec::new();
@@ -86,6 +86,9 @@ fn post_apply_verification_precedes_publication_and_reply() {
             module.section(&code);
         });
         validate_wasm(&changed, LIMIT).unwrap();
-        assert_ne!(changed, prepare_mode(&raw, &bridge, true, post, true));
+        assert_ne!(
+            changed,
+            prepare_mode(&raw, &bridge, true, post, Profile::Job)
+        );
     }
 }

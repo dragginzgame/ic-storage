@@ -79,8 +79,12 @@ map imports now span messages with prefix validation, exact retries, compatible
 interruption and explicit restart of unfinished imports from the checkpoint.
 The paged adapter now commits retained native writes, verifier continuations and
 durable progress in one installed IC message, with compatible interruption and
-explicit restart. Its first profile retains the 64-record/root bound, one page
-per batch and a single export epoch. Recovery for the larger growing pool, consumer-facing
+explicit restart. Its current profile admits 192 records per root in native
+format 10, with one page per batch and a single export epoch. Same-root rehashing
+and six-page pair recovery fit the initial 24 KiB pool. Disjoint native windows
+now admit pool growth to 192 KiB; checkpoint initialization/reset preserve
+occupied grown tails across upgrades, and recovery reconstructs them in the
+separate target. Recovery above 192 records per root, consumer-facing
 root custody and general record values remain incomplete.
 These are shared native collection components, not a complete Store API.
 Keep the existing M0 format, tests and evidence; do not reinterpret those bytes
@@ -745,9 +749,12 @@ rollback across all of those boundaries, including start/restart and compatible
 interruption. Completed exact retries preserve later application writes. The
 adapter captures bucket-order fingerprints directly through scalar callbacks.
 Its transient expected-record list is discarded before the message ends and is
-never used as cross-message recovery state. This first paged native profile uses
-the existing 64-record/root ABI, one page per batch and one fresh export epoch;
-larger growing-pool recovery and bounded prefix-validation costs remain open.
+never used as cross-message recovery state. The paged native profile now uses
+native format 10 with 192 records per root, one page per batch and one fresh
+export epoch. It qualifies three pages per root and native rehashing between
+pages. Disjoint memory reservations and a matching checkpoint reset boundary
+now permit idle loan growth to 192 KiB. Larger recovery jobs still require
+private-target expansion; bounded prefix-validation costs also remain open.
 
 The [governed job](../qualification/ic-storage-native-feasibility/migration-job.md)
 adds controller authority, durable epochs, consumption, pre-cutover cancellation

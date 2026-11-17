@@ -89,7 +89,7 @@ impl Payload for MapPair {
 impl Payload for PagedMapPair {
     const MAGIC: &'static [u8; 8] = b"ICJPG001";
     const MAX_BYTES: usize = checkpoint::maps::paged::MANIFEST_BYTES;
-    const DOMAINS: [u64; 2] = MapPair::DOMAINS;
+    const DOMAINS: [u64; 2] = [131072, 393216];
     type Decoded = checkpoint::maps::paged::Manifest;
     fn decode(bytes: &[u8], epoch: u64) -> Result<Self::Decoded, Error> {
         let manifest = checkpoint::maps::paged::Manifest::decode(bytes, epoch, usize::MAX)

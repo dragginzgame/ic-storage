@@ -212,11 +212,19 @@ impl<M: Memory> Jobs<M> {
                 self.continuation.set(bytes);
             }
             3 => {
-                let mut bytes = self.data.pages.get(0).unwrap();
-                bytes[80] ^= 1;
-                self.data.pages.set(0, &bytes);
+                self.damage_page(0);
             }
             _ => panic!("unknown paged store part"),
         }
+    }
+
+    #[cfg(all(
+        target_arch = "wasm32",
+        any(feature = "paged-store", feature = "native-map-paged")
+    ))]
+    pub(crate) fn damage_page(&mut self, physical: u64) {
+        let mut bytes = self.data.pages.get(physical).unwrap();
+        bytes[80] ^= 1;
+        self.data.pages.set(physical, &bytes);
     }
 }

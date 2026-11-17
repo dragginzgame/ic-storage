@@ -1,6 +1,7 @@
 //! Combined retained-root, continuation and progress transactions on the IC.
+mod growth_tests;
 use super::{
-    Post, inputs,
+    Post, Profile, inputs,
     installed_tests::{query, records, word},
     job_installed_tests::{args, authorize, install, refused_update, refused_upgrade},
     prepare_mode, read_tests,
@@ -17,7 +18,7 @@ use std::{collections::BTreeMap, fs, path::PathBuf};
 use wasmparser::{Operator, Parser, Payload};
 
 const A: u64 = 131072;
-const B: u64 = 163840;
+const B: u64 = 393216;
 struct Artifacts {
     source: Vec<u8>,
     frozen: Vec<u8>,
@@ -29,7 +30,7 @@ struct Artifacts {
 fn artifacts() -> (PathBuf, Artifacts) {
     let (dir, raw) = inputs();
     let bridge = fs::read(dir.join("checkpoint-map-paged.wasm")).unwrap();
-    let make = |relocated, post| prepare_mode(&raw, &bridge, relocated, post, true);
+    let make = |relocated, post| prepare_mode(&raw, &bridge, relocated, post, Profile::Paged);
     let a = Artifacts {
         source: make(false, Post::Reopen),
         frozen: make(false, Post::Frozen),
@@ -166,45 +167,51 @@ async fn publish(pic: &PocketIc, id: CanisterId) -> [BTreeMap<u64, u64>; 2] {
             [word(manifest, 16), word(manifest, 24), word(manifest, 32)],
             [1, root as u64 + 1, values.len() as u64]
         );
-        let count = u64::from(!values.is_empty());
+        let count = values.len().div_ceil(64) as u64;
         pages += count;
         assert_eq!(word(manifest, 40), count);
-        if count == 0 {
-            continue;
-        }
-        let page = pic
-            .query_call(id, id, "checkpoint_page", args(1, root as u64, 0))
-            .await
-            .unwrap();
-        assert_eq!(page.len(), 1104);
-        let mut hashed = Vec::from(*b"NKPAGEH1");
-        hashed.extend_from_slice(&page);
-        assert_eq!(&manifest[56..88], &sha256(&hashed));
-        assert_eq!(&page[..8], b"NKPAGE01");
-        assert_eq!(
-            [
-                word(&page, 8),
-                word(&page, 16),
-                word(&page, 24),
-                word(&page, 32),
-                word(&page, 40)
-            ],
-            [
-                1,
-                root as u64 + 1,
-                0,
-                values.len() as u64,
-                values.len() as u64
-            ]
-        );
-        assert!(page[48..80].iter().all(|byte| *byte == 0));
-        for (index, (&key, &value)) in values.iter().enumerate() {
+        let mut expected_hash = manifest[56..88].to_vec();
+        for index in 0..count {
+            let page = pic
+                .query_call(id, id, "checkpoint_page", args(1, root as u64, index))
+                .await
+                .unwrap();
+            assert_eq!(page.len(), 1104);
+            let mut hashed = Vec::from(*b"NKPAGEH1");
+            hashed.extend_from_slice(&page);
+            assert_eq!(expected_hash.as_slice(), &sha256(&hashed));
+            expected_hash = page[48..80].to_vec();
+            assert_eq!(&page[..8], b"NKPAGE01");
             assert_eq!(
-                [word(&page, 80 + index * 16), word(&page, 88 + index * 16)],
-                [key, value]
+                [
+                    word(&page, 8),
+                    word(&page, 16),
+                    word(&page, 24),
+                    word(&page, 32),
+                    word(&page, 40)
+                ],
+                [
+                    1,
+                    root as u64 + 1,
+                    index,
+                    (values.len() as u64 - index * 64).min(64),
+                    values.len() as u64
+                ]
+            );
+            let selected: Vec<_> = values.iter().skip(index as usize * 64).take(64).collect();
+            for (index, (&key, &value)) in selected.iter().copied().enumerate() {
+                assert_eq!(
+                    [word(&page, 80 + index * 16), word(&page, 88 + index * 16)],
+                    [key, value]
+                );
+            }
+            assert!(
+                page[80 + selected.len() * 16..]
+                    .iter()
+                    .all(|byte| *byte == 0)
             );
         }
-        assert!(page[80 + values.len() * 16..].iter().all(|byte| *byte == 0));
+        assert!(expected_hash.iter().all(|byte| *byte == 0));
     }
     assert_eq!(word(&bytes, 944), pages);
     read_tests::check_prefix(pic, id).await;
@@ -218,15 +225,17 @@ async fn prefix(
     complete: bool,
 ) {
     let native = query(pic, id, "observe").await;
+    assert_eq!(word(&native, 32), 10);
     assert_eq!(word(&native, 72), if complete { 1 } else { 3 });
     let mut remaining = next;
     for (root, values) in expected.iter().enumerate() {
-        let wanted = if remaining != 0 && !values.is_empty() {
-            remaining -= 1;
-            values.clone()
-        } else {
-            BTreeMap::new()
-        };
+        let pages = remaining.min(values.len().div_ceil(64));
+        remaining -= pages;
+        let wanted: BTreeMap<_, _> = values
+            .iter()
+            .take(pages * 64)
+            .map(|(&key, &value)| (key, value))
+            .collect();
         assert_eq!(records(&native, root), wanted);
     }
     if !complete {
@@ -247,7 +256,7 @@ async fn prefix(
 async fn paged_native_writes_progress_and_publication_roll_back_together() {
     let (dir, a) = artifacts();
     let pic = server().await;
-    for shape in 0..4 {
+    for shape in 0..8 {
         let id = install(&pic, &a.source).await;
         refused_update(&pic, id, "export_checkpoint", args(1, B, 0)).await;
         authorize(&pic, id).await;
@@ -259,10 +268,14 @@ async fn paged_native_writes_progress_and_publication_roll_back_together() {
                 update(&pic, id, "fill_checkpoint").await;
                 update(&pic, id, "full_width").await;
             }
+            4 => update(&pic, id, "pages_empty_a").await,
+            5 => update(&pic, id, "pages_empty_b").await,
+            6 => update(&pic, id, "pages_partial").await,
+            7 => update(&pic, id, "pages_full").await,
             _ => unreachable!(),
         }
         refused_upgrade(&pic, id, &a.stage, args(1, A, 0), false).await;
-        if shape == 3 {
+        if shape == 3 || shape == 7 {
             for fault in [1, 2, 4] {
                 refused_update(&pic, id, "export_checkpoint", args(1, B, fault)).await;
             }
@@ -272,7 +285,7 @@ async fn paged_native_writes_progress_and_publication_roll_back_together() {
         pic.upgrade_eop_canister(id, a.frozen.clone(), args(1, B, 0), None)
             .await
             .unwrap();
-        if shape == 3 {
+        if shape == 3 || shape == 7 {
             refused_upgrade(&pic, id, &a.stage, args(1, A, 0), true).await;
             for fault in [1, 2, 3, 5, 9, 10] {
                 refused_upgrade(&pic, id, &a.stage, args(1, A, fault), false).await;
@@ -283,7 +296,7 @@ async fn paged_native_writes_progress_and_publication_roll_back_together() {
             .unwrap();
         snapshot(&query(&pic, id, "checkpoint_bytes").await, 4, [0, 0, 0]);
         prefix(&pic, id, &expected, 0, false).await;
-        if shape == 3 {
+        if shape == 3 || shape == 7 {
             pic.set_controllers(id, None, vec![CanisterId::anonymous()])
                 .await
                 .unwrap();
@@ -299,13 +312,13 @@ async fn paged_native_writes_progress_and_publication_roll_back_together() {
         for method in ["insert_a", "reset_b", "full_width"] {
             refused_update(&pic, id, method, vec![]).await;
         }
-        let pages = expected.iter().filter(|root| !root.is_empty()).count();
+        let pages: usize = expected.iter().map(|root| root.len().div_ceil(64)).sum();
         for start in 0..pages.max(1) {
             refused_upgrade(&pic, id, &a.importing, args(1, A, 1), true).await;
             pic.upgrade_eop_canister(id, a.importing.clone(), args(1, A, 0), None)
                 .await
                 .unwrap();
-            if shape == 3 {
+            if shape == 3 || shape == 7 {
                 for fault in 1..=10 {
                     let error =
                         refused_update(&pic, id, "import_batch", batch(start as u64, fault)).await;
@@ -442,6 +455,90 @@ async fn paged_native_corruption_refuses_and_explicit_restart_uses_checkpoint() 
     fs::write(
         dir.join("PAGED_NATIVE_REFUSED"),
         b"corruption refusal and explicit restart passed\n",
+    )
+    .unwrap();
+    pic.drop().await;
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[ignore = "prepared paged-native artifacts and PocketIC server"]
+async fn later_pages_rehash_resume_and_refuse_corruption_without_replaying_consumed_pages() {
+    let (dir, a) = artifacts();
+    let pic = server().await;
+    for case in 0..4 {
+        let id = install(&pic, &a.source).await;
+        authorize(&pic, id).await;
+        update(&pic, id, "pages_full").await;
+        let expected = publish(&pic, id).await;
+        assert_eq!(expected.each_ref().map(BTreeMap::len), [192, 192]);
+        replace_heap(&pic, id, &a.stage, args(1, A, 0))
+            .await
+            .unwrap();
+        run(&pic, id, 0, 0).await;
+        let first = query(&pic, id, "observe").await;
+        assert_eq!((word(&first, 56) >> 12) & 15, 7); // 128 buckets for 64 records.
+        if case < 3 {
+            // Exporter stores each root last page first: physical 0 is future
+            // logical page 2, physical 2 is the already consumed logical page 0.
+            let physical = if case == 0 { 0 } else { 2 };
+            refused_update(&pic, id, "damage_checkpoint", args(4, 6, 0)).await;
+            pic.update_call(id, id, "damage_checkpoint", args(4, physical, 0))
+                .await
+                .unwrap();
+            pic.upgrade_eop_canister(id, a.importing.clone(), args(1, A, 0), None)
+                .await
+                .unwrap();
+            if case == 2 {
+                replace_heap(&pic, id, &a.restart, args(1, A, 0))
+                    .await
+                    .unwrap();
+                prefix(&pic, id, &expected, 0, false).await;
+                refused_update(&pic, id, "import_batch", batch(0, 0)).await;
+                continue;
+            }
+        }
+        run(&pic, id, 1, 0).await;
+        let second = query(&pic, id, "observe").await;
+        assert_eq!((word(&second, 56) >> 12) & 15, 8); // Rehash to 256 buckets.
+        assert_ne!(word(&first, 56) >> 16, word(&second, 56) >> 16);
+        prefix(&pic, id, &expected, 2, false).await;
+        if case == 0 {
+            refused_update(&pic, id, "import_batch", batch(2, 0)).await;
+            snapshot(&query(&pic, id, "checkpoint_bytes").await, 4, [2, 1, 1]);
+            prefix(&pic, id, &expected, 2, false).await;
+            continue;
+        }
+        run(&pic, id, 2, 0).await;
+        run(&pic, id, 3, 0).await;
+        if case == 3 {
+            // Root 1 is complete but private while root 2 is incomplete.
+            prefix(&pic, id, &expected, 4, false).await;
+            for fault in [1, 9, 10] {
+                refused_upgrade(&pic, id, &a.restart, args(1, A, fault), false).await;
+            }
+            pic.update_call(id, id, "damage_import", args(1, 0, 0))
+                .await
+                .unwrap();
+            refused_update(&pic, id, "import_batch", batch(4, 0)).await;
+            replace_heap(&pic, id, &a.restart, args(1, A, 0))
+                .await
+                .unwrap();
+            prefix(&pic, id, &expected, 0, false).await;
+            for start in 0..4 {
+                run(&pic, id, start, 0).await;
+            }
+        }
+        run(&pic, id, 4, 0).await;
+        run(&pic, id, 5, 0).await;
+        prefix(&pic, id, &expected, 6, true).await;
+    }
+    let id = install(&pic, &a.source).await;
+    authorize(&pic, id).await;
+    update(&pic, id, "pages_excess").await;
+    refused_update(&pic, id, "export_checkpoint", args(1, B, 0)).await;
+    fs::write(
+        dir.join("PAGED_NATIVE_MULTIPAGE"),
+        b"same-root pages, rehash, late corruption and restart passed\n",
     )
     .unwrap();
     pic.drop().await;

@@ -207,7 +207,7 @@ fn check_state(bytes: &[u8], phase: u16, next: u32, pages: u64) {
     assert_eq!(&metadata[..8], b"ICJPG001");
     assert_eq!(&metadata[10..12], &phase.to_le_bytes());
     assert_eq!(word(metadata, 16), 1);
-    assert_eq!((word(metadata, 24), word(metadata, 32)), (131072, 163840));
+    assert_eq!((word(metadata, 24), word(metadata, 32)), (131072, 393216));
     assert_eq!(&metadata[44..48], &next.to_le_bytes());
     assert_eq!(&manifest[..8], b"NKPPAIR1");
     assert_eq!(&manifest[288..296], b"PAIRDONE");

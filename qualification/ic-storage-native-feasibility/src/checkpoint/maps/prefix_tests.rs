@@ -10,6 +10,55 @@ fn expected(count: usize) -> Vec<(u64, u64)> {
 }
 
 #[test]
+fn multiword_prefix_bitmap_checks_boundaries_and_cross_word_duplicates() {
+    assert_eq!(
+        verify_records::<0>(&[], 0, |_| panic!("empty input")),
+        Ok(())
+    );
+    assert_eq!(
+        verify_records::<0>(&[(0, 1)], 1, |_| panic!("zero bound")),
+        Err(Error::Limit)
+    );
+    for count in [0, 1, 63, 64, 65, 127, 128, 129, 191, 192] {
+        let records = expected(count);
+        for rotation in 0..count.max(1) {
+            assert_eq!(
+                verify_records::<3>(&records, count, |index| records[(index + rotation) % count]),
+                Ok(())
+            );
+        }
+    }
+    let records = expected(192);
+    for missing in 0..192 {
+        for duplicate in 0..192 {
+            if missing != duplicate {
+                assert_eq!(
+                    verify_records::<3>(&records, 192, |index| records
+                        [if index == missing { duplicate } else { index }]),
+                    Err(Error::Checkpoint)
+                );
+            }
+        }
+    }
+    for count in [193, usize::MAX] {
+        assert_eq!(
+            verify_records::<3>(&records, count, |_| panic!("must reject before scanning")),
+            Err(Error::Limit)
+        );
+    }
+    assert_eq!(
+        verify_records::<3>(&expected(193), 193, |_| panic!(
+            "must reject before scanning"
+        )),
+        Err(Error::Limit)
+    );
+    assert_eq!(
+        verify_records::<1>(&records, 192, |_| panic!("old bound must stay closed")),
+        Err(Error::Limit)
+    );
+}
+
+#[test]
 fn scalar_prefix_verification_covers_every_length_and_record_position() {
     for count in 0..=LIMIT {
         let records = expected(count);
@@ -17,7 +66,7 @@ fn scalar_prefix_verification_covers_every_length_and_record_position() {
         for rotation in 0..count.max(1) {
             let mut calls = 0;
             assert_eq!(
-                verify_records(&records, count, |index| {
+                verify_records::<1>(&records, count, |index| {
                     assert_eq!(index, calls);
                     calls += 1;
                     records[(index + rotation) % count]
@@ -27,7 +76,7 @@ fn scalar_prefix_verification_covers_every_length_and_record_position() {
             assert_eq!(calls, count);
         }
         assert_eq!(
-            verify_records(&records, count, |index| records[count - index - 1]),
+            verify_records::<1>(&records, count, |index| records[count - index - 1]),
             Ok(())
         );
     }
@@ -37,16 +86,16 @@ fn scalar_prefix_verification_covers_every_length_and_record_position() {
 fn mismatched_counts_and_invalid_expected_records_refuse_before_reading() {
     let records = expected(LIMIT);
     for count in [0, LIMIT - 1, LIMIT + 1, usize::MAX] {
-        assert!(verify_records(&records, count, |_| panic!("must not read")).is_err());
+        assert!(verify_records::<1>(&records, count, |_| panic!("must not read")).is_err());
     }
     let too_many = expected(LIMIT + 1);
     assert_eq!(
-        verify_records(&too_many, too_many.len(), |_| panic!("must not read")),
+        verify_records::<1>(&too_many, too_many.len(), |_| panic!("must not read")),
         Err(Error::Limit)
     );
     for records in [alloc::vec![(2, 4), (1, 3)], alloc::vec![(1, 3), (1, 3)]] {
         assert_eq!(
-            verify_records(&records, records.len(), |_| panic!("must not read")),
+            verify_records::<1>(&records, records.len(), |_| panic!("must not read")),
             Err(Error::Checkpoint)
         );
     }
@@ -58,7 +107,7 @@ fn equal_counts_cannot_hide_duplicate_missing_or_corrupt_records() {
     for index in 0..LIMIT {
         for replacement in [(0, 1), (records[index].0, records[index].1 ^ 1)] {
             assert_eq!(
-                verify_records(&records, LIMIT, |at| {
+                verify_records::<1>(&records, LIMIT, |at| {
                     if at == index {
                         replacement
                     } else {
@@ -74,7 +123,7 @@ fn equal_counts_cannot_hide_duplicate_missing_or_corrupt_records() {
                 continue;
             }
             assert_eq!(
-                verify_records(&records, LIMIT, |at| {
+                verify_records::<1>(&records, LIMIT, |at| {
                     records[if at == index { duplicate } else { at }]
                 }),
                 Err(Error::Checkpoint)
@@ -103,7 +152,7 @@ fn scalar_comparison_matches_real_maps_after_deletion_and_growth() {
         map.with(|view| view.for_each(|key, value| native_order.push((key, value))))
             .unwrap();
         assert_eq!(
-            verify_records(&records, native_order.len(), |index| native_order[index]),
+            verify_records::<1>(&records, native_order.len(), |index| native_order[index]),
             Ok(())
         );
     }

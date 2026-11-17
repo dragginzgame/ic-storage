@@ -26,9 +26,13 @@ not silently enrolled. The Make target includes host tests of this actual adapte
 using Storage's metered backing; installed tests supply IC transaction evidence.
 
 `native-map-paged` selects the paged adapter instead of the bounded-envelope job
-adapter. It shares the native format-8 staging ABI and the four governed paged
+adapter. It uses native format 10, the existing 64-record staging ABI and the four governed paged
 locators with the host/storage fixture. It accepts one fresh export epoch, one
-page per batch and at most 64 records per root. Native writes are checked against
+page per batch and at most 192 records per root. Up to six pages recover a pair,
+including same-root rehashing, within the initial 24 KiB native pool. Disjoint
+windows at 131072 and 393216 permit idle pool growth to 192 KiB; checkpoint data
+and reset start at 655360. Growth refuses during frozen/private custody. The
+portable record limit remains 192 per root. Native writes are checked against
 a transient expected-record list before continuation/metadata commit and final
 root publication. All frames execute in one IC message, without native Rust
 reentry from checkpoint Rust. It supports frozen resumption, interrupted private

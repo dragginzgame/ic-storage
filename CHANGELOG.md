@@ -7,8 +7,14 @@
 - Connect the shared paged store to installed retained-map recovery. Verify
   native writes before committing continuation and progress, then publish both
   roots in the same IC message. Qualify compatible interruption, exact retries
-  and explicit unfinished-target restart within the existing 64-record/root
-  native ABI. This first profile accepts one epoch and one page per call.
+  and explicit unfinished-target restart. The paged profile now admits 192
+  records per root in native format 10, with one epoch and one page per call.
+  Qualify same-root rehashing, partial final pages and six-page pair recovery
+  within the initial 24 KiB pool. Reserve disjoint native windows and move
+  checkpoint initialization/reset above them, enabling idle pool growth to
+  192 KiB. Qualify growth rollback, retained occupied tails across upgrades,
+  recovery into the separate target and refusal during frozen/private custody.
+  Keep the 192-record/root export limit; larger recovery jobs remain unfinished.
 - Observe continuation fingerprints directly from admitted scalar record scans,
   preserving native bucket order without reconstructing maps. Reuse the product
   portable encoder and keep existing checkpoint/continuation bytes unchanged.
@@ -21,6 +27,9 @@
 
 ### 🔧 Changed
 
+- Move the paged job's target domain from 163840 to 393216 and reject the old
+  overlapping domain. Update independent job/continuation golden bytes; their
+  framing and logical checkpoint formats are unchanged.
 - Adopt Testkit 0.108.0 in the qualification workspace. Keep the PocketIC-only
   dependency graph and validate installed retention and map recovery with the
   existing prepared 0.106.0 server launcher.
@@ -31,7 +40,9 @@
   without rebuilding transient native hash tables. Sorted checkpoint lookup and
   an eight-byte seen bitmap reject wrong, missing and duplicate records before
   staging and after native writes. Full checkpoint decoding and prefix scans
-  remain; the installed 64-record-per-root limit is unchanged.
+  remain; the `NKPAIR01` job's 64-record-per-root limit is unchanged. The shared
+  verifier now takes a compile-time bitmap bound, using 24 bytes for paged
+  native prefixes without allocating another native map or bitmap.
 
 ### 🧪 Testing
 
@@ -47,6 +58,10 @@
 - Add `make paged-store-test` and hosted CI coverage for independent page-chain
   checks, reopening, exact retries, controller rejection, corrupt records and
   missing-store refusal without replacement writes.
+- Extend installed paged recovery through 192+192 records. Verify rehash rollback,
+  later-page corruption, continuation past damaged consumed pages, and restart
+  after root 1 is complete but both roots remain private. Refuse a 193-record
+  source before checkpoint publication; preserve the old bounded job profile.
 
 ## [0.75.4] - 2026-11-17
 

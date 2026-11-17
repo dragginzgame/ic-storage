@@ -10,6 +10,7 @@ mod staging;
 #[cfg(not(feature = "native-map-paged"))]
 use ic_platform_runtime::raw as ic0;
 use ic_storage_native::map::Map;
+#[cfg(not(feature = "native-map-paged"))]
 use ic_storage_native_feasibility::checkpoint::maps;
 
 #[expect(
@@ -50,19 +51,19 @@ extern "C" fn checkpoint_export() {
     let [epoch, fault] = args();
     assert!(fault <= 1);
     freeze(); // The wrapper has already ended native admission and frozen both roots.
-    map_cell(false).set(maps::encode(&read_source(), epoch).unwrap());
+    map_cell(false).set(maps::encode(&read_source(maps::LIMIT), epoch).unwrap());
     if fault == 1 {
         ic0::trap(b"map export after stable write");
     }
     ic0::msg_reply();
 }
-fn read_source() -> [Map; 2] {
-    let mut source = [Map::new(maps::LIMIT), Map::new(maps::LIMIT)];
+fn read_source(limit: usize) -> [Map; 2] {
+    let mut source = [Map::new(limit), Map::new(limit)];
     for (id, map) in source.iter_mut().enumerate() {
         // Starts a fresh transient cursor. The callback contract requires each
         // key immediately followed by its value, with increasing record indices.
         let count = map_count(id as u32);
-        assert!(count <= maps::LIMIT as u32);
+        assert!(count as usize <= limit);
         map.with(|mut view| {
             for index in 0..count {
                 let key = map_word(id as u32, index, 0);

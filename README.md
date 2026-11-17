@@ -46,7 +46,10 @@ writes use a separate 104-byte governed record while retaining the checkpoint;
 each batch still reads and validates the complete bounded payload. The new
 [paged native profile](docs/design/paged-map-checkpoint.md#installed-paged-native-recovery)
 qualifies combined native/continuation/progress rollback and reads only the next
-checkpoint page, retaining the 64-record/root bound and a single export epoch.
+checkpoint page. It now recovers up to 192 records per root over multiple pages,
+with a single export epoch. Its pool now grows from 24 to 192 KiB in disjoint
+reserved windows; checkpoint initialization and reset preserve those windows.
+The portable record limit remains 192 per root.
 Larger
 recovery budgets, consumer-facing root custody and application record values
 remain next; the million-key figures are host measurements.

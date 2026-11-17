@@ -25,7 +25,7 @@ fn validate_records(values: &Records, prefix: u32) {
     let counts = counts(values, prefix);
     for id in 0..2 {
         let count = map_count(id as u32) as usize;
-        verify_records(&values[id][..counts[id]], count, |index| {
+        verify_records::<1>(&values[id][..counts[id]], count, |index| {
             // The WAT cursor requires each key immediately followed by its value.
             let key = map_word(id as u32, index as u32, 0);
             let value = map_word(id as u32, index as u32, 1);

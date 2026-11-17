@@ -15,10 +15,14 @@ use ic_platform_runtime::raw as ic0;
 use ic_storage_legacy::DefaultMemoryImpl;
 use ic_storage_native::map::paged::Reader;
 use ic_storage_native_feasibility::{
-    checkpoint::maps::{self, Records, paged, verify_records},
+    checkpoint::maps::{Records, paged, verify_records},
     migration_job::{PagedMapJob, paged_continuation::NativePrefix},
 };
 use std::cell::RefCell;
+
+// Three pages per root fit the initial 24 KiB loan, including rehash candidates.
+// Idle pool growth does not raise this record limit or the 64-record staging bound.
+const LIMIT: usize = 192;
 
 #[expect(
     unsafe_code,
@@ -66,7 +70,7 @@ fn fault(point: WritePoint, selected: u64) {
 fn observe(mut record: impl FnMut(usize, (u64, u64))) -> [NativePrefix; 2] {
     std::array::from_fn(|id| {
         let count = map_count(id as u32);
-        assert!(count <= maps::LIMIT as u32);
+        assert!(count <= LIMIT as u32);
         NativePrefix::from_records(
             count as usize,
             (0..count).map(|index| {
@@ -94,7 +98,7 @@ extern "C" fn checkpoint_export() {
     let [epoch, target, fail] = args();
     assert!(fail <= 4);
     freeze();
-    open().publish_checkpoint(&read_source(), domain(), target, epoch, |point| {
+    open().publish_checkpoint(&read_source(LIMIT), domain(), target, epoch, |point| {
         if point as u64 == fail {
             ic0::trap(b"paged native export after governed write");
         }
@@ -110,8 +114,8 @@ extern "C" fn checkpoint_resume() {
     freeze();
     let store = open();
     let manifest = store.read().frozen(domain(), target, epoch).unwrap();
-    store.admit_pages(&manifest, maps::LIMIT);
-    let actual = paged::export(&read_source(), epoch, |_, _, _| Ok::<_, ()>(())).unwrap();
+    store.admit_pages(&manifest, LIMIT);
+    let actual = paged::export(&read_source(LIMIT), epoch, |_, _, _| Ok::<_, ()>(())).unwrap();
     assert_eq!(actual, manifest);
     if fail == 1 {
         ic0::trap(b"paged frozen resume after validation");
@@ -140,7 +144,7 @@ fn start(restart: bool) {
         job.begin_import(domain(), source, epoch)
     }
     .unwrap();
-    store.admit_pages(&manifest, maps::LIMIT);
+    store.admit_pages(&manifest, LIMIT);
     let readers = manifest.roots().each_ref().map(|root| root.reader());
     map_stage_start(fail as u32);
     pending(Pending {
@@ -164,7 +168,7 @@ extern "C" fn checkpoint_stage_resume() {
     let store = open();
     let job = store.read();
     let (manifest, _) = job.importing(domain(), source, epoch).unwrap();
-    store.admit_pages(&manifest, maps::LIMIT);
+    store.admit_pages(&manifest, LIMIT);
     store.resume(&job, || Ok(observe(|_, _| {})));
     if fail == 1 {
         ic0::trap(b"paged import resume after validation");
@@ -196,7 +200,7 @@ extern "C" fn checkpoint_batch() {
     let batch = job
         .batch(domain(), source, epoch, start.try_into().unwrap(), 1)
         .unwrap();
-    store.admit_pages(&batch.checkpoint, maps::LIMIT);
+    store.admit_pages(&batch.checkpoint, LIMIT);
     if batch.retry {
         if batch.complete {
             stage_ready();
@@ -251,7 +255,7 @@ extern "C" fn checkpoint_stage_commit() {
     let plan = PENDING.with(|slot| slot.borrow_mut().take().unwrap());
     for (id, expected) in plan.expected.iter().enumerate() {
         let count = map_count(id as u32) as usize;
-        verify_records(expected, count, |index| {
+        verify_records::<{ LIMIT.div_ceil(64) }>(expected, count, |index| {
             let key = map_word(id as u32, index as u32, 0);
             let value = map_word(id as u32, index as u32, 1);
             (key, value)
@@ -282,8 +286,7 @@ extern "C" fn checkpoint_page() {
     let [epoch, id, index] = args();
     let store = open();
     let job = store.read();
-    let manifest =
-        paged::Manifest::decode(job.encode_split().unwrap().1, epoch, maps::LIMIT).unwrap();
+    let manifest = paged::Manifest::decode(job.encode_split().unwrap().1, epoch, LIMIT).unwrap();
     assert!(id < 2);
     ic0::msg_reply_data_append(&store.page(&manifest, id as usize, index.try_into().unwrap()));
     ic0::msg_reply();
@@ -307,8 +310,13 @@ extern "C" fn checkpoint_damage() {
     idle();
     controller();
     let [part, reserved, other] = args();
-    assert_eq!([reserved, other], [0, 0]);
-    open().damage(part);
+    if part == 4 {
+        assert_eq!(other, 0);
+        open().damage_page(reserved); // Physical page index, in exporter order.
+    } else {
+        assert_eq!([reserved, other], [0, 0]);
+        open().damage(part);
+    }
     ic0::msg_reply();
 }
 #[expect(

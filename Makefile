@@ -228,7 +228,7 @@ paged-store-test: paged-store-build
 native-map-paged-build:
 	@test -z "$${RUSTFLAGS}$${CARGO_ENCODED_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_LINKER}" || { echo 'Paged native probe requires the pinned compiler without overrides' >&2; exit 1; }
 	+cargo clippy $(CHECKPOINT_CARGO) --target-dir target/qualification --features native-map-paged -- -D warnings
-	+cargo rustc $(CHECKPOINT_CARGO) --target-dir target/qualification/checkpoint-map-paged --features native-map-paged -- $(NATIVE_CHECKPOINT_LINK)
+	+cargo rustc $(CHECKPOINT_CARGO) --target-dir target/qualification/checkpoint-map-paged --features native-map-paged -- $(subst --global-base=196608,--global-base=655360,$(NATIVE_CHECKPOINT_LINK))
 
 native-map-paged-test: native-map-paged-build
 	+cargo clippy $(RETENTION_CARGO) --test provider_link -- -D warnings

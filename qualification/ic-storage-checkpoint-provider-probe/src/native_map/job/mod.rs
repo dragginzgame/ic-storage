@@ -57,7 +57,9 @@ extern "C" fn checkpoint_export() {
     freeze();
     let mut cell = map_job::open(false);
     let job = cell.read();
-    let next = job.export(domain(), target, epoch, &read_source()).unwrap();
+    let next = job
+        .export(domain(), target, epoch, &read_source(super::maps::LIMIT))
+        .unwrap();
     cell.write_with_fault(&next, fault == 2);
     if fault == 1 {
         ic0::trap(b"map job export after stable write");
@@ -92,7 +94,8 @@ extern "C" fn checkpoint_resume() {
     // Export's exact retry compares both payloads, including their root binding.
     // Read in the same stable native iteration order used by the original export.
     assert_eq!(
-        job.export(domain(), target, epoch, &read_source()).unwrap(),
+        job.export(domain(), target, epoch, &read_source(super::maps::LIMIT))
+            .unwrap(),
         job
     );
     if fault == 1 {
@@ -138,7 +141,7 @@ extern "C" fn checkpoint_damage() {
         cell.damage(u64::from(mode == 2));
     } else {
         assert_eq!(mode, 1);
-        let mut maps = read_source();
+        let mut maps = read_source(super::maps::LIMIT);
         maps[1]
             .with(|mut view| view.insert(u64::MAX - 1, 123).unwrap())
             .unwrap();

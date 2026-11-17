@@ -3,7 +3,7 @@ use checkpoint::maps::paged;
 use ic_storage_native::map::Map;
 
 const A: u64 = 131072;
-const B: u64 = 163840;
+const B: u64 = 393216;
 
 #[test]
 fn independent_consumed_empty_paged_job_golden() {
@@ -87,6 +87,8 @@ fn paged_progress_reopens_retries_crosses_roots_and_retires_epochs() {
 
 #[test]
 fn paged_binding_restart_and_corrupt_progress_refuse_without_mutation() {
+    // The former nearby target would overlap a growing native source window.
+    assert_eq!(PagedMapJob::initial(163840), Err(Error::Domain));
     let pair = manifest([129, 65], 1);
     let ready = PagedMapJob::initial(A).unwrap();
     assert!(ready.seal(A, A, 1, &pair).is_err());

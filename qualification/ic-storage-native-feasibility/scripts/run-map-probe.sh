@@ -80,5 +80,7 @@ if [[ "$mode" == paged ]]; then
         --test provider_link map::recovery::paged_installed_tests -- --ignored --nocapture 2>&1 | tee "$output/paged.log"
     test -f "$output/PAGED_NATIVE_RECOVERED"
     test -f "$output/PAGED_NATIVE_REFUSED"
+    test -f "$output/PAGED_NATIVE_MULTIPAGE"
+    test -f "$output/PAGED_NATIVE_GROWTH"
 fi
 printf 'Closed native map %s checks passed.\n' "$mode" > "$output/COMPLETE"

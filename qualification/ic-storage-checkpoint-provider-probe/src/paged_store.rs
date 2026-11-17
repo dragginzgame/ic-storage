@@ -14,7 +14,7 @@ use ic_storage_native_feasibility::{
 };
 
 const A: u64 = 131072;
-const B: u64 = 163840;
+const B: u64 = 393216;
 const LIMIT: usize = 4096;
 const BUILD: u64 = if cfg!(feature = "version-b") {
     202

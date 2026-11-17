@@ -114,11 +114,11 @@ pub(super) async fn authorize(pic: &PocketIc, id: CanisterId) {
 async fn durable_map_jobs_authorize_cancel_resume_and_consume_atomically() {
     let (directory, raw) = inputs();
     let bridge = fs::read(directory.join("checkpoint-map-job.wasm")).unwrap();
-    let source = prepare_mode(&raw, &bridge, false, Post::Reopen, true);
-    let target = prepare_mode(&raw, &bridge, true, Post::Recover, true);
-    let reopen = prepare_mode(&raw, &bridge, true, Post::Reopen, true);
-    let frozen = prepare_mode(&raw, &bridge, false, Post::Frozen, true);
-    let reverse = prepare_mode(&raw, &bridge, false, Post::Recover, true);
+    let source = prepare_mode(&raw, &bridge, false, Post::Reopen, Profile::Job);
+    let target = prepare_mode(&raw, &bridge, true, Post::Recover, Profile::Job);
+    let reopen = prepare_mode(&raw, &bridge, true, Post::Reopen, Profile::Job);
+    let frozen = prepare_mode(&raw, &bridge, false, Post::Frozen, Profile::Job);
+    let reverse = prepare_mode(&raw, &bridge, false, Post::Recover, Profile::Job);
     assert_ne!(target, reopen);
     for (name, bytes) in [
         ("job-source", &source),

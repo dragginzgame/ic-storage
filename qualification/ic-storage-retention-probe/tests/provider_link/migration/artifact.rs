@@ -15,6 +15,7 @@ struct Inventory {
     types: u32,
     globals: u32,
     exports: BTreeMap<String, (ExternalKind, u32)>,
+    reset_base: i32,
 }
 
 fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
@@ -25,6 +26,7 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
         types: 0,
         globals: 0,
         exports: BTreeMap::new(),
+        reset_base: 196608,
     };
     let mut values = Vec::new();
     let mut ranges = Vec::new();
@@ -100,6 +102,11 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
     }
     assert_eq!(memories, 1);
     if bridge {
+        // The paged profile reserves two disjoint 192 KiB native windows.
+        // Admit the compiled data placement before selecting its reset range.
+        if result.exports.contains_key("checkpoint_page") {
+            result.reset_base = 655360;
+        }
         let global = |name: &str| {
             let (kind, index) = result.exports[name];
             assert_eq!(kind, ExternalKind::Global);
@@ -108,10 +115,12 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
         assert_eq!(global("__stack_pointer"), 65536);
         let end = global("__data_end");
         let heap = global("__heap_base");
-        assert!(196608 <= end && end <= heap && heap < 2097152);
+        assert!(result.reset_base as u32 <= end && end <= heap && heap < 2097152);
         assert!(!ranges.is_empty());
         for (start, finish) in ranges {
-            assert!(196608 <= start && start <= finish && finish <= u64::from(end));
+            assert!(
+                result.reset_base as u64 <= start && start <= finish && finish <= u64::from(end)
+            );
         }
         let mut callbacks: Vec<_> = result
             .imports
@@ -511,7 +520,7 @@ pub(crate) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
             | Post::Widen
             | Post::ConvertVector
     )
-    .then(|| super::transient::Plan::read(bridge));
+    .then(|| super::transient::Plan::read(bridge, p.reset_base));
     let ic: Vec<_> = p
         .imports
         .iter()

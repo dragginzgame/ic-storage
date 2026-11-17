@@ -21,12 +21,14 @@ pub type Records = [Vec<(u64, u64)>; 2];
 /// native custody admission. No native map or record buffer is reconstructed.
 /// Repeated records, wrong values and missing/unexpected keys refuse. This is a
 /// logical comparison, not raw-pointer, allocator or transaction admission.
-pub fn verify_records(
+/// `WORDS` selects fixed stack scratch and admits at most `WORDS * 64` records.
+/// Each caller selects its native profile's bound; no allocation is performed.
+pub fn verify_records<const WORDS: usize>(
     expected: &[(u64, u64)],
     count: usize,
     mut read: impl FnMut(usize) -> (u64, u64),
 ) -> Result<(), Error> {
-    if expected.len() > LIMIT || count > LIMIT {
+    if expected.len().div_ceil(64) > WORDS || count.div_ceil(64) > WORDS {
         return Err(Error::Limit);
     }
     if count != expected.len() || expected.windows(2).any(|pair| pair[0].0 >= pair[1].0) {
@@ -35,7 +37,7 @@ pub fn verify_records(
     // One bit per possible checkpoint record; independent of native bucket
     // order. Counting matching values alone would admit a duplicated record
     // substituted for a missing record with the same total native count.
-    let mut seen = [0u64; LIMIT.div_ceil(64)];
+    let mut seen = [0u64; WORDS];
     for index in 0..count {
         let (key, value) = read(index);
         let position = expected
@@ -49,7 +51,7 @@ pub fn verify_records(
         *word |= mask;
     }
     // Equal counts and unique matching indices prove that every expected record
-    // was visited, including a complete 64-record root without a shift by 64.
+    // was visited, including full bitmap words without a shift by 64.
     Ok(())
 }
 

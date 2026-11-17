@@ -4,7 +4,7 @@ use alloc::vec::Vec;
 use ic_storage_native::map::paged::PAGE_BYTES;
 
 const A: u64 = 131072;
-const B: u64 = 163840;
+const B: u64 = 393216;
 
 pub(super) struct Fixture {
     pub(super) job: PagedMapJob,

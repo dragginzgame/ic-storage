@@ -8,7 +8,7 @@ use super::super::paged::{Jobs, METADATA};
 use paged_continuation::NativePrefix;
 
 const A: u64 = 131072;
-const B: u64 = 163840;
+const B: u64 = 393216;
 const LIMIT: usize = 4096;
 
 impl<M: Memory> Jobs<M> {

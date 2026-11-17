@@ -20,8 +20,13 @@ pub(super) async fn query(pic: &PocketIc, id: CanisterId, method: &str) -> Vec<u
     pic.query_call(id, id, method, vec![]).await.unwrap()
 }
 pub(super) fn records(bytes: &[u8], id: usize) -> BTreeMap<u64, u64> {
-    assert_eq!(bytes.len(), 104 + 24576);
-    assert!(matches!(word(bytes, 32), 5 | 8));
+    let capacity = word(bytes, 48) as usize;
+    assert!(matches!(capacity, 24576 | 49152 | 98304 | 196608));
+    assert_eq!(bytes.len(), 104 + capacity);
+    assert!(matches!(word(bytes, 32), 5 | 8 | 10));
+    if word(bytes, 32) != 10 {
+        assert_eq!(capacity, 24576);
+    }
     let root = word(bytes, 56 + id * 8);
     let start = 104 + (root >> 16) as usize * 24;
     let buckets = 1usize << ((root >> 12) & 15);

@@ -200,8 +200,28 @@ claimed. Consumer cutovers require their own authorization and data contracts.
 
 ## Qualification evidence
 
-The 0.75.5 development [paged native adapter](../../docs/design/paged-map-checkpoint.md#installed-paged-native-recovery)
-now qualifies combined retained-root/continuation/progress rollback within the
+The preceding [paged native adapter](../../docs/design/paged-map-checkpoint.md#installed-paged-native-recovery)
+qualified 192 records per root in native format 9, while keeping each staging call
+bounded to 64 records. Multi-page recovery, same-root rehash rollback, later-page
+corruption and restart passed in `target/evidence/native-map-provider/attempt.rU6zdL`
+(three artifact checks and three installed cases, 32.38 seconds). The `NKPAIR01`
+job still uses native format 8 and its existing 64-record/root limit; it passed
+again in `attempt.xehH5r` (three artifact checks, one ordering check and three
+installed cases, 11.83 seconds for the job group). Thirteen focused host tests
+and strict Clippy also passed. The current format 10 adds disjoint native windows
+at 131072 and 393216, with checkpoint initialization/reset starting at 655360.
+Idle loans now grow to 192 KiB; export/recovery remains limited to 192 records
+per root. Frozen sources and private imports refuse ordinary growth.
+Format-10 evidence is in `target/evidence/native-map-provider/attempt.9xD1Hd`:
+three native artifact checks, one checkpoint-placement refusal check and four
+installed cases (30.46 seconds for the paged group). It preserves occupied grown
+tails across checkpoint resets and exercises recovery, capacity refusal and
+growth rollback. Thirty job/continuation host tests and eight governed-store
+tests pass; the bounded map job still passes in `attempt.YdOwFg` (11.57 seconds
+for its ordering/installed group). See the linked contract for full scope.
+
+The initial 0.75.5 development [paged native adapter](../../docs/design/paged-map-checkpoint.md#installed-paged-native-recovery)
+qualified combined retained-root/continuation/progress rollback within the
 same bounded native staging ABI. Its separate `make native-map-paged-test`
 cohort in `target/evidence/native-map-provider/attempt.ugEKzt` passed three native
 artifact checks and two installed cases (11.90 seconds). The existing `NKPAIR01`

@@ -13,7 +13,7 @@ struct Artifacts {
 fn artifacts() -> (std::path::PathBuf, Artifacts) {
     let (directory, raw) = inputs();
     let bridge = fs::read(directory.join("checkpoint-map-job.wasm")).unwrap();
-    let make = |relocated, post| prepare_mode(&raw, &bridge, relocated, post, true);
+    let make = |relocated, post| prepare_mode(&raw, &bridge, relocated, post, Profile::Job);
     let artifacts = Artifacts {
         source: make(false, Post::Reopen),
         stage: make(true, Post::Stage),
