@@ -1,8 +1,13 @@
 //! Two-map portable bridge: scalar callbacks only, never native Rust reentry.
 #[cfg(not(feature = "native-map-job"))]
 use crate::provider::map_cell;
-#[cfg(feature = "native-map-job")]
+#[cfg(all(feature = "native-map-job", not(feature = "native-map-paged")))]
 mod job;
+#[cfg(feature = "native-map-paged")]
+mod paged_job;
+#[cfg(feature = "native-map-job")]
+mod staging;
+#[cfg(not(feature = "native-map-paged"))]
 use ic_platform_runtime::raw as ic0;
 use ic_storage_native::map::Map;
 use ic_storage_native_feasibility::checkpoint::maps;
@@ -17,6 +22,7 @@ unsafe extern "C" {
     safe fn map_count(id: u32) -> u32;
     safe fn map_word(id: u32, index: u32, field: u32) -> u64;
     safe fn fresh();
+    #[cfg(not(feature = "native-map-paged"))]
     safe fn map_begin(a: u32, b: u32, fault: u32);
     safe fn map_put(id: u32, index: u32, key: u64, value: u64);
     safe fn map_finish();
@@ -83,6 +89,7 @@ extern "C" fn checkpoint_restore() {
     }
     stage(&decoded, fault);
 }
+#[cfg(not(feature = "native-map-paged"))]
 fn stage(decoded: &maps::Records, fault: u64) {
     map_begin(
         decoded[0].len() as u32,

@@ -105,6 +105,14 @@ async fn prefix(
     }
     if !complete {
         super::super::read_tests::check(pic, id).await;
+        super::super::read_tests::check_prefix(pic, id).await;
+    } else {
+        assert!(
+            pic.query_call(id, id, "native_prefix", vec![])
+                .await
+                .is_err()
+        );
+        assert_eq!(query(pic, id, "observe").await, bytes);
     }
 }
 async fn run_batch(pic: &PocketIc, id: CanisterId, arguments: Vec<u8>) {
@@ -192,14 +200,22 @@ async fn batches_validate_both_prefixes_and_retry_without_replaying_new_writes()
                 ] {
                     refused_update(&pic, id, "import_batch", arguments).await;
                 }
-                for fault in 1..=7 {
-                    refused_update(
+                for fault in 1..=8 {
+                    let error = refused_update(
                         &pic,
                         id,
                         "import_batch",
                         batch(1, A, next as u64, limit, fault),
                     )
                     .await;
+                    if fault == 8 {
+                        assert!(
+                            error
+                                .reject_message
+                                .contains("native map records differ from checkpoint"),
+                            "duplicate record must reach the post-apply verifier: {error:?}"
+                        );
+                    }
                 }
                 if step == 1 {
                     pic.set_controllers(id, None, vec![CanisterId::anonymous()])

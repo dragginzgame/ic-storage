@@ -4,89 +4,30 @@ use ic_storage_native_feasibility::migration_job::{
     METADATA_BYTES, PagedMapJob, paged_continuation,
 };
 
-const METADATA: &str = "native.checkpoint.paged.maps.job.metadata.v1";
-const CONTINUATION: &str = "native.checkpoint.paged.maps.job.continuation.v1";
+use super::super::paged::{Jobs, METADATA};
+use paged_continuation::NativePrefix;
+
 const A: u64 = 131072;
 const B: u64 = 163840;
 const LIMIT: usize = 4096;
 
-struct Jobs<M: Memory> {
-    data: Store<M>,
-    metadata: StableCell<[u8; METADATA_BYTES], M>,
-    continuation: StableCell<[u8; paged_continuation::BYTES], M>,
-}
-
-impl<M: MemoryBacking> Jobs<M> {
-    fn open(memory: M, create: bool) -> Self {
-        let runtime =
-            super::super::runtime(memory, &[MANIFEST, PAGES, METADATA, CONTINUATION], create);
-        let metadata = runtime
-            .open_memory(&StableKey::parse(METADATA).unwrap())
-            .unwrap();
-        let continuation = runtime
-            .open_memory(&StableKey::parse(CONTINUATION).unwrap())
-            .unwrap();
-        Self {
-            data: Store::from_runtime(&runtime, create),
-            metadata: if create {
-                StableCell::create(metadata, [0; METADATA_BYTES]).unwrap()
-            } else {
-                StableCell::load(metadata, METADATA_BYTES).unwrap()
-            },
-            continuation: if create {
-                StableCell::create(continuation, [0; paged_continuation::BYTES]).unwrap()
-            } else {
-                StableCell::load(continuation, paged_continuation::BYTES).unwrap()
-            },
-        }
-    }
-}
-
 impl<M: Memory> Jobs<M> {
     fn publish(&mut self, source: &[Map; 2]) {
-        assert!(self.data.pages.is_empty());
-        assert_eq!(self.data.manifest.get(), &[0; MANIFEST_BYTES]);
-        assert_eq!(self.metadata.get(), &[0; METADATA_BYTES]);
-        assert_eq!(self.continuation.get(), &[0; paged_continuation::BYTES]);
-        let pair = paged::export(source, 1, |_, _, page| {
-            self.data.pages.push(page);
-            Ok::<_, ()>(())
-        })
-        .unwrap();
-        let job = PagedMapJob::initial(A)
-            .unwrap()
-            .seal(A, B, 1, &pair)
-            .unwrap();
-        self.data.manifest.set(pair.encode());
-        self.write(&job); // Final seal; a missing or mixed part refuses reopening.
-    }
-
-    fn read(&self) -> PagedMapJob {
-        PagedMapJob::decode_split(self.metadata.get(), self.data.manifest.get()).unwrap()
-    }
-
-    fn write(&mut self, job: &PagedMapJob) {
-        let (metadata, payload) = job.encode_split().unwrap();
-        assert_eq!(payload, self.data.manifest.get());
-        if self.metadata.get() != &metadata {
-            self.metadata.set(metadata);
-        }
-    }
-
-    fn admit_pages(&self, manifest: &Manifest) {
-        assert!(manifest.roots().iter().all(|root| root.len() <= LIMIT));
-        assert_eq!(self.data.pages.len(), manifest.page_count() as u64);
+        self.publish_checkpoint(source, A, B, 1, |_| {});
     }
 
     fn begin(&mut self) -> [Map; 2] {
         let mut job = self.read();
         let manifest = job.begin_import(B, A, 1).unwrap();
-        self.admit_pages(&manifest);
+        self.admit_pages(&manifest, LIMIT);
         let candidates = manifest.roots().each_ref().map(|root| Map::new(root.len()));
         let readers = manifest.roots().each_ref().map(|root| root.reader());
-        self.continuation
-            .set(paged_continuation::encode(&job, &readers, &candidates).unwrap());
-        self.write(&job);
+        self.commit_progress(
+            &job,
+            &readers,
+            &NativePrefix::from_maps(&candidates).unwrap(),
+            |_| {},
+        );
         candidates
     }
 
@@ -94,12 +35,15 @@ impl<M: Memory> Jobs<M> {
     fn restart(&mut self) -> [Map; 2] {
         let mut job = self.read();
         let manifest = job.restart_import(B, A, 1).unwrap();
-        self.admit_pages(&manifest);
+        self.admit_pages(&manifest, LIMIT);
         let candidates = manifest.roots().each_ref().map(|root| Map::new(root.len()));
         let readers = manifest.roots().each_ref().map(|root| root.reader());
-        self.continuation
-            .set(paged_continuation::encode(&job, &readers, &candidates).unwrap());
-        self.write(&job);
+        self.commit_progress(
+            &job,
+            &readers,
+            &NativePrefix::from_maps(&candidates).unwrap(),
+            |_| {},
+        );
         candidates
     }
 
@@ -114,9 +58,8 @@ impl<M: Memory> Jobs<M> {
             limit,
         )
         .unwrap();
-        self.admit_pages(&batch.checkpoint);
-        let mut readers =
-            paged_continuation::decode(self.continuation.get(), &self.read(), candidates).unwrap();
+        self.admit_pages(&batch.checkpoint, LIMIT);
+        let mut readers = self.resume(&self.read(), || NativePrefix::from_maps(candidates));
         // A consumed retry acknowledges prior publication. Later normal writes
         // are authoritative and must neither be compared with nor overwritten by
         // the old checkpoint.
@@ -128,7 +71,7 @@ impl<M: Memory> Jobs<M> {
             let root = usize::from(global >= batch.checkpoint.roots()[0].page_count());
             let index = readers[root].next_page().unwrap();
             let records = readers[root]
-                .read_page(&self.data.page(&batch.checkpoint, root, index))
+                .read_page(&self.page(&batch.checkpoint, root, index))
                 .unwrap();
             pending.push((root, records));
         }
@@ -144,9 +87,12 @@ impl<M: Memory> Jobs<M> {
                 })
                 .unwrap();
         }
-        self.continuation
-            .set(paged_continuation::encode(&job, &readers, candidates).unwrap());
-        self.write(&job);
+        self.commit_progress(
+            &job,
+            &readers,
+            &NativePrefix::from_maps(candidates).unwrap(),
+            |_| {},
+        );
         batch.complete
     }
 }

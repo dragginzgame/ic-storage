@@ -51,7 +51,13 @@ native-feasibility-test native-feasibility-lint native-layout-probe: | toko-exec
 .PHONY: native-map-probe native-map-test
 .PHONY: native-map-checkpoint-build native-map-checkpoint-test
 .PHONY: native-map-job-build native-map-job-test
+.PHONY: native-map-paged-build native-map-paged-test
+native-map-paged-build native-map-paged-test: export CARGO_NET_OFFLINE := true
+native-map-paged-build native-map-paged-test: | toko-execution-check
 .PHONY: native-map-page-test
+.PHONY: paged-store-build paged-store-test
+paged-store-build paged-store-test: export CARGO_NET_OFFLINE := true
+paged-store-build paged-store-test: | toko-execution-check
 native-map-page-test: export CARGO_NET_OFFLINE := true
 native-map-page-test: | toko-execution-check
 native-map-job-build native-map-job-test: export CARGO_NET_OFFLINE := true
@@ -98,6 +104,8 @@ help:
 	  'make native-map-test            Qualify installed map upgrades, custody and rollback' \
 	  'make native-map-checkpoint-test Recover two maps through the governed checkpoint provider' \
 	  'make native-map-job-test        Qualify durable two-map recovery jobs' \
+	  'make native-map-paged-test      Qualify paged recovery into retained maps' \
+	  'make paged-store-test           Qualify installed paged storage transactions' \
 	  'make native-map-page-test       Qualify paged checkpoints on governed host storage' \
 	  'make retention-setup             Explicitly prepare the retention-test server' \
 	  'make retention-tools-check       Admit the prepared server offline' \
@@ -206,6 +214,25 @@ native-map-test:
 native-map-page-test:
 	+cargo clippy --manifest-path qualification/Cargo.toml -p ic-storage-checkpoint-provider-probe --target-dir target/qualification --features native-map-job --lib --tests --locked --offline -- -D warnings
 	+cargo test --manifest-path qualification/Cargo.toml -p ic-storage-checkpoint-provider-probe --target-dir target/qualification --features native-map-job --lib provider::paged_tests --locked --offline -- --nocapture
+
+paged-store-build:
+	@test -z "$${RUSTFLAGS}$${CARGO_ENCODED_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_LINKER}" || { echo 'Paged store probe requires the pinned compiler without overrides' >&2; exit 1; }
+	+cargo clippy $(CHECKPOINT_CARGO) --target-dir target/qualification --features paged-store -- -D warnings
+	+cargo rustc $(CHECKPOINT_CARGO) --target-dir target/qualification/paged-store-a --features paged-store -- $(CHECKPOINT_LINK)
+	+cargo rustc $(CHECKPOINT_CARGO) --target-dir target/qualification/paged-store-b --features paged-store,version-b -- $(CHECKPOINT_LINK)
+
+paged-store-test: paged-store-build
+	+cargo clippy $(RETENTION_CARGO) --test paged_store -- -D warnings
+	+@server="$$($(RETENTION_TOOL) --check)" && "$$server" run -- bash qualification/ic-storage-native-feasibility/scripts/run-paged-store-probe.sh
+
+native-map-paged-build:
+	@test -z "$${RUSTFLAGS}$${CARGO_ENCODED_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_LINKER}" || { echo 'Paged native probe requires the pinned compiler without overrides' >&2; exit 1; }
+	+cargo clippy $(CHECKPOINT_CARGO) --target-dir target/qualification --features native-map-paged -- -D warnings
+	+cargo rustc $(CHECKPOINT_CARGO) --target-dir target/qualification/checkpoint-map-paged --features native-map-paged -- $(NATIVE_CHECKPOINT_LINK)
+
+native-map-paged-test: native-map-paged-build
+	+cargo clippy $(RETENTION_CARGO) --test provider_link -- -D warnings
+	+@server="$$($(RETENTION_TOOL) --check)" && "$$server" run -- bash qualification/ic-storage-native-feasibility/scripts/run-map-probe.sh paged
 
 native-map-job-build:
 	@test -z "$${RUSTFLAGS}$${CARGO_ENCODED_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_LINKER}" || { echo 'Map job probe requires the pinned compiler without overrides' >&2; exit 1; }

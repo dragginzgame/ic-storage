@@ -2,8 +2,8 @@
 # Closed map artifacts and optional installed execution, using prepared tools.
 set -euo pipefail
 mode="${1:-artifact}"
-if [[ $# -gt 1 || ( "$mode" != artifact && "$mode" != installed && "$mode" != recovery && "$mode" != job ) ]]; then
-    echo 'usage: run-map-probe.sh [artifact|installed|recovery|job]' >&2
+if [[ $# -gt 1 || ( "$mode" != artifact && "$mode" != installed && "$mode" != recovery && "$mode" != job && "$mode" != paged ) ]]; then
+    echo 'usage: run-map-probe.sh [artifact|installed|recovery|job|paged]' >&2
     exit 1
 fi
 root="$(CDPATH='' cd -- "$(dirname -- "$0")/../../.." && pwd)"
@@ -22,9 +22,10 @@ cp -R crates/ic-storage-native "$output/native-core"
 cp qualification/ic-storage-native-feasibility/tests/fixtures/provider_map.rs qualification/ic-storage-native-feasibility/tests/fixtures/runtime.rs "$output/"
 cp -R qualification/ic-storage-native-feasibility/tests/fixtures/region "$output/region"
 cp -R qualification/ic-storage-retention-probe/tests/provider_link "$output/admission-source"
-if [[ "$mode" == recovery || "$mode" == job ]]; then
+if [[ "$mode" == recovery || "$mode" == job || "$mode" == paged ]]; then
     profile=map
     [[ "$mode" != job ]] || profile=map-job
+    [[ "$mode" != paged ]] || profile=map-paged
     cp "target/qualification/checkpoint-$profile/wasm32-unknown-unknown/release/ic_storage_checkpoint_provider_probe.wasm" "$output/checkpoint-$profile.wasm"
     cp -R qualification/ic-storage-checkpoint-provider-probe "$output/checkpoint-source"
     cp -R qualification/ic-storage-native-feasibility/src "$output/feasibility-source"
@@ -72,5 +73,12 @@ if [[ "$mode" == job ]]; then
     test -f "$output/JOB_RECOVERED"
     test -f "$output/STAGED_MAP_RECOVERED"
     test -f "$output/STAGED_MAP_RESTARTED"
+fi
+if [[ "$mode" == paged ]]; then
+    NATIVE_MAP_INPUTS="$output" cargo test --manifest-path qualification/Cargo.toml \
+        -p ic-storage-retention-probe --target-dir target/qualification --locked --offline \
+        --test provider_link map::recovery::paged_installed_tests -- --ignored --nocapture 2>&1 | tee "$output/paged.log"
+    test -f "$output/PAGED_NATIVE_RECOVERED"
+    test -f "$output/PAGED_NATIVE_REFUSED"
 fi
 printf 'Closed native map %s checks passed.\n' "$mode" > "$output/COMPLETE"

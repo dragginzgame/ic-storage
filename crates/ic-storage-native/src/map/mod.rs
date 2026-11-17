@@ -32,7 +32,7 @@ pub enum Error {
     Epoch,
 }
 
-pub use checkpoint::{ExportError, ImportError};
+pub use checkpoint::{ExportError, ImportError, export_records};
 
 /// Controlled native slot; no references, owners, padding or executable pointers.
 ///

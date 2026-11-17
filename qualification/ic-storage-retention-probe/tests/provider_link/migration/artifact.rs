@@ -120,6 +120,7 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
             .map(|(_, n)| n.as_str())
             .collect();
         callbacks.sort_unstable();
+        let paged = result.exports.contains_key("checkpoint_page");
         let mut expected = vec![
             "begin", "counter", "finish", "freeze", "fresh", "put", "value",
         ];
@@ -172,6 +173,11 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
                 expected.retain(|name| *name != "stage_counter");
             }
             expected.sort_unstable();
+        }
+        if paged {
+            assert!(callbacks.contains(&"map_stage_commit_state"));
+            expected.retain(|name| !matches!(*name, "map_begin" | "thaw"));
+            assert!(!result.exports.contains_key("checkpoint_restore"));
         }
         if callbacks.contains(&"record_schema") {
             assert!(!callbacks.contains(&"domain"));
@@ -236,7 +242,7 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
         );
         assert_eq!(
             result.exports.contains_key("checkpoint_cancel"),
-            callbacks.contains(&"domain")
+            callbacks.contains(&"domain") && !paged
         );
         assert_eq!(
             result.exports.contains_key("checkpoint_resume"),
@@ -256,6 +262,10 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
         }
         assert_eq!(
             result.exports.contains_key("checkpoint_stage_commit"),
+            callbacks.contains(&"map_stage_commit_state")
+        );
+        assert_eq!(
+            result.exports.contains_key("checkpoint_native_prefix"),
             callbacks.contains(&"map_stage_commit_state")
         );
         for name in result.exports.keys() {
@@ -280,6 +290,8 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
                     | "checkpoint_batch"
                     | "checkpoint_stage_damage"
                     | "checkpoint_stage_commit"
+                    | "checkpoint_native_prefix"
+                    | "checkpoint_page"
                     | "checkpoint_convert"
                     | "checkpoint_narrow"
                     | "checkpoint_widen"
@@ -730,6 +742,18 @@ pub(crate) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
             vec![pcall("checkpoint_damage")],
         ),
     ];
+    if p.exports.contains_key("checkpoint_native_prefix") {
+        entrypoints.push((
+            "canister_query native_prefix",
+            vec![ncall("__bridge_prefix"), pcall("checkpoint_native_prefix")],
+        ));
+    }
+    if p.exports.contains_key("checkpoint_page") {
+        entrypoints.push((
+            "canister_query checkpoint_page",
+            vec![pcall("checkpoint_page")],
+        ));
+    }
     if p.exports.contains_key("checkpoint_record_add") {
         entrypoints.push((
             "canister_update record_add",

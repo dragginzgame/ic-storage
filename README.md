@@ -43,7 +43,11 @@ now restores two maps of up to 64 records each after full heap loss. Its
 add controller authorization, epochs, cancellation, bounded import batches,
 compatible interruption, explicit restart and single-use completion. Progress
 writes use a separate 104-byte governed record while retaining the checkpoint;
-each batch still reads and validates the complete bounded payload. Larger
+each batch still reads and validates the complete bounded payload. The new
+[paged native profile](docs/design/paged-map-checkpoint.md#installed-paged-native-recovery)
+qualifies combined native/continuation/progress rollback and reads only the next
+checkpoint page, retaining the 64-record/root bound and a single export epoch.
+Larger
 recovery budgets, consumer-facing root custody and application record values
 remain next; the million-key figures are host measurements.
 
@@ -91,6 +95,8 @@ make native-map-firehose
 make native-map-pool-firehose
 make native-map-checkpoint-test
 make native-map-job-test
+make native-map-paged-test
+make paged-store-test
 make native-map-probe
 make native-feasibility-test
 make native-layout-probe

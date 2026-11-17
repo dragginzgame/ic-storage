@@ -10,7 +10,7 @@ Its locator is `native.checkpoint.maps.v1`, with a 2256-byte load limit and at m
 64 records per map. It uses the product map codecs and scalar staging, followed
 by actual native construction after checkpoint Rust returns. Run
 `make native-map-checkpoint-test`. Select fixture features independently;
-`native-map-job` takes precedence in an all-features build. The additional
+`native-map-job` takes precedence over the non-map bridge profiles. The additional
 `native-map-job` feature uses native format 8 and two governed cells
 for [durable two-map jobs](../ic-storage-native-feasibility/native-map-jobs.md),
 at `native.checkpoint.maps.job.metadata.v1` (104-byte limit) and
@@ -24,6 +24,18 @@ completed retries preserve newer writes. Run `make native-map-job-test`. Bare ma
 checkpoints, the former single-cell job locator and previous native formats are
 not silently enrolled. The Make target includes host tests of this actual adapter
 using Storage's metered backing; installed tests supply IC transaction evidence.
+
+`native-map-paged` selects the paged adapter instead of the bounded-envelope job
+adapter. It shares the native format-8 staging ABI and the four governed paged
+locators with the host/storage fixture. It accepts one fresh export epoch, one
+page per batch and at most 64 records per root. Native writes are checked against
+a transient expected-record list before continuation/metadata commit and final
+root publication. All frames execute in one IC message, without native Rust
+reentry from checkpoint Rust. It supports frozen resumption, interrupted private
+imports, completed exact retries and explicit unfinished-target restart; it has
+no cancellation, atomic whole-checkpoint consume or later export epochs yet.
+Run `make native-map-paged-test` for installed transactions and refusals; see
+the [paged recovery contract](../../docs/design/paged-map-checkpoint.md#installed-paged-native-recovery).
 
 The separately selected `native-job` feature uses the same governed provider
 under `native.checkpoint.job.v1` for [durable migration admission](../ic-storage-native-feasibility/migration-job.md).
@@ -47,7 +59,7 @@ It reuses the governed reader and scalar-only bridge composition, with six
 record-specific callbacks. Run `make native-record-vector-test`. Select fixture
 features independently. `native-record-vector-source` selects an ordinary Rust
 `Vec<V2>` source for portable narrowing into V3; it takes precedence in an
-all-features build without `native-map`. The target never implicitly converts V2 during V3 recovery.
+native-profile build without `native-map`. The target never implicitly converts V2 during V3 recovery.
 The same Make target builds and qualifies both source and target profiles.
 It also builds `native-record-vector-v2` for full-width native predecessor
 export/recovery and `native-record-vector-convert` for explicit retained conversion
@@ -65,6 +77,16 @@ Run `make native-record-job-test`. Its envelope is `ICJRV001`; no V2 conversion
 or adoption of the ordinary record checkpoint is implicit. Source, V2 and
 conversion fixture features take precedence when combined; qualify this job
 feature independently. See the [record job contract](../ic-storage-native-feasibility/migration-job.md#record-vector-job-profile).
+
+The separately selected `paged-store` feature exercises the shared governed
+page/manifest/continuation/job store through ordinary upgrades. It is incompatible
+with `native-bridge` features: this probe reconstructs transient maps for storage
+verification and does not retain native roots. `make paged-store-test` qualifies
+four-allocation publication, failed-update/upgrade rollback, retries and
+missing/corrupt-store refusal. See the
+[installed storage boundary](../../docs/design/paged-map-checkpoint.md#installed-storage-transaction-boundary)
+for the exact scope and evidence. The native job remains on its bounded payload
+until combined native/progress publication is qualified.
 
 ## Frozen provider boundary
 

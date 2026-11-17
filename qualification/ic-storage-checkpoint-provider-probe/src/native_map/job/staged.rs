@@ -1,23 +1,12 @@
 //! Durable cursor owner is MapJob; this adapter validates native prefixes and
 //! stages only the next bounded batch. Native construction happens after return.
 use super::{args, controller, domain, fresh, ic0, map_job};
-use crate::native_map::{map_finish, map_put, read_source};
-use ic_storage_native_feasibility::checkpoint::maps::Records;
-
-#[expect(
-    unsafe_code,
-    reason = "scalar imports bound to non-reentrant WAT callbacks"
-)]
-#[link(wasm_import_module = "native_checkpoint")]
-unsafe extern "C" {
-    safe fn map_stage_start(fault: u32);
-    safe fn map_stage_prepare(a: u32, b: u32, complete: u32, fault: u32);
-    safe fn map_stage_state();
-    safe fn map_stage_damage(mode: u32);
-    safe fn stage_ready();
-    safe fn map_stage_commit_state() -> u32;
-    safe fn map_stage_verified(complete: u32);
-}
+use crate::native_map::staging::{
+    map_stage_commit_state, map_stage_damage, map_stage_prepare, map_stage_start, map_stage_state,
+    map_stage_verified, stage_ready,
+};
+use crate::native_map::{map_count, map_finish, map_put, map_word};
+use ic_storage_native_feasibility::checkpoint::maps::{Records, verify_records};
 
 // The codec supplies root 1 then root 2, ascending u64 key in each root.
 fn counts(values: &Records, prefix: u32) -> [usize; 2] {
@@ -34,16 +23,15 @@ fn validate(values: &Records, prefix: u32) {
 }
 fn validate_records(values: &Records, prefix: u32) {
     let counts = counts(values, prefix);
-    let mut actual = read_source();
     for id in 0..2 {
-        assert_eq!(actual[id].len().unwrap(), counts[id]);
-        actual[id]
-            .with(|view| {
-                for &(key, value) in &values[id][..counts[id]] {
-                    assert_eq!(view.get(key), Some(value));
-                }
-            })
-            .unwrap();
+        let count = map_count(id as u32) as usize;
+        verify_records(&values[id][..counts[id]], count, |index| {
+            // The WAT cursor requires each key immediately followed by its value.
+            let key = map_word(id as u32, index as u32, 0);
+            let value = map_word(id as u32, index as u32, 1);
+            (key, value)
+        })
+        .unwrap_or_else(|_| ic0::trap(b"native map records differ from checkpoint"));
     }
 }
 
@@ -122,7 +110,7 @@ extern "C" fn checkpoint_batch() {
     ic0::msg_arg_data_copy(&mut bytes, 0);
     let [epoch, source, start, limit, fault]: [u64; 5] =
         std::array::from_fn(|i| u64::from_le_bytes(bytes[i * 8..i * 8 + 8].try_into().unwrap()));
-    assert!(fault <= 7);
+    assert!(fault <= 8);
     let mut cell = map_job::open(false);
     let (job, batch) = cell.batch(
         domain(),

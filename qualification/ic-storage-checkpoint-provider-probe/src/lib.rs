@@ -1,9 +1,13 @@
 //! Governed checkpoint provider fixtures; ordinary and native bridge profiles.
 
+#[cfg(all(feature = "paged-store", feature = "native-bridge"))]
+compile_error!("paged-store is an ordinary storage probe, not a native bridge profile");
+
 #[cfg(any(
     feature = "native-job",
     feature = "native-record-vector-job",
-    feature = "native-map-job"
+    feature = "native-map-job",
+    feature = "paged-store"
 ))]
 #[cfg(target_arch = "wasm32")]
 mod job_control;
@@ -36,9 +40,11 @@ mod native_bridge;
 #[cfg(not(feature = "native-map"))]
 #[cfg(target_arch = "wasm32")]
 mod native_job;
-#[cfg(not(feature = "native-bridge"))]
+#[cfg(not(any(feature = "native-bridge", feature = "paged-store")))]
 #[cfg(target_arch = "wasm32")]
 mod ordinary;
+#[cfg(all(feature = "paged-store", target_arch = "wasm32"))]
+mod paged_store;
 #[cfg(any(target_arch = "wasm32", all(test, feature = "native-map-job")))]
 mod provider;
 #[cfg(all(

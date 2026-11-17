@@ -39,5 +39,9 @@ name = "checkpoint_provider"
 path = "tests/checkpoint_provider/mod.rs"
 
 [[test]]
+name = "paged_store"
+path = "tests/paged_store.rs"
+
+[[test]]
 name = "provider_link"
 path = "tests/provider_link/mod.rs"

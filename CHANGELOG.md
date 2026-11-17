@@ -1,5 +1,53 @@
 # Changelog
 
+## [0.75.5] - Unreleased
+
+### ➕ Added
+
+- Connect the shared paged store to installed retained-map recovery. Verify
+  native writes before committing continuation and progress, then publish both
+  roots in the same IC message. Qualify compatible interruption, exact retries
+  and explicit unfinished-target restart within the existing 64-record/root
+  native ABI. This first profile accepts one epoch and one page per call.
+- Observe continuation fingerprints directly from admitted scalar record scans,
+  preserving native bucket order without reconstructing maps. Reuse the product
+  portable encoder and keep existing checkpoint/continuation bytes unchanged.
+  Validate job/cursor binding before scanning; completed retries need no scan.
+- Share one governed paged-store owner between host qualification and an
+  installed ordinary-upgrade probe. Verify page/manifest publication and
+  continuation/metadata rollback through 4,608-record pairs, including traps
+  after second-root writes and failed upgrades. This separate storage probe
+  reconstructs transient maps; retained roots use the bounded native profile.
+
+### 🔧 Changed
+
+- Adopt Testkit 0.108.0 in the qualification workspace. Keep the PocketIC-only
+  dependency graph and validate installed retention and map recovery with the
+  existing prepared 0.106.0 server launcher.
+
+### ⚡ Performance
+
+- Verify installed map-import prefixes directly through the scalar reader,
+  without rebuilding transient native hash tables. Sorted checkpoint lookup and
+  an eight-byte seen bitmap reject wrong, missing and duplicate records before
+  staging and after native writes. Full checkpoint decoding and prefix scans
+  remain; the installed 64-record-per-root limit is unchanged.
+
+### 🧪 Testing
+
+- Compare scalar fingerprints with independent installed native-slot observations
+  under frozen-source and private-import custody. Active roots refuse this query.
+  Revalidate governed storage rollback with the observation-based continuation
+  boundary. Add installed combined native/progress fault coverage through final
+  root publication, authority rejection, corruption refusal and explicit restart.
+- Cover every supported prefix length, record position and duplicate placement.
+  Inject duplicate native records after real insertion and verify that the
+  post-apply verifier traps, preserving the prior heap and stable bytes across
+  partial, root-crossing and completing batches.
+- Add `make paged-store-test` and hosted CI coverage for independent page-chain
+  checks, reopening, exact retries, controller rejection, corrupt records and
+  missing-store refusal without replacement writes.
+
 ## [0.75.4] - 2026-11-17
 
 ### ➕ Added

@@ -114,6 +114,16 @@ order. Before a new batch, the adapter compares both native prefix counts and
 every expected key/value against the independent checkpoint. A batch applies
 1–64 records (or the remaining tail), including across the root boundary.
 
+Prefix comparison reads each native record once through the existing scalar
+cursor. `checkpoint::maps::verify_records` checks the count before reading,
+finds each key by binary search in the admitted sorted prefix, compares its value
+and marks its position in an eight-byte bitmap. A repeated position refuses;
+equal counts and unique matching positions prove that no expected key is missing.
+The comparison creates no transient maps or record copies. Scratch is fixed
+for this 64-record profile; lookup work is O(n log n), in addition to the native
+bucket scan. This is not a measured throughput gain or bounded total recovery
+work, and it does not replace native ownership or allocator admission.
+
 The adapter first writes the new durable cursor, then stages only the next
 records through scalar callbacks. After Rust returns, the wrapper temporarily
 admits native mutation, inserts the batch, verifies both resulting counts and
@@ -166,6 +176,9 @@ and after native insertion before verification. Batch fault 5 traps after
 verification; fault 6 changes an applied native value so verification must refuse.
 Fault 7 changes the native completion flag while retaining valid records; the
 job-owned completion decision must reject that mismatch before publication.
+Fault 8 replaces a second occupied native slot with the first slot's complete
+key/value while preserving counts. The installed test requires the explicit
+post-apply comparison trap, not merely any Wasm failure, and checks rollback.
 Faults apply to new batches; retry acknowledges existing progress without writing.
 Export fault 1 traps after complete job publication; fault 2 traps after the
 checkpoint cell write and before the metadata write.
@@ -186,6 +199,48 @@ whole-canister snapshot rollback protection or production recovery authority is
 claimed. Consumer cutovers require their own authorization and data contracts.
 
 ## Qualification evidence
+
+The 0.75.5 development [paged native adapter](../../docs/design/paged-map-checkpoint.md#installed-paged-native-recovery)
+now qualifies combined retained-root/continuation/progress rollback within the
+same bounded native staging ABI. Its separate `make native-map-paged-test`
+cohort in `target/evidence/native-map-provider/attempt.ugEKzt` passed three native
+artifact checks and two installed cases (11.90 seconds). The existing `NKPAIR01`
+job profile, including cancellation and later epochs, passed again in
+`attempt.edtOHJ` (three artifact checks, one ordering check and three installed
+cases; 11.85 seconds for the job group). Eight governed host tests and strict
+Clippy for the shared callbacks, adapters and caller also passed.
+
+The earlier 0.75.5 development continuation observer uses the existing scalar callbacks
+to fingerprint admitted frozen/private roots without rebuilding maps. The
+qualification-only `native_prefix` query returns two count/fingerprint pairs;
+its native admission frame ends before checkpoint Rust begins, and active roots
+refuse. In `target/evidence/native-map-provider/attempt.PWFDBc`, three artifact
+checks, the composition ordering check and three installed cases passed
+(11.71 seconds for the job group). Independent raw-slot hashing agrees for
+frozen sources and staged prefixes across root crossings and restarts. This
+qualifies the observation boundary; that run used `NKPAIR01` and did not
+persist paged continuations alongside native writes. The existing
+callback roster, stored bytes and 64-record-per-root bound remain unchanged.
+
+The 0.75.5 development scalar-prefix comparison passed four focused host tests
+and strict host/Wasm Clippy on 17 November 2026. Installed evidence in
+`target/evidence/native-map-provider/attempt.E0buFe` passed three native artifact
+checks, one ordering check and all three map-job cases (12.44 seconds for the
+job group). Duplicate-slot faults reach the post-apply verifier on partial,
+root-crossing and final batches and preserve the previous native/stable state.
+The initial diagnostic-only assertion failure remains in `attempt.4PyEjt`;
+the final adapter uses an explicit trap message instead of a generic Rust panic.
+Stored formats, scalar callback roster, installed limits and completed retry
+behavior remained unchanged; that run preceded paged continuation integration.
+
+Testkit 0.108.0 adoption passed strict Clippy for every retention test target and
+the benchmark caller, plus dependency inheritance and PocketIC-only graph checks.
+With the existing Runtime 0.23.16 lockfile selection, the rebuilt installed map
+cohort in `target/evidence/native-map-provider/attempt.q6kklt` passed three native
+artifact checks, one ordering check and all three map-job cases (11.79 seconds).
+The installed scalar retention/failed-upgrade case also passed. These runs use
+the separately prepared 0.106.0 launcher and PocketIC 16.1.0; optional held-reply
+fixtures remain disabled and no Protocol 0.3 dependency is introduced.
 
 The v0.75.4 delivery candidate passed the repository CI gate and strict lint on
 17 November 2026. After the final Host Artifacts 0.80.3 lockfile update, affected

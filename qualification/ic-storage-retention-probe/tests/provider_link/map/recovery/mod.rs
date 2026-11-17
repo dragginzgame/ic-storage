@@ -8,6 +8,7 @@ use ic_storage_retention_probe::artifact::{compile_wat, validate_wasm};
 
 mod installed_tests;
 mod job_installed_tests;
+mod paged_installed_tests;
 mod read_tests;
 const LIMIT: usize = 1024 * 1024;
 

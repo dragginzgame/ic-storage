@@ -1,6 +1,7 @@
 //! Host conformance of the product page codec against governed Storage handles.
 //! The child job fixture persists offsets; neither fixture is an installed adapter.
 mod job_tests;
+use super::paged::{MANIFEST, PAGES, Store};
 use ic_storage_legacy::{
     Memory, MemoryBacking, StableKey, VectorMemory,
     adapter::{StableCell, StableVec},
@@ -10,38 +11,10 @@ use ic_storage_native::map::{Error, Map, paged::PAGE_BYTES};
 use ic_storage_native_feasibility::checkpoint::maps::paged::{self, MANIFEST_BYTES, Manifest};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
-const MANIFEST: &str = "native.checkpoint.paged.maps.manifest.v1";
-const PAGES: &str = "native.checkpoint.paged.maps.pages.v1";
-
-struct Store<M: Memory> {
-    manifest: StableCell<[u8; MANIFEST_BYTES], M>,
-    pages: StableVec<[u8; PAGE_BYTES], M>,
-}
-
 impl<M: MemoryBacking> Store<M> {
     fn open(memory: M, create: bool) -> Self {
         let runtime = super::runtime(memory, &[MANIFEST, PAGES], create);
         Self::from_runtime(&runtime, create)
-    }
-
-    fn from_runtime(runtime: &ic_storage_legacy::MemoryRuntime<M>, create: bool) -> Self {
-        let metadata = runtime
-            .open_memory(&StableKey::parse(MANIFEST).unwrap())
-            .unwrap();
-        let data = runtime
-            .open_memory(&StableKey::parse(PAGES).unwrap())
-            .unwrap();
-        if create {
-            Self {
-                manifest: StableCell::create(metadata, [0; MANIFEST_BYTES]).unwrap(),
-                pages: StableVec::create(data).unwrap(),
-            }
-        } else {
-            Self {
-                manifest: StableCell::load(metadata, MANIFEST_BYTES).unwrap(),
-                pages: StableVec::load(data).unwrap(),
-            }
-        }
     }
 }
 
@@ -64,21 +37,6 @@ impl<M: Memory> Store<M> {
         let manifest = Manifest::decode(self.manifest.get(), 17, limit).unwrap();
         assert_eq!(self.pages.len(), manifest.page_count() as u64);
         manifest
-    }
-
-    fn page(&self, manifest: &Manifest, root: usize, index: usize) -> [u8; PAGE_BYTES] {
-        // Roots are appended in order; each root's physical pages are reversed.
-        let start = if root == 0 {
-            0
-        } else {
-            manifest.roots()[0].page_count()
-        };
-        let physical = start
-            + manifest.roots()[root]
-                .page_count()
-                .checked_sub(index + 1)
-                .unwrap();
-        self.pages.get(physical as u64).unwrap()
     }
 
     fn restore(&self, limit: usize) -> Result<[Map; 2], Error> {

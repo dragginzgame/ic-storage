@@ -80,6 +80,10 @@ jobs:
         run: make native-job-test 2>&1 | tee target/evidence/native-job-test.log
       - name: Validate durable map recovery jobs
         run: make native-map-job-test 2>&1 | tee target/evidence/native-map-job-test.log
+      - name: Validate governed paged storage transactions
+        run: make paged-store-test 2>&1 | tee target/evidence/paged-store-test.log
+      - name: Validate paged recovery into retained maps
+        run: make native-map-paged-test 2>&1 | tee target/evidence/native-map-paged-test.log
       - name: Collect bounded sanitized diagnostics
         id: collect
         if: failure()

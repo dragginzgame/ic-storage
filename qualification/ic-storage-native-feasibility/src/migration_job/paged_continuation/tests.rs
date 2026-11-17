@@ -6,14 +6,14 @@ use ic_storage_native::map::paged::PAGE_BYTES;
 const A: u64 = 131072;
 const B: u64 = 163840;
 
-struct Fixture {
-    job: PagedMapJob,
-    readers: [Reader; 2],
-    maps: [Map; 2],
-    pages: [Vec<[u8; PAGE_BYTES]>; 2],
+pub(super) struct Fixture {
+    pub(super) job: PagedMapJob,
+    pub(super) readers: [Reader; 2],
+    pub(super) maps: [Map; 2],
+    pub(super) pages: [Vec<[u8; PAGE_BYTES]>; 2],
 }
 
-fn fixture(counts: [usize; 2]) -> Fixture {
+pub(super) fn fixture(counts: [usize; 2]) -> Fixture {
     let sources = counts.map(|count| {
         let mut map = Map::new(count);
         map.with(|mut view| {
@@ -46,7 +46,7 @@ fn fixture(counts: [usize; 2]) -> Fixture {
     }
 }
 
-fn step(
+pub(super) fn step(
     job: &mut PagedMapJob,
     readers: &mut [Reader; 2],
     maps: &mut [Map; 2],

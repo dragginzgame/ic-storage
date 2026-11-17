@@ -15,7 +15,8 @@ const DIGEST: usize = 32;
 /// Export failure; a failed sink may contain an incomplete, unusable checkpoint.
 #[derive(Debug, PartialEq, Eq)]
 pub enum ExportError<E> {
-    /// Native owner, framing or allocation failed before writing any bytes.
+    /// Native owner, count, framing or allocation refused. A stream with a wrong
+    /// declared count can already have written an incomplete checkpoint.
     Map(Error),
     /// The caller's sink rejected a chunk; the map remains unchanged.
     Sink(E),
@@ -28,6 +29,47 @@ pub enum ImportError<E> {
     Map(Error),
     /// The source could not fill a requested buffer completely.
     Source(E),
+}
+
+/// Stream the portable checkpoint for an already admitted sequence of records.
+/// Preserves input order and uses constant encoder scratch, with chunks at most
+/// 32 bytes. This is the same byte encoder used by [`Map::export`].
+///
+/// The caller must establish unique keys and stable, exclusive source custody;
+/// this encoder does not validate a native layout or deduplicate records. It
+/// checks the declared count, consuming at most `count + 1` records. A count
+/// mismatch or sink failure leaves incomplete output that must not be published.
+/// Importers still check integrity and reject duplicates independently.
+pub fn export_records<E>(
+    count: usize,
+    epoch: u64,
+    records: impl IntoIterator<Item = (u64, u64)>,
+    mut sink: impl FnMut(&[u8]) -> Result<(), E>,
+) -> Result<(), ExportError<E>> {
+    encoded_length(count).map_err(ExportError::Map)?;
+    let mut digest = Sha256::new();
+    let mut write = |bytes: &[u8]| {
+        digest.update(bytes);
+        sink(bytes).map_err(ExportError::Sink)
+    };
+    write(MAGIC)?;
+    write(&epoch.to_le_bytes())?;
+    write(&(count as u64).to_le_bytes())?;
+    let mut seen = 0;
+    for (key, value) in records {
+        if seen == count {
+            return Err(ExportError::Map(Error::Checkpoint));
+        }
+        let mut record = [0; 16];
+        record[..8].copy_from_slice(&key.to_le_bytes());
+        record[8..].copy_from_slice(&value.to_le_bytes());
+        write(&record)?;
+        seen += 1;
+    }
+    if seen != count {
+        return Err(ExportError::Map(Error::Checkpoint));
+    }
+    sink(&digest.finalize()).map_err(ExportError::Sink)
 }
 
 impl Map {
@@ -85,26 +127,18 @@ impl<A: Allocator + Clone> Map<A> {
     pub fn export<E>(
         &self,
         epoch: u64,
-        mut sink: impl FnMut(&[u8]) -> Result<(), E>,
+        sink: impl FnMut(&[u8]) -> Result<(), E>,
     ) -> Result<(), ExportError<E>> {
         self.healthy().map_err(ExportError::Map)?;
-        let mut digest = Sha256::new();
-        let mut write = |bytes: &[u8]| {
-            digest.update(bytes);
-            sink(bytes).map_err(ExportError::Sink)
-        };
-        write(MAGIC)?;
-        write(&epoch.to_le_bytes())?;
-        write(&(self.len as u64).to_le_bytes())?;
-        for slot in &self.slots {
-            if slot.occupied == 1 {
-                let mut record = [0; 16];
-                record[..8].copy_from_slice(&slot.key.to_le_bytes());
-                record[8..].copy_from_slice(&slot.value.to_le_bytes());
-                write(&record)?;
-            }
-        }
-        sink(&digest.finalize()).map_err(ExportError::Sink)
+        export_records(
+            self.len,
+            epoch,
+            self.slots
+                .iter()
+                .filter(|slot| slot.occupied == 1)
+                .map(|slot| (slot.key, slot.value)),
+            sink,
+        )
     }
 
     /// Allocate a complete checkpoint in transient host memory.

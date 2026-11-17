@@ -7,12 +7,12 @@ one page using its expected digest and previous key; it does not reread earlier
 pages or load the complete checkpoint. This is not a random-access proof: reaching
 a later page requires the verified preceding chain.
 
-This is the next storage boundary for larger recovery. The current installed
-two-map job still uses its existing `NKPAIR01` checkpoint and 64-record-per-map
-limit. The new codec has host qualification through governed Storage 0.74.1
-handles and a no_std Wasm compile/lint check. A host adapter now persists page
-offsets and verifier continuations through the shared migration job. There is
-no installed paged recovery job. Neither these tests nor a valid manifest
+This is the storage boundary for larger recovery. The existing installed
+`NKPAIR01` job keeps its lifecycle qualification. A new paged native profile
+uses the same 64-record-per-map native staging ABI to qualify combined
+root/continuation/progress transactions before expanding capacity. The codec
+also has host qualification through governed Storage 0.74.1 handles and a
+no_std Wasm compile/lint check. Neither these tests nor a valid manifest
 authorize a consumer cutover.
 
 ## Byte contract
@@ -147,7 +147,7 @@ pages followed by root 2's, descending within each, and returns the pair only
 after both succeed. Host recovery keeps both candidate maps private until both
 page chains finish. It cannot expose root 1 after failure in root 2.
 
-The fixture in the existing checkpoint-provider package uses the published
+The shared `provider::paged` owner in the existing checkpoint-provider package uses the published
 provider API through fresh governed handles with owner `native-checkpoint`:
 
 | Locator | Stored shape |
@@ -161,8 +161,8 @@ manifest. It publishes the manifest last and writes only to fresh storage;
 partial exports stay unsealed. Missing locators, earlier checkpoint locators or
 unknown/corrupt data are refused without initializing replacement state. No raw
 stable-memory format is inferred or recreated, and the legacy repository is not
-modified. This fixture does not supply host crash transactions or establish IC
-rollback across the two allocations.
+modified. Host execution does not supply crash transactions. Installed storage
+rollback has the separate scope described below.
 The earlier single-root `native.checkpoint.paged.map.*.v1` locators are not
 automatically enrolled or converted. Their v0.75.3 evidence retains its scope.
 
@@ -208,7 +208,7 @@ pairs complete with the first valid request. Admission rejects total page counts
 above `u32::MAX`, including on hosts whose `usize` is wider. All decoded counts
 must also fit the target's `usize`.
 
-The host job fixture adds `native.checkpoint.paged.maps.job.metadata.v1` as a
+The shared store adds `native.checkpoint.paged.maps.job.metadata.v1` as a
 `StableCell<[u8; 104]>` and `native.checkpoint.paged.maps.job.continuation.v1` as
 a `StableCell<[u8; 512]>` beside the pair manifest and pages. Fresh publication
 writes both chains, then the manifest, then job metadata; the continuation stays
@@ -245,6 +245,22 @@ constant hash scratch and the current native bucket iteration order. A logically
 equal reconstruction with different bucket order refuses; matching fingerprints
 still do not prove allocation custody. Explicit fresh-target restart owns
 reconstruction. These fingerprints admit no raw native pointers or allocator state.
+
+`NativePrefix::from_records` observes an admitted scalar stream directly, using
+the same `export_records` byte encoder as `Map::export`. It preserves input order,
+checks the declared count and uses constant encoder/hash scratch. Native custody,
+unique keys and an immutable scan remain caller obligations; passing an arbitrary
+record list does not establish them. Count mismatch or sink failure leaves an
+incomplete checkpoint that must not be published. Portable import still rejects
+duplicate keys independently.
+
+The shared governed store accepts these transient observations for capture and
+a lazy observer for resumption. `decode_observed` validates framing, checksum,
+exact job metadata and cursor geometry before calling that observer once for an
+importing job. Invalid binding and completed retries never call it. Existing
+map-based convenience calls delegate to the same codec; the 512-byte format and
+golden remain unchanged. Host tests compare both paths after every page through
+4,608-record pairs, reject changed counts/values/order and verify lazy refusal.
 
 Before new writes, the adapter checks both current native fingerprints and
 stages only newly requested page records through the resumed readers. After
@@ -284,14 +300,152 @@ Run `cargo test --manifest-path qualification/Cargo.toml -p ic-storage-native-fe
 for the shared job cases and `make native-map-page-test` for both governed page
 groups. These cases run through existing repository CI selections.
 
-The next integration must replace the installed bounded-map payload path with
-this page adapter, qualify native custody and atomic publication of progress and
-both roots, and exercise installed rollback/restart. The installed bounded job
-now provides a qualified post-apply verification boundary before publication;
-continuation capture must run there after actual native writes, not while the
-checkpoint adapter is only staging them. Host unwinding does not roll
-back partially applied native allocations or writes. It supplies no installed
-controller checks, frozen-source resumption, crash transaction or cross-compiler
-proof. Bounded native-prefix validation and the installed continuation custody
-contract remain open; the host checks do not establish either.
-The current installed job's limits and historical evidence remain unchanged.
+## Installed storage transaction boundary
+
+The `paged-store` profile now uses the same `provider::paged::Jobs` owner as the
+host fixture. It opens all four locators through fresh governed handles, exports
+pages before their manifest and metadata, and captures a continuation before
+writing progress metadata. The owner refuses publication over an existing
+checkpoint and refuses absent locators; it never converts a failed load into
+initialization. `commit_progress` binds the supplied job, cursors and actual map
+counts before any write. Its caller still owns transition authority and semantic
+verification of native writes; this storage method cannot establish those facts.
+
+The ordinary Wasm probe recreates transient maps by rereading the committed prefix
+on every request. It exercises the real continuation codec and storage operations,
+not retained native custody or bounded recovery I/O. Domain IDs belong to the
+shared job fixture and are not proof of native arena ownership in this probe.
+Controller checks protect its publication/progress/fault updates; management
+upgrade authority owns its optional post-upgrade progress operation.
+
+Installed tests independently check both root manifests, every page hash and
+full-width record values. They cover `[0, 0]`, `[0, 65]`, `[65, 0]`, `[129, 65]`
+and `[2304, 2304]` pairs, reopening all handles after ordinary heap replacement,
+root-crossing and final progress writes, exact retries, and corrupt metadata,
+manifest, continuation or future-page refusal. Removing stable memory cannot
+silently initialize a replacement store.
+
+Fault points follow the actual governed writes: first page, first page of root 2,
+manifest, continuation and metadata. Failed update calls preserve complete stable
+bytes and the preceding snapshot. Failed ordinary upgrades after continuation or
+metadata writes additionally preserve the old executable. Thus the IC message
+supplies atomicity across these storage allocations; cell ordering alone does not.
+Both target roots remain outside this qualification boundary.
+
+On 17 November 2026, `make paged-store-test` passed both installed cases in
+`target/evidence/paged-store/attempt.ftDAhy` (11.64 seconds) using Rust 1.100.0,
+Runtime 0.23.16, Testkit 0.108.0, the prepared 0.106.0 launcher and PocketIC 16.1.0.
+The collector preserves both admitted Wasm artifacts, source inputs and completion
+markers. Eight existing governed host tests retain their 616-byte progress and
+zero-write retry measurements after extraction into the shared owner. Strict
+host/Wasm Clippy passed for the changed probe and the existing ordinary/native-map
+callers. Hosted CI runs the new installed target separately from the host gate.
+
+After the existing explicit setup, use `make paged-store-build` to compile both
+ordinary variants, or `make paged-store-test` to build and run the installed cases.
+These commands use locked offline dependencies and the admitted prepared server.
+
+## Installed scalar observation
+
+The bounded native-map job has a qualification-only `native_prefix` query. Its
+native wrapper admits the retained roots, finishes the native Rust frame and
+restores frozen-source or private-import custody before the checkpoint domain
+scans scalar callbacks. Each key is immediately followed by its value, in native
+bucket order. No temporary Rust map is built; each root returns its count and
+32-byte fingerprint. Active roots refuse. The scalar callback roster remains
+unchanged, and no observer Rust value is retained or stored.
+
+On 17 November 2026, `native-map-provider/attempt.PWFDBc` passed three artifact
+checks, the composition ordering check and three installed map-job cases
+(11.71 seconds for the job group). Independent observations hash the actual
+retained slot records, including their portable checkpoint digest; frozen
+sources, partial imports, root crossings and restarts agree. Completed roots
+refuse observation and remain unchanged. Seven product checkpoint tests, seven
+continuation tests and eight governed host tests pass, with strict host/Wasm
+Clippy. The shared store's installed cases also passed again in
+`paged-store/attempt.LTdsCr` (12.21 seconds) with completion markers, using the
+same Rust 1.100.0/Runtime 0.23.16/Testkit 0.108.0 toolchain described above.
+Both evidence directories are under `target/evidence/`.
+
+## Installed paged native recovery
+
+`native-map-paged` selects the paged adapter in the existing checkpoint-provider
+fixture. It reuses native format 8, its closed scalar staging ABI, the shared job
+state machine and all four governed paged locators. Its fresh namespace accepts
+one export epoch; export freezes both source roots and seals sorted logical page
+chains. Repeated exports refuse. There is no cancellation, whole-checkpoint
+consume or second-epoch export in this profile yet. Existing `NKPAIR01` evidence
+retains those distinct lifecycle cases; no old locator is implicitly converted.
+
+The native ABI still limits each root to 64 records and one staged call to 64
+records. This adapter therefore accepts exactly one page per batch. Each root
+has zero or one page; two nonempty roots complete in two calls. Empty pairs
+complete on their first batch. The larger host/storage-probe fixtures do not
+increase this native capacity or qualify same-root multipage recovery.
+
+Every new batch has six closed wrapper steps:
+
+1. Admit native state and restore private-import custody after native Rust ends.
+2. Admit stored metadata/continuation and the retained fingerprints. Capture the
+   admitted old records in transient checkpoint memory; read only the requested
+   new page and stage its scalar records. Do not write durable progress yet.
+3. End checkpoint Rust, apply native writes and suspend both roots privately.
+4. Return to checkpoint Rust. Compare every resulting native record against the
+   old records plus the newly verified page, rejecting duplicates and missing or
+   changed values. Capture actual bucket-order fingerprints, then write the
+   512-byte continuation and 104-byte job metadata through the shared store.
+5. End checkpoint Rust and publish both roots only when the verified batch is
+   complete. Intermediate batches retain private-import custody.
+6. Reply after all commits finish.
+
+The between-frame plan uses ordinary transient checkpoint allocations outside
+the native pool, with no live borrow while native Rust runs. It is taken and
+dropped within the same message. No such Rust plan survives as recovery state;
+resumption uses byte-defined governed data. A trap rolls back both domains and
+stable allocations together. Write ordering and host unwinding alone do not
+supply this transaction guarantee.
+
+Fresh-target start and explicit unfinished-target restart use the same post-apply
+verification/commit boundary with empty expected roots. Restart discards only an
+unfinished target; it can recover corrupt native state or a damaged continuation
+from valid independent job/manifest/pages, but cannot repair corrupt job metadata
+or checkpoint pages. Skipping a corrupt old pre-upgrade hook is explicit in the
+qualification management call. Compatible interruption validates the retained
+fingerprints and stored cursors. Completed retries validate binding without
+scanning or rewriting active roots, preserving newer application writes.
+
+Installed cases cover empty, asymmetric and 64+64-record pairs, independent
+manifest/page/native-slot checks, frozen resumption, compatible interruption,
+exact retries and restart. Faults after native insertion, semantic verification,
+continuation writes, metadata writes and final native publication preserve the
+preceding native/stable bytes; failed upgrades also preserve the old executable.
+Value/duplicate corruption and completion-flag substitution refuse. Missing
+stores and invalid metadata/manifests/continuations/pages never reset data.
+Corrupting an already consumed page does not affect continuation to the next
+page; explicit restart encounters it again. Controller checks guard updates.
+
+Use `make native-map-paged-build` for the admitted Wasm build and
+`make native-map-paged-test` for installed qualification. Hosted CI calls the same
+target, and the collector preserves source inputs, all six composed executables
+and `PAGED_NATIVE_RECOVERED`, `PAGED_NATIVE_REFUSED` and `COMPLETE` markers.
+
+On 17 November 2026, the final native paged cohort in
+`target/evidence/native-map-provider/attempt.ugEKzt` passed three native artifact
+checks and both installed cases (11.90 seconds), including explicit confirmation
+that value and duplicate-slot faults reach post-apply verification. The existing
+map-job cohort passed again in `attempt.edtOHJ` (three artifact checks, one
+ordering check and three installed cases; 11.85 seconds for the job group).
+Eight governed host tests and strict host/Wasm Clippy passed for the affected
+adapters and caller. These runs used Rust 1.100.0, Runtime 0.23.16, Testkit 0.108.0,
+the prepared 0.106.0 launcher and PocketIC 16.1.0. Preliminary successful runs
+`attempt.WTUpkb` and `attempt.Ij35Cq` remain preserved with their narrower tests.
+
+## Remaining capacity and lifecycle work
+
+The next integration is recovery into the growing native pool, including multiple
+pages per root, allocation/growth rollback and measured message budgets. Export
+still sorts complete source maps. Prefix hashing, expected-record capture and
+post-write comparison still scan the imported records; these are not bounded
+total recovery CPU or memory guarantees. Larger workloads, later export epochs,
+consumer-facing recovery authority and actual cross-compiler migration remain
+unqualified by this bounded profile. Historical evidence is unchanged.

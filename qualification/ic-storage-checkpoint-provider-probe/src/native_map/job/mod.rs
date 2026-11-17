@@ -9,6 +9,30 @@ use ic_storage_native_feasibility::migration_job::MapJob;
 
 mod staged;
 
+/// The native wrapper admits the roots and restores frozen/private custody
+/// before entering this Rust domain. Scalar callbacks never reenter native Rust.
+#[expect(unsafe_code, reason = "private admitted native-prefix evidence query")]
+#[unsafe(no_mangle)]
+extern "C" fn checkpoint_native_prefix() {
+    use ic_storage_native_feasibility::migration_job::paged_continuation::NativePrefix;
+    for id in 0..2 {
+        let count = super::map_count(id);
+        assert!(count <= super::maps::LIMIT as u32);
+        let prefix = NativePrefix::from_records(
+            count as usize,
+            (0..count).map(|index| {
+                let key = super::map_word(id, index, 0);
+                let value = super::map_word(id, index, 1);
+                (key, value)
+            }),
+        )
+        .unwrap();
+        ic0::msg_reply_data_append(&(prefix.len() as u64).to_le_bytes());
+        ic0::msg_reply_data_append(&prefix.fingerprint());
+    }
+    ic0::msg_reply();
+}
+
 #[expect(
     unsafe_code,
     reason = "scalar imports bound to non-reentrant provider callbacks"

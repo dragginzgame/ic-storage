@@ -2,6 +2,40 @@
 use super::installed_tests::{query, word};
 use ic_testkit::pocket_ic::{CanisterId, nonblocking::PocketIc};
 
+/// Independent oracle from retained slots, not a map rebuilt by either codec.
+pub(super) async fn check_prefix(pic: &PocketIc, id: CanisterId) {
+    use ic_storage_retention_probe::artifact::sha256;
+    let native = query(pic, id, "observe").await;
+    let reply = query(pic, id, "native_prefix").await;
+    assert_eq!(reply.len(), 80);
+    for root_id in 0..2 {
+        let root = word(&native, 56 + root_id * 8);
+        let start = 104 + (root >> 16) as usize * 24;
+        let buckets = 1usize << ((root >> 12) & 15);
+        let slots: Vec<_> = native[start..start + buckets * 24]
+            .as_chunks::<24>()
+            .0
+            .iter()
+            .filter(|slot| word(*slot, 0) == 1)
+            .collect();
+        let mut portable = Vec::from(*b"NKEYMAP1");
+        portable.extend_from_slice(&0u64.to_le_bytes());
+        portable.extend_from_slice(&(slots.len() as u64).to_le_bytes());
+        for slot in &slots {
+            portable.extend_from_slice(&slot[8..24]);
+        }
+        portable.extend_from_slice(&sha256(&portable));
+        let mut observed = Vec::from(*b"NKPNAT01");
+        observed.extend_from_slice(&portable);
+        assert_eq!(word(&reply, root_id * 40) as usize, slots.len());
+        assert_eq!(
+            &reply[root_id * 40 + 8..(root_id + 1) * 40],
+            &sha256(&observed)
+        );
+    }
+    assert_eq!(query(pic, id, "observe").await, native);
+}
+
 pub(super) async fn check(pic: &PocketIc, id: CanisterId) {
     let native = query(pic, id, "observe").await;
     let reply = query(pic, id, "scan_records").await;

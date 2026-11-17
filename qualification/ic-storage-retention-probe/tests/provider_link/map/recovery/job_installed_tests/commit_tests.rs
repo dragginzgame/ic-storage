@@ -44,6 +44,9 @@ fn post_apply_verification_precedes_publication_and_reply() {
         let init = calls("canister_init");
         let upgrade = calls("canister_post_upgrade");
         let batch = calls("canister_update import_batch");
+        let prefix = calls("canister_query native_prefix");
+        assert_eq!(prefix.len(), 2);
+        assert!(prefix[0] >= init[0] && prefix[1] < init[0]);
         assert_eq!((upgrade.len(), batch.len()), (5, 6));
         assert_eq!(&upgrade[2..], &batch[2..5]);
         assert!(batch[0] >= init[0] && batch[1] < init[0]);

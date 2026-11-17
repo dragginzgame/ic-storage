@@ -3,6 +3,113 @@ use super::*;
 use sha2::{Digest, Sha256};
 use std::io::Read;
 
+#[test]
+fn admitted_record_stream_preserves_native_order_and_portable_bytes() {
+    for count in [0, 1, 64, 65, 4608] {
+        let mut map = Map::new(count);
+        let mut records = Vec::new();
+        map.with(|mut view| {
+            for key in 0..count as u64 {
+                view.insert(u64::MAX - key, key).unwrap();
+            }
+            if count > 1 {
+                view.remove(u64::MAX);
+                view.insert(0, u64::MAX).unwrap();
+            }
+            view.for_each(|key, value| records.push((key, value)));
+        })
+        .unwrap();
+        let mut actual = Vec::new();
+        super::super::export_records(count, 17, records.iter().copied(), |bytes| {
+            assert!(bytes.len() <= 32);
+            actual.extend_from_slice(bytes);
+            Ok::<_, ()>(())
+        })
+        .unwrap();
+        let mut expected = Vec::from(*b"NKEYMAP1");
+        for word in [17, count as u64] {
+            expected.extend_from_slice(&word.to_le_bytes());
+        }
+        for (k, v) in records {
+            expected.extend_from_slice(&k.to_le_bytes());
+            expected.extend_from_slice(&v.to_le_bytes());
+        }
+        expected.extend_from_slice(&Sha256::digest(&expected));
+        assert_eq!(actual, expected);
+        assert_eq!(actual, map.checkpoint(17).unwrap());
+        assert_eq!(
+            Map::records_from_checkpoint(&actual, 17, count)
+                .unwrap()
+                .len(),
+            count
+        );
+    }
+}
+
+#[test]
+fn wrong_stream_count_and_sink_failure_never_seal_a_checkpoint() {
+    use super::super::export_records;
+    for (declared, supplied) in [(0, 1), (1, 0), (2, 1), (1, 100)] {
+        let mut reads = 0;
+        let mut bytes = Vec::new();
+        let records = (0..supplied).map(|k| {
+            reads += 1;
+            (k, k)
+        });
+        assert_eq!(
+            export_records(declared, 1, records, |part| {
+                bytes.extend_from_slice(part);
+                Ok::<_, ()>(())
+            }),
+            Err(ExportError::Map(Error::Checkpoint))
+        );
+        assert_eq!(reads, supplied.min(declared as u64 + 1));
+        assert_eq!(bytes.len(), 24 + 16 * declared.min(supplied as usize));
+        assert!(Map::records_from_checkpoint(&bytes, 1, 100).is_err());
+    }
+    assert_eq!(
+        export_records(
+            usize::MAX,
+            1,
+            core::iter::from_fn(|| panic!("overflow read input")),
+            |_| -> Result<(), ()> { panic!("overflow wrote output") }
+        ),
+        Err(ExportError::Map(Error::Limit))
+    );
+    for stop in 0usize..6 {
+        let mut calls = 0;
+        let mut reads = 0;
+        let mut bytes = Vec::new();
+        let records = (0..2).map(|k| {
+            reads += 1;
+            (k, k)
+        });
+        assert_eq!(
+            export_records(2, 1, records, |part| {
+                if calls == stop {
+                    return Err("stop");
+                }
+                calls += 1;
+                bytes.extend_from_slice(part);
+                Ok(())
+            }),
+            Err(ExportError::Sink("stop"))
+        );
+        assert_eq!(reads, stop.saturating_sub(2).min(2));
+        assert!(Map::records_from_checkpoint(&bytes, 1, 2).is_err());
+    }
+    let mut duplicate = Vec::new();
+    export_records(2, 1, [(0, 1), (0, 1)], |part| {
+        duplicate.extend_from_slice(part);
+        Ok::<_, ()>(())
+    })
+    .unwrap();
+    assert_eq!(
+        Map::records_from_checkpoint(&duplicate, 1, 2),
+        Err(Error::Checkpoint)
+    );
+}
+
 fn resign(bytes: &mut [u8]) {
     let end = bytes.len() - 32;
     let digest = Sha256::digest(&bytes[..end]);

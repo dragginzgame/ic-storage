@@ -16,6 +16,43 @@ const SEAL: &[u8; 8] = b"SEALED01";
 /// These values carry no native layout, allocation or retained ownership.
 pub type Records = [Vec<(u64, u64)>; 2];
 
+/// Compare one bounded native root with admitted, key-sorted checkpoint records.
+/// The scalar reader supplies each occupied native slot once in any order after
+/// native custody admission. No native map or record buffer is reconstructed.
+/// Repeated records, wrong values and missing/unexpected keys refuse. This is a
+/// logical comparison, not raw-pointer, allocator or transaction admission.
+pub fn verify_records(
+    expected: &[(u64, u64)],
+    count: usize,
+    mut read: impl FnMut(usize) -> (u64, u64),
+) -> Result<(), Error> {
+    if expected.len() > LIMIT || count > LIMIT {
+        return Err(Error::Limit);
+    }
+    if count != expected.len() || expected.windows(2).any(|pair| pair[0].0 >= pair[1].0) {
+        return Err(Error::Checkpoint);
+    }
+    // One bit per possible checkpoint record; independent of native bucket
+    // order. Counting matching values alone would admit a duplicated record
+    // substituted for a missing record with the same total native count.
+    let mut seen = [0u64; LIMIT.div_ceil(64)];
+    for index in 0..count {
+        let (key, value) = read(index);
+        let position = expected
+            .binary_search_by_key(&key, |record| record.0)
+            .map_err(|_| Error::Checkpoint)?;
+        let mask = 1u64 << (position % 64);
+        let word = &mut seen[position / 64];
+        if expected[position].1 != value || *word & mask != 0 {
+            return Err(Error::Checkpoint);
+        }
+        *word |= mask;
+    }
+    // Equal counts and unique matching indices prove that every expected record
+    // was visited, including a complete 64-record root without a shift by 64.
+    Ok(())
+}
+
 /// Bind both logical maps and their order to one epoch and complete publication.
 pub fn encode(maps: &[Map; 2], epoch: u64) -> Result<Vec<u8>, Error> {
     if maps
@@ -78,5 +115,7 @@ pub fn decode(bytes: &[u8], epoch: u64) -> Result<Records, Error> {
     ])
 }
 
+#[cfg(test)]
+mod prefix_tests;
 #[cfg(test)]
 mod tests;

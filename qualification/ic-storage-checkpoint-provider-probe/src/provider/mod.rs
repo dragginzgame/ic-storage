@@ -4,26 +4,34 @@ use ic_storage_legacy::{
     AllocationGrants, GenericAllocationPolicy, MemoryAuthority, MemoryBacking, MemoryRequest,
     MemoryRuntime, SealedDeclarationSnapshot, StableKey,
 };
-#[cfg(not(feature = "native-map-job"))]
+#[cfg(not(any(feature = "native-map-job", feature = "paged-store")))]
 use ic_storage_legacy::{DefaultMemoryImpl, adapter::StableCell};
 
 const OWNER: &str = "native-checkpoint";
 const PREFIX: &str = "native.checkpoint.";
-#[cfg(feature = "native-map-job")]
+#[cfg(all(feature = "native-map-job", not(feature = "native-map-paged")))]
 pub(crate) mod map_job;
+#[cfg(any(
+    feature = "paged-store",
+    feature = "native-map-paged",
+    all(test, feature = "native-map-job")
+))]
+pub(crate) mod paged;
 #[cfg(all(test, feature = "native-map-job"))]
 mod paged_tests;
 #[cfg(not(any(
     feature = "native-job",
     feature = "native-record-vector",
-    feature = "native-map"
+    feature = "native-map",
+    feature = "paged-store"
 )))]
 const KEY: &str = "native.checkpoint.scalar.v1";
 
 #[cfg(not(any(
     feature = "native-job",
     feature = "native-record-vector",
-    feature = "native-map"
+    feature = "native-map",
+    feature = "paged-store"
 )))]
 pub(crate) fn cell(create: bool) -> StableCell<Vec<u8>> {
     open(
@@ -89,7 +97,7 @@ pub(crate) fn job_cell(create: bool) -> StableCell<Vec<u8>> {
     )
 }
 
-#[cfg(not(feature = "native-map-job"))]
+#[cfg(not(any(feature = "native-map-job", feature = "paged-store")))]
 fn open(key: &str, create: bool, limit: usize) -> StableCell<Vec<u8>> {
     let runtime = runtime(DefaultMemoryImpl::default(), &[key], create);
     let memory = runtime

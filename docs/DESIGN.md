@@ -77,7 +77,10 @@ A distinct durable map-job profile now adds controller-authorized export,
 sequential epochs, cancellation, frozen resumption and single-use recovery. Bounded
 map imports now span messages with prefix validation, exact retries, compatible
 interruption and explicit restart of unfinished imports from the checkpoint.
-Recovery for the larger growing pool, consumer-facing
+The paged adapter now commits retained native writes, verifier continuations and
+durable progress in one installed IC message, with compatible interruption and
+explicit restart. Its first profile retains the 64-record/root bound, one page
+per batch and a single export epoch. Recovery for the larger growing pool, consumer-facing
 root custody and general record values remain incomplete.
 These are shared native collection components, not a complete Store API.
 Keep the existing M0 format, tests and evidence; do not reinterpret those bytes
@@ -714,7 +717,10 @@ Scalar copying scans each map's buckets once, while every import batch still
 decodes the whole checkpoint and validates the complete committed prefix.
 The checkpoint decoder returns sorted logical records directly; it does not
 rebuild transient hash tables merely to stage their contents. Native prefix
-validation and target construction remain separate admission boundaries.
+verification also reads scalar records directly, using sorted checkpoint lookup
+and a fixed seen bitmap instead of reconstructing temporary maps. It still
+scans the complete prefix and is bounded to the installed profile's limits.
+Validation and target construction remain separate admission boundaries.
 The map-job adapter stores metadata and checkpoint in separate governed cells,
 so progress updates write only 104 metadata bytes. The shared job digest binds
 both parts, and installed rollback must cover publication between the cells.
@@ -727,11 +733,21 @@ pair manifest and uses the shared job state machine for persisted page offsets,
 exact retries and explicit restart. A byte-defined verifier continuation binds
 the exact job metadata to both reader positions and private native fingerprints.
 Each batch reads only its new checkpoint pages while still scanning native maps
-to check those fingerprints. Current installed jobs have not adopted it: atomic
-continuation/progress/native publication, installed restart and bounded native
-prefix-validation costs remain to be qualified. The bounded installed job now
-verifies newly applied native records before publishing either root, providing
-the post-write boundary required for later continuation capture.
+to check those fingerprints. A shared governed store now has installed
+ordinary-upgrade evidence for page/manifest and continuation/metadata publication,
+rollback between writes, retries and missing/corrupt-store refusal through
+4,608-record pairs. That storage probe reconstructs transient maps and does not
+retain native roots. A separate bounded native profile now adopts the shared
+store: it admits the stored continuation against retained prefixes, reads the
+next page, applies native writes, verifies the resulting records, then commits
+continuation/metadata before publishing either root. Installed traps exercise
+rollback across all of those boundaries, including start/restart and compatible
+interruption. Completed exact retries preserve later application writes. The
+adapter captures bucket-order fingerprints directly through scalar callbacks.
+Its transient expected-record list is discarded before the message ends and is
+never used as cross-message recovery state. This first paged native profile uses
+the existing 64-record/root ABI, one page per batch and one fresh export epoch;
+larger growing-pool recovery and bounded prefix-validation costs remain open.
 
 The [governed job](../qualification/ic-storage-native-feasibility/migration-job.md)
 adds controller authority, durable epochs, consumption, pre-cutover cancellation

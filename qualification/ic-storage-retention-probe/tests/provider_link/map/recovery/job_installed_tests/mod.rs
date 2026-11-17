@@ -14,7 +14,7 @@ mod commit_tests;
 mod staged;
 const A: u64 = 131072;
 const B: u64 = 163840;
-fn args(epoch: u64, domain: u64, fault: u64) -> Vec<u8> {
+pub(super) fn args(epoch: u64, domain: u64, fault: u64) -> Vec<u8> {
     [epoch, domain, fault]
         .into_iter()
         .flat_map(u64::to_le_bytes)
@@ -46,18 +46,24 @@ fn trapped(error: &ic_testkit::pocket_ic::RejectResponse) {
         "{error:?}"
     );
 }
-async fn refused_update(pic: &PocketIc, id: CanisterId, method: &str, arguments: Vec<u8>) {
+pub(super) async fn refused_update(
+    pic: &PocketIc,
+    id: CanisterId,
+    method: &str,
+    arguments: Vec<u8>,
+) -> ic_testkit::pocket_ic::RejectResponse {
     let before = query(pic, id, "observe").await;
     let stable = pic.get_stable_memory(id).await;
-    trapped(
-        &pic.update_call(id, id, method, arguments)
-            .await
-            .unwrap_err(),
-    );
+    let error = pic
+        .update_call(id, id, method, arguments)
+        .await
+        .unwrap_err();
+    trapped(&error);
     assert_eq!(query(pic, id, "observe").await, before);
     assert_eq!(pic.get_stable_memory(id).await, stable);
+    error
 }
-async fn refused_upgrade(
+pub(super) async fn refused_upgrade(
     pic: &PocketIc,
     id: CanisterId,
     wasm: &[u8],
@@ -85,19 +91,20 @@ async fn publish(pic: &PocketIc, id: CanisterId, epoch: u64, source: u64, target
         .await
         .unwrap();
     let bytes = query(pic, id, "checkpoint_bytes").await;
+    super::read_tests::check_prefix(pic, id).await;
     assert_eq!(
         checkpoint(envelope(&bytes, 1, epoch, source, target), epoch),
         [records(&native, 0), records(&native, 1)]
     );
     bytes
 }
-async fn install(pic: &PocketIc, source: &[u8]) -> CanisterId {
+pub(super) async fn install(pic: &PocketIc, source: &[u8]) -> CanisterId {
     let id = pic.create_canister().await;
     pic.install_canister(id, source.to_vec(), vec![], None)
         .await;
     id
 }
-async fn authorize(pic: &PocketIc, id: CanisterId) {
+pub(super) async fn authorize(pic: &PocketIc, id: CanisterId) {
     pic.set_controllers(id, None, vec![CanisterId::anonymous(), id])
         .await
         .unwrap();
