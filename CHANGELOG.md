@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.75.6] - 2026-11-17
+
+### 🧪 Testing
+
+- Add an installed native-map versus ic-stable-structures 0.7.2 comparison with
+  no legacy Storage backend. All 324 samples verify complete state across three
+  populations, three batch sizes and three key schedules; another 54 samples
+  isolate owner admission. Preserve the initial baseline and source/artifact
+  evidence, including the remaining cost of owner reconstruction on each call.
+- Reuse validated provider bounds for an exclusive native loan and keep both
+  map owners alive through a bounded lookup/replace/delete/insert batch. Revoke
+  loan authority at settlement and reject root/capacity/operation substitution.
+  Installed late-batch failures roll back prior mutations and permit clean retry.
+  At 1,536 records, 64-record replacement/deletion/reinsertion now costs less than
+  stable structures; lookup and growing insertion cost 1.115× and 1.256×. Single
+  lookup remains 4.05× because complete table admission still runs once per call.
+  Upgrade, corruption, growth and paged recovery checks remain passing.
+- Measure host native-pool occupancy at actual allocation points, including
+  reserved/sealed roots and old/new rehash tables. Paged recovery of 4,608 records
+  peaks at 172,032 bytes versus 147,456 bytes retained in a 196,608-byte pool;
+  reset and regrowth reproduce the peak without further pool growth. Check
+  resizing, failed allocation and fragmented-space refusal with unchanged
+  owners. These host observations do not qualify installed native-pool peaks.
+- Add a separate checkpoint-provider allocation meter that forwards requests to
+  `System`, tracks live requested bytes and records a conservative realloc overlap
+  bound. Calibrate allocation, zeroing, grow/shrink, failed requests, meter reset
+  with live blocks, authority and trap rollback. Across 119 installed samples,
+  the largest requested-byte peak is 197,841 bytes; large recovery batches peak
+  at 100,567 bytes with a 116,617-byte realloc bound. Every sampled call returns
+  to zero live checkpoint allocations and stays below the 256 KiB budget.
+  Installed native-pool peaks and allocator-internal overhead remain unmeasured.
+- Extend installed entrypoint cost measurement through cancellation, exact retries,
+  replacement of completed/cancelled checkpoints, reverse-domain recovery, and
+  shrinking/growing the governed page vector. Preserve per-shape TSV evidence and
+  enforce the existing instruction/memory budgets and exact backing-write counts.
+  All 115 additional samples pass: at 4,608 records, replacement costs about
+  50 million instructions, cancellation about 23 million and reverse recovery
+  peaks near 102 million per batch. Cancellation writes 104 bytes; exact retries
+  write zero. Trimming and regrowth reuse physical stable pages without growth.
+  Failed-call/whole management-upgrade costs remain open.
+
 ## [0.75.5] - 2026-11-17
 
 ### ➕ Added

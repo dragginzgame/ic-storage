@@ -130,6 +130,11 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
             .collect();
         callbacks.sort_unstable();
         let paged = result.exports.contains_key("checkpoint_page");
+        let allocation_metrics = result.exports.contains_key("checkpoint_alloc_reset");
+        assert!(!allocation_metrics || paged);
+        for name in ["checkpoint_alloc_read", "checkpoint_alloc_calibrate"] {
+            assert_eq!(result.exports.contains_key(name), allocation_metrics);
+        }
         let mut expected = vec![
             "begin", "counter", "finish", "freeze", "fresh", "put", "value",
         ];
@@ -301,6 +306,9 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
                     | "checkpoint_stage_commit"
                     | "checkpoint_native_prefix"
                     | "checkpoint_page"
+                    | "checkpoint_alloc_reset"
+                    | "checkpoint_alloc_read"
+                    | "checkpoint_alloc_calibrate"
                     | "checkpoint_convert"
                     | "checkpoint_narrow"
                     | "checkpoint_widen"
@@ -762,6 +770,18 @@ pub(crate) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
             "canister_query checkpoint_page",
             vec![pcall("checkpoint_page")],
         ));
+    }
+    if p.exports.contains_key("checkpoint_alloc_reset") {
+        for (name, function) in [
+            ("canister_update allocation_reset", "checkpoint_alloc_reset"),
+            ("canister_query allocation_metrics", "checkpoint_alloc_read"),
+            (
+                "canister_update allocation_calibrate",
+                "checkpoint_alloc_calibrate",
+            ),
+        ] {
+            entrypoints.push((name, vec![pcall(function)]));
+        }
     }
     if p.exports.contains_key("checkpoint_record_add") {
         entrypoints.push((

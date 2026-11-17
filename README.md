@@ -179,6 +179,15 @@ the current M0 scalar and linked sequence with Storage 0.74.1's cell and vector.
 They report IC instruction counts and check complete state after every sample;
 these are implementation costs, not raw memory-speed measurements.
 
+The current [native-map comparison](docs/design/native-map-comparison.md) uses
+`ic-stable-structures` only (`make benchmark-map`). All 324 installed samples
+pass state checks. Reusing one admitted loan and both map owners per batch now
+makes native replacement, deletion and reinsertion batches cheaper than stable
+structures at 1,536 records; 64-record lookup and growing insertion remain about
+12% and 26% more expensive. A single lookup still costs about 4× as much because
+owner reconstruction scans the tables. The next ownership boundary is reuse
+between ordinary messages; unknown or incompatible retained data still refuses.
+
 The [native ownership experiment](qualification/ic-storage-native-feasibility/README.md)
 tests scoped moves, owner escape refusals and forgotten-ticket quarantine. It
 uses live host allocations. A compiler diagnostic probe also measures private

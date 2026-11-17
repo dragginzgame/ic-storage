@@ -11,13 +11,12 @@
                (i64.le_u (local.get $end) (i64.const 32768)))
     (then (return (i32.wrap_i64 (local.get $start)))))
   (if (i32.ne (global.get $phase) (i32.const 2)) (then unreachable))
-  (call $static_header)
   (if (i64.ne (i64.load (i32.const 65584)) (i64.const 0)) (then unreachable))
-  (if (i32.gt_u (global.get $operation) (i32.const 511)) (then unreachable))
-  (if (i32.gt_u (i32.and (global.get $operation) (i32.const 255)) (i32.const 13)) (then unreachable))
-  (call $roots (i64.load (i32.const 65568)) (i64.load (i32.const 65576)))
+  ;; Claim already admitted geometry and roots. Metadata is outside every
+  ;; native access range and remains immutable until both owners return.
+  (if (i32.ne (global.get $operation) (global.get $loan_operation)) (then unreachable))
   (if (i64.lt_u (local.get $start) (i64.const 131072)) (then unreachable))
-  (if (i64.gt_u (local.get $end) (i64.add (i64.const 131072) (i64.load (i32.const 65560)))) (then unreachable))
+  (if (i64.gt_u (local.get $end) (global.get $loan_end)) (then unreachable))
   (i32.wrap_i64 (local.get $start)))
 (func $inside_root (param $address i64) (param $root i64) (result i32) (local $base i64)
   (local.set $base (i64.add (i64.const 131072) (i64.mul (call $start (local.get $root)) (i64.const 24))))

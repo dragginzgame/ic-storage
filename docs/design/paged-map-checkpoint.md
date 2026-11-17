@@ -727,9 +727,10 @@ corruption before replacement. The initial-epoch cost cohort still passes its
 150-million-instruction, 2-MiB-Wasm and 50-stable-page gates. The largest export
 now costs 49,835,869 instructions; the worst batch is 101,728,776 and all 72
 batches total 3,565,179,073. Nonempty batch I/O remains 6,656 bytes read and 616
-written. The TSV contains 110 successful-call rows. Cancellation and later-epoch
-costs are not yet instrumented; the lifecycle tests establish behavior and
-rollback, not a service budget for those calls.
+written. The TSV contains 110 successful-call rows. This cohort does not
+instrument cancellation or later-epoch costs; its lifecycle tests establish
+behavior and rollback, not a service budget for those calls. The subsequent
+measurement below extends that coverage.
 
 The older bounded map job also passes in `attempt.GNi8Od` (four artifact checks,
 one ordering check and three installed cases; 11.72 seconds for the job group).
@@ -744,16 +745,208 @@ the installed paged artifacts with the versioned workspace. Its
 paged checks (34.15 seconds), with the lifecycle/cost markers and `COMPLETE`.
 The earlier directories retain the focused implementation and regression evidence.
 
+## Repeated lifecycle cost evidence
+
+The next development increment extends the existing calibrated cost cohort
+through five epochs in each installed namespace. After epoch 1 recovers into B,
+the test changes application values, exports epoch 2 back toward A, cancels and
+retries cancellation, then exports epoch 3 and recovers into A. Every reverse
+batch is measured and checked against the independent record oracle. A completed
+retry must preserve a proven logical value change. Epoch 4 exports an empty pair,
+trimming every old page; after cancellation, epoch 5 refills the maps and grows
+the same governed vector again. The initially empty shape grows to one record
+in its last export; the other shapes return to their original record counts.
+
+`target/evidence/native-map-provider/attempt.rzJqmA` passes four artifact checks
+and all nine paged checks, including `PAGED_NATIVE_COSTS`,
+`PAGED_NATIVE_LIFECYCLE_COSTS` and `COMPLETE`. It preserves the original 110 rows
+in `paged-costs.tsv` and 115 further rows in
+`paged-lifecycle-costs-{0+0,192+192,3072+1536}.tsv` (11, 16 and 88 respectively).
+The added instrumented reverse-stage executable and its SHA-256 are preserved.
+In these additional reports, `page` identifies the batch page for batch/retry
+operations and the epoch for other lifecycle calls. Counts still include
+instrumentation overhead and measure successful Wasm entrypoints, not complete
+management-canister upgrades or failed requests.
+
+| Operation, instructions | Initially 0 + 0 | 192 + 192 | 3,072 + 1,536 |
+| --- | ---: | ---: | ---: |
+| Export after completed recovery | 2,272,850 | 6,040,422 | 50,087,452 |
+| Cancel frozen source | 1,641,251 | 3,205,411 | 22,647,968 |
+| Exact cancellation retry | 1,562,548 | 3,126,708 | 22,569,265 |
+| Export after cancellation | 1,952,567 | 5,720,275 | 49,767,305 |
+| Worst reverse recovery batch | 2,555,659 | 10,172,335 | 101,728,776 |
+| Completed retry after a newer write | 1,687,643 | 3,251,033 | 22,693,590 |
+| Export shrinking to empty | 2,112,516 | 2,299,186 | 2,674,932 |
+| Export regrowing from empty | 2,306,188 | 5,722,767 | 49,796,329 |
+
+The large reverse recovery totals 3,565,179,073 instructions across 72 batches.
+All recorded calls pass the existing 150-million-instruction, 2-MiB-Wasm,
+50-stable-page and 192-KiB-native-pool limits. No added lifecycle operation requests
+stable growth. These memory sizes still do not measure live allocator peaks.
+
+Backing writes are asserted independently of instruction counts: cancellation
+writes 104 bytes; its exact retry and completed import retries write zero.
+Replacing an equal-sized checkpoint writes `944 + 1104 × pages` bytes. Trimming
+to empty writes `944 + 8 × old_pages`, while regrowing writes
+`944 + 1112 × new_pages`. The fixed 944 bytes comprise manifest, cleared
+continuation and job metadata. For 72 pages, trimming reads 82,264 bytes because
+each governed vector pop decodes its removed page; physical stable pages remain
+allocated for reuse. Nonempty recovery batches retain 6,656-byte reads and
+616-byte writes. Zero-write retries still pay native admission costs, reaching
+about 23 million instructions in this profile; they are not constant-cost calls.
+
+The unchanged product and checkpoint provider use the released 0.75.5 artifacts;
+this increment changes qualification and documentation only. Strict harness
+Clippy and formatting pass. Live allocation peaks, failed-call costs, complete
+management-upgrade costs and consumer service budgets remain open.
+
+## Checkpoint allocation evidence
+
+The `allocation-metrics` feature selects a separate qualification build of the
+checkpoint provider. Its global allocator forwards each request unchanged to
+`System` and records successful requested sizes without allocating counter state.
+The native map executable, retained format and allocation authority are unchanged.
+The ordinary and instruction-metered cohorts continue using the uninstrumented
+checkpoint build. `make native-map-paged-test` runs both variants, preserving the
+allocation bridge and all five composed executable hashes separately.
+
+The meter records starting/current live bytes, peak logical live bytes, a
+conservative realloc-overlap bound, cumulative successful requested bytes,
+successful allocations/deallocations and failed requests. Realloc logically
+retires the old request and admits the new one; its bound temporarily includes
+both requested sizes because System may allocate/copy/free internally. This is
+not a measurement of System's internal physical peak. Failed realloc retains the
+old live request. Counter arithmetic refuses overflow/underflow instead of wrapping.
+Reset preserves outstanding live bytes, and the evidence query allocates nothing.
+The reset and calibration endpoints require controller authority. The composer
+rejects an incomplete diagnostic export set or diagnostics outside the paged profile.
+
+Installed calibration checks ordinary allocation, zeroed bytes, grow/shrink with
+content preservation, and failed 1 GiB allocation/reallocation requests against
+the module's 16 MiB maximum. The successful sequence reports a 160-byte logical
+peak and 192-byte coexistence bound, 208 cumulative successful requested bytes,
+four admissions, four retirements and two failures. Resetting with 96 live bytes
+preserves those blocks and permits their later retirement. A final trap rolls
+back native/stable observations and all counters; repeated queries preserve the
+same sample. Recovery traps after metadata writes likewise roll counters back.
+
+`target/evidence/native-map-provider/attempt.CvdpND` passes four artifact checks
+and all eleven paged checks (32.25 seconds), including the complete diagnostic
+contract refusal test and installed allocation cohort. `PAGED_NATIVE_ALLOCATIONS`
+and `COMPLETE` accompany `paged-allocations.tsv` with 119 samples. The cohort
+covers export, frozen resumption, fresh staging, every batch, selected retries,
+compatible interruption, active reopening, next-epoch export, cancellation,
+cancellation retry and shrinking to an empty checkpoint.
+
+| Requested bytes | 0 + 0 | 192 + 192 | 3,072 + 1,536 |
+| --- | ---: | ---: | ---: |
+| Largest checkpoint live peak across sampled calls | 2,263 | 16,593 | 197,841 |
+| Largest recovery-batch live peak | 2,263 | 10,455 | 100,567 |
+| Largest recovery-batch realloc coexistence bound | 2,263 | 12,169 | 116,617 |
+| Retained native table bytes after complete recovery | 384 | 12,288 | 147,456 |
+| Reserved native pool bytes after complete recovery | 24,576 | 24,576 | 196,608 |
+
+Every sampled call starts and ends with zero live checkpoint allocations, and
+every successful workload allocation request succeeds. All requested-byte upper
+bounds pass a 256 KiB fixture budget; Wasm remains 2 MiB. The retained-table and
+reserved-pool columns are independently decoded end-of-call native observations,
+not peak measurements and not additive whole-call heap bounds. For the large
+pair, initial export peaks at 197,513 requested bytes and later export at 197,841;
+the latter allocates 446,270 bytes cumulatively but never keeps that sum live.
+Completed retries and cancellation peak at 1,935 checkpoint bytes despite their
+larger native admission instruction cost. Active compatible reopening performs
+no checkpoint allocations in this profile.
+
+This evidence covers the checkpoint Global allocator's requested payload sizes.
+It excludes allocator metadata, size-class rounding, fragmentation, stack,
+native pool rehash coexistence and failed-request physical peaks. Those limits
+prevent treating the measurements as a general memory footprint or a consumer
+capacity guarantee. Strict Wasm/harness Clippy and formatting pass; product APIs,
+stored framing, compiler and dependencies remain unchanged.
+The older bounded map-job profile also passes the shared-composer regression in
+`native-map-provider/attempt.xfjkxN`: four artifact checks, one ordering check and
+three installed cases (11.32 seconds for the job group), with `COMPLETE`.
+
+## Host native-pool peak evidence
+
+The shared `region::pool` allocator now has a `cfg(test)` occupancy meter. It
+starts with all admitted root reservations and samples after each successful
+allocation, before default allocator grow/shrink retires the old run. Reserved,
+live and sealed spans all count; restoring or sealing a root does not allocate
+another span. The meter uses one transient cell and does not allocate. This is
+host evidence only: its state and observations are absent from the Wasm fixture.
+
+The new `peak_tests` use the real map, paged exporter/reader and pool allocator.
+They apply root A then root B in 64-record pages, freshly admit and settle both
+owners for each operation, resume the portable reader between pages, and grow
+backing only after all native owners and the loan have ended. Allocation refusal
+must preserve both logical checkpoints before growth and retry. All records are
+checked after recovery. Both roots are then reset to eight empty slots and the
+same pages are recovered again using the retained backing capacity.
+
+| Pool bytes | 0 + 0 | 192 + 192 | 3,072 + 1,536 |
+| --- | ---: | ---: | ---: |
+| Peak occupied spans, initial recovery and regrowth | 384 | 15,360 | 172,032 |
+| Occupied spans after recovery | 384 | 12,288 | 147,456 |
+| Reserved backing after recovery | 24,576 | 24,576 | 196,608 |
+
+The large pair requires three allocation-refusal/growth retries, expanding from
+24 to 48, 96 and 192 KiB; regrowth needs none. Its peak includes root A's 4,096
+slots plus root B's old 1,024-slot table and new 2,048-slot candidate: 7,168 slots
+at 24 bytes each. This is 24 KiB above its settled table occupancy. Reset returns
+occupancy to 384 bytes while retaining the backing. Calibration also covers
+reserved/sealed roots, exact grow/shrink overlap, reset with outstanding spans,
+failed growth and a fragmented refusal: 32 free slots split into two 16-slot
+holes cannot satisfy a 24-slot request, without modifying either surviving owner.
+
+The focused `provider_region_tests` run passes 36 tests with the pre-existing
+million-record test ignored; strict Clippy passes. The host log is
+`target/native-pool-peaks-tests.log`. Fresh artifact collection
+`native-map-provider/attempt.unykv6` passes all four artifact checks. Both raw and
+linked Wasm hashes match `attempt.CvdpND` exactly, so this host instrumentation
+does not change the previously measured installed executable.
+
+These figures describe occupied runs for this host operation sequence, not
+installed peak observations, pool fragmentation headroom guarantees, backing
+allocator relocation peaks or whole-process memory. Checkpoint allocations,
+stack and System overhead are outside this meter. The installed allocator
+observation and complete management-call evidence remain separate R1 gates.
+
+## Scoped-loan reuse regression
+
+The provider now admits allocation bounds/root geometry once per exclusive
+native loan and checks immutable loan metadata again before publication. The
+map batch entrypoint also supports ordinary lookup/replacement/deletion while
+the paged recovery caller continues selecting insert-only mode. Full table
+admission remains at owner reconstruction; no stored-format or product API
+change is involved. See the [loan contract](../../qualification/ic-storage-native-feasibility/native-map-provider.md)
+and [comparison evidence](native-map-comparison.md#scoped-loan-and-batch-reuse-17-november-2026).
+
+`native-map-provider/attempt.7Y46uE` passes five artifact checks and all eleven
+paged checks in 32.02 seconds, including growth, compatible interruption,
+corruption, restart, repeated epochs, cancellation and requested-allocation
+observations. The current locked supplier selections include Runtime 0.23.17
+and Testkit 0.108.1. Historical supplier/artifact evidence above is unchanged.
+
+For 3,072 + 1,536 records, the maximum recovery batch falls from 101,728,776 to
+56,286,187 instructions; all 72 batches total 2,177,558,799. Forward and reverse
+recovery have the same totals in this cohort. Initial export costs 32,432,540,
+cancellation 5,244,639 and cancellation retry 5,165,936 instructions. The existing
+150-million-instruction, 2-MiB-Wasm and 50-stable-page fixture budgets still pass;
+batch I/O and publication/rollback checks remain enforced. These costs include
+the checkpoint bridge and repeated prefix checks, so they are not the map-only
+benchmark or a general constant-time recovery guarantee.
+
 ## Remaining capacity and lifecycle work
 
 See [roadmap R1](../DESIGN.md#r1--larger-installed-recovery-next) for the next
 implementation slice and completion gates; this section owns the protocol limits.
 
-The next work is measuring live allocation peaks and costs across repeated
-lifecycle epochs before expanding the supported size. Private import growth now
-recovers the
-3,072 + 1,536-record workload from an initial 24 KiB loan. Export still sorts complete
-source maps. Prefix hashing, expected-record capture and
+The next work is qualifying installed native-pool rehash peaks, allocator-internal overhead
+and failed-call/complete management-upgrade costs before expanding the supported
+size. Private import
+growth now recovers the 3,072 + 1,536-record workload from an initial 24 KiB loan.
+Export still sorts complete source maps. Prefix hashing, expected-record capture and
 post-write comparison still scan the imported records; these are not bounded
 total recovery CPU or memory guarantees. Larger workloads,
 consumer-facing recovery authority and actual cross-compiler migration remain

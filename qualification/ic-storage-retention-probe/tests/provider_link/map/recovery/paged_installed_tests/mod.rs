@@ -1,8 +1,10 @@
 //! Combined retained-root, continuation and progress transactions on the IC.
+mod allocation_tests;
 mod cost_tests;
 mod costs;
 mod growth_tests;
 mod large_tests;
+mod lifecycle_cost_tests;
 mod lifecycle_tests;
 mod reader_tests;
 use super::{

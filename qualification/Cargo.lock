@@ -770,9 +770,18 @@ dependencies = [
 
 [[package]]
 name = "ic-platform-runtime"
-version = "0.23.16"
+version = "0.23.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0724826cb1344a689458e60d0e3ddcc92331ae5b82264ecdaff887923645018d"
+checksum = "dfc857c146215a6f2ae50e724c70b7afffaebeb407c54c283f6860357d5da439"
+
+[[package]]
+name = "ic-stable-structures"
+version = "0.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ee3372ddc0cf2a747fc26ce2d075a240ed6bfab151e63bc70109e8967f7ce6f"
+dependencies = [
+ "ic_principal",
+]
 
 [[package]]
 name = "ic-storage"
@@ -787,7 +796,7 @@ dependencies = [
 
 [[package]]
 name = "ic-storage"
-version = "0.75.5"
+version = "0.75.6"
 dependencies = [
  "sha2 0.11.1",
 ]
@@ -796,7 +805,7 @@ dependencies = [
 name = "ic-storage-checkpoint-provider-probe"
 version = "0.1.0"
 dependencies = [
- "ic-platform-runtime 0.23.16",
+ "ic-platform-runtime 0.23.17",
  "ic-storage 0.74.1",
  "ic-storage-native",
  "ic-storage-native-feasibility",
@@ -805,7 +814,7 @@ dependencies = [
 
 [[package]]
 name = "ic-storage-native"
-version = "0.75.5"
+version = "0.75.6"
 dependencies = [
  "ic-storage-native-derive",
  "sha2 0.11.1",
@@ -813,7 +822,7 @@ dependencies = [
 
 [[package]]
 name = "ic-storage-native-derive"
-version = "0.75.5"
+version = "0.75.6"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -846,8 +855,8 @@ dependencies = [
 name = "ic-storage-rust-startup-probe"
 version = "0.1.0"
 dependencies = [
- "ic-platform-runtime 0.23.16",
- "ic-storage 0.75.5",
+ "ic-platform-runtime 0.23.17",
+ "ic-storage 0.75.6",
  "ic-storage-simple-benchmarks",
  "toko-tooling",
 ]
@@ -857,7 +866,8 @@ name = "ic-storage-simple-benchmarks"
 version = "0.1.0"
 dependencies = [
  "ic-host-artifacts",
- "ic-platform-runtime 0.23.16",
+ "ic-platform-runtime 0.23.17",
+ "ic-stable-structures",
  "ic-storage 0.74.1",
  "ic-storage-retention-probe",
  "ic-testkit",
@@ -868,9 +878,9 @@ dependencies = [
 
 [[package]]
 name = "ic-testkit"
-version = "0.108.0"
+version = "0.108.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6fa2e6157d27d15ba1bc93923adc3221e1c09f9f28ec2f8bdde09b04b528cf80"
+checksum = "dae330c65abdc613e8bfdabe5d45bbfcc613c48a1d9f0f250194608f6b1291e9"
 dependencies = [
  "pocket-ic",
 ]
@@ -2753,9 +2763,9 @@ dependencies = [
 
 [[package]]
 name = "zeroize"
-version = "1.9.1"
+version = "1.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e13084392c5e4bc371903e2935a5eaeed24905a7511356b883835e18a78f6879"
+checksum = "85ccff8a4805aba1eaa4cd4afcd49f7557dd2cf5fd79ffc37f8959466effc5aa"
 
 [[package]]
 name = "zerotrie"

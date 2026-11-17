@@ -1,5 +1,8 @@
 //! Governed checkpoint provider fixtures; ordinary and native bridge profiles.
 
+#[cfg(all(feature = "allocation-metrics", target_arch = "wasm32"))]
+mod allocation_metrics;
+
 #[cfg(all(feature = "paged-store", feature = "native-bridge"))]
 compile_error!("paged-store is an ordinary storage probe, not a native bridge profile");
 

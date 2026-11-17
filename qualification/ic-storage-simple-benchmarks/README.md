@@ -1,5 +1,9 @@
 # Simple structure benchmarks
 
+For the current native-map comparison against **ic-stable-structures only**, run
+`make benchmark-map` and read the [two-way results](../../docs/design/native-map-comparison.md).
+The remainder of this document records the separate historical M0 experiment.
+
 This opt-in experiment compares the current M0 retained-memory implementation
 with published `ic-storage` **0.74.1**. It measures installed Wasm on local
 PocketIC, not native Rust timings or RPC latency. The existing `../ic-storage`

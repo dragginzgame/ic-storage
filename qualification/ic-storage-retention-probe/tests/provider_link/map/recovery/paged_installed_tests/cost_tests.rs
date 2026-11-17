@@ -8,7 +8,7 @@ async fn measure(pic: &PocketIc, id: CanisterId) -> [u64; costs::WORDS] {
     std::array::from_fn(|index| word(&bytes, index * 8))
 }
 
-async fn record(
+pub(super) async fn record(
     pic: &PocketIc,
     id: CanisterId,
     path: &std::path::Path,
@@ -62,6 +62,13 @@ async fn calibrate(pic: &PocketIc) {
 #[ignore = "prepared paged-native artifacts and PocketIC server"]
 async fn complete_entrypoint_costs_include_native_work_and_backing_io() {
     let (dir, a) = artifacts();
+    let reverse_stage = prepare_mode(
+        &fs::read(dir.join("provider_map.wasm")).unwrap(),
+        &fs::read(dir.join("checkpoint-map-paged.wasm")).unwrap(),
+        false,
+        Post::Stage,
+        Profile::Paged,
+    );
     let mut measured = Vec::new();
     for (name, raw) in [
         ("source", &a.source),
@@ -69,13 +76,14 @@ async fn complete_entrypoint_costs_include_native_work_and_backing_io() {
         ("stage", &a.stage),
         ("importing", &a.importing),
         ("reopen", &a.reopen),
+        ("reverse-stage", &reverse_stage),
     ] {
         let bytes = costs::instrument(raw);
         println!("metered paged {name}: sha256={}", sha256_hex(&bytes));
         fs::write(dir.join(format!("metered-paged-{name}.wasm")), &bytes).unwrap();
         measured.push(bytes);
     }
-    let [source, frozen, stage, importing, reopen] = measured.as_slice() else {
+    let [source, frozen, stage, importing, reopen, reverse_stage] = measured.as_slice() else {
         unreachable!()
     };
     let pic = server().await;
@@ -161,10 +169,16 @@ async fn complete_entrypoint_costs_include_native_work_and_backing_io() {
         )
         .await;
         prefix(&pic, id, &expected, pages, true).await;
+        lifecycle_cost_tests::followup(&pic, id, &dir, shape, reverse_stage).await;
     }
     fs::write(
         dir.join("PAGED_NATIVE_COSTS"),
         b"complete entrypoint costs and calibrated backing IO passed\n",
+    )
+    .unwrap();
+    fs::write(
+        dir.join("PAGED_NATIVE_LIFECYCLE_COSTS"),
+        b"cancellation, replacement and reverse recovery cost gates passed\n",
     )
     .unwrap();
     pic.drop().await;

@@ -85,7 +85,7 @@ pub(super) fn source(profile: Profile) -> Result<String, &'static str> {
             ("partial_release", 10, 65535, 999, 0, false),
             ("stage_empty", 13, 0, 0, 0, false),
             ("stage_overflow", 13, 65, 0, 0, false),
-            ("stage_reserved", 13, 1, 1, 0, false),
+            ("stage_reserved", 13, 1, 4, 0, false),
             ("stage_unbound", 13, 1, 0, 0, false),
             ("native_release", 8, 65535, 999, 0, false),
             ("write_failure", 1, 65535, 999, 5, false),

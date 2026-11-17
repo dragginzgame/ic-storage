@@ -2,14 +2,14 @@ use super::*;
 use ic_storage_native::map::{Error as MapError, ImportError, Map, Slot};
 use std::{io::Read, mem};
 
-struct Backing<T: Element>(Vec<MaybeUninit<T>>);
+pub(super) struct Backing<T: Element>(pub(super) Vec<MaybeUninit<T>>);
 
 impl<T: Element> Backing<T> {
-    fn new(elements: usize, value: T) -> Self {
+    pub(super) fn new(elements: usize, value: T) -> Self {
         Self(vec![MaybeUninit::new(value); elements])
     }
 
-    fn claim(&mut self, roots: &[Root]) -> Result<Pool<'_, T>, Error> {
+    pub(super) fn claim(&mut self, roots: &[Root]) -> Result<Pool<'_, T>, Error> {
         // SAFETY: this owner loans its real stable allocation exclusively for
         // the returned borrow. All slots are valid initialized T; tests only
         // reissue backing after successful finish and the previous scope ends.

@@ -17,6 +17,7 @@ license-file = "../LICENSE.md"
 [workspace.dependencies]
 ic-host-artifacts = "0.80.1"
 ic-platform-runtime = { version = "0.23.12", default-features = false }
+ic-stable-structures = "0.7.2"
 ic-storage = { path = "../crates/ic-storage" }
 ic-storage-legacy = { package = "ic-storage", version = "0.74.1" }
 ic-storage-native = { path = "../crates/ic-storage-native" }

@@ -4,6 +4,7 @@ use ic_storage_retention_probe::artifact::sha256_hex;
 use std::{collections::BTreeMap, fmt::Write, fs, path::PathBuf};
 use wasmparser::{Parser, Payload};
 
+mod comparison_tests;
 mod installed_tests;
 mod link;
 mod recovery;
@@ -74,7 +75,7 @@ fn compiled_map_contract() {
     println!("operators={inventory:?}");
     println!(
         "pool stack={:?}",
-        super::vector_stack::inspect_staged_map(&bodies, 7, 0, 32768)
+        super::vector_stack::inspect_staged_map(&bodies, 8, 0, 32768)
     );
     assert!(super::vector_access::inspect(&raw).is_err());
     assert!(super::vector_access::inspect_record(&raw).is_err());
@@ -100,11 +101,11 @@ fn compiled_map_contract() {
     ic_storage_retention_probe::artifact::validate_wasm(&wrong_import, super::artifact::LIMIT)
         .unwrap();
     assert!(super::vector_access::inspect_map(&wrong_import).is_err());
-    assert_eq!((profile.functions, profile.entry), (8, 7));
+    assert_eq!((profile.functions, profile.entry), (9, 8));
     let guarded = super::vector_access::prepare_map(&raw).unwrap();
     assert_eq!(
         super::vector_access::tests::verify_map_coverage(&raw, &guarded),
-        [167, 13, 35, 82, 11, 54, 17, 0]
+        [170, 13, 42, 82, 11, 57, 17, 0]
     );
     let linked = link::prepare(&raw, link::Profile::A).unwrap();
     link::admit_final(&linked, &raw, link::Profile::A).unwrap();

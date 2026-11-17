@@ -18,7 +18,7 @@ fn candidate(directory: &Path, raw: &[u8], profile: Profile) -> Vec<u8> {
     bytes
 }
 #[derive(PartialEq, Eq)]
-struct Snapshot {
+pub(super) struct Snapshot {
     version: u64,
     phase: u64,
     pages: u64,
@@ -49,7 +49,7 @@ impl Snapshot {
         let start = (self.root[4 + id] >> 16) as usize * 24;
         start..start + self.buckets(id) * 24
     }
-    fn records(&self, id: usize) -> BTreeMap<u64, u64> {
+    pub(super) fn records(&self, id: usize) -> BTreeMap<u64, u64> {
         let mut records = BTreeMap::new();
         for slot in self.payload[self.span(id)].as_chunks::<24>().0 {
             let occupied = u64::from_le_bytes(slot[..8].try_into().unwrap());
@@ -70,7 +70,7 @@ impl Snapshot {
         assert_eq!(self.records(id), before.records(id));
     }
 }
-async fn observe(pic: &PocketIc, id: CanisterId) -> Snapshot {
+pub(super) async fn observe(pic: &PocketIc, id: CanisterId) -> Snapshot {
     let bytes = pic.query_call(id, id, "observe", vec![]).await.unwrap();
     let word = |offset| u64::from_le_bytes(bytes[offset..offset + 8].try_into().unwrap());
     assert_eq!(bytes.len(), 104 + word(16) as usize * 65536 - 131072);
@@ -351,6 +351,55 @@ async fn guard_boundaries(pic: &PocketIc, directory: &Path, raw: &[u8]) {
     let claim = "(global.set $operation (i32.const 0)) (drop (call $claim))";
     let settle = "(call $settle (i64.or (i64.load (i32.const 65568)) (i64.shl (i64.load (i32.const 65576)) (i64.const 32)))) (global.set $operation (i32.const -1))";
     let cases = [
+        (
+            "forged_phase",
+            "(global.set $phase (i32.const 2)) (global.set $operation (i32.const 0)) (i64.store (i32.const 65584) (i64.const 0))",
+            "(drop (call $access_load_i64 (i32.const 131072) (i64.const 0)))",
+            "",
+            false,
+        ),
+        (
+            "metadata_write",
+            claim,
+            "(call $access_store_i64 (i32.const 65560) (i64.const 196608) (i64.const 0))",
+            "",
+            false,
+        ),
+        (
+            "capacity_substitution",
+            claim,
+            "(i64.store (i32.const 65560) (i64.const 49152))",
+            settle,
+            false,
+        ),
+        (
+            "root_substitution",
+            claim,
+            "(i64.store (i32.const 65568) (i64.const 1060864))",
+            settle,
+            false,
+        ),
+        (
+            "operation_substitution",
+            claim,
+            "(global.set $operation (i32.const 1)) (drop (call $access_load_i64 (i32.const 131072) (i64.const 0)))",
+            "",
+            false,
+        ),
+        (
+            "revoked_loan",
+            claim,
+            settle,
+            "(global.set $phase (i32.const 2)) (global.set $operation (i32.const 0)) (i64.store (i32.const 65584) (i64.const 0)) (drop (call $access_load_i64 (i32.const 131072) (i64.const 0)))",
+            false,
+        ),
+        (
+            "wrong_custody",
+            claim,
+            "(i64.store (i32.const 65584) (i64.const 1)) (drop (call $access_load_i64 (i32.const 131072) (i64.const 0)))",
+            "",
+            false,
+        ),
         (
             "dynamic_tail",
             claim,

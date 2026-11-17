@@ -49,6 +49,21 @@ I/O in `paged-costs.tsv`. Calibration and budget checks accompany the logical
 record oracles. One-scope page application reduces the worst large batch from
 1.41 billion to about 102 million instructions, with full validation and fixed
 backing I/O. Sampled calls now have a 150-million-instruction fixture ceiling.
+The same cost cohort continues through five epochs per shape; separate
+`paged-lifecycle-costs-*.tsv` files cover cancellation, replacement, reverse
+recovery, trimming and regrowth. Exact backing-write counts and unchanged
+instruction/memory budgets are checked for those calls too. These remain
+successful-entrypoint measurements, not live allocator peaks or service budgets.
+
+`native-map-paged-build` also builds a separate `allocation-metrics` variant.
+Its `System` wrapper counts live requested checkpoint-heap bytes and a conservative
+realloc coexistence bound; it never meters or changes native-pool custody. The
+installed cohort calibrates the wrapper, checks authority and rollback, and writes
+119 rows to `paged-allocations.tsv`. All measured calls return to zero live bytes;
+the largest peak is 197,841 bytes under a 256 KiB requested-byte budget. This does
+not include System metadata, rounding, fragmentation or native rehash peaks.
+The three diagnostic exports are admitted only as a complete set in the paged
+profile. Normal and instruction-metered builds keep their existing allocator.
 
 The separately selected `native-job` feature uses the same governed provider
 under `native.checkpoint.job.v1` for [durable migration admission](../ic-storage-native-feasibility/migration-job.md).

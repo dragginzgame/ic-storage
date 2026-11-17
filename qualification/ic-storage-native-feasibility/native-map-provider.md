@@ -66,6 +66,22 @@ Ordinary callback errors still finalize prior writes; forgetting a scoped View
 does not skip release. Both source pre-upgrade and target post-upgrade reopen
 and validate both maps before accepting retained state.
 
+Claim now issues transient loan authority after validating the provider header,
+root geometry and operation. Private Wasm globals bind the admitted end address,
+both original root descriptors, physical page count and operation. Native code
+cannot write those globals or the provider metadata. Each payload access checks
+phase, custody, operation identity and bounds against this admitted loan instead
+of rechecking every header field and both root descriptors. Staging callbacks
+touch only their disjoint staging/cursor state and cannot reenter Rust.
+
+Settlement revalidates the header and checks that the original roots, extent,
+page count and operation still match the loan before publishing new roots. It
+revokes loan authority before returning provider custody. Bounds never expand
+merely because metadata or physical memory changes. Claim refuses an outstanding
+loan; phase manipulation alone cannot issue one. Traps roll back authority and
+payload together. This authority lasts for one native call, not across upgrades
+or ordinary owner reconstruction; Map::admit still validates table contents.
+
 Explicit fixture reset retires the selected owner before allocating a fresh
 8-slot table. That permits reuse even when both initial 512-slot roots fill the
 pool. Reset is an authorized destructive fixture operation; any failure during
@@ -109,9 +125,9 @@ replacement for consumer recovery authority.
 
 The raw module has two `native_map_diagnostic` imports: `claim_region` returns the
 exclusive pool pointer, and `staged_word(i32, i32) -> i64` reads a scalar or
-acknowledges an insertion. The latter is a trapping stub outside the paged
-recovery composition. There are eight defined functions and a private
-five-argument scalar entry at function 7. Key and value
+acknowledges a completed operation. The latter is a trapping stub outside the
+paged-recovery and batch-comparison compositions. There are nine defined
+functions and a private five-argument scalar entry at function 8. Key and value
 are separate u64 arguments; the compact fixture wrapper unpacks its u32 pairs.
 Three i32
 globals initialize to 32768. There are no data/start/table sections, indirect
@@ -127,14 +143,14 @@ entry, all non-trapping exits restore their frame, and branches cannot bypass
 restoration via an implicit function return. Only pure packing operations are
 allowed after restoration; memory accesses and calls there refuse. Loops repeat
 fixed frames without accumulating them. Peak simultaneous stack is 2688 bytes,
-from 30080 through 32768, with 22 direct call edges. This is a space proof, not a
+from 30080 through 32768, with 26 direct call edges. This is a space proof, not a
 time bound. Counterexamples preserve older profiles' refusal of the added
 operators and reject recursion, frame mutation, function-label escapes, memory
 growth and effects after restoration.
 
 All raw linear-memory accesses are rewritten to private provider guards:
-167 i32 reads, 13 byte reads, 35 i64 reads, 82 i32 writes, 11 byte writes,
-54 i64 writes and 17 copies. This compiler artifact emits no memory.fill;
+170 i32 reads, 13 byte reads, 42 i64 reads, 82 i32 writes, 11 byte writes,
+57 i64 writes and 17 copies. This compiler artifact emits no memory.fill;
 its reserved fill helper traps. Copies include transient allocator bookkeeping.
 Every emitted access must be accounted for after rewriting.
 
@@ -146,8 +162,14 @@ The closed selector now also admits command 12: reserve at most 64 additional
 records, returning the unchanged root on allocation refusal. The paged recovery
 wrapper uses it to end both native owners before deciding whether to grow and
 retry; it does not grant native Rust authority to grow backing memory.
-Command 13 inserts 1–64 staged records in one admitted scope, using only the
-scalar callback and refusing replacements. The paged wrapper binds that callback
+Command 13 processes 1–64 staged records in one admitted scope. Its value argument
+selects insert-only (0), lookup with an expected value (1), replacement of an
+existing key (2), or deletion with an expected value (3). Unknown modes refuse;
+unexpected existence/absence or value disagreement traps the complete batch.
+Each operation must finish before its acknowledgement. The two map owners and
+the pool remain live until all records finish, then publish once. Paged recovery
+continues to use only mode 0, refusing replacement of existing records.
+The paged wrapper binds that callback
 to complete staging and claimed custody; it cannot enter Rust or access the
 loan. Native guards still exclude provider metadata, staging and unrelated memory. Offset/end arithmetic
 checks wrap, and copies validate both complete spans before writing. Per-run
@@ -162,6 +184,16 @@ from the freshly admitted raw artifact and selected provider profile. Extra
 exports or changed bytes refuse. Guard counterexamples add test-only methods to
 the same provider; those artifacts fail normal final admission and are not
 admitted profile candidates.
+
+The [two-way comparison](../../docs/design/native-map-comparison.md#scoped-loan-and-batch-reuse-17-november-2026)
+records the loan/batch optimization and current performance limits. Its installed
+counterexamples fail after several mutations through an acknowledgement trap,
+a wrong key or a forbidden metadata write, verify complete rollback and then
+retry successfully. Standalone guard probes additionally reject forged phase,
+metadata writes, capacity/root/operation substitution, wrong custody and reuse
+after revocation. The compiler still proves the same stack bound; the additional
+defined function is the compiler's factored removal path; imports and the native
+entry function signature are unchanged.
 
 ## Installed checks and results
 

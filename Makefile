@@ -40,6 +40,9 @@ managed-graph-build managed-graph-lint managed-graph-test: export CARGO_NET_OFFL
 managed-graph-build managed-graph-lint managed-graph-test: | toko-execution-check
 
 .PHONY: benchmark-simple benchmark-simple-build benchmark-simple-lint
+.PHONY: benchmark-map benchmark-map-build
+benchmark-map benchmark-map-build: export CARGO_NET_OFFLINE := true
+benchmark-map benchmark-map-build: | toko-execution-check
 benchmark-simple benchmark-simple-build benchmark-simple-lint: export CARGO_NET_OFFLINE := true
 benchmark-simple benchmark-simple-build benchmark-simple-lint: | toko-execution-check
 
@@ -118,6 +121,7 @@ help:
 	  'make managed-graph-lint           Lint the graph kernel and fixtures' \
 	  'make managed-graph-test           Test installed graph upgrades and rollback' \
 	  'make benchmark-simple            Build and measure M0 vs published Storage' \
+	  'make benchmark-map               Compare native map with ic-stable-structures' \
 	  'make benchmark-simple-lint       Lint both benchmark backends and runner' \
 	  'make native-feasibility-test     Test host-only scoped ownership boundaries' \
 	  'make native-feasibility-lint     Lint the native ownership experiment' \
@@ -229,6 +233,8 @@ native-map-paged-build:
 	@test -z "$${RUSTFLAGS}$${CARGO_ENCODED_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_LINKER}" || { echo 'Paged native probe requires the pinned compiler without overrides' >&2; exit 1; }
 	+cargo clippy $(CHECKPOINT_CARGO) --target-dir target/qualification --features native-map-paged -- -D warnings
 	+cargo rustc $(CHECKPOINT_CARGO) --target-dir target/qualification/checkpoint-map-paged --features native-map-paged -- $(subst --global-base=196608,--global-base=655360,$(NATIVE_CHECKPOINT_LINK))
+	+cargo clippy $(CHECKPOINT_CARGO) --target-dir target/qualification --features allocation-metrics -- -D warnings
+	+cargo rustc $(CHECKPOINT_CARGO) --target-dir target/qualification/checkpoint-map-paged-allocations --features allocation-metrics -- $(subst --global-base=196608,--global-base=655360,$(NATIVE_CHECKPOINT_LINK))
 
 native-map-paged-test: native-map-paged-build
 	+cargo clippy $(RETENTION_CARGO) --test provider_link -- -D warnings
@@ -303,6 +309,15 @@ benchmark-simple-build:
 	@test -z "$${RUSTFLAGS}$${CARGO_ENCODED_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_LINKER}" || { echo 'Benchmarks require no environment flag/linker overrides' >&2; exit 1; }
 	+cargo rustc $(RUST_STARTUP_CARGO) --target-dir target/qualification/bench-managed --features managed-bench -- $(RUST_STARTUP_LINK)
 	+cargo rustc $(BENCH_CARGO) --example storage-wasm --features storage --target wasm32-unknown-unknown --release --target-dir target/qualification/bench-storage -- $(RUST_STARTUP_LINK)
+
+benchmark-map-build:
+	@test -z "$${RUSTFLAGS}$${CARGO_ENCODED_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_LINKER}" || { echo 'Benchmarks require no environment flag/linker overrides' >&2; exit 1; }
+	+cargo clippy $(BENCH_CARGO) --example stable-map-wasm --features stable-map --target wasm32-unknown-unknown --release --target-dir target/qualification -- -D warnings
+	+cargo clippy $(RETENTION_CARGO) --test provider_link -- -D warnings
+	+cargo rustc $(BENCH_CARGO) --example stable-map-wasm --features stable-map --target wasm32-unknown-unknown --release --target-dir target/qualification/bench-stable-map -- $(CHECKPOINT_LINK)
+
+benchmark-map: benchmark-map-build
+	+@server="$$($(RETENTION_TOOL) --check)" && "$$server" run -- bash qualification/ic-storage-native-feasibility/scripts/run-map-probe.sh comparison
 
 benchmark-simple-lint:
 	+cargo clippy $(BENCH_CARGO) --example compare --target-dir target/qualification -- -D warnings

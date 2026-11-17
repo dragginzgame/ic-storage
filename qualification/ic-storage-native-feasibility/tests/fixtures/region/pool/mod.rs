@@ -45,6 +45,9 @@ pub(in super::super) struct Pool<'backing, T: Element> {
     runs: Cell<[State; RUNS]>,
     issuing: Cell<Option<usize>>,
     finished: Cell<bool>,
+    // Host evidence only; neither this field nor observation code enters Wasm.
+    #[cfg(test)]
+    peak_elements: Cell<usize>,
     backing: PhantomData<&'backing mut [MaybeUninit<T>]>,
 }
 
@@ -94,6 +97,8 @@ impl<'backing, T: Element> Pool<'backing, T> {
             runs: Cell::new(runs),
             issuing: Cell::new(None),
             finished: Cell::new(false),
+            #[cfg(test)]
+            peak_elements: Cell::new(roots.iter().map(|root| root.capacity).sum()),
             backing: PhantomData,
         })
     }
@@ -245,6 +250,14 @@ unsafe impl<T: Element> Allocator for Pool<'_, T> {
         let pointer = self.pointer(root.start);
         runs[index] = State::Live(root);
         self.runs.set(runs);
+        // Count every unavailable span, including unopened and sealed roots.
+        // This point precedes default grow/shrink retiring the old allocation.
+        #[cfg(test)]
+        self.peak_elements.set(
+            self.peak_elements
+                .get()
+                .max(self.elements - self.reusable_elements()),
+        );
         Ok(NonNull::slice_from_raw_parts(pointer, layout.size()))
     }
 
@@ -265,5 +278,7 @@ unsafe impl<T: Element> Allocator for Pool<'_, T> {
     }
 }
 
+#[cfg(test)]
+mod peak_tests;
 #[cfg(test)]
 mod tests;

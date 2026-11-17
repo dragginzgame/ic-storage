@@ -23,7 +23,7 @@ const _: () = assert!(size_of::<Slot>() == 24 && align_of::<Slot>() == 8);
 unsafe extern "C" {
     fn claim_region() -> *mut u8;
     // Scalar-only, non-reentrant provider callback. Fields 0/1 read the next
-    // staged key/value; field 2 acknowledges the completed insertion.
+    // staged key/value; field 2 acknowledges the completed operation.
     safe fn staged_word(index: u32, field: u32) -> u64;
 }
 
@@ -170,18 +170,29 @@ pub unsafe extern "C" fn provider_map_step(
                         }
                     }
                     13 => {
-                        if key == 0 || key > 64 || value != 0 {
+                        // One admitted scope for a bounded batch. Mode 0 is the
+                        // recovery insert-only contract; other modes are ordinary
+                        // lookup, replacement and deletion against existing keys.
+                        if key == 0 || key > 64 || value > 3 {
                             abort();
                         }
                         for index in 0..key as u32 {
                             let key = staged_word(index, 0);
-                            let value = staged_word(index, 1);
-                            if view
-                                .insert(key, value)
-                                .unwrap_or_else(|_| abort())
-                                .is_some()
-                                || staged_word(index, 2) != 0
-                            {
+                            let expected = staged_word(index, 1);
+                            let valid = match value {
+                                0 => view
+                                    .insert(key, expected)
+                                    .unwrap_or_else(|_| abort())
+                                    .is_none(),
+                                1 => view.get(key) == Some(expected),
+                                2 => view
+                                    .insert(key, expected)
+                                    .unwrap_or_else(|_| abort())
+                                    .is_some(),
+                                3 => view.remove(key) == Some(expected),
+                                _ => abort(),
+                            };
+                            if !valid || staged_word(index, 2) != 0 {
                                 abort();
                             }
                         }

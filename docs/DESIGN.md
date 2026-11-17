@@ -86,8 +86,10 @@ The 72-page recovery grows the private target from 24 to 192 KiB only between
 ended native loans. Traps roll back growth, records and durable progress together.
 Disjoint native windows preserve occupied grown tails across checkpoint resets
 and upgrades. Applying each page in one admitted scope reduces the worst measured
-batch from 1.41 billion to about 102 million instructions. Live allocation peaks,
-consumer-facing root custody and general record values remain incomplete.
+batch from 1.41 billion to about 102 million instructions. Separate checkpoint-heap
+instrumentation now measures requested live bytes, with all sampled calls returning
+to zero. Native-pool rehash peaks, allocator-internal overhead, consumer-facing root
+custody and general record values remain incomplete.
 These are shared native collection components, not a complete Store API.
 Keep the existing M0 format, tests and evidence; do not reinterpret those bytes
 as native Rust values or expand M0 into a competing collection architecture.
@@ -1014,6 +1016,10 @@ Completion gates:
   and operational limits. Fixed page reads alone do not bound full-prefix scans
   or export sorting; redesign work that cannot stay within the selected budget
   before increasing the supported size.
+- Use the installed native-map versus ic-stable-structures workload to guide
+  admission and batching work. Keep the legacy/M0 comparison historical; do not
+  add legacy Storage to this benchmark. Qualify any optimized ownership boundary
+  with the existing corruption, publication and rollback checks.
 - Extend the paged lifecycle to cancellation and repeated export/recovery epochs
   through the shared job state machine. Demonstrate at least two cycles with
   intervening application writes, stale-job refusal and completed retries that
@@ -1032,15 +1038,47 @@ publication, 6,656-byte reads and 616-byte writes remain.
 [Cancellation and repeated epochs](design/paged-map-checkpoint.md#cancellation-and-repeated-epoch-evidence)
 now pass across four installed epochs, including three recoveries, intervening
 writes, reverse-domain reconstruction, stale-job refusal and replacement rollback.
-Next measure live allocation peaks before increasing size.
+Next qualify installed native-pool rehash peaks and allocator-internal overhead before
+increasing size.
 The fixture gates sampled calls at 150 million instructions, 2 MiB Wasm memory and
-50 stable pages. Live allocator peaks, failed-call/whole management-upgrade costs,
-application service budgets and costs of repeated lifecycle calls remain open.
+50 stable pages. [Repeated lifecycle cost evidence](design/paged-map-checkpoint.md#repeated-lifecycle-cost-evidence)
+now covers cancellation, replacement, reverse recovery and checkpoint trimming
+and regrowth across five epochs per shape. The largest replacement is about
+50 million instructions, cancellation about 23 million, and reverse batches
+peak near 102 million; all pass the same fixture budgets without stable growth.
+[Checkpoint allocation evidence](design/paged-map-checkpoint.md#checkpoint-allocation-evidence)
+now covers 119 installed samples: the largest requested-byte peak is 197,841,
+and every sampled call returns to zero live checkpoint allocations. A separate
+realloc-overlap bound keeps those measurements honest about System internals.
+[Host native-pool measurements](design/paged-map-checkpoint.md#host-native-pool-peak-evidence)
+now include old/new rehash coexistence: the large pair peaks at 172,032 occupied
+bytes versus 147,456 retained bytes in its 196,608-byte pool. Reset/regrowth
+reproduces the peak. These observations use the shared allocator in host tests;
+installed native-pool peaks, System metadata/rounding/fragmentation,
+failed-call/whole management-upgrade costs and application service budgets remain open.
 The earlier standalone growth profile owns fragmentation/refusal evidence.
 Larger workloads follow measured limits; a host million-key result is not an
 installed acceptance substitute.
 
+The [two-way map benchmark](design/native-map-comparison.md) supplies 324
+state-checked installed samples and now 54 isolated admission samples. The first
+cohort exposed repeated provider checks on each access and owner reconstruction
+for each operation. One admitted loan and one pair of owners now serve a whole
+batch: at 1,536 records, 64-record replacement/deletion/reinsertion costs less
+than StableBTreeMap; lookup costs 1.115× and growing insertion 1.256×. Single
+lookup still costs 4.05×, almost entirely owner admission. These measure the
+guarded fixture, not intrinsic memory-access speeds. Next qualify reusable
+ownership between ordinary messages, with explicit close/revalidation boundaries,
+alongside the remaining R1 memory measurements before increasing size.
+
 #### R2 — Reusable application ownership and lifecycle (queued)
+
+The benchmark makes owner lifetime a concrete priority: retain admitted owners
+across ordinary messages only under an explicit runtime custody contract. Keep
+private Rust headers transient across upgrades; close or invalidate ownership
+before incompatible reopening, provider-controlled relocation or external writes,
+and qualify fresh admission at those boundaries. Do not replace table validation
+with a caller-supplied trusted flag or an unchecked application constructor.
 
 Use the existing map/vector callers to move qualified responsibilities into
 product libraries under `crates/`, with tests beside their owner.

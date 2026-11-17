@@ -23,9 +23,11 @@ category = "benchmarks"
 
 [features]
 storage = ["dep:ic-storage-legacy"]
+stable-map = ["dep:ic-stable-structures"]
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 ic-platform-runtime = { workspace = true, features = ["system-raw"] }
+ic-stable-structures = { workspace = true, optional = true }
 ic-storage-legacy = { workspace = true, optional = true }
 
 [[example]]
@@ -33,6 +35,12 @@ name = "storage-wasm"
 path = "benches/storage/mod.rs"
 crate-type = ["cdylib"]
 required-features = ["storage"]
+
+[[example]]
+name = "stable-map-wasm"
+path = "benches/stable_map.rs"
+crate-type = ["cdylib"]
+required-features = ["stable-map"]
 
 [[example]]
 name = "compare"

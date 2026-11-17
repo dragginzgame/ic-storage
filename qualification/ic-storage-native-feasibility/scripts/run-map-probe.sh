@@ -2,8 +2,8 @@
 # Closed map artifacts and optional installed execution, using prepared tools.
 set -euo pipefail
 mode="${1:-artifact}"
-if [[ $# -gt 1 || ( "$mode" != artifact && "$mode" != installed && "$mode" != recovery && "$mode" != job && "$mode" != paged ) ]]; then
-    echo 'usage: run-map-probe.sh [artifact|installed|recovery|job|paged]' >&2
+if [[ $# -gt 1 || ( "$mode" != artifact && "$mode" != installed && "$mode" != recovery && "$mode" != job && "$mode" != paged && "$mode" != comparison ) ]]; then
+    echo 'usage: run-map-probe.sh [artifact|installed|recovery|job|paged|comparison]' >&2
     exit 1
 fi
 root="$(CDPATH='' cd -- "$(dirname -- "$0")/../../.." && pwd)"
@@ -22,11 +22,26 @@ cp -R crates/ic-storage-native "$output/native-core"
 cp qualification/ic-storage-native-feasibility/tests/fixtures/provider_map.rs qualification/ic-storage-native-feasibility/tests/fixtures/runtime.rs "$output/"
 cp -R qualification/ic-storage-native-feasibility/tests/fixtures/region "$output/region"
 cp -R qualification/ic-storage-retention-probe/tests/provider_link "$output/admission-source"
+if [[ "$mode" == comparison ]]; then
+    cp target/qualification/bench-stable-map/wasm32-unknown-unknown/release/examples/stable_map_wasm.wasm "$output/stable-map.wasm"
+    cp -R qualification/ic-storage-simple-benchmarks "$output/benchmark-source"
+    mkdir "$output/qualification-workspace"
+    cp qualification/Cargo.toml qualification/Cargo.lock "$output/qualification-workspace/"
+    perl vendor/toko-tooling/scripts/ci/check-cargo-graph.pl \
+        --consumer "$root/qualification" --package ic-storage-simple-benchmarks \
+        --features stable-map --target wasm32-unknown-unknown --edges normal \
+        --require ic-stable-structures=1 --require ic-platform-runtime=1 \
+        --forbid ic-storage --forbid toko-tooling --observations --json \
+        > "$output/stable-map-dependencies.json"
+fi
 if [[ "$mode" == recovery || "$mode" == job || "$mode" == paged ]]; then
     profile=map
     [[ "$mode" != job ]] || profile=map-job
     [[ "$mode" != paged ]] || profile=map-paged
     cp "target/qualification/checkpoint-$profile/wasm32-unknown-unknown/release/ic_storage_checkpoint_provider_probe.wasm" "$output/checkpoint-$profile.wasm"
+    if [[ "$mode" == paged ]]; then
+        cp target/qualification/checkpoint-map-paged-allocations/wasm32-unknown-unknown/release/ic_storage_checkpoint_provider_probe.wasm "$output/checkpoint-map-paged-allocations.wasm"
+    fi
     cp -R qualification/ic-storage-checkpoint-provider-probe "$output/checkpoint-source"
     cp -R qualification/ic-storage-native-feasibility/src "$output/feasibility-source"
     mkdir "$output/qualification-workspace"
@@ -54,6 +69,13 @@ NATIVE_MAP_INPUTS="$output" cargo test --manifest-path qualification/Cargo.toml 
     -p ic-storage-retention-probe --target-dir target/qualification --locked --offline \
     --test provider_link map -- --include-ignored --skip installed_tests --nocapture 2>&1 | tee "$output/artifacts.log"
 test -f "$output/ADMITTED"
+if [[ "$mode" == comparison ]]; then
+    NATIVE_MAP_INPUTS="$output" cargo test --manifest-path qualification/Cargo.toml \
+        -p ic-storage-retention-probe --target-dir target/qualification --locked --offline \
+        --test provider_link map::comparison_tests::installed_tests_native_map_vs_stable_structures \
+        -- --ignored --nocapture 2>&1 | tee "$output/comparison.log"
+    test -f "$output/MAP_COMPARISON"
+fi
 if [[ "$mode" == installed ]]; then
     NATIVE_MAP_INPUTS="$output" cargo test --manifest-path qualification/Cargo.toml \
         -p ic-storage-retention-probe --target-dir target/qualification --locked --offline \
@@ -86,5 +108,7 @@ if [[ "$mode" == paged ]]; then
     test -f "$output/PAGED_NATIVE_COSTS"
     test -f "$output/PAGED_NATIVE_READER"
     test -f "$output/PAGED_NATIVE_LIFECYCLE"
+    test -f "$output/PAGED_NATIVE_LIFECYCLE_COSTS"
+    test -f "$output/PAGED_NATIVE_ALLOCATIONS"
 fi
 printf 'Closed native map %s checks passed.\n' "$mode" > "$output/COMPLETE"
