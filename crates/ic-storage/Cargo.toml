@@ -7,7 +7,7 @@ license-file.workspace = true
 repository.workspace = true
 publish = ["crates-io"]
 readme = "README.md"
-description = "Experimental scoped native collections and portable recovery for the Internet Computer"
+description = "Named stable-memory allocations and governed upstream stable collections"
 
 [target.'cfg(any())'.dev-dependencies]
 toko-tooling.workspace = true
@@ -16,23 +16,20 @@ toko-tooling.workspace = true
 ignored = ["toko-tooling"]
 
 [features]
-checkpoint = []
-derive = ["dep:ic-storage-derive"]
-map = ["dep:sha2"]
-ordered = ["dep:sha2"]
-records = ["checkpoint", "dep:sha2"]
-platform = ["records", "dep:ic-platform-runtime"]
-retained = ["ordered"]
-retained-build = ["dep:wasm-encoder", "dep:wasmparser"]
-
-[dependencies]
-ic-storage-derive = { workspace = true, optional = true }
-sha2 = { workspace = true, optional = true }
-wasm-encoder = { workspace = true, optional = true, features = ["std", "wasmparser"] }
-wasmparser = { workspace = true, optional = true, features = ["std", "validate", "features"] }
+test-support = []
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-ic-platform-runtime = { workspace = true, optional = true, features = ["system-raw"] }
+ic-platform-runtime = { workspace = true, features = ["system-raw"] }
+
+[dependencies]
+ic-stable-structures.workspace = true
+ic-wire.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+trybuild.workspace = true
 
 [lints]
 workspace = true

@@ -1,293 +1,40 @@
 # IC Storage
 
-A fresh experiment in **Rust Orthogonal Persistence**, inspired by Motoko's
-persistence model on the Internet Computer.
+One crate for named stable-memory allocations and upstream
+`ic-stable-structures` collections on the Internet Computer.
 
-The selected direction is **native retained Rust collections with explicit
-type migration and a portable recovery path**. Compatible upgrades retain state
-directly; schema changes use versioned conversions; incompatible runtime or heap
-layouts require export under a compatible source executable and reconstruction
-under the target. Initially support one explicit runtime contract. Major runtime
-changes may use planned downtime and an operator-run export/import procedure;
-general compiler portability is not a prerequisite for the application API.
-See the [current design](docs/DESIGN.md#supported-runtime-contract).
-The [delivery roadmap](docs/DESIGN.md#delivery-roadmap) records current priorities,
-sibling requirements and completion gates. Larger installed recovery is next;
-Canic profiles supply the first planned consumer-shaped qualification.
+- Use names such as `app.users.v1` instead of assigning numeric memory IDs.
+- Default limits: **4,096 named allocations**, **128 bytes per name**.
+- Namespace grants and exclusive leases keep independently owned stores apart.
+- BTreeMap, BTreeSet, Cell, Vec, MinHeap and Log use upstream engines and codecs.
+- Ordinary stable-memory persistence on stable Rust 1.100.0.
 
-Portable recovery uses our own optional `ic-storage::checkpoint` backing for
-bounded records and pages. Qualification binds it directly to Platform stable
-memory; no legacy Storage dependency remains. See the
-[backing contract](docs/design/checkpoint-storage.md) for ownership, format and
-rollback requirements. Existing legacy formats require explicit migration.
-
-The pending `records`/`platform` features add an
-[application byte-record owner](docs/design/application-records.md) for Canic's
-Root/entry bootstrap: exclusive backing, stable root identities, bounded records
-and participant grants. Its installed fixture uses the public API through ordinary
-heap-discarding upgrades. This is the first increment of
-[Storage #5 — Canic retained runtime, records and composed ownership](https://github.com/dragginzgame/ic-storage/issues/5);
-native type coverage and Blob/DB composition remain open.
-
-The pending [native session API](docs/design/native-sessions.md) owns admitted
-ordered maps with named roots, participant grants and shared poisoning. The
-two-root profile qualification now uses this public surface. A closed installed
-binding also qualifies four independently granted main/source/target/job roots.
-The public [retained runtime](docs/design/retained-runtime.md) now supplies the
-allocator, root directory and mandatory startup transform. Its installed witness
-uses four roots without copying a runtime kernel. DB/Canic adoption remains open.
-
-The R4 [ordered storage slice](docs/design/ordered-storage.md) adds bounded byte
-keys and values for IC DB, with compact nodes and separately allocated payloads,
-including ranges, prefixes, batches and portable
-reconstruction. Its row/index and aggregate-job profiles have host provider-pool
-evidence; a closed 64-row installed profile now reuses owners across messages and
-covers compatible upgrades, row/index rollback, query isolation and two-domain
-recovery. The [four-root installed extension](docs/design/ordered-storage.md#four-root-installed-evidence--pending-0762)
-adds seventeen 16-KiB jobs alongside 512-byte keys and 4-KiB rows, complete-family
-recovery and target/job cleanup with source preservation. Consumer adoption remains pending.
-The [ordered recovery job work](docs/design/ordered-recovery.md) adds bounded
-pages and resumable verification. The installed four-root binding now qualifies
-one-page imports, atomic native/cursor/job publication, interruption and explicit
-restart. Synchronous export and application recovery-job integration remain
-limitations; the reusable runtime now has its own complete portable recovery witness.
-
-The public entry point is `ic-storage` at `crates/ic-storage/`, with optional
-`Store` macros from `ic-storage-derive`. The implementation is partial: the
-[native collection core](crates/ic-storage/README.md)
-and installed scalar/vector lifecycle and migration fixtures provide the current
-native foundation. A bounded scalar `Store` derive supplies metadata, logical
-codecs and scoped getters; qualification fixtures exercise explicit field addition
-and checked scalar narrowing, including rollback and portable recovery. Owning
-records and general application conversion remain planned. Closed native V2/V3
-record-vector fixtures additionally exercise retained conversion with allocation
-reuse, full-width predecessor recovery when narrowing refuses, and explicit
-portable V3→V2 widening with continued full-width updates. A separate V3
-record job shares controller authorization, durable epochs, cancellation and
-resumable import with the scalar job. The byte-defined M0
-memory-image model remains an evidence baseline, not the native collection ABI or a
-complete persistence system. Its [earlier research plan](docs/design/m0-research-plan.md)
-is archived; its format and historical results remain scoped to that experiment.
-
-The reusable core now also provides a scoped `u64 → u64` native hash table with
-growth, deletion, host poisoning and portable recovery. Its
-[million-key workload](docs/design/native-map.md) exercises sustained mixed
-operations through the public API. A separate closed installed IC map profile
-now qualifies two independent maps sharing a pool that grows from 24 to 192 KiB,
-including added Wasm pages, compatible upgrades and atomic publication rollback.
-The installed workload retains 4,608 records across both roots and checks growth
-refusal, fragmentation and reuse. A host pool also grows and reopens
-three maps containing over one million records within a shared 96 MiB allocation.
-A separate [governed map recovery profile](qualification/ic-storage-native-feasibility/native-map-recovery.md)
-now restores two maps of up to 64 records each after full heap loss. Its
-[durable jobs](qualification/ic-storage-native-feasibility/native-map-jobs.md)
-add controller authorization, epochs, cancellation, bounded import batches,
-compatible interruption, explicit restart and single-use completion. Progress
-writes use a separate 104-byte governed record while retaining the checkpoint;
-each batch still reads and validates the complete bounded payload. The new
-[paged native profile](docs/design/paged-map-checkpoint.md#installed-paged-native-recovery)
-qualifies combined native/continuation/progress rollback and reads only the next
-checkpoint page. It now recovers 3,072 + 1,536 records over 72 pages, with source
-cancellation and sequential export/recovery epochs. The private target grows
-from 24 to 192 KiB between ended native loans, within the batch transaction.
-Disjoint reserved windows survive checkpoint
-initialization/reset; traps roll back growth, records and durable progress together.
-Page application now admits both maps once per page, reducing the worst large
-batch from 1.41 billion to about 102 million instructions (13.9× lower). See the
-[cost evidence and limits](docs/design/paged-map-checkpoint.md#one-scope-page-application-evidence).
-Four installed epochs qualify cancellation, reverse-domain recovery, checkpoint
-replacement rollback and stale retries that preserve newer application writes.
-Consumer-facing root custody and application record values remain ahead;
-the million-key figures are host measurements.
-
-This is the intended successor to `ic-storage`, aiming to subsume the persistence
-capabilities our applications need. The [legacy repository](https://github.com/dragginzgame/ic-storage-legacy)
-is on hold and stays unchanged. Replacement requires capability and migration qualification; there is
-no current package, API or stored-format compatibility claim. See the
-[successor rule](docs/DESIGN.md#successor-rule).
+See the [crate API and example](crates/ic-storage/README.md),
+[design](docs/DESIGN.md) and [allocation contract](docs/ALLOCATION.md).
+Version 0.77.0 replaces the experimental OP API and stored
+formats. No consumer migration or reset is performed by this repository change.
 
 ## Development
 
-Use the pinned Rust 1.100.0 toolchain (also the support floor). The M0 library is
-`no_std` and allocation-free; the native core uses `no_std` plus `alloc` with a
-caller-supplied allocator. M0's root-owned SHA-256 dependency is `sha2` 0.11.1
-with defaults disabled, selected from the latest stable registry release on
-15 November 2026. The root selects Toko Tooling 0.44.11 exactly as a
-development dependency. Its authenticated snapshot is installed through the
-canonical exporter under `vendor/toko-tooling/`; [TOKO-TOOLING.md](TOKO-TOOLING.md)
-owns the common rules and links to immutable upstream references.
+Explicit setup: `make install-tools`, then `cargo fetch --locked` and
+`cargo fetch --manifest-path qualification/Cargo.toml --locked`.
+Common tools live under `.tools/host/bin` and `.tools/rust/common/bin`;
+`make tools-check` checks their prepared identities offline.
 
-Explicit setup and offline admission are separate:
+| Command | Scope |
+| --- | --- |
+| `make test` | Allocation and upstream collection integration, ownership compile failures and documentation examples |
+| `make lint` | Product host targets and Wasm library |
+| `make fmt-check` | Product and qualification formatting |
+| `make storage-setup` | Explicit installed-test server preparation |
+| `make storage-installed-test` | Actual IC upgrade, query isolation and trapped-write rollback |
+| `make ci` | Aggregate formatting, dependencies, host tests, docs and host/Wasm lint |
 
-```sh
-make install-tools
-make tools-check
-cargo fetch --locked
-make install-hooks
-```
+Shared setup/formatting/tool identity mechanics belong to Toko Tooling. Product
+commands select the library and qualification workspace; CI calls the same commands.
+Checks do not install compilers or fetch dependencies.
 
-Common tools are selected through `.tools/host/bin` and
-`.tools/rust/common/bin`; Make sets PATH automatically. Add those directories
-to PATH for interactive use. Compiler setup remains explicit; checks never
-download a compiler or dependencies.
-
-Focused development commands:
-
-```sh
-make check
-make fmt-check
-make lint
-make m0-test
-make m0-lint-wasm
-make native-core-test
-make native-map-firehose
-make native-map-pool-firehose
-make native-map-checkpoint-test
-make native-map-job-test
-make native-map-paged-test
-make paged-store-test
-make native-map-probe
-make native-feasibility-test
-make native-layout-probe
-make doc-check
-make deps-list
-make deps-tree
-make deps-boundaries
-make toko-tooling-check
-
-# First installed Wasm retention experiment (explicit setup, then offline):
-cargo fetch --manifest-path qualification/Cargo.toml --locked
-make retention-setup
-make retention-tools-check
-make native-map-test
-make retention-lint
-make retention-test
-make rust-startup-lint
-make rust-startup-build
-make rust-startup-test
-make managed-graph-lint
-make managed-graph-build
-make managed-graph-test
-
-# Optional installed instruction measurements against ic-stable-structures:
-make benchmark-lint
-make benchmark-matrix
-```
-
-`make deps-check` aggregates snapshot admission, declaration/pinning checks and
-dependency boundaries. `make deps-pins` requires Cargo.lock to be tracked by Git.
-`deps-boundaries` checks
-direct IC dependency policy and excludes tooling from the normal/build graph
-across all targets. Neither check proves installed IC behavior.
-
-`make deps-list` uses Toko's package inventory (local versions, workspaces and
-release groups); `make deps-tree` shows external dependencies too.
-`make deps-update` uses Toko's updater for the root and independent qualification
-workspace. It explicitly permits network access and updates Cargo.lock
-within root requirements. Use `DEPENDENCY_PACKAGE=name` to select one package,
-with optional `DEPENDENCY_PRECISE=version`. Review the diff. To change Toko versions, edit the
-exact root pin, update Cargo.lock, then run `make toko-tooling-update` followed
-by `make toko-tooling-check`; builds never install snapshots implicitly.
-
-`make ci` checks formatting, dependency policy, strict Clippy for the product and
-qualification runner/canister, native M0 graph/corruption and session-isolation
-tests, wasm32 library checks
-and Rustdoc. GitHub Actions runs it and the
-retention/startup/graph tests on Linux and both macOS architectures after explicit setup, with
-one separate Gitleaks scan per run.
-Setup steps retain their original exit status and print a bounded sanitized
-diagnostic. On failure, CI uploads selected sanitized logs and attempt identifiers
-(at most 64 selected files of 64 KiB each plus an index, retained seven days), including hidden setup
-attempts. Raw evidence trees, caches and binaries are excluded. The result reports
-missing evidence and collection/upload failures separately and links the artifact
-when available. `bash scripts/ci/tests/diagnostics.sh` exercises the local failure
-path offline; it does not prove hosted upload/retrieval.
-The separate `retention-test` runs the first installed Wasm probe through
-Testkit/PocketIC. The [Rust startup probe](qualification/ic-storage-rust-startup-probe/README.md)
-adds controlled transient initialization and artifact admission; neither is a
-managed heap implementation. Its separate
-[managed graph profile](qualification/ic-storage-rust-startup-probe/managed-graph.md) uses the
-product library and a fixture-only retained-memory kernel to test shared/cyclic
-graphs, allocator continuation and selected installed rollback cases. Local
-development uses the individual commands above. The canonical pre-commit hook
-formats the selected commit payload without modifying unrelated work.
-
-The legacy Storage comparison has been retired. Its
-[historical results](qualification/ic-storage-simple-benchmarks/README.md#historical-m0-comparison-retired)
-remain archived; all maintained benchmarks compare against ic-stable-structures.
-
-For the current on-demand comparison, run **`make benchmark-matrix`**, or
-`make benchmark-matrix-smoke` for one scenario. The
-[matrix guide](docs/design/native-map-matrix.md) documents workloads, reports and
-results against **ic-stable-structures only**. The full run validates 972 samples
-over generation-owned native maps; it saves CSV and Markdown tables under the
-printed evidence directory. It is separate from routine CI and release gates.
-
-The earlier [native-map comparison](docs/design/native-map-comparison.md) uses
-`ic-stable-structures` only (`make benchmark-map`). All 324 installed samples
-pass state checks. Reusing one admitted loan and both map owners per batch now
-makes native replacement, deletion and reinsertion batches cheaper than stable
-structures at 1,536 records; 64-record lookup and growing insertion remain about
-12% and 26% more expensive. A single lookup still costs about 4× as much because
-owner reconstruction scans the tables. The next ownership boundary is reuse
-between ordinary messages; unknown or incompatible retained data still refuses.
-`make native-session-test` now exercises that longer lifetime in a separate
-[installed service fixture](qualification/ic-storage-native-feasibility/native-map-provider.md#installed-owner-session-lifetime),
-including close/reopen, query isolation and upgrade rollback. The comparison
-above still describes the earlier guarded adapter.
-
-The [native ownership experiment](qualification/ic-storage-native-feasibility/README.md)
-tests scoped moves, owner escape refusals and forgotten-ticket quarantine. It
-uses live host allocations. A compiler diagnostic probe also measures private
-Vec header fields on the host and wasm32 and detects equal-sized reordered
-records; complete native layout admission and reopening remain open.
-Its [live allocation probe](qualification/ic-storage-native-feasibility/allocation-boundary.md)
-also tests real std vectors, allocation reuse and reopening within the same live
-host arena. It does not establish allocation custody across an IC upgrade.
-A [bounded checkpoint codec](qualification/ic-storage-native-feasibility/checkpoint-format.md)
-tests reconstruction after source teardown. The
-[installed provider probe](qualification/ic-storage-checkpoint-provider-probe/README.md)
-recovers through fresh Storage handles after ordinary upgrades discard the old
-heap, with failed-import rollback tests. The
-[connected native bridge](qualification/ic-storage-retention-probe/native-checkpoint.md)
-now tests compatible reopening, governed export and relocated native recovery;
-general runtime migration and production authority remain open.
-The [governed job fixture](qualification/ic-storage-native-feasibility/migration-job.md)
-adds guarded jobs, cancellation, frozen-source upgrades and staged import.
-`make native-record-job-test` qualifies those transitions for bounded V3 record
-vectors through the same state machine and controller adapter.
-The shared [native core](crates/ic-storage/README.md) now supplies scoped
-vector operations to that fixture; `make native-core-test` checks ownership limits
-and the optional scalar derive's application-facing contract.
-
-Library code lives in `crates/`. See [qualification/](qualification/README.md)
-for fixture contracts, commands and evidence scope. Production canister
-qualification and deployment are not configured. Only `ic-storage` and
-`ic-storage-derive` are eligible for publication; `ic-storage-m0` and all
-qualification packages remain private. Publication does not make arbitrary Rust
-values persistent or supply a production runtime. The GitHub repository is
-[`dragginzgame/ic-storage`](https://github.com/dragginzgame/ic-storage).
-
-Read [AGENTS.md](AGENTS.md) and the
-[research architecture](docs/DESIGN.md) before implementation.
-The design draws on Motoko and the
-[pinned cdk-rsx-store interface description](docs/DESIGN.md#pinned-cdk-rsx-store-design-basis).
-
-## Publication
-
-`ic-storage` is the native library. Enable `map` for keyed collections and
-portable checkpoints, and `derive` for the re-exported `Store` macro. The
-procedural macro implementation publishes separately as `ic-storage-derive`;
-applications normally depend only on `ic-storage`.
-
-The 0.76 API replaces the legacy 0.74 API. It does not read legacy stored formats;
-consumer migration needs separate qualification. M0 remains private evidence in
-`crates/ic-storage-m0`, with its historical bytes preserved.
-
-Release qualification uses `make ci`, followed by the affected installed suites.
-`make publish-check` validates the declared public pair using Cargo's package
-verification; `make publish` uploads that same pair in dependency order. Both
-select all features and retain evidence under `target/publication`. Upload
-requires clean committed source. The shared adapter permits an explicit
-`PACKAGE=ic-storage-derive` or `PACKAGE=ic-storage` subset for a reconciled partial
-publication; inspect registry state and the saved attempt before retrying.
+The OP source was removed from the active workspace. Its Git history is intact;
+the pre-replacement worktree and history backup remain locally under
+`target/op-archive/2026-11-17/`, and the original source trees under `.op-backup/`.
+These local backups include uncommitted work and are not required to build.

@@ -1,71 +1,30 @@
 # Repository instructions
 
-This is a fresh research repository for Rust Orthogonal Persistence inspired by
-Motoko. The user authorized this directory on 2026-11-15 and put development of
-the [legacy Storage repository](https://github.com/dragginzgame/ic-storage-legacy)
-on hold. Do not modify that repository as part of this experiment. This research
-repository was renamed from `ic-storage-new` to `ic-storage` on 2026-11-16.
-The public native package is `ic-storage`; it also owns checkpoint backing.
-Qualification must not depend on legacy Storage. Preserve M0's historical digest
-domain bytes despite the package rename.
+This repository implements named stable-memory allocations and governed
+`ic-stable-structures` collections in one `ic-storage` crate. On 17 November 2026
+the user explicitly retired the OP experiment and selected the merged 0.64
+allocation design with upstream collection engines. Do not resume OP, custom
+collection engines or a separate `ic-memory` package without a new request.
 
-This repository adopts [TOKO-TOOLING.md](TOKO-TOOLING.md) and its revision-bound
-references. The canonical exporter owns the Toko 0.44.11 snapshot under
-`vendor/toko-tooling/` and `.toko-tooling.snapshot`. Product scope and the commands
-below are consumer-owned choices within that baseline; no policy exceptions are
-claimed. Installation alone does not establish native host or product
-qualification. Do not copy Storage's release machinery.
+Read `docs/DESIGN.md` before implementation. Keep 4,096 named allocations by
+default and canonical string keys bounded to 128 bytes. Preserve namespace grants,
+exclusive backing custody, non-cloneable allocation leases and refusal of unknown
+or corrupt data. Applications own schemas and explicitly authorize migrations.
+Do not modify the legacy sibling repository or reset consumer storage.
 
-## Product scope
+This repository adopts `TOKO-TOOLING.md` and its revision-bound references.
+The canonical exporter owns Toko 0.45.0 under `vendor/toko-tooling/` and
+`.toko-tooling.snapshot`. User authorization explicitly selects the direct
+`ic-stable-structures` dependency as the product collection engine; this is the
+scoped exception to routing external IC crates through Platform. Stable-memory
+system calls continue through `ic-platform-runtime`.
 
-- Develop this repository as the intended successor to `ic-storage`, aiming to
-  subsume the storage capabilities our applications need, including those served
-  by ic-stable-structures. Do not maintain two competing product architectures.
-  Replacement requires capability and migration qualification; it does not imply
-  current completeness, API compatibility or stored-format compatibility.
-  Consumer cutovers require explicit authorization and evidence for their data,
-  lifecycle and operational contracts.
-- Read the [research architecture](docs/DESIGN.md) before implementation.
-- Follow its selected native retained-collection direction with explicit schema
-  conversions and a portable migration/recovery path for incompatible runtimes.
-  Preserve M0 as a byte-defined evidence baseline; do not treat it as the new
-  native ABI or continue a parallel M0 collection architecture. Initially support
-  one explicit runtime contract: qualify the representations actually retained,
-  pointer validity, scoped ownership and their lifecycle. Use planned portable
-  migration for incompatible runtimes; universal layout certificates, automatic
-  compatibility discovery and actual cross-compiler migration are not prerequisites
-  for records and application converters within the supported contract. Each new
-  stored type still needs its representation and tested portable path. Follow the
-  design's owned checkpoint backing boundary without modifying or copying the
-  frozen sibling repository.
-- Treat its [pinned cdk-rsx-store reference](docs/DESIGN.md#pinned-cdk-rsx-store-design-basis)
-  as an additional design basis; preserve the recorded review scope and pin.
-- Independently author the implementation from published behavior and interface
-  specifications. Do not copy, translate or adapt Motoko implementation code.
-- Do not claim arbitrary Rust values are upgrade-safe. Layout, references,
-  allocator state, executable pointers and upgrade initialization need explicit
-  contracts and evidence.
-- Unknown or incompatible retained data must be rejected, never silently reset.
-- Native models do not prove installed IC upgrades or rollback behavior.
-- Benchmark against ic-stable-structures only. Keep prior comparison and legacy
-  checkpoint-provider evidence historical.
-- Publish only `ic-storage` and `ic-storage-derive`, as authorized on 2026-11-17.
-  Keep `ic-storage-m0` and qualification packages private. Publication does not
-  establish production readiness or adopt legacy APIs and stored formats.
-- Production stable-memory integration requires explicit namespace ownership,
-  bounded handles and a qualified transaction contract. Fixture ownership of the
-  entire stable address space does not authorize application integration. A
-  retained main-memory design needs its own admission and custody contract.
+Keep Rust 1.100.0 as pinned compiler and support floor. Check for active Cargo,
+rustc and rustdoc processes before editing or compiling. Use focused locked
+offline checks; setup is explicit. Keep Rust library code under `crates/` and
+installed tests in the independent `qualification/` workspace. Use `foo/mod.rs`
+when a module has children. Preserve source notices and historical evidence.
 
-## Development
-
-Check for active Cargo, rustc and rustdoc processes before editing or compiling.
-Keep Rust 1.100.0 as the pinned compiler and support floor. The virtual root owns
-shared metadata and future dependency selections. Library code belongs under
-`crates/`; keep tests beside the owning implementation. Do not create empty
-qualification packages or speculative APIs.
-
-Use focused locked offline checks. The bootstrap commands are documented in
-README.md. Do not fetch dependencies implicitly or install tools during checks.
-Do not commit, push, publish or configure deployment without the corresponding
-user request. Preserve unrelated work and historical evidence.
+Publish only `ic-storage` when explicitly requested. `ic-storage-derive`, M0,
+and the former OP qualification packages are no longer active products.
+Do not commit, push, publish or deploy without the corresponding user request.

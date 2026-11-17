@@ -1,0 +1,5 @@
+error[E0599]: no method named `open_memory` found for reference `&BootstrapAdmission<'_>` in the current scope
+ --> tests/ui/open_during_admission.rs:4:15
+  |
+4 |     admission.open_memory(&ic_storage::StableKey::parse("app.journal.v1").unwrap());
+  |               ^^^^^^^^^^^ method not found in `&BootstrapAdmission<'_>`

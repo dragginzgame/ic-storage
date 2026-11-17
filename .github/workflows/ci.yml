@@ -46,52 +46,14 @@ jobs:
           cargo fetch --locked
           cargo fetch --manifest-path qualification/Cargo.toml --locked
           SETUP
-      - name: Validate research library
+      - name: Validate storage library
         run: make ci
-      - name: Prepare pinned retention-test server
-        run: bash scripts/ci/setup-step.sh retention-server make retention-setup
-      - name: Validate installed Wasm retention
+      - name: Prepare installed-test server
+        run: bash scripts/ci/setup-step.sh storage-server make storage-setup
+      - name: Qualify stable collection upgrades and rollback
         run: |
           mkdir -p target/evidence
-          make retention-test 2>&1 | tee target/evidence/retention-test.log
-      - name: Build and validate controlled Rust startup
-        run: |
-          make rust-startup-build 2>&1 | tee target/evidence/rust-startup-build.log
-          make rust-startup-test 2>&1 | tee target/evidence/rust-startup-test.log
-      - name: Validate installed scalar and vector provider
-        run: make native-provider-test 2>&1 | tee target/evidence/native-provider-test.log
-      - name: Validate generation-owned native map service
-        run: make native-session-test 2>&1 | tee target/evidence/native-session-test.log
-      - name: Build and validate installed managed graph
-        run: |
-          make managed-graph-build 2>&1 | tee target/evidence/managed-graph-build.log
-          make managed-graph-test 2>&1 | tee target/evidence/managed-graph-test.log
-      - name: Build and validate independent checkpoint provider
-        run: |
-          make checkpoint-provider-build 2>&1 | tee target/evidence/checkpoint-provider-build.log
-          make checkpoint-provider-test 2>&1 | tee target/evidence/checkpoint-provider-test.log
-      - name: Validate native checkpoint recovery
-        run: make native-checkpoint-test 2>&1 | tee target/evidence/native-checkpoint-test.log
-      - name: Validate public application record ownership
-        run: make application-records-test 2>&1 | tee target/evidence/application-records-test.log
-      - name: Installed native record conversion
-        run: make native-record-test 2>&1 | tee target/evidence/native-record-test.log
-      - name: Governed record-vector migration
-        run: make native-record-job-test 2>&1 | tee target/evidence/native-record-job-test.log
-      - name: Installed record-vector recovery
-        run: make native-record-vector-test 2>&1 | tee target/evidence/native-record-vector-test.log
-      - name: Validate governed native migration jobs
-        run: make native-job-test 2>&1 | tee target/evidence/native-job-test.log
-      - name: Validate durable map recovery jobs
-        run: make native-map-job-test 2>&1 | tee target/evidence/native-map-job-test.log
-      - name: Validate governed paged storage transactions
-        run: make paged-store-test 2>&1 | tee target/evidence/paged-store-test.log
-      - name: Validate paged recovery into retained maps
-        run: make native-map-paged-test 2>&1 | tee target/evidence/native-map-paged-test.log
-      - name: Validate public retained runtime lifecycle
-        run: make retained-runtime-test 2>&1 | tee target/evidence/retained-runtime-test.log
-      - name: Validate ordered family recovery jobs
-        run: make ordered-native-test 2>&1 | tee target/evidence/ordered-native-test.log
+          make storage-installed-test 2>&1 | tee target/evidence/storage-installed-test.log
       - name: Collect bounded sanitized diagnostics
         id: collect
         if: failure()
