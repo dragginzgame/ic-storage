@@ -12,6 +12,14 @@ cost figures later in this document retain their original 0.74.1 provenance.
 The [replacement qualification](../../docs/design/checkpoint-storage.md#replacement-qualification--17-november-2026)
 records the current passing recovery cohorts and measured backing/entrypoint costs.
 
+The independent `application-records` profile uses only the public
+[`records` owner](../../docs/design/application-records.md), with no private arena,
+raw stable-memory binding or allocation handles in its application code. Run
+`make application-records-test`; its build disables the default `native-fixtures`
+dependency because this profile needs no private feasibility model. Existing
+checkpoint/native profiles retain that default. Do not combine the application
+profile with native-bridge or paged-store features.
+
 The separately selected `native-map` feature connects two native maps to the
 [bounded two-map envelope and recovery contract](../ic-storage-native-feasibility/native-map-recovery.md).
 Its region ID is 2, with a 2256-byte load limit and at most

@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.76.2] - 2026-11-17
+
+### ➕ Added
+
+- Supply the public `retained` runtime and `retained-build` artifact preparation
+  for [Storage #4 — IC DB ordered ownership](https://github.com/dragginzgame/ic-storage/issues/4).
+  Applications declare roots and budgets, use scoped grants, and close/reopen
+  through their lifecycle hooks without copying allocator or startup code.
+  Installed tests cover four roots, compatible upgrades, trap/query isolation,
+  failed source/target rollback and portable recovery in both allocation banks.
+  The [runtime contract](docs/design/retained-runtime.md) records the pinned
+  compiler, private unsafe kernel, capacities and ordinary-heap growth limit.
+  DB engine adoption and production qualification remain open.
+- Add public native sessions with composed participant grants and host poisoning;
+  lazy key-first ranges, membership and discard deletion; and bounded batches.
+  DB-shaped tests cover independent main/source/target/job bounds, 512-byte keys,
+  4-KiB rows, seventeen 16-KiB jobs, allocation refusal and cleanup/reuse.
+- Add bounded ordered checkpoint pages, public session export and resumable
+  verifier continuations. The shared migration state machine's installed
+  four-root adapter commits each page's records, cursor and job progress together,
+  covering interruption, restart, cancellation, exact retries and opposite-domain
+  epochs. Export remains synchronous; application durable-job integration is open.
+- Add the public bounded byte-record owner and installed Root/entry qualification
+  for [Storage #5 — Canic retained runtime, records and composed ownership](https://github.com/dragginzgame/ic-storage/issues/5).
+  Add a two-root native profile workload using public sessions, with revision/retry,
+  deletion, conversion and allocation-failure cases. Installed profile adoption
+  and real supplier composition remain open.
+
 ## [0.76.1] - 2026-11-17
 
 ### ✨ Added

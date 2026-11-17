@@ -11,6 +11,12 @@ The [staged import extension](staged-import.md) adds an explicit version-2 job
 envelope and unpublished native construction across bounded updates/upgrades,
 with explicit checkpoint-based restart after an interrupted import.
 
+The [ordered row/index host profile](../../docs/design/ordered-recovery.md) also
+uses this state machine, with one paged manifest and the existing ordered native
+domains. Its four-root extension now uses the same transitions for installed
+one-page imports, atomic native/cursor/job publication, interruption, cancellation,
+explicit restart and exact retries. The adapter remains closed qualification.
+
 The [record-vector job profile](#record-vector-job-profile) shares these
 transitions with a distinct V3 payload, locator and native identity. The scalar
 layout and historical evidence below retain their original scope.

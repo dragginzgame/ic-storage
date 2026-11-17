@@ -72,6 +72,8 @@ jobs:
           make checkpoint-provider-test 2>&1 | tee target/evidence/checkpoint-provider-test.log
       - name: Validate native checkpoint recovery
         run: make native-checkpoint-test 2>&1 | tee target/evidence/native-checkpoint-test.log
+      - name: Validate public application record ownership
+        run: make application-records-test 2>&1 | tee target/evidence/application-records-test.log
       - name: Installed native record conversion
         run: make native-record-test 2>&1 | tee target/evidence/native-record-test.log
       - name: Governed record-vector migration
@@ -86,6 +88,10 @@ jobs:
         run: make paged-store-test 2>&1 | tee target/evidence/paged-store-test.log
       - name: Validate paged recovery into retained maps
         run: make native-map-paged-test 2>&1 | tee target/evidence/native-map-paged-test.log
+      - name: Validate public retained runtime lifecycle
+        run: make retained-runtime-test 2>&1 | tee target/evidence/retained-runtime-test.log
+      - name: Validate ordered family recovery jobs
+        run: make ordered-native-test 2>&1 | tee target/evidence/ordered-native-test.log
       - name: Collect bounded sanitized diagnostics
         id: collect
         if: failure()

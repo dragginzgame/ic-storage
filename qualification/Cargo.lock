@@ -776,10 +776,13 @@ dependencies = [
 
 [[package]]
 name = "ic-storage"
-version = "0.76.1"
+version = "0.76.2"
 dependencies = [
+ "ic-platform-runtime",
  "ic-storage-derive",
  "sha2 0.11.1",
+ "wasm-encoder",
+ "wasmparser",
 ]
 
 [[package]]
@@ -794,7 +797,7 @@ dependencies = [
 
 [[package]]
 name = "ic-storage-derive"
-version = "0.76.1"
+version = "0.76.2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -803,7 +806,7 @@ dependencies = [
 
 [[package]]
 name = "ic-storage-m0"
-version = "0.76.1"
+version = "0.76.2"
 dependencies = [
  "sha2 0.11.1",
 ]
@@ -822,6 +825,7 @@ name = "ic-storage-retention-probe"
 version = "0.1.0"
 dependencies = [
  "ic-host-artifacts",
+ "ic-storage",
  "ic-testkit",
  "tokio",
  "toko-tooling",

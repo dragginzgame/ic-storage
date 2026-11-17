@@ -20,6 +20,7 @@ wasmparser = { workspace = true, features = ["std", "validate", "features"] }
 wat.workspace = true
 
 [dev-dependencies]
+ic-storage = { workspace = true, features = ["retained-build"] }
 ic-testkit.workspace = true
 tokio = { workspace = true, features = ["macros", "rt"] }
 
@@ -49,3 +50,11 @@ path = "tests/provider_link/mod.rs"
 [[test]]
 name = "ordered_native"
 path = "tests/ordered_native/mod.rs"
+
+[[test]]
+name = "application_records"
+path = "tests/application_records.rs"
+
+[[test]]
+name = "retained_runtime"
+path = "tests/retained_runtime/mod.rs"

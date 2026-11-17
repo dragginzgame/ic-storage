@@ -21,7 +21,7 @@ use alloc::vec::Vec;
 /// Backing page size in bytes.
 pub const PAGE_SIZE: u64 = 65_536;
 const HEADER: usize = 128;
-const MAX_REGIONS: usize = 4;
+pub(crate) const MAX_REGIONS: usize = 4;
 
 /// Caller-owned byte backing. Implementations must preserve reads and writes and
 /// return the old page count after successful zero-filled growth. IO failure
@@ -68,7 +68,7 @@ pub struct Store<M: Memory> {
     fresh: bool,
 }
 
-fn layout(specs: &[Specification]) -> Result<([u8; HEADER], u64), Error> {
+pub(crate) fn layout(specs: &[Specification]) -> Result<([u8; HEADER], u64), Error> {
     if specs.is_empty() || specs.len() > MAX_REGIONS {
         return Err(Error::Bounds);
     }

@@ -6,6 +6,12 @@ backing for the retained native collections, not another collection architecture
 It is independently implemented here; legacy Storage is no longer a dependency.
 The new format does not read or automatically migrate legacy checkpoints.
 
+The [application record owner](application-records.md) now consumes this same
+directory and record implementation behind exclusive backing custody and checked
+participant grants. Applications using that path do not receive a raw `Memory`,
+region or allocation constructor. Its application-envelope and ordinary-upgrade
+contract are separate from native retained-collection admission.
+
 ## Ownership and failure contract
 
 The caller exclusively owns the complete backing namespace for every issued

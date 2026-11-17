@@ -21,13 +21,36 @@ memory; no legacy Storage dependency remains. See the
 [backing contract](docs/design/checkpoint-storage.md) for ownership, format and
 rollback requirements. Existing legacy formats require explicit migration.
 
+The pending `records`/`platform` features add an
+[application byte-record owner](docs/design/application-records.md) for Canic's
+Root/entry bootstrap: exclusive backing, stable root identities, bounded records
+and participant grants. Its installed fixture uses the public API through ordinary
+heap-discarding upgrades. This is the first increment of
+[Storage #5 — Canic retained runtime, records and composed ownership](https://github.com/dragginzgame/ic-storage/issues/5);
+native type coverage and Blob/DB composition remain open.
+
+The pending [native session API](docs/design/native-sessions.md) owns admitted
+ordered maps with named roots, participant grants and shared poisoning. The
+two-root profile qualification now uses this public surface. A closed installed
+binding also qualifies four independently granted main/source/target/job roots.
+The public [retained runtime](docs/design/retained-runtime.md) now supplies the
+allocator, root directory and mandatory startup transform. Its installed witness
+uses four roots without copying a runtime kernel. DB/Canic adoption remains open.
+
 The R4 [ordered storage slice](docs/design/ordered-storage.md) adds bounded byte
 keys and values for IC DB, with compact nodes and separately allocated payloads,
 including ranges, prefixes, batches and portable
 reconstruction. Its row/index and aggregate-job profiles have host provider-pool
 evidence; a closed 64-row installed profile now reuses owners across messages and
 covers compatible upgrades, row/index rollback, query isolation and two-domain
-recovery. Consumer adoption remains pending.
+recovery. The [four-root installed extension](docs/design/ordered-storage.md#four-root-installed-evidence--pending-0762)
+adds seventeen 16-KiB jobs alongside 512-byte keys and 4-KiB rows, complete-family
+recovery and target/job cleanup with source preservation. Consumer adoption remains pending.
+The [ordered recovery job work](docs/design/ordered-recovery.md) adds bounded
+pages and resumable verification. The installed four-root binding now qualifies
+one-page imports, atomic native/cursor/job publication, interruption and explicit
+restart. Synchronous export and application recovery-job integration remain
+limitations; the reusable runtime now has its own complete portable recovery witness.
 
 The public entry point is `ic-storage` at `crates/ic-storage/`, with optional
 `Store` macros from `ic-storage-derive`. The implementation is partial: the

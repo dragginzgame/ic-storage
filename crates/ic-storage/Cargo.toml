@@ -20,10 +20,19 @@ checkpoint = []
 derive = ["dep:ic-storage-derive"]
 map = ["dep:sha2"]
 ordered = ["dep:sha2"]
+records = ["checkpoint", "dep:sha2"]
+platform = ["records", "dep:ic-platform-runtime"]
+retained = ["ordered"]
+retained-build = ["dep:wasm-encoder", "dep:wasmparser"]
 
 [dependencies]
 ic-storage-derive = { workspace = true, optional = true }
 sha2 = { workspace = true, optional = true }
+wasm-encoder = { workspace = true, optional = true, features = ["std", "wasmparser"] }
+wasmparser = { workspace = true, optional = true, features = ["std", "validate", "features"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+ic-platform-runtime = { workspace = true, optional = true, features = ["system-raw"] }
 
 [lints]
 workspace = true

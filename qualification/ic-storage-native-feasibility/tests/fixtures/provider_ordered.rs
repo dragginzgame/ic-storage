@@ -3,6 +3,9 @@
 #![deny(unsafe_code, unsafe_op_in_unsafe_fn, missing_docs, dead_code)]
 extern crate alloc;
 
+mod ordered_family;
+mod ordered_jobs;
+mod ordered_owner;
 mod ordered_runtime;
 mod ordered_session;
 #[expect(
@@ -16,23 +19,22 @@ use core::ops::Bound::{Excluded, Included};
 use core::sync::atomic::{AtomicU64, Ordering};
 use ic_platform_runtime::raw as ic0;
 use ic_storage::{
-    checkpoint::{Memory, Record, Specification, Store},
+    checkpoint::{Memory, Record, Store},
     ordered::{Mutation, Node},
 };
 use ordered_runtime::{A, B, Stable, enter, header, publish};
 
-type Element = Node<512, 4096>;
+type Element = Node<512, 16384>;
 impl region::sealed::Sealed for Element {}
 impl region::Element for Element {}
 const _: () = assert!(size_of::<Element>() == 56 && align_of::<Element>() == 8);
 const ELEMENTS: usize = 256;
 const PAYLOAD_OFFSET: usize = 16 * 1024;
-const PAYLOAD_BYTES: usize = 1024 * 1024;
+const PAYLOAD_BYTES: usize = 1536 * 1024;
 const WINDOW: usize = PAYLOAD_OFFSET + PAYLOAD_BYTES;
 const _: () = assert!(ELEMENTS * size_of::<Element>() <= PAYLOAD_OFFSET);
 const _: () = assert!(WINDOW <= B - A && B + WINDOW <= 8 * 1024 * 1024);
-const LIMIT: usize = 128;
-const MAGIC: u64 = 0x4f52444e41543033;
+const MAGIC: u64 = 0x4f52444e41543035;
 const BUILD: u64 = if cfg!(ordered_b) { 2 } else { 1 };
 const BASE: usize = if cfg!(ordered_recovery) { B } else { A };
 static LAST_COST: AtomicU64 = AtomicU64::new(0);
@@ -44,30 +46,16 @@ fn args() -> [u64; 3] {
     ic0::msg_arg_data_copy(&mut bytes, 0);
     core::array::from_fn(|i| u64::from_le_bytes(bytes[i * 8..i * 8 + 8].try_into().unwrap()))
 }
-fn cell(create: bool) -> Record<Vec<u8>, Stable> {
-    let specs = [Specification {
-        id: 40,
-        bytes: 16 + 1024 * 1024,
-    }];
-    let mut store = if create {
-        Store::create(Stable, &specs)
-    } else {
-        Store::open(Stable, &specs)
-    }
-    .unwrap();
-    let region = store.take(40).unwrap();
-    if create {
-        Record::create(region, Vec::new())
-    } else {
-        Record::load(region, 1024 * 1024)
-    }
-    .unwrap()
+fn cell() -> Record<Vec<u8>, Stable> {
+    let mut store = Store::open(Stable, &ordered_jobs::SPECS).unwrap();
+    Record::load(store.take(40).unwrap(), 1024 * 1024).unwrap()
 }
 fn checked() -> [u64; 14] {
     let words = header();
     assert_eq!(words[0], MAGIC);
     assert_eq!(words[1], BASE as u64);
-    assert!(words[9] <= 1 && words[13] <= 1);
+    ordered_runtime::verify_directory(&words);
+    assert!(words[9] <= 2 && words[13] <= 1);
     words
 }
 fn finish_cost(start: u64) {
@@ -98,9 +86,10 @@ extern "C" fn lookup() {
     enter();
     let start = ic0::instruction_counter();
     let [id, expected, _] = args();
+    ordered_jobs::available();
     let value = ordered_session::with(|map| {
-        map.with(|view| {
-            let value = view.get(&primary(id)).unwrap();
+        map.read(|view| {
+            let value = view.get(1, &primary(id)).unwrap().unwrap();
             assert_eq!(
                 u64::from_le_bytes(value.as_slice()[..8].try_into().unwrap()),
                 expected
@@ -126,7 +115,8 @@ extern "C" fn init() {
     enter();
     assert_eq!(ic0::msg_arg_data_size(), 0);
     assert_eq!(header(), [0; 14]);
-    let _ = cell(true);
+    assert_eq!(ordered_runtime::auxiliary(), [[0; 9]; 3]);
+    ordered_jobs::initialize();
     publish(
         [MAGIC, BASE as u64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
         false,
@@ -156,27 +146,33 @@ extern "C" fn post_upgrade() {
     enter();
     let start = ic0::instruction_counter();
     let [mode, epoch, fault] = args();
-    assert!(fault <= 3);
+    assert!(fault <= if matches!(mode, 2 | 3) { 4 } else { 3 });
     if mode == 0 {
         ordered_session::open();
+        ordered_jobs::resume();
         ordered_session::with(|map| {
             if fault != 0 {
-                map.with(|mut view| view.insert(&primary(0), &[255; 4096]).unwrap())
+                map.update(|mut view| view.insert(1, &primary(0), &[255; 4096]).unwrap())
                     .unwrap();
                 assert!(fault != 1);
             }
         });
+    } else if matches!(mode, 2 | 3) {
+        ordered_jobs::start(epoch, mode == 3, fault);
+        finish_cost(start);
+        return;
     } else {
         assert_eq!(mode, 1);
         assert_eq!(header(), [0; 14], "replacement required");
-        let checkpoint = cell(false);
+        assert_eq!(ordered_runtime::auxiliary(), [[0; 9]; 3]);
+        let checkpoint = cell();
         publish(
             [MAGIC, BASE as u64, 0, 0, 0, 0, 0, 0, epoch, 0, 0, 0, 0, 1],
             false,
         );
         ordered_session::open();
         ordered_session::with(|map| {
-            map.restore(checkpoint.get(), epoch).unwrap();
+            map.restore(checkpoint.get(), epoch);
             assert!(fault != 1);
         });
     }
@@ -196,32 +192,37 @@ extern "C" fn put() {
     enter();
     let start = ic0::instruction_counter();
     let [id, value, fault] = args();
-    assert!(fault <= 3);
+    assert!(fault <= 4);
     let mut words = checked();
     assert_eq!(words[9], 0, "frozen");
     with_map(&mut words, |map| {
-        map.with(|mut view| {
+        map.update(|mut view| {
             let key = primary(id);
             let next = index(id, value);
             let old = view
-                .get(&key)
+                .read()
+                .get(1, &key)
+                .unwrap()
                 .map(|bytes| u64::from_le_bytes(bytes.as_slice()[..8].try_into().unwrap()));
             let mut row = [0; 4096];
             row[..8].copy_from_slice(&value.to_le_bytes());
             row[8..].fill((id ^ value) as u8);
             if fault == 1 {
-                view.insert(&key, &row).unwrap();
+                view.insert(1, &key, &row).unwrap();
                 panic!("between row and index");
             }
             if let Some(old) = old {
-                view.apply(&[
-                    Mutation::Remove(&index(id, old)),
-                    Mutation::Put(&key, &row),
-                    Mutation::Put(&next, &key),
-                ])
+                view.apply(
+                    1,
+                    &[
+                        Mutation::Remove(&index(id, old)),
+                        Mutation::Put(&key, &row),
+                        Mutation::Put(&next, &key),
+                    ],
+                )
                 .unwrap();
             } else {
-                view.apply(&[Mutation::Put(&key, &row), Mutation::Put(&next, &key)])
+                view.apply(1, &[Mutation::Put(&key, &row), Mutation::Put(&next, &key)])
                     .unwrap();
             }
         })
@@ -229,6 +230,9 @@ extern "C" fn put() {
     });
     assert!(fault != 2);
     publish(words, fault == 3);
+    let reply =
+        encode_reply(value, fault == 4).unwrap_or_else(|message| ic0::trap(message.as_bytes()));
+    ic0::msg_reply_data_append(&reply);
     finish_cost(start);
     ic0::msg_reply();
 }
@@ -242,12 +246,15 @@ extern "C" fn delete() {
     let mut words = checked();
     assert_eq!(words[9], 0);
     with_map(&mut words, |map| {
-        map.with(|mut view| {
+        map.update(|mut view| {
             let key = primary(id);
-            if let Some(value) = view.get(&key) {
+            if let Some(value) = view.read().get(1, &key).unwrap() {
                 let value = u64::from_le_bytes(value.as_slice()[..8].try_into().unwrap());
-                view.apply(&[Mutation::Remove(&key), Mutation::Remove(&index(id, value))])
-                    .unwrap();
+                view.apply(
+                    1,
+                    &[Mutation::Remove(&key), Mutation::Remove(&index(id, value))],
+                )
+                .unwrap();
             }
             assert_eq!(fault, 0);
         })
@@ -270,9 +277,9 @@ extern "C" fn checkpoint() {
     let mut words = checked();
     assert_eq!(words[9], 0);
     assert!(epoch > words[8]);
-    let mut record = cell(false);
+    let mut record = cell();
     with_map(&mut words, |map| {
-        record.set(map.checkpoint(epoch).unwrap()).unwrap();
+        record.set(map.export(epoch)).unwrap();
         assert!(fault != 1);
     });
     words[8] = epoch;
@@ -287,6 +294,7 @@ extern "C" fn checkpoint() {
 #[unsafe(export_name = "canister_query records")]
 extern "C" fn records() {
     enter();
+    ordered_jobs::available();
     let mut words = checked();
     with_map(&mut words, |map| {
         ic0::msg_reply_data_append(&map.checkpoint(0).unwrap());
@@ -302,13 +310,14 @@ extern "C" fn records() {
 #[unsafe(export_name = "canister_query page")]
 extern "C" fn page() {
     enter();
+    ordered_jobs::available();
     let [group, after, flags] = args();
     assert!(group < 8 && flags <= 3);
     let reverse = flags & 1;
     let has_cursor = flags & 2 != 0;
     let mut words = checked();
     with_map(&mut words, |map| {
-        map.with(|view| {
+        map.read(|view| {
             let prefix = [2, group as u8];
             let end = [2, group as u8 + 1];
             let cursor = index(after, group);
@@ -322,18 +331,19 @@ extern "C" fn page() {
             } else {
                 Excluded(end.as_slice())
             };
-            let mut range = view.range(lower, upper);
+            let mut range = view.range(1, lower, upper).unwrap().entries();
             for _ in 0..5 {
                 let entry = if reverse == 0 {
                     range.next()
                 } else {
                     range.next_back()
                 };
-                let Some((key, owner)) = entry else {
+                let Some(entry) = entry else {
                     break;
                 };
-                let id = u64::from_be_bytes(key.as_slice()[2..].try_into().unwrap());
-                let value = view.get(owner.as_slice()).unwrap();
+                let id = u64::from_be_bytes(entry.key().as_slice()[2..].try_into().unwrap());
+                let owner = entry.value();
+                let value = view.get(1, owner.as_slice()).unwrap().unwrap();
                 ic0::msg_reply_data_append(&id.to_le_bytes());
                 ic0::msg_reply_data_append(&value.as_slice()[..8]);
             }
@@ -354,6 +364,10 @@ extern "C" fn observe() {
     for word in header() {
         ic0::msg_reply_data_append(&word.to_le_bytes());
     }
+    for word in ordered_runtime::auxiliary().into_iter().flatten() {
+        ic0::msg_reply_data_append(&word.to_le_bytes());
+    }
+    ic0::msg_reply_data_append(&ordered_runtime::seal());
     ordered_runtime::reply_native(BASE, WINDOW);
     ic0::msg_reply();
 }
@@ -405,11 +419,25 @@ extern "C" fn damage() {
         // Compact per-message owners used a different publication contract.
         words[0] = 0x4f52444e41543032;
         publish(words, false);
+    } else if kind == 5 {
+        words[0] = 0x4f52444e41543033;
+        publish(words, false);
+    } else if kind == 9 {
+        words[0] = 0x4f52444e41543034;
+        publish(words, false);
+    } else if kind == 6 {
+        let mut roots = ordered_runtime::auxiliary();
+        roots[0][3] ^= 1;
+        ordered_runtime::publish_auxiliary(roots); // deliberately stale directory seal
     } else {
-        assert_eq!(kind, 1);
-        let mut record = cell(false);
+        assert!(matches!(kind, 1 | 7 | 8));
+        let mut record = cell();
         let mut bytes = record.get().clone();
-        bytes[0] ^= 1;
+        if kind == 1 {
+            bytes[0] ^= 1;
+        } else {
+            ordered_family::corrupt_checkpoint(&mut bytes, kind);
+        }
         record.set(bytes).unwrap();
     }
     ic0::msg_reply();
@@ -436,6 +464,11 @@ extern "C" fn session_close() {
 #[unsafe(export_name = "canister_update session_open")]
 extern "C" fn session_open() {
     enter();
+    let [fault, _, _] = args();
+    assert!(fault <= 1);
+    if fault == 1 {
+        ordered_runtime::refuse_metadata();
+    }
     ordered_session::open();
     ic0::msg_reply();
 }
@@ -446,4 +479,12 @@ extern "C" fn session_open() {
 #[unsafe(export_name = "canister_query query_put")]
 extern "C" fn query_put() {
     put();
+}
+
+fn encode_reply(value: u64, fail: bool) -> Result<[u8; 8], &'static str> {
+    if fail {
+        Err("reply encoder refused after public session writes")
+    } else {
+        Ok(value.to_le_bytes())
+    }
 }

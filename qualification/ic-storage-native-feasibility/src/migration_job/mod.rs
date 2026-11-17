@@ -7,7 +7,7 @@ use core::marker::PhantomData;
 use sha2::{Digest, Sha256};
 
 mod payload;
-pub use payload::{MapPair, PagedMapPair, Payload, RecordVector, ScalarVector};
+pub use payload::{MapPair, OrderedRoot, PagedMapPair, Payload, RecordVector, ScalarVector};
 /// Scalar counter/u64-vector job under the original envelope.
 pub type Job = MigrationJob<ScalarVector>;
 /// V3 record-vector job under its distinct envelope.
@@ -17,6 +17,13 @@ pub type MapJob = MigrationJob<MapPair>;
 /// Two paged map roots; progress counts pages, not records. Governed host and
 /// installed native adapters qualify storage transactions and custody separately.
 pub type PagedMapJob = MigrationJob<PagedMapPair>;
+/// Ordered row/index root; progress counts bounded variable-length pages.
+pub type OrderedJob = MigrationJob<OrderedRoot>;
+
+mod ordered;
+pub mod ordered_family;
+/// Four independently declared ordered roots, with page-counted progress.
+pub type OrderedFamilyJob = MigrationJob<ordered_family::Family>;
 
 mod staged;
 pub use staged::Batch;
@@ -73,6 +80,8 @@ pub enum Error {
     RecordCheckpoint(checkpoint::record_vector::Error),
     /// Two-map checkpoint refusal.
     MapCheckpoint(ic_storage::map::Error),
+    /// Ordered root manifest, page or continuation refusal.
+    OrderedCheckpoint(ic_storage::ordered::Error),
     /// Bounded allocation failed.
     Allocation,
 }

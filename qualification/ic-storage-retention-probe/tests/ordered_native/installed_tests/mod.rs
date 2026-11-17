@@ -1,3 +1,6 @@
+mod family;
+mod paged;
+
 use super::{candidate, directory, sha256};
 use ic_testkit::pocket_ic::{
     CanisterId, CanisterInstallMode, ErrorCode, PocketIcBuilder, nonblocking::PocketIc,
@@ -13,7 +16,7 @@ fn word(bytes: &[u8], offset: usize) -> u64 {
 fn same_native_payload(before: &[u8], after: &[u8]) {
     // Closing publishes formerly stale descriptors. All initialized native
     // window bytes and interpretation/freeze policy must remain identical.
-    assert_eq!(&before[112..], &after[112..]);
+    assert_eq!(&before[360..], &after[360..]);
     for index in [0, 1, 8, 9, 13] {
         assert_eq!(word(before, index * 8), word(after, index * 8));
     }
@@ -137,6 +140,9 @@ async fn installed_session_owns_both_allocations_until_explicit_close() {
         expected.insert(key, key * 9);
     }
     let status = query(&pic, id, "session_status").await;
+    let metadata = word(&status, 40);
+    assert!((1..=65_536).contains(&metadata));
+    println!("public ordered session metadata_bytes={metadata} reservation_bytes=65536");
     assert_eq!(
         (word(&status, 0), word(&status, 8), word(&status, 16)),
         (2, 1, 32)
@@ -152,10 +158,14 @@ async fn installed_session_owns_both_allocations_until_explicit_close() {
     refused(&pic, id, "session_close", [1, 0, 0]).await;
     update(&pic, id, "session_close", [0, 0, 0]).await;
     assert_eq!(word(&query(&pic, id, "session_status").await, 0), 1);
+    assert_eq!(word(&query(&pic, id, "session_status").await, 40), 0);
     refused(&pic, id, "session_close", [0, 0, 0]).await;
     refused(&pic, id, "put", [7, 77, 0]).await;
     assert!(pic.query_call(id, id, "records", vec![]).await.is_err());
     refused(&pic, id, "lookup", [7, 63, 0]).await;
+    // Real allocation refusal during public owner construction must roll back
+    // native loan issuance and metadata selector/ledger state as one IC message.
+    refused(&pic, id, "session_open", [1, 0, 0]).await;
     update(&pic, id, "session_open", [0, 0, 0]).await;
     let status = query(&pic, id, "session_status").await;
     assert_eq!(
@@ -165,6 +175,15 @@ async fn installed_session_owns_both_allocations_until_explicit_close() {
     refused(&pic, id, "session_open", [0, 0, 0]).await;
     same_native_payload(&before, &query(&pic, id, "observe").await);
     verify(&pic, id, &expected).await;
+    for _ in 0..8 {
+        assert_eq!(word(&query(&pic, id, "session_status").await, 40), metadata);
+        refused(&pic, id, "put", [7, 999, 4]).await;
+        update(&pic, id, "session_close", [0, 0, 0]).await;
+        assert_eq!(word(&query(&pic, id, "session_status").await, 40), 0);
+        update(&pic, id, "session_open", [0, 0, 0]).await;
+        // Repeated scratch-heavy query exports cannot overwrite live metadata.
+        verify(&pic, id, &expected).await;
+    }
     pic.upgrade_eop_canister(id, b.clone(), args([0, 0, 0]), None)
         .await
         .unwrap();
@@ -204,7 +223,7 @@ async fn installed_session_owns_both_allocations_until_explicit_close() {
             verify(&pic, id, &BTreeMap::from([(1, 11), (2, 22)])).await;
         }
     }
-    fs::write(directory().join("SESSION"), "one admission across calls, explicit dual close/reopen, query isolation, startup reset and source rollback\n").unwrap();
+    fs::write(directory().join("SESSION"), "public grants; generation metadata survives scratch reuse; allocation refusal; repeated dual close/reopen; late reply rollback; query isolation; startup reset and source rollback\n").unwrap();
 }
 
 fn trapped(code: ErrorCode) {
@@ -289,9 +308,9 @@ async fn cost(pic: &PocketIc, id: CanisterId, operation: &str, report: &mut Stri
     if operation.starts_with("lookup_") {
         assert_eq!(values[2], 0);
     }
-    assert_eq!(values[3], 17);
+    assert_eq!(values[3], 49);
     assert_eq!(values[4], 8 * 1024 * 1024);
-    assert_eq!(values[5], 1_064_960);
+    assert_eq!(values[5], 1_589_248);
     assert!(values[6] <= 280_000);
     assert!(values[7] <= 550_000);
     writeln!(
@@ -446,7 +465,7 @@ async fn installed_unknown_native_and_checkpoint_bytes_never_reset() {
     refused_replacement(&pic, id, &a, [1, 2, 0], false).await;
     let stable = pic.get_stable_memory(id).await;
     assert!(!stable.is_empty());
-    for kind in [2, 3, 4] {
+    for kind in [2, 3, 4, 5, 6, 9] {
         let id = install(&pic, &a).await;
         update(&pic, id, "put", [1, 11, 0]).await;
         update(&pic, id, "checkpoint", [1, 0, 0]).await;

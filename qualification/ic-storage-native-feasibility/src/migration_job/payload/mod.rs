@@ -6,7 +6,7 @@ use super::{Error, checkpoint};
 use crate::record::narrow::V3;
 use alloc::vec::Vec;
 
-mod sealed {
+pub(super) mod sealed {
     pub trait Sealed {}
 }
 
@@ -39,10 +39,28 @@ pub struct MapPair;
 /// Two page chains committed by a fixed pair manifest. No page data is cached.
 #[derive(Debug, PartialEq, Eq)]
 pub struct PagedMapPair;
+/// Closed 512-byte key/4-KiB value root, sharing the ordered lifecycle domains.
+#[derive(Debug, PartialEq, Eq)]
+pub struct OrderedRoot;
 impl sealed::Sealed for ScalarVector {}
 impl sealed::Sealed for RecordVector {}
 impl sealed::Sealed for MapPair {}
 impl sealed::Sealed for PagedMapPair {}
+impl sealed::Sealed for OrderedRoot {}
+
+impl Payload for OrderedRoot {
+    const MAGIC: &'static [u8; 8] = b"ICJOR001";
+    const MAX_BYTES: usize = ic_storage::ordered::paged::MANIFEST_BYTES;
+    const DOMAINS: [u64; 2] = [4 * 1024 * 1024, 6 * 1024 * 1024];
+    type Decoded = ic_storage::ordered::paged::Manifest;
+    fn decode(bytes: &[u8], epoch: u64) -> Result<Self::Decoded, Error> {
+        // This is the existing closed 64-row/64-index qualification profile.
+        Self::Decoded::decode(bytes, epoch, 1, 128).map_err(Error::OrderedCheckpoint)
+    }
+    fn len(decoded: &Self::Decoded) -> usize {
+        decoded.page_count()
+    }
+}
 
 impl Payload for ScalarVector {
     const MAGIC: &'static [u8; 8] = b"ICJOB001";

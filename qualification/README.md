@@ -5,6 +5,12 @@ canister fixtures and comparative benchmarks. Product code stays
 under `crates/`; product crates never depend on this workspace. All packages
 remain unpublished.
 
+`make application-records-test` qualifies the new public byte-record owner with
+Canic Root/entry-sized payloads, separate participant grants, ordinary upgrades,
+query isolation and late failure rollback. See its
+[contract and remaining consumer acceptance](../docs/design/application-records.md).
+It does not import Canic, Blob or DB or qualify a native application runtime.
+
 The [native feasibility experiment](ic-storage-native-feasibility/README.md) separately
 tests scoped ownership, forgotten tickets and native poisoning with live host
 allocations. `make native-feasibility-test` runs offline and joins CI. It does
@@ -25,6 +31,14 @@ There is no legacy Storage dependency. The M0 evidence baseline lives in private
 `make ordered-native-probe` admits the closed ordered-node compiler artifacts;
 `make ordered-native-test` adds installed 64-row/index lifecycle, forward/reverse
 pagination, rollback and portable recovery between disjoint native windows.
+It also qualifies four independently granted main/source/target/job roots,
+512-byte keys, 4-KiB rows and seventeen 16-KiB jobs, complete-family recovery,
+bounded target/job cleanup and slot reuse. Checkpoint framing validates every
+root declaration and nested map; no ordinary-write checkpoint mirror is added.
+Its paged job extension now commits one verified page with native writes and
+durable cursor/job progress, with interruption, explicit restart, exact retries
+and bounded backing I/O. Source export remains synchronous. See the
+[installed ordered recovery evidence](../docs/design/ordered-recovery.md#installed-four-root-page-transactions).
 The current profile reuses compact-node and payload owners across messages,
 settles both on close, and applies the shared controlled-startup boundary before
 fresh target admission. It checks query isolation, missing/failed source close,

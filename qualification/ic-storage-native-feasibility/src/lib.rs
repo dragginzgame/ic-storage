@@ -19,6 +19,8 @@ use core::marker::PhantomData;
 
 pub mod checkpoint;
 pub mod migration_job;
+/// Concrete two-root profile workload over the public native byte collections.
+pub mod profile;
 pub mod record;
 
 /// Bounded fixture size; resource refusal must precede mutation.

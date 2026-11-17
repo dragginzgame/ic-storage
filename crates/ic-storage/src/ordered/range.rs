@@ -9,9 +9,72 @@ pub struct Range<'a, const K: usize, const V: usize, A: Allocator + Clone, P: Al
     back: u64,
 }
 
+/// A borrowed candidate whose key and declared value length can be inspected
+/// before accessing value bytes. Neither this handle nor its borrows may outlive
+/// the collection scope. It does not copy an owning payload.
+pub struct Entry<'a, const K: usize, const V: usize, A: Allocator + Clone, P: Allocator + Clone> {
+    map: &'a Map<K, V, A, P>,
+    id: u64,
+}
+impl<'a, const K: usize, const V: usize, A: Allocator + Clone, P: Allocator + Clone>
+    Entry<'a, K, V, A, P>
+{
+    /// Borrow only this candidate's key.
+    #[must_use]
+    pub fn key(&self) -> ByteSlice<'a> {
+        ByteSlice(self.map.key(self.id))
+    }
+    /// Read the admitted value length from scalar node metadata, without accessing
+    /// the value's byte span. Applications may use it for preflight accounting.
+    #[must_use]
+    pub fn value_len(&self) -> usize {
+        self.map.node(self.id).value.length as usize
+    }
+    /// Borrow the value only after caller-owned filtering/budget preflight accepts it.
+    #[must_use]
+    pub fn value(&self) -> ByteSlice<'a> {
+        ByteSlice(self.map.value(self.id))
+    }
+}
+
+/// Double-ended, fused traversal that yields candidates without visiting values.
+/// Keep a logical continuation at the last consumed key: a candidate refused by
+/// a byte/work budget must not become the next page's exclusive cursor.
+pub struct Entries<'a, const K: usize, const V: usize, A: Allocator + Clone, P: Allocator + Clone> {
+    range: Range<'a, K, V, A, P>,
+}
+
 impl<'a, const K: usize, const V: usize, A: Allocator + Clone, P: Allocator + Clone>
     Range<'a, K, V, A, P>
 {
+    /// Continue this range's remaining traversal with lazy value access. Supports
+    /// both directions and preserves any already-consumed front/back positions.
+    ///
+    /// ```compile_fail
+    /// let mut map = ic_storage::ordered::Map::<512, 4096>::new(16);
+    /// let entry = map.with(|view| view.range(core::ops::Bound::Unbounded,
+    ///     core::ops::Bound::Unbounded).entries().next());
+    /// ```
+    #[must_use]
+    pub fn entries(self) -> Entries<'a, K, V, A, P> {
+        Entries { range: self }
+    }
+
+    fn advance(&mut self, forward: bool) -> Option<Entry<'a, K, V, A, P>> {
+        let id = if forward { self.front } else { self.back };
+        if id == 0 {
+            return None;
+        }
+        if self.front == self.back {
+            self.front = 0;
+            self.back = 0;
+        } else if forward {
+            self.front = seek(self.map, Bound::Excluded(self.map.key(id)), true);
+        } else {
+            self.back = seek(self.map, Bound::Excluded(self.map.key(id)), false);
+        }
+        Some(Entry { map: self.map, id })
+    }
     pub(super) fn new(map: &'a Map<K, V, A, P>, lower: Bound<&[u8]>, upper: Bound<&[u8]>) -> Self {
         let front = seek(map, lower, true);
         let back = seek(map, upper, false);
@@ -86,37 +149,38 @@ impl<'a, const K: usize, const V: usize, A: Allocator + Clone, P: Allocator + Cl
 {
     type Item = (ByteSlice<'a>, ByteSlice<'a>);
     fn next(&mut self) -> Option<Self::Item> {
-        if self.front == 0 {
-            return None;
-        }
-        let id = self.front;
-        if self.front == self.back {
-            self.front = 0;
-            self.back = 0;
-        } else {
-            self.front = seek(self.map, Bound::Excluded(self.map.key(id)), true);
-        }
-        Some((ByteSlice(self.map.key(id)), ByteSlice(self.map.value(id))))
+        self.advance(true).map(|entry| (entry.key(), entry.value()))
     }
 }
 impl<const K: usize, const V: usize, A: Allocator + Clone, P: Allocator + Clone> DoubleEndedIterator
     for Range<'_, K, V, A, P>
 {
     fn next_back(&mut self) -> Option<Self::Item> {
-        if self.back == 0 {
-            return None;
-        }
-        let id = self.back;
-        if self.front == self.back {
-            self.front = 0;
-            self.back = 0;
-        } else {
-            self.back = seek(self.map, Bound::Excluded(self.map.key(id)), false);
-        }
-        Some((ByteSlice(self.map.key(id)), ByteSlice(self.map.value(id))))
+        self.advance(false)
+            .map(|entry| (entry.key(), entry.value()))
     }
 }
 impl<const K: usize, const V: usize, A: Allocator + Clone, P: Allocator + Clone> FusedIterator
     for Range<'_, K, V, A, P>
+{
+}
+
+impl<'a, const K: usize, const V: usize, A: Allocator + Clone, P: Allocator + Clone> Iterator
+    for Entries<'a, K, V, A, P>
+{
+    type Item = Entry<'a, K, V, A, P>;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.range.advance(true)
+    }
+}
+impl<const K: usize, const V: usize, A: Allocator + Clone, P: Allocator + Clone> DoubleEndedIterator
+    for Entries<'_, K, V, A, P>
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.range.advance(false)
+    }
+}
+impl<const K: usize, const V: usize, A: Allocator + Clone, P: Allocator + Clone> FusedIterator
+    for Entries<'_, K, V, A, P>
 {
 }

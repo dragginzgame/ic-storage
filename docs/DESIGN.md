@@ -1106,6 +1106,36 @@ target admission. Query isolation, omitted/failed close, failed target startup
 and checkpoint recovery are exercised. These remain closed service fixtures;
 general application runtime integration is still an R2 completion gate.
 
+The first [public application-record increment](design/application-records.md)
+addresses Canic Root/entry from
+[Storage #5 — Canic retained runtime, records and composed ownership](https://github.com/dragginzgame/ic-storage/issues/5).
+It reuses the existing checkpoint backing for bounded byte records, adds exclusive
+backing custody and participant grants, and qualifies ordinary heap-discarding
+upgrades through the public API. It does not promote the private native allocator
+or add a stable-memory table architecture. Native collection custody, the profile
+engine and real supplier composition remain the R2/R3/R5 completion work.
+
+The [public native generation owner](design/native-sessions.md) now moves named
+map custody, participant grants, cross-root scopes and shared poisoning into the
+product library. The profile workload consumes it instead of a private ownership
+wrapper. A closed installed ordered binding now gives its metadata a distinct
+generation-long allocation and qualifies close/reopen, allocation refusal, late
+reply rollback and compatible upgrades through public grants. Its four-root
+extension now qualifies simultaneous main/source/target/job grants, complete
+family recovery and target/job cleanup with source preservation. It still accepts
+valid live maps under fixture-owned allocators; reusable retained bootstrap and
+consumer startup integration are required before replacing the private runtime.
+
+The [public retained runtime](design/retained-runtime.md) now owns the ordered
+allocator, sealed root directory, generation grants and mandatory artifact
+startup transform. A separate installed application imports this surface without
+copying a kernel. It qualifies four simultaneous roots, compatible upgrades,
+source/target rollback and complete portable recovery in both banks. This supplies
+Storage #4's reusable bootstrap boundary. Real DB/Canic integration, broader
+native types and durable job integration remain completion work. The supported
+contract also documents ordinary heap growth across compatible generations and
+explicit portable replacement before its fixed memory cap is exhausted.
+
 Use the existing map/vector callers to move qualified responsibilities into
 product libraries under `crates/`, with tests beside their owner.
 
@@ -1124,11 +1154,20 @@ Completion gates:
 Do not require every future collection or a general plugin framework before the
 first caller. R3's concrete requirements should guide the surface.
 
-#### R3 — Real records and a profile qualification (queued)
+#### R3 — Real records and a profile qualification (started)
 
 Select the Canic profile workload as the first concrete application-shaped case
 inside this repository's qualification boundary. This does not authorize editing
 or migrating Canic.
+
+The [native profile workload](../qualification/ic-storage-native-feasibility/profile.md)
+now exercises two actual ordered byte maps with IDs, revisions, bounded owner
+bytes and UTF-8 display names. Host checks cover retries, ownership restrictions,
+deletion/reuse, both-root application admission, explicit revision-width conversion,
+source-independent portable recovery and whole-family quarantine after partial
+failure. It now uses R2's public generation-local session and grants. The same
+safe workload compiles for Wasm, but its retained allocation/bootstrap authority
+and installed profile upgrades/rollback remain completion gates.
 
 Completion gates:
 
@@ -1170,8 +1209,27 @@ Initialized storage for 64 full rows plus indexes falls from 594,944 to 273,408
 bytes. The installed generation-owned session now removes per-message admission
 and preserves both allocator owners across calls, with explicit close/reopen,
 query isolation, shared controlled startup and recovery qualification.
+The [paged ordered path](design/ordered-recovery.md) now adds 32-KiB bounded
+pages and verifier continuations without rereading prior pages. Its host profile
+reuses the shared migration state machine for restart and exact retries. The
+closed installed four-root binding now verifies one page per call and commits
+native writes, cursor and job progress together. It qualifies private candidates,
+compatible interruption, explicit whole-heap restart, cancellation and exact
+retries through two opposite-domain epochs. Export remains synchronous; the
+installed adapter and allocation policy are not a reusable application runtime.
+The DB operation surface now also includes lazy key/value-length preflight,
+membership without payload access and discard deletion, exposed through native
+session grants together with prefixes and preflighted batches. Four host cases
+exercise unconsumed-row retries and main/source/target/job roles with distinct
+row/job bounds. The [four-root installed profile](design/ordered-storage.md#four-root-installed-evidence--pending-0762)
+now retains seventeen 16-KiB jobs with 512-byte keys and 4-KiB main/source/target
+rows. It covers composed write/reply rollback, sealed family recovery in both
+allocation domains, declaration/nested-checkpoint refusal and bounded target/job
+cleanup followed by slot reuse. This advances Storage #4's collection and custody
+evidence. Reusable retained startup is now supplied by the public runtime;
+the DB engine's adoption witnesses remain open.
 Fragmentation/coalescing policy, larger workloads, general application runtime
-integration, incremental ordered recovery and DB integration remain open;
+integration, incremental export and DB integration remain open;
 this does not complete R4 or authorize a consumer cutover.
 
 Completion gates:

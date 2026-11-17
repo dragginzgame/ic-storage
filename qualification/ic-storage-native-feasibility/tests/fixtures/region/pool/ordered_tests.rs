@@ -8,6 +8,68 @@ impl super::super::sealed::Sealed for DbNode {}
 impl super::super::Element for DbNode {}
 
 #[test]
+fn ordered_page_allocation_refusal_preserves_private_prefix_and_committed_cursor() {
+    use ic_storage::ordered::paged::Reader;
+    let mut source = Map::<512, 4096>::new(65);
+    for key in 0..65u64 {
+        source
+            .with(|mut v| v.insert(&key.to_be_bytes(), &[7; 4096]))
+            .unwrap()
+            .unwrap();
+    }
+    let mut pages = Vec::new();
+    let manifest = source
+        .export_pages(1, 1, |_, bytes| {
+            pages.push(bytes.to_vec());
+            Ok::<_, ()>(())
+        })
+        .unwrap();
+    pages.reverse();
+    // Refuse growth of each allocation independently after a successful page.
+    for (node_count, byte_count) in [(7, 256 * 1024), (256, 16 * 1024)] {
+        let mut nodes = Backing::new(node_count, DbNode::EMPTY);
+        let mut bytes = Backing::new(byte_count, 0u8);
+        let pool = nodes.claim(&[]).unwrap();
+        let payload_pool = bytes.claim(&[]).unwrap();
+        let mut candidate = DbMap::new_in_allocators(65, &pool, &payload_pool);
+        let mut cursor = manifest.reader::<512, 4096>().checkpoint().unwrap();
+        let mut accepted = 0;
+        for page in &pages {
+            let before = candidate.checkpoint(1).unwrap();
+            let mut staged = Reader::<512, 4096>::resume(&manifest, &cursor).unwrap();
+            let records = staged.read_page(page).unwrap();
+            let mutations: Vec<_> = records
+                .records()
+                .map(|(k, v)| Mutation::Put(k, v))
+                .collect();
+            match candidate.with(|mut v| v.apply(&mutations)).unwrap() {
+                Ok(()) => {
+                    cursor = staged.checkpoint().unwrap();
+                    accepted += 1;
+                }
+                Err(OrderedError::Allocation) => {
+                    assert_eq!(candidate.checkpoint(1).unwrap(), before);
+                    assert_eq!(
+                        Reader::<512, 4096>::resume(&manifest, &cursor)
+                            .unwrap()
+                            .next_page(),
+                        Some(accepted)
+                    );
+                    break;
+                }
+                Err(error) => panic!("unexpected refusal: {error:?}"),
+            }
+        }
+        assert_eq!(accepted, 1);
+        drop(candidate);
+        assert_eq!(pool.reusable_elements(), node_count);
+        assert_eq!(payload_pool.reusable_elements(), byte_count);
+        pool.finish().unwrap();
+        payload_pool.finish().unwrap();
+    }
+}
+
+#[test]
 fn ordered_db_nodes_reopen_and_reconstruct_after_source_pool_destruction() {
     assert_eq!(size_of::<DbNode>(), 56);
     assert_eq!(align_of::<DbNode>(), 8);

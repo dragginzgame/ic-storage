@@ -109,11 +109,38 @@ successor prefix. Iterators are double-ended and fused; each step seeks from the
 root in O(log n) without buffering the table or scanning unrelated prefixes.
 Mutation is excluded while a range is borrowed.
 
+`range(...).entries()` and `prefix(...).entries()` supply lazy `Entry` handles.
+`key()` and `value_len()` inspect the key and scalar metadata; only `value()`
+visits the value's byte span. The adapter preserves the remaining positions of
+an already partially consumed range and supports `rev()`, mixed front/back calls
+and fused exhaustion. It never collects or sorts the table. The original tuple
+iterator remains available when both key and value are wanted immediately.
+`contains_key` seeks using keys alone. These operations are also exposed through
+the public native session's read scopes, allowing primary lookup during secondary
+traversal and source/target reads within the same loan.
+
 Between scoped calls, resume with `Excluded(last_key)`. Deleting the cursor key
 does not invalidate the position. Keys inserted strictly beyond it can appear;
 earlier keys are not replayed. Reverse continuation uses an excluded upper bound.
 These are live key continuations, not snapshots or authenticated DB cursor tokens.
 DB retains schema/revision/cursor identity policy.
+
+A page must advance its owned logical cursor only after consuming a candidate.
+If byte/work preflight rejects a lazy entry, retain the last consumed key; resuming
+with that exclusive bound retries the candidate, even if the cursor key was
+deleted between calls. Storage supplies traversal, not DB cursor publication or
+filter/budget policy. Both directions are tested with full 512-byte keys and
+4-KiB values. Test-only instrumentation confirms that preflight, membership and
+key-only traversal do not invoke the value accessor; this is not an instruction
+benchmark or a hardware memory-access measurement.
+
+`remove_discard` returns only whether the key existed. It performs the same tree
+repair, node recycling and payload scrubbing as `remove`, without materializing
+an inline `Bytes<V>` result. Scrubbing still touches the retired bytes; this is
+not constant-cost deletion of arbitrary payloads. Batch removal uses the discard
+path, and its preflight reads old lengths from node metadata. Host tests cover
+two-child deletion, absent keys, duplicate batch removals, reuse and readmission
+with 16-KiB job values without calling the value accessor.
 
 `apply` preflights all key/value bounds, duplicate-key sequential effects,
 intermediate live-count limits, node capacity and a scalar simulation of payload
@@ -124,6 +151,36 @@ bounded preflight is O(batch² + batch log n); each accepted mutation then uses 
 The new tests apply 32 rows plus eight secondary entries per row as one 288-write
 batch. Uniqueness, references, revision checks and final-state DB policy remain
 consumer-owned. Multiple distinct roots are not made atomic by this single-map API.
+
+The public session also exposes `apply(root, mutations)`, with the same 2,048
+mutation bound and preflight contract plus the root's declared byte bounds.
+Refusal preserves that root's logical records, but preceding writes to another
+root still stand on an ordinary callback error. Applications must trap after a
+partial commit on the IC; host code can quarantine the entire session.
+
+## DB operation-surface evidence — pending 0.76.2
+
+`make ordered-db-contract-test` runs ordered host tests, scope compile-fail checks
+and strict host/Wasm lint. Four new DB-shaped cases live beside the implementation
+in `ordered/db_tests.rs`; local output is `target/ordered-db-contract-test.log`.
+They cover lazy payload preflight/continuation, all range bounds and prefix edges,
+discard cleanup/reuse, and simultaneous main/source/target/job session roots.
+
+The four-root case uses `Map<512, 16384>` carriers with explicit per-root bounds:
+512-byte keys and 4-KiB values for main/source/target, one-byte keys and 16-KiB
+values for 17 job entries. Compact nodes do not acquire inline 16-KiB payloads;
+the wider carrier does not silently relax the three row roots' policy. The test
+performs indexed primary lookup, source/target reads, row/index/count/revision
+batch refusal and job cleanup without collecting a map.
+
+This addresses concrete operation gaps from
+[Storage #4 — IC DB ordered ownership](https://github.com/dragginzgame/ic-storage/issues/4).
+Its principal remaining gate is still the supplier-owned retained allocation,
+startup and publication binding described in the
+[native session contract](native-sessions.md#metadata-lifetime-and-installed-boundary).
+These host checks are not installed multi-root rollback, bounded maintenance,
+the DB engine's actual witnesses or migration of old retained images. No sibling
+code or selected registry dependency was changed for this increment.
 
 ## Portable format
 
@@ -144,8 +201,10 @@ DB-owned. `restore` replaces an existing or poisoned owner only after the entire
 candidate succeeds, requiring simultaneous old/candidate allocation capacity.
 Failure preserves the original owner and its availability state. Checksums detect
 corruption; trusted custody, schema identity and expected epochs remain separate.
-The current buffer path uses memory proportional to the logical checkpoint;
-incremental installed recovery remains an R4 completion requirement.
+This buffer path uses memory proportional to the logical checkpoint. The new
+[paged recovery path](ordered-recovery.md) supplies bounded pages, byte-defined
+verifier continuations and a host-qualified payload for the shared migration job.
+Installed incremental recovery remains an R4 completion requirement.
 
 ## Qualification
 
@@ -178,7 +237,7 @@ poisoned state.
 The product adds no unsafe code. These are host custody proofs, not installed IC
 upgrade/rollback or macOS execution evidence.
 
-The next R4 boundary is incremental recovery jobs and general application runtime
+The next R4 boundary is installed incremental recovery jobs and general application runtime
 integration, then qualifying fragmentation and larger measured
 row/index workloads. Consumer cutover and legacy-format import remain separately
 authorized work. No IC DB API or stored format was changed here.
@@ -399,3 +458,156 @@ runtime integration, incremental recovery, larger populations, fragmentation,
 installed 16-KiB job values and macOS execution remain open.
 Full `make ci` passes on the session implementation, including the strengthened
 startup refusals; its complete log is `target/ordered-session-ci.log`.
+
+### Public-session installed evidence — pending 0.76.2
+
+The closed ordered adapter now uses public `ordered::session` grants for updates,
+read-only lookup, lazy index traversal, checkpoints and allocation observation.
+Recovery and close first drop the grant and reclaim the session's map owners;
+only then may native restoration or dual-pool settlement proceed. A dedicated
+64-KiB region holds generation metadata, independently of per-entry scratch.
+The grant, Rc and directory consume 144 bytes, reclaim to zero on close and reuse
+that same amount after reopening. Neither ordinary calls nor query exports reset
+live metadata. The fixed Wasm reservation remains eight MiB.
+
+Both artifact tests and all three installed suites passed in
+`target/evidence/ordered-native/attempt.NMbqQt/`; the log is
+`target/ordered-public-session-installed-retry.log`, with server evidence in
+`target/evidence/testkit/run.PkZdSG/evidence`. Five fixture variants also pass
+strict Wasm Clippy (`target/ordered-public-*-clippy.log`). Final identities:
+
+| Variant | Bytes | SHA-256 |
+| --- | ---: | --- |
+| A | 86,071 | `e4db4b0354e3641679a785335b21f994a0a6aec990383ee3e87df67d81b35307` |
+| B | 86,071 | `d657a91113c623a044ecc9795199c243b8a0e4a025d0885b1bb8e4ef37518af4` |
+| Recovery | 86,071 | `d58a609e0719597a52ea75d41a963772ea1253133b2c6461f515cb015b32ac09` |
+| Omitted close | 86,040 | `3b4410cc4bf1ddd7059ffc1294888f1d353cf4ba3ec1861abbc72655ade2a268` |
+| Failed close | 86,071 | `72d53d71678a3c98d43f8204afd0bfbdfda1fa3473907a7cd98b5e060cd45797` |
+
+The extended session case forces a real allocation refusal while constructing
+public metadata, then successfully reopens the original closed native roots.
+Eight close/reopen cycles preserve records and metadata usage. A reply encoder
+refuses after the public write scope and descriptor publication, and the IC
+restores both logical/native state and working session ownership. Existing
+query isolation, failed source/target upgrades, corruption refusals and both
+portable-recovery epochs still pass. Successful `put` replies now encode the
+submitted scalar as eight little-endian bytes in this diagnostic protocol.
+
+| Operation | Measured body instructions | Scratch high-water bytes |
+| --- | ---: | ---: |
+| Final insert at 64 rows | 1,105,774 | 0 |
+| Lookup key 0 | 723,644 | 0 |
+| Lookup key 31 | 642,144 | 0 |
+| Lookup key 63 | 803,968 | 0 |
+| First checkpoint | 24,923,116 | 265,048 |
+| First replacement recovery | 28,041,686 | 265,048 |
+
+These complete body samples include public grant checks and exceed the earlier
+private-owner samples; they are not a performance improvement claim. Metadata
+usage/reservation is separate from the scratch column. Native initialized bytes
+and capacities remain 273,408/337,920 at 64 rows. Full costs and the second epoch
+are recorded in the cohort's `costs.tsv`. No general benchmark comparison or
+consumer physical budget follows from this one-root fixture.
+
+This advances [Storage #4 — IC DB retained ownership](https://github.com/dragginzgame/ic-storage/issues/4).
+The native pool, fixed memory geometry and artifact startup remain closed
+qualification machinery. At this cohort boundary, a reusable supplier-owned
+allocator/bootstrap surface, installed simultaneous main/source/target/job roots,
+bounded multi-message maintenance and actual DB adaptation remained required;
+the following cohort addresses the simultaneous-root evidence. This fixture is not code
+for DB to copy and does not establish migration of old Storage images.
+
+### Four-root installed evidence — pending 0.76.2
+
+The current closed adapter holds four ordered maps through public session grants:
+
+| Root / participant | Entry limit | Key bytes | Value bytes |
+| --- | ---: | ---: | ---: |
+| Main / 1 | 128 | 512 | 4,096 |
+| Source / 2 | 32 | 512 | 4,096 |
+| Target / 3 | 32 | 512 | 4,096 |
+| Jobs / 4 | 17 | 1 | 16,384 |
+
+Each map uses the same 56-byte node carrier and shared node/payload pools, with
+separate public byte bounds. Native format 4 (`0x4f52444e41543034`) binds this
+closed declaration roster and allocation geometry. The main scalar header,
+three auxiliary descriptors and `ORDROOT4` SHA-256 seal form the retained root
+directory. Admission checks the seal and all disjoint spans before reconstructing
+any owning vector, then validates each map and its public declaration bounds.
+A checksum detects corruption; it does not independently grant allocation custody.
+The existing closed artifact/startup review remains necessary.
+
+Close ends all four grants and the session directory, settles every map's node
+and payload allocation, finishes both pools and publishes the closed directory
+last. Metadata consumes 456 bytes of its separate 64-KiB reservation and returns
+to zero on close. Per-entry scratch never reclaims live metadata. Nodes still
+have 256 fixed slots; the payload pool grows to 1.5 MiB, giving each disjoint
+native window 1,589,248 bytes within unchanged eight-MiB Wasm memory. These are
+shared physical limits, not a guarantee that every declared maximum fits at once
+or that every growth request succeeds under fragmentation.
+
+Explicit export now stores a complete `ORDFAM04` family: epoch, exact root/
+participant/schema/bounds declarations, four nested `ORDMAP01` checkpoints and
+an outer SHA-256 seal. Recovery validates the envelope and restores all four
+maps before issuing the new public owner. Ordinary writes do not update that
+checkpoint. Old native formats, a changed declaration with a valid outer seal,
+a corrupt final nested checkpoint, and damaged native directory bytes refuse.
+A final-map failure after earlier target maps were reconstructed rolls back the
+replacement and preserves the source. This is an intentionally changed fixture
+format, with no importer for older experimental native or checkpoint images.
+
+`make ordered-native-test` passes strict host Clippy, strict Wasm Clippy for all
+five variants, two artifact tests and all four installed suites. Final cohort:
+`target/evidence/ordered-native/attempt.epL6f8/`; complete log:
+`target/ordered-family-module-installed.log`; prepared-server evidence:
+`target/evidence/testkit/run.ylM7fz/evidence`.
+
+| Variant | Bytes | SHA-256 |
+| --- | ---: | --- |
+| A | 126,083 | `7bdaf85a954285792e62f40b1f0446d43a85e5d5e86ee344083b7ed4aaae0f84` |
+| B | 126,083 | `df7f05b730fbbbb50df085055e4d012c49ae422e9fd4c1ef4f92e3a659f2938f` |
+| Recovery | 126,083 | `d0e365c864d8daaa6cfb3813f6c523c5d939e1ede792323f1e041ca427630ac4` |
+| Omitted close | 126,052 | `4c9211f5f77c2f881fcc8da53387263f9c46dbb9f7d483591770e2b74e36806b` |
+| Failed close | 126,083 | `c89473d8de0e2a431c55276c7ccc16f9e3564d8a9871cc3f378d623452587221` |
+
+The new suite fills seventeen records in each root: 512-byte keys and 4-KiB rows
+in main/source/target, plus seventeen 16-KiB jobs. Independent grants reject
+foreign-root access. Traps after each composed root write, an oversized main row,
+an eighteenth job, partial cleanup and late reply encoding restore full native
+window bytes, the scalar directory, working metadata and stable memory. Query
+writes leave committed roots and session state unchanged. Repeated close/reopen,
+real metadata allocation refusal and a compatible upgrade preserve every root.
+
+Complete-family recovery succeeds in both allocation domains. Per-slot cleanup
+removes one target/job pair while preserving main and source; a checkpoint with
+empty target/jobs also recovers, and a second cycle reuses all seventeen slots
+without changing source rows. This qualifies the storage operations for that
+pattern, not DB's maintenance scheduler or durable progress state machine.
+
+| Operation at seventeen jobs | Body instructions | Scratch high-water bytes |
+| --- | ---: | ---: |
+| Write four roots | 3,042,786 | 0 |
+| Complete-family checkpoint | 90,768,302 | 1,028,946 |
+| Complete-family recovery | 92,382,706 | 514,625 |
+
+Initialized native storage is 521,576 bytes and reserved capacities total 834,816
+bytes for this shape. The metadata allocation is separate. The existing 64-row
+main/index suite also passes: initialized/capacity bytes remain 273,408/337,920,
+lookup costs remain unchanged, and final insert costs 1,175,376 instructions.
+Its complete-family checkpoint/recovery costs increase to 47,172,553/49,706,158
+instructions because the envelope copies and seals nested checkpoints as well.
+Full samples are in `costs.tsv` and `family-costs.tsv` within the cohort. These
+are measured entry-body intervals, not end-to-end budgets or throughput claims.
+
+Checkpoint/recovery remains a bounded one-message path with a one-MiB envelope
+and two-MiB scratch reservation. Nested buffers and repeated checkpoint loads
+consume scratch together; the declared root maxima are not a qualified combined
+export capacity. At this cohort boundary, installed multi-message ordered recovery,
+larger sustained-load and fragmentation evidence, reusable supplier-owned
+allocator/bootstrap APIs and actual DB adaptation remained open for
+[Storage #4 — IC DB retained ownership](https://github.com/dragginzgame/ic-storage/issues/4).
+The subsequent [paged installed extension](ordered-recovery.md#installed-four-root-page-transactions)
+now qualifies one-page four-root import transactions, compatible interruption,
+explicit fresh restart and exact retries. It advances the native identity to
+format 5 for private candidate policy and expands the fixed checkpoint namespace;
+the complete-buffer cohorts above retain their original artifact/measurement scope.

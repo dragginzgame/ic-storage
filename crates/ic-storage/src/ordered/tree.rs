@@ -7,6 +7,8 @@ impl<const K: usize, const V: usize, A: Allocator + Clone, P: Allocator + Clone>
         self.node(id).key.bytes(&self.image.payload)
     }
     pub(super) fn value(&self, id: u64) -> &[u8] {
+        #[cfg(test)]
+        super::db_tests::observe_value_access();
         self.node(id).value.bytes(&self.image.payload)
     }
     fn remove_min(&mut self, root: u64) -> (u64, arena::Span, arena::Span) {

@@ -18,6 +18,12 @@ API. `make native-record-vector-test` now checks its
 [portable recovery](../ic-storage-retention-probe/record-vector-recovery.md)
 after explicit heap replacement, using the same generated field codec as the host.
 
+`make native-profile-test` exercises the [two-root profile workload](profile.md)
+over actual native ordered byte maps: owner/revision rules, bounded fields,
+deletion/reuse, admission, portable conversion and allocation refusal. This
+qualification library is host-tested and Wasm-compiled; a public retained runtime
+and installed profile lifecycle remain outstanding.
+
 ## Ownership boundary
 
 The [controlled record experiment](records.md) adds the first concrete scalar

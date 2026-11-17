@@ -2,17 +2,18 @@
 
 ```toml
 [dependencies]
-ic-storage = { version = "0.76.1", features = ["map", "derive"] }
+ic-storage = { version = "0.76.2", features = ["map", "derive"] }
 ```
 
 Experimental `no_std` + `alloc` library for operations over an
-already valid `Vec<u64, A>`. It forbids unsafe code. The default vector core has
+already valid `Vec<u64, A>`. Collection cores forbid unsafe code; the optional
+retained runtime has a private allocation kernel. The default vector core has
 no runtime dependencies; the optional `map` feature uses the root-owned SHA-256
 dependency for portable checkpoint integrity.
 Enable `derive` for the re-exported `Store` macro from `ic-storage-derive`.
 This is the native successor API; it is not API- or stored-format-compatible
-with the legacy `ic-storage` 0.74 series. Runtime admission and custody remain
-the caller's responsibility; publication does not establish production readiness.
+with the legacy `ic-storage` 0.74 series. Low-level collection admission remains the caller's responsibility;
+the optional `retained` feature supplies a bounded ordered runtime; publication does not establish production readiness.
 The caller retains the owning vector; `with_vector` lends a restricted scoped
 view for scalar reads/writes, append, ordered removal, clear and shrink.
 
@@ -24,8 +25,8 @@ handling, native-host poisoning and successful-frame publication.
 
 The installed single-vector provider uses this library after its own admission,
 foreign-allocation claim and fresh allocator issuance. The library does not
-validate retained bytes, reopen pointers, certify private layouts or implement
-a persistence runtime. Its safe constructor accepts live Rust vectors, not saved
+validate retained bytes, reopen pointers or certify private layouts. The optional
+retained runtime below owns a separate explicit admission contract. Its safe constructor accepts live Rust vectors, not saved
 descriptors. Native owners and scalar record conversion remain runtime work.
 
 Run `make native-core-test` for host behavior, ownership compile-fail tests and
@@ -33,6 +34,19 @@ the optional derive's application-facing codec/layout tests, plus strict host an
 Wasm lint checks with and without that feature;
 `make native-provider-test` exercises the library through the installed provider.
 The existing checkpoint/job gates additionally exercise portable reconstruction.
+
+Enable `records` for `records::{Plan, Root, Store, HostMemory}` and independent
+participant grants. Enable `platform` on Wasm for the optional Platform Runtime
+binding `records::StableMemory::take()`. The bootstrap consumes the backing,
+creates or reopens all declared byte records, then explicitly grants each
+participant access. Synchronous writes need no later flush; ordinary errors keep
+earlier writes, while IC traps roll back the message. A caught host unwind poisons
+the shared owner. This record path supports ordinary heap-discarding upgrades,
+not native heap admission. It reuses the checkpoint backing below.
+The [application record contract](https://github.com/dragginzgame/ic-storage/blob/main/docs/design/application-records.md)
+documents the four-root bound, framing/physical costs, composition, lifecycle and
+remaining Canic acceptance. These features are pending the next publication.
+
 Enable `checkpoint` for bounded byte records and fixed-width pages over explicitly
 owned backing memory. Exact layout admission rejects missing or foreign storage
 without writes; no legacy Storage dependency or legacy-format reader is involved.
@@ -59,13 +73,50 @@ misleading scalar widths, escaped views and attempts to obtain a mutable record.
 These declaration rules are tested here; qualification fixtures own their
 application-specific retained layouts, conversion, rollback and recovery cases.
 
+## Retained application runtime
+
+Enable `retained` for named ordered roots, physical allocation budgets,
+participant grants and supplier-owned close/reopen. `Runtime::host` provides
+process-local backing; `Canister` provides the Wasm singleton. The application
+owns init/pre/post-upgrade hooks. A host build tool enables `retained-build` and
+uses `prepare`/`admit` to install mandatory startup handling before deployment.
+No allocator or raw-pointer admission code is copied into the application.
+
+This optional feature uses std and pins the native contract to Rust 1.100.0.
+It retains scalar native nodes and byte payloads, rebuilding private Rust headers
+on upgrade. It supports at most sixteen roots, 512-byte keys and 16-KiB values,
+with explicit shared capacity. Compatible upgrades preserve records; portable
+reconstruction handles incompatible geometry. Ordinary Global allocations are
+transient and their previous generation's grown pages are not reclaimed by a
+compatible upgrade. Explicit heap replacement is the recovery path before the
+128-MiB memory cap is exhausted.
+
+See the [runtime contract](https://github.com/dragginzgame/ic-storage/blob/main/docs/design/retained-runtime.md)
+for build flags, lifecycle, safety assumptions, limits and installed evidence.
+Run `make retained-runtime-test` in the repository for its four-root public-API
+upgrade/recovery witness. Actual DB and Canic consumer integration remains open.
+
 ## Keyed collections
+
+The `ordered::session` API groups valid live native maps under named root
+declarations, independently issued participant grants and one poison boundary.
+Read/write scopes enforce access and logical bounds; maps can be returned only
+after all grants end. It supplies no raw-pointer admission or physical allocator.
+See the [native session contract](https://github.com/dragginzgame/ic-storage/blob/main/docs/design/native-sessions.md)
+for metadata lifetime, settlement and the remaining installed runtime boundary.
+The closed ordered fixture now uses these public grants with a separate metadata
+region and installed lifecycle tests. Its fixed allocator/startup code remains
+qualification-owned, not a consumer bootstrap API.
 
 The optional `ordered` feature adds
 [`ordered::Map<K, V>`](https://github.com/dragginzgame/ic-storage/blob/main/docs/design/ordered-storage.md)
 for bounded encoded byte keys and values. It provides lookup, replacement,
 deletion/reuse, double-ended ranges, prefix scans, preflighted batches and portable
-recovery. Compact nodes refer to a separately owned byte arena; short indexes
+recovery. Operations include `contains_key`, `remove_discard` and
+`range(...).entries()` for key/value-length preflight before visiting payloads.
+Native session scopes expose these operations plus prefixes and single-root
+preflighted batches. Run `make ordered-db-contract-test` for their DB-shaped
+host contracts. Compact nodes refer to a separately owned byte arena; short indexes
 do not reserve a full row's capacity. `new_in_allocators` accepts separate node
 and byte authorities, and admission validates both allocations. Free blocks are
 scrubbed, reused and split; coalescing and large-scale churn qualification remain
@@ -76,8 +127,21 @@ row/index profile additionally covers compatible upgrades, rollback, pagination
 and two-domain recovery. Its generation-owned service reuses the map and both
 allocators across messages, closes before upgrade and freshly admits after
 controlled startup. `allocation_usage` observes current sizes without scanning
-records. This is bounded fixture evidence, not a general runtime, DB adoption or
-installed qualification of the separate aggregate-job profile.
+records. The four-root extension additionally qualifies seventeen 16-KiB job
+values alongside main/source/target rows, with complete-family recovery and
+cleanup/reuse. This remains bounded fixture evidence, not a general runtime or DB adoption.
+
+`ordered::Map::export_pages`, session `Read::export_pages` and `ordered::paged` provide a bounded alternative
+to complete checkpoint buffers. Export walks the tree with one 32-KiB buffer;
+each imported page supplies at most 64 borrowed records. Byte-defined verifier
+continuations bind the manifest, progress and target byte limits. The caller
+must atomically commit native writes, job progress and the continuation and keep
+the candidate private until completion. These codecs do not provide authorization
+or an installed recovery runtime. The closed four-root adapter separately
+qualifies one-page imports, atomic cursor/job publication, compatible interruption
+and explicit restart through public grants and the shared migration state machine.
+Its allocator/bootstrap remains qualification-owned. See the
+[ordered recovery contract](https://github.com/dragginzgame/ic-storage/blob/main/docs/design/ordered-recovery.md).
 
 Enable `features = ["map"]` for `map::Map`: a reusable `u64 → u64` native hash
 table with scoped lookup, insertion/replacement, deletion, reservation and clear.

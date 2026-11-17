@@ -1,5 +1,14 @@
 //! Governed checkpoint provider fixtures; ordinary and native bridge profiles.
 
+#[cfg(all(
+    feature = "application-records",
+    any(feature = "native-bridge", feature = "paged-store")
+))]
+compile_error!("application-records is an ordinary application backing profile");
+
+#[cfg(all(feature = "application-records", target_arch = "wasm32"))]
+mod application_records;
+
 #[cfg(all(feature = "allocation-metrics", target_arch = "wasm32"))]
 mod allocation_metrics;
 
@@ -43,12 +52,19 @@ mod native_bridge;
 #[cfg(not(feature = "native-map"))]
 #[cfg(target_arch = "wasm32")]
 mod native_job;
-#[cfg(not(any(feature = "native-bridge", feature = "paged-store")))]
+#[cfg(not(any(
+    feature = "native-bridge",
+    feature = "paged-store",
+    feature = "application-records"
+)))]
 #[cfg(target_arch = "wasm32")]
 mod ordinary;
 #[cfg(all(feature = "paged-store", target_arch = "wasm32"))]
 mod paged_store;
-#[cfg(any(target_arch = "wasm32", all(test, feature = "native-map-job")))]
+#[cfg(any(
+    all(target_arch = "wasm32", not(feature = "application-records")),
+    all(test, feature = "native-map-job")
+))]
 mod provider;
 #[cfg(all(
     feature = "native-record-vector",

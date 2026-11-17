@@ -4,19 +4,22 @@ members = ["crates/ic-storage", "crates/ic-storage-derive", "crates/ic-storage-m
 exclude = ["qualification"]
 
 [workspace.package]
-version = "0.76.1"
+version = "0.76.2"
 edition = "2024"
 rust-version = "1.100.0"
 license-file = "LICENSE.md"
 repository = "https://github.com/dragginzgame/ic-storage"
 
 [workspace.dependencies]
-ic-storage-derive = { path = "crates/ic-storage-derive", version = "0.76.1" }
+ic-platform-runtime = { version = "0.23.17", default-features = false }
+ic-storage-derive = { path = "crates/ic-storage-derive", version = "0.76.2" }
 proc-macro2 = "1.0.107"
 quote = "1.0.47"
 sha2 = { version = "0.11.1", default-features = false }
 syn = "3.0.10"
 toko-tooling = "=0.44.11"
+wasm-encoder = { version = "0.263.0", default-features = false }
+wasmparser = { version = "0.263.0", default-features = false }
 
 [workspace.lints.cargo]
 unused_dependencies = "deny"
@@ -29,7 +32,7 @@ unknown_lints = "deny"
 dead_code = "deny"
 unused_must_use = "deny"
 unfulfilled_lint_expectations = "deny"
-unsafe_code = "forbid"
+unsafe_code = "deny"
 unsafe_op_in_unsafe_fn = "deny"
 missing_docs = "warn"
 

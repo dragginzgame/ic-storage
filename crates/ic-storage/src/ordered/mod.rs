@@ -11,15 +11,21 @@ mod batch;
 mod bytes;
 mod checkpoint;
 #[cfg(test)]
+mod db_tests;
+/// Bounded logical pages and byte-defined verifier continuations for recovery jobs.
+pub mod paged;
+#[cfg(test)]
 mod payload_tests;
 mod range;
+/// Generation-local custody and participant access for admitted native maps.
+pub mod session;
 #[cfg(test)]
 mod tests;
 mod tree;
 
 pub use batch::Mutation;
 pub use bytes::{ByteSlice, Bytes};
-pub use range::Range;
+pub use range::{Entries, Entry, Range};
 
 use alloc::{alloc::Global, vec::Vec};
 use core::{alloc::Allocator, ops::Bound};
@@ -248,6 +254,11 @@ impl<const K: usize, const V: usize, A: Allocator + Clone, P: Allocator + Clone>
         let id = self.map.find(key);
         (id != 0).then(|| ByteSlice(self.map.value(id)))
     }
+    /// Check membership using only tree links and keys, without visiting the value.
+    #[must_use]
+    pub fn contains_key(&self, key: &[u8]) -> bool {
+        self.map.find(key) != 0
+    }
     /// Insert or replace one key, returning its previous value.
     ///
     /// # Errors
@@ -300,6 +311,17 @@ impl<const K: usize, const V: usize, A: Allocator + Clone, P: Allocator + Clone>
         self.map.image.root = self.map.remove_node(self.map.image.root, key);
         self.map.image.len -= 1;
         Some(value)
+    }
+    /// Delete without materializing or copying the old value. Returns whether
+    /// the key existed. Reclaims/scrubs the same node and payload blocks as remove;
+    /// scrubbing still touches the deleted bytes, without allocating a result.
+    pub fn remove_discard(&mut self, key: &[u8]) -> bool {
+        if self.map.find(key) == 0 {
+            return false;
+        }
+        self.map.image.root = self.map.remove_node(self.map.image.root, key);
+        self.map.image.len -= 1;
+        true
     }
     /// Lexicographic byte range. Reversed or empty bounds yield an empty iterator.
     /// Each next/next_back seeks from the root in logarithmic time. Bounds and

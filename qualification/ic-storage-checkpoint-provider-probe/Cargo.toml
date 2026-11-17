@@ -18,8 +18,11 @@ test = true
 doctest = false
 
 [features]
+default = ["native-fixtures"]
+native-fixtures = ["dep:ic-storage-native-feasibility"]
+application-records = ["ic-storage/platform"]
 allocation-metrics = ["native-map-paged"]
-native-bridge = []
+native-bridge = ["native-fixtures"]
 native-map = ["native-bridge"]
 native-map-job = ["native-map"]
 native-map-paged = ["native-map-job"]
@@ -30,13 +33,13 @@ native-record-vector-job = ["native-record-vector"]
 native-record-vector-v2 = ["native-record-vector"]
 native-record-vector-convert = ["native-record-vector"]
 native-record-vector-source = ["native-record-vector"]
-paged-store = []
+paged-store = ["native-fixtures"]
 version-b = []
 
 [dependencies]
 ic-platform-runtime = { workspace = true, features = ["system-raw"] }
 ic-storage = { workspace = true, features = ["checkpoint", "map"] }
-ic-storage-native-feasibility.workspace = true
+ic-storage-native-feasibility = { workspace = true, optional = true }
 
 [lints]
 workspace = true

@@ -1,6 +1,8 @@
 use super::{Error, View, arena};
 use core::alloc::Allocator;
 
+pub(super) const MAX_MUTATIONS: usize = 2048;
+
 /// One encoded mutation in an ordered, bounded batch.
 #[derive(Clone, Copy)]
 pub enum Mutation<'a> {
@@ -32,7 +34,7 @@ impl<const K: usize, const V: usize, A: Allocator + Clone, P: Allocator + Clone>
     /// Excessive batch size, byte bounds, intermediate live-entry limit or allocator
     /// refusal preserve every record. Duplicate keys follow sequential semantics.
     pub fn apply(&mut self, mutations: &[Mutation<'_>]) -> Result<(), Error> {
-        if mutations.len() > 2048 {
+        if mutations.len() > MAX_MUTATIONS {
             return Err(Error::Limit);
         }
         let mut live = self.len();
@@ -49,7 +51,10 @@ impl<const K: usize, const V: usize, A: Allocator + Clone, P: Allocator + Clone>
                 .rev()
                 .find(|prior| prior.key() == mutation.key())
                 .map_or_else(
-                    || self.get(mutation.key()).map(|value| value.as_slice().len()),
+                    || {
+                        let id = self.map.find(mutation.key());
+                        (id != 0).then(|| self.map.node(id).value.length as usize)
+                    },
                     |prior| match prior {
                         Mutation::Put(_, value) => Some(value.len()),
                         Mutation::Remove(_) => None,
@@ -91,7 +96,7 @@ impl<const K: usize, const V: usize, A: Allocator + Clone, P: Allocator + Clone>
                     self.insert(key, value)?;
                 }
                 Mutation::Remove(key) => {
-                    self.remove(key);
+                    self.remove_discard(key);
                 }
             }
         }

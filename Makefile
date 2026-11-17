@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-FORMAT_RUST_ARGS := --extra-workspace qualification --rustfmt-source qualification/ic-storage-native-feasibility/tests/fixtures/provider_ordered.rs --rustfmt-edition 2024 --rustfmt rustfmt
+FORMAT_RUST_ARGS := --extra-workspace qualification --rustfmt-source qualification/ic-storage-native-feasibility/tests/fixtures/provider_ordered.rs --rustfmt-source qualification/ic-storage-native-feasibility/tests/fixtures/provider_retained.rs --rustfmt-edition 2024 --rustfmt rustfmt
 CARGO_PUBLISH_PACKAGES := ic-storage-derive ic-storage
 CARGO_PUBLISH_REGISTRY := crates-io
 CARGO_PUBLISH_ALL_FEATURES := 1
@@ -37,6 +37,18 @@ m0-test m0-lint-wasm: | toko-execution-check
 .PHONY: native-core-test native-map-firehose native-map-pool-firehose
 native-core-test native-map-firehose native-map-pool-firehose: export CARGO_NET_OFFLINE := true
 native-core-test native-map-firehose native-map-pool-firehose: | toko-execution-check
+.PHONY: retained-runtime-probe retained-runtime-test
+retained-runtime-probe retained-runtime-test: export CARGO_NET_OFFLINE := true
+retained-runtime-probe retained-runtime-test: | toko-execution-check
+retained-runtime-probe:
+	rustfmt --edition 2024 --check qualification/ic-storage-native-feasibility/tests/fixtures/provider_retained.rs
+	+cargo clippy $(RETENTION_CARGO) --test retained_runtime -- -D warnings
+	+bash qualification/ic-storage-native-feasibility/scripts/run-retained-probe.sh
+retained-runtime-test:
+	rustfmt --edition 2024 --check qualification/ic-storage-native-feasibility/tests/fixtures/provider_retained.rs
+	+cargo clippy $(RETENTION_CARGO) --test retained_runtime -- -D warnings
+	+@$(call retention-run,bash qualification/ic-storage-native-feasibility/scripts/run-retained-probe.sh installed)
+
 .PHONY: ordered-native-probe ordered-native-test
 ordered-native-probe ordered-native-test: export CARGO_NET_OFFLINE := true
 ordered-native-probe ordered-native-test: | toko-execution-check
@@ -48,6 +60,14 @@ ordered-native-test:
 	rustfmt --edition 2024 --check qualification/ic-storage-native-feasibility/tests/fixtures/provider_ordered.rs
 	+cargo clippy $(RETENTION_CARGO) --test ordered_native -- -D warnings
 	+@$(call retention-run,bash qualification/ic-storage-native-feasibility/scripts/run-ordered-probe.sh installed)
+.PHONY: ordered-db-contract-test
+ordered-db-contract-test: export CARGO_NET_OFFLINE := true
+ordered-db-contract-test: | toko-execution-check
+	+cargo clippy -p ic-storage --all-targets --features ordered --locked --offline -- -D warnings
+	+cargo clippy -p ic-storage --lib --features ordered --target wasm32-unknown-unknown --locked --offline -- -D warnings
+	+cargo test -p ic-storage --features ordered --lib --locked --offline ordered::
+	+cargo test -p ic-storage --features ordered --doc --locked --offline ordered::
+
 retention-test retention-lint retention-tools-check: export CARGO_NET_OFFLINE := true
 
 .PHONY: retention-setup retention-tools-check retention-lint retention-test
@@ -155,7 +175,9 @@ help:
 	  'make benchmark-lint              Lint stable-structures backends and comparison runner' \
 	  'make ordered-native-probe        Admit ordered-node compiler artifacts' \
 	  'make ordered-native-test         Qualify ordered row/index upgrades and recovery' \
+	  'make ordered-db-contract-test    Check DB traversal, discard and named native roots' \
 	  'make native-feasibility-test     Test host-only scoped ownership boundaries' \
+	  'make native-profile-test         Test two-root profiles, conversion and allocation refusal' \
 	  'make native-feasibility-lint     Lint the native ownership experiment' \
 	  'make native-layout-probe         Inspect host/wasm compiler layout diagnostics' \
 	  'make native-provider-probe       Compile and inspect provider linkage; no execution' \
@@ -163,6 +185,7 @@ help:
 	  'make checkpoint-provider-build  Build ordinary-upgrade checkpoint fixtures' \
 	  'make checkpoint-provider-lint   Lint provider fixtures and installed test' \
 	  'make checkpoint-provider-test   Test fresh-heap recovery and import rollback' \
+	  'make application-records-test   Test public record grants, upgrades and rollback' \
 	  'make native-checkpoint-test     Test native export and incompatible-domain recovery' \
 	  'make native-record-test         Test installed record conversion and recovery' \
 	  'make native-record-vector-test  Test retained record conversion and recovery' \
@@ -191,7 +214,7 @@ doc-check:
 	+cargo doc $(RUST_STARTUP_CARGO) --target-dir target/qualification --features managed-graph --no-deps
 
 # Host setup and locked dependency fetching happen explicitly before this gate.
-ci: fmt-check deps-check lint doc-check m0-test m0-lint-wasm native-core-test native-map-page-test retention-lint rust-startup-lint managed-graph-lint benchmark-lint native-feasibility-test native-layout-probe native-provider-probe native-map-probe native-session-probe checkpoint-provider-lint ordered-native-probe
+ci: fmt-check deps-check lint doc-check m0-test m0-lint-wasm native-core-test native-map-page-test retention-lint rust-startup-lint managed-graph-lint benchmark-lint native-feasibility-test native-layout-probe native-provider-probe native-map-probe native-session-probe checkpoint-provider-lint ordered-native-probe retained-runtime-probe
 
 deps-check: toko-tooling-check deps-pins deps-boundaries
 
@@ -226,12 +249,12 @@ m0-lint-wasm:
 	+cargo clippy -p ic-storage-m0 --lib --target wasm32-unknown-unknown --locked --offline -- -D warnings
 
 native-core-test:
-	+cargo test -p ic-storage --locked --offline
-	+cargo test -p ic-storage --features derive,map,checkpoint,ordered --locked --offline
-	+cargo clippy -p ic-storage --all-targets --features derive,map,checkpoint,ordered --locked --offline -- -D warnings
+	+cargo clippy -p ic-storage --all-targets --all-features --locked --offline -- -D warnings
 	+cargo clippy -p ic-storage --lib --target wasm32-unknown-unknown --locked --offline -- -D warnings
-	+cargo clippy -p ic-storage --lib --features derive,map,checkpoint,ordered --target wasm32-unknown-unknown --locked --offline -- -D warnings
-	+RUSTDOCFLAGS='-D warnings' cargo doc -p ic-storage --features derive,map,checkpoint,ordered --no-deps --locked --offline
+	+cargo clippy -p ic-storage --lib --all-features --target wasm32-unknown-unknown --locked --offline -- -D warnings
+	+cargo test -p ic-storage --locked --offline
+	+cargo test -p ic-storage --all-features --locked --offline
+	+RUSTDOCFLAGS='-D warnings' cargo doc -p ic-storage --all-features --no-deps --locked --offline
 
 native-map-firehose:
 	+cargo test -p ic-storage --features map --release --test map_firehose --locked --offline -- --ignored --nocapture
@@ -386,6 +409,17 @@ native-feasibility-test: native-feasibility-lint
 	+cargo test -p ic-storage-derive --locked --offline
 	+cargo test $(NATIVE_FEASIBILITY_CARGO)
 
+.PHONY: native-profile-test
+native-profile-test: export CARGO_NET_OFFLINE := true
+native-profile-test: | toko-execution-check
+	+cargo clippy -p ic-storage --all-targets --features ordered --locked --offline -- -D warnings
+	+cargo test -p ic-storage --features ordered --lib --locked --offline ordered::session::
+	+cargo test -p ic-storage --features ordered --doc --locked --offline ordered::session::
+	+cargo clippy $(NATIVE_FEASIBILITY_CARGO) --lib --test profile_allocation -- -D warnings
+	+cargo clippy $(NATIVE_FEASIBILITY_CARGO) --lib --target wasm32-unknown-unknown -- -D warnings
+	+cargo test $(NATIVE_FEASIBILITY_CARGO) --lib profile:: -- --nocapture
+	+cargo test $(NATIVE_FEASIBILITY_CARGO) --test profile_allocation -- --nocapture
+
 native-layout-probe: native-feasibility-lint
 	+bash qualification/ic-storage-native-feasibility/scripts/run-layout-probe.sh
 
@@ -410,6 +444,24 @@ checkpoint-provider-lint:
 
 checkpoint-provider-test:
 	+@$(call retention-run,cargo test $(RETENTION_CARGO) --test checkpoint_provider -- --nocapture)
+
+.PHONY: application-records-build application-records-test
+application-records-build application-records-test: export CARGO_NET_OFFLINE := true
+application-records-build application-records-test: | toko-execution-check
+application-records-build:
+	@test -z "$${RUSTFLAGS}$${CARGO_ENCODED_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_LINKER}" || { echo 'Application records require the pinned compiler without overrides' >&2; exit 1; }
+	+cargo clippy $(CHECKPOINT_CARGO) --target-dir target/qualification --no-default-features --features application-records -- -D warnings
+	+cargo rustc $(CHECKPOINT_CARGO) --target-dir target/qualification/application-records-a --no-default-features --features application-records -- $(CHECKPOINT_LINK)
+	+cargo rustc $(CHECKPOINT_CARGO) --target-dir target/qualification/application-records-b --no-default-features --features application-records,version-b -- $(CHECKPOINT_LINK)
+
+application-records-test: application-records-build
+	+cargo clippy $(RETENTION_CARGO) --test application_records -- -D warnings
+	+@mkdir -p target/evidence/application-records
+	+@set -eu; export IC_STORAGE_RECORDS_EVIDENCE="$$(mktemp -d "$(CURDIR)/target/evidence/application-records/attempt.XXXXXX")"; \
+	  git rev-parse HEAD > "$$IC_STORAGE_RECORDS_EVIDENCE/base-commit"; \
+	  rustc -Vv > "$$IC_STORAGE_RECORDS_EVIDENCE/compiler"; \
+	  shasum -a 256 Makefile rust-toolchain.toml Cargo.toml Cargo.lock qualification/Cargo.toml qualification/Cargo.lock crates/ic-storage/Cargo.toml crates/ic-storage/src/lib.rs crates/ic-storage/src/checkpoint/*.rs crates/ic-storage/src/records/*.rs crates/ic-storage/src/records/backing/*.rs qualification/ic-storage-checkpoint-provider-probe/Cargo.toml qualification/ic-storage-checkpoint-provider-probe/src/lib.rs qualification/ic-storage-checkpoint-provider-probe/src/application_records.rs qualification/ic-storage-retention-probe/Cargo.toml qualification/ic-storage-retention-probe/tests/application_records.rs > "$$IC_STORAGE_RECORDS_EVIDENCE/sources.sha256"; \
+	  $(call retention-run,cargo test $(RETENTION_CARGO) --test application_records -- --nocapture)
 
 native-checkpoint-build:
 	@test -z "$${RUSTFLAGS}$${CARGO_ENCODED_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_LINKER}" || { echo 'Native checkpoint probe requires no environment flag/linker overrides' >&2; exit 1; }

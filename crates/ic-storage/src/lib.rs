@@ -2,28 +2,49 @@
 //!
 //! Native collection APIs neither open retained bytes nor establish allocator custody.
 //! The vector caller owns admission, initialization, publication and failure policy.
+//! The optional `retained` runtime separately owns bounded ordered allocation
+//! custody and startup under its explicit Rust 1.100.0 contract.
 //! The optional `map` feature adds an allocator-owned scalar hash table with
 //! scoped access, host poisoning and portable recovery. No private Vec header
 //! is admitted for persistence. The installed provider uses the vector API.
 //! The optional `checkpoint` feature supplies byte-defined bounded records and
 //! pages over caller-owned backing memory, independently of native admission.
 #![no_std]
-#![forbid(unsafe_code)]
+#![deny(unsafe_code)]
 
 extern crate alloc;
+#[cfg(any(feature = "retained", feature = "retained-build"))]
+extern crate std;
 
+/// Supplier-owned retained ordered roots under an explicit host/Wasm contract.
+#[cfg(feature = "retained")]
+pub mod retained;
+
+/// Artifact admission and controlled startup for the retained runtime.
+#[cfg(feature = "retained-build")]
+pub mod retained_build;
+
+#[forbid(unsafe_code)]
 pub mod record;
+
+/// Exclusive application byte-record ownership over the checkpoint backing.
+#[cfg(feature = "records")]
+#[forbid(unsafe_code)]
+pub mod records;
 
 /// Byte-defined checkpoint storage over explicitly owned backing memory.
 #[cfg(feature = "checkpoint")]
+#[forbid(unsafe_code)]
 pub mod checkpoint;
 
 /// Native scalar hash tables, scoped mutation and portable recovery.
 #[cfg(feature = "map")]
+#[forbid(unsafe_code)]
 pub mod map;
 
 /// Ordered bounded byte keys and values with scoped access and portable recovery.
 #[cfg(feature = "ordered")]
+#[forbid(unsafe_code)]
 pub mod ordered;
 
 /// Declare a bounded scalar record; this does not grant persistence admission.
