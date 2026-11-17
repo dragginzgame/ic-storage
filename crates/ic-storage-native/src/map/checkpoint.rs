@@ -15,7 +15,7 @@ const DIGEST: usize = 32;
 /// Export failure; a failed sink may contain an incomplete, unusable checkpoint.
 #[derive(Debug, PartialEq, Eq)]
 pub enum ExportError<E> {
-    /// The native owner was unavailable before writing any bytes.
+    /// Native owner, framing or allocation failed before writing any bytes.
     Map(Error),
     /// The caller's sink rejected a chunk; the map remains unchanged.
     Sink(E),
@@ -31,6 +31,33 @@ pub enum ImportError<E> {
 }
 
 impl Map {
+    /// Validate a complete portable checkpoint and return logical records in
+    /// ascending key order, without reconstructing native hash-table storage.
+    ///
+    /// Framing, epoch, count and integrity are checked before allocating records.
+    /// Duplicate keys refuse even with a valid digest. The output is transient
+    /// and mutable; callers own staging, custody and atomic publication. This
+    /// still reads the entire checkpoint and allocates one pair per record.
+    pub fn records_from_checkpoint(
+        bytes: &[u8],
+        epoch: u64,
+        limit: usize,
+    ) -> Result<Vec<(u64, u64)>, Error> {
+        let payload = checked_payload(bytes, epoch, limit)?;
+        let mut records = Vec::new();
+        records
+            .try_reserve_exact(payload.len() / 16)
+            .map_err(|_| Error::Allocation)?;
+        for record in payload.as_chunks::<16>().0 {
+            records.push((word(&record[..8]), word(&record[8..])));
+        }
+        records.sort_unstable_by_key(|record| record.0);
+        if records.windows(2).any(|pair| pair[0].0 == pair[1].0) {
+            return Err(Error::Checkpoint);
+        }
+        Ok(records)
+    }
+
     /// Rebuild fresh native storage from a bounded, validated logical checkpoint.
     pub fn from_checkpoint(bytes: &[u8], epoch: u64, limit: usize) -> Result<Self, Error> {
         Self::from_checkpoint_in(bytes, epoch, limit, alloc::alloc::Global)
@@ -109,17 +136,10 @@ impl<A: Allocator + Clone> Map<A> {
         limit: usize,
         allocator: A,
     ) -> Result<Self, Error> {
-        if bytes.len() < HEADER + DIGEST {
-            return Err(Error::Checkpoint);
-        }
-        let count = header_count(&bytes[..HEADER], bytes.len(), epoch, limit)?;
-        let payload_end = bytes.len() - DIGEST;
-        if Sha256::digest(&bytes[..payload_end]).as_slice() != &bytes[payload_end..] {
-            return Err(Error::Integrity);
-        }
+        let payload = checked_payload(bytes, epoch, limit)?;
         let mut candidate = Self::new_in(limit, allocator);
-        candidate.reserve(count)?;
-        insert_records(&mut candidate, &bytes[HEADER..payload_end])?;
+        candidate.reserve(payload.len() / 16)?;
+        insert_records(&mut candidate, payload)?;
         Ok(candidate)
     }
 
@@ -181,6 +201,20 @@ impl<A: Allocator + Clone> Map<A> {
         *self = candidate;
         Ok(())
     }
+}
+
+// Both slice consumers use the same admission before choosing logical records
+// or native reconstruction. Streaming keeps its distinct private-candidate path.
+fn checked_payload(bytes: &[u8], epoch: u64, limit: usize) -> Result<&[u8], Error> {
+    if bytes.len() < HEADER + DIGEST {
+        return Err(Error::Checkpoint);
+    }
+    header_count(&bytes[..HEADER], bytes.len(), epoch, limit)?;
+    let end = bytes.len() - DIGEST;
+    if Sha256::digest(&bytes[..end]).as_slice() != &bytes[end..] {
+        return Err(Error::Integrity);
+    }
+    Ok(&bytes[HEADER..end])
 }
 
 fn header_count(header: &[u8], length: usize, epoch: u64, limit: usize) -> Result<usize, Error> {

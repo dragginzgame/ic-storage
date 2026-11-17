@@ -74,7 +74,9 @@ No Rust stack frames or owners from one runtime may survive entry into the other
    access, the target requires a zero native header and fresh lifecycle state.
    A Keep upgrade into the recovery entry refuses rather than overwriting data.
 4. Checkpoint Rust opens the existing locator and validates the whole bundle and
-   both maps. It stages copied scalar records through checked WAT callbacks;
+   both maps, decoding directly into sorted logical record buffers without
+   reconstructing transient hash tables. It stages those records through checked
+   WAT callbacks;
    those callbacks do not initialize a native Map or invoke either Rust runtime.
 5. After checkpoint Rust returns and all its owners end, the wrapper initializes
    the fresh native loan and inserts staged records through the actual Map API.

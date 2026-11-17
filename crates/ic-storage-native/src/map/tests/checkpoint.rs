@@ -10,6 +10,51 @@ fn resign(bytes: &mut [u8]) {
 }
 
 #[test]
+fn logical_records_are_sorted_and_match_native_reconstruction() {
+    for count in [0, 1, 257, 4608] {
+        let mut source = Map::new(count);
+        source
+            .with(|mut view| {
+                for key in 0..count as u64 {
+                    view.insert(u64::MAX - key, key ^ u64::MAX).unwrap();
+                }
+                if count > 1 {
+                    view.remove(u64::MAX);
+                    view.insert(0, u64::MAX).unwrap();
+                }
+            })
+            .unwrap();
+        let bytes = source.checkpoint(17).unwrap();
+        let expected: Vec<_> = entries(&mut source).into_iter().collect();
+        drop(source);
+        let logical = Map::records_from_checkpoint(&bytes, 17, count).unwrap();
+        assert_eq!(logical, expected);
+        let mut native = Map::from_checkpoint(&bytes, 17, count).unwrap();
+        assert_eq!(
+            logical,
+            entries(&mut native).into_iter().collect::<Vec<_>>()
+        );
+    }
+    // The portable format permits any record order. Nonadjacent duplicates
+    // refuse with either identical or conflicting values, even when re-signed.
+    for duplicate_value in [10u64, 11] {
+        let mut bytes = Vec::from(*b"NKEYMAP1");
+        for word in [17, 3, u64::MAX, 10, 0, 20, u64::MAX, duplicate_value] {
+            bytes.extend_from_slice(&word.to_le_bytes());
+        }
+        bytes.extend_from_slice(&Sha256::digest(&bytes));
+        assert_eq!(
+            Map::records_from_checkpoint(&bytes, 17, 3),
+            Err(Error::Checkpoint)
+        );
+        assert!(matches!(
+            Map::from_checkpoint(&bytes, 17, 3),
+            Err(Error::Checkpoint)
+        ));
+    }
+}
+
+#[test]
 fn portable_format_is_logical_and_streaming_matches_buffered_export() {
     let mut map = Map::new(8);
     map.with(|mut view| view.insert(u64::MAX, 42))
@@ -59,6 +104,7 @@ fn malformed_or_duplicate_checkpoints_cannot_replace_a_healthy_owner() {
     let saved = map.checkpoint(7).unwrap();
     for length in 0..saved.len() {
         assert!(map.recover(&saved[..length], 7).is_err());
+        assert!(Map::records_from_checkpoint(&saved[..length], 7, 10).is_err());
         assert_eq!(map.checkpoint(7).unwrap(), saved);
     }
     for fault in 0..7 {
@@ -96,12 +142,17 @@ fn malformed_or_duplicate_checkpoints_cannot_replace_a_healthy_owner() {
             }
         };
         assert_eq!(map.recover(&bad, 7), Err(expected));
+        assert_eq!(Map::records_from_checkpoint(&bad, 7, 10), Err(expected));
         assert_eq!(map.checkpoint(7).unwrap(), saved);
     }
     assert!(matches!(
         Map::from_checkpoint(&saved, 7, 1),
         Err(Error::Limit)
     ));
+    assert_eq!(
+        Map::records_from_checkpoint(&saved, 7, 1),
+        Err(Error::Limit)
+    );
     let empty = Map::new(0).checkpoint(8).unwrap();
     map.recover(&empty, 8).unwrap();
     assert_eq!(map.len(), Ok(0));

@@ -133,12 +133,53 @@ impl<P: Payload> MigrationJob<P> {
         start: u32,
         limit: u32,
     ) -> Result<Batch<P>, Error> {
+        let progress = self.batch_admission(target, source, epoch, limit)?;
+        let decoded = P::decode(&self.checkpoint, epoch)?;
+        self.advance_batch(progress, decoded, start, limit)
+    }
+
+    /// Admit separately stored job parts and advance a batch using the logical
+    /// values validated during that admission, without decoding them twice.
+    /// No caller-supplied candidate or validation token can bypass integrity.
+    /// The adapter must validate the retained prefix and atomically persist the
+    /// returned job with its native writes, exactly as for `batch`.
+    pub fn decode_split_batch(
+        metadata: &[u8],
+        checkpoint: &[u8],
+        target: u64,
+        source: u64,
+        epoch: u64,
+        start: u32,
+        limit: u32,
+    ) -> Result<(Self, Batch<P>), Error> {
+        let (mut job, decoded) = Self::decode_split_parts(metadata, checkpoint, true)?;
+        let progress = job.batch_admission(target, source, epoch, limit)?;
+        // Ready is the only valid payload-less job and admission refuses it.
+        let batch = job.advance_batch(progress, decoded.ok_or(Error::State)?, start, limit)?;
+        Ok((job, batch))
+    }
+
+    fn batch_admission(
+        &self,
+        target: u64,
+        source: u64,
+        epoch: u64,
+        limit: u32,
+    ) -> Result<Progress, Error> {
         self.import_binding(target, source, epoch)?;
         if !matches!(self.phase, Phase::Importing | Phase::Consumed) || !(1..=64).contains(&limit) {
             return Err(Error::State);
         }
-        let progress = self.progress.ok_or(Error::State)?;
-        let decoded = P::decode(&self.checkpoint, epoch)?;
+        self.progress.ok_or(Error::State)
+    }
+
+    fn advance_batch(
+        &mut self,
+        progress: Progress,
+        decoded: P::Decoded,
+        start: u32,
+        limit: u32,
+    ) -> Result<Batch<P>, Error> {
         let total = P::len(&decoded) as u32;
         let retry = progress.limit != 0 && start == progress.start && limit == progress.limit;
         if !retry && (self.phase != Phase::Importing || start != progress.next) {

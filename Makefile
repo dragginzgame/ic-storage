@@ -51,6 +51,9 @@ native-feasibility-test native-feasibility-lint native-layout-probe: | toko-exec
 .PHONY: native-map-probe native-map-test
 .PHONY: native-map-checkpoint-build native-map-checkpoint-test
 .PHONY: native-map-job-build native-map-job-test
+.PHONY: native-map-page-test
+native-map-page-test: export CARGO_NET_OFFLINE := true
+native-map-page-test: | toko-execution-check
 native-map-job-build native-map-job-test: export CARGO_NET_OFFLINE := true
 native-map-job-build native-map-job-test: | toko-execution-check
 native-map-probe native-map-test native-map-checkpoint-build native-map-checkpoint-test: export CARGO_NET_OFFLINE := true
@@ -95,6 +98,7 @@ help:
 	  'make native-map-test            Qualify installed map upgrades, custody and rollback' \
 	  'make native-map-checkpoint-test Recover two maps through the governed checkpoint provider' \
 	  'make native-map-job-test        Qualify durable two-map recovery jobs' \
+	  'make native-map-page-test       Qualify paged checkpoints on governed host storage' \
 	  'make retention-setup             Explicitly prepare the retention-test server' \
 	  'make retention-tools-check       Admit the prepared server offline' \
 	  'make retention-lint              Strict Clippy for the Rust test runner' \
@@ -143,7 +147,7 @@ doc-check:
 	+cargo doc $(RUST_STARTUP_CARGO) --target-dir target/qualification --features managed-graph --no-deps
 
 # Host setup and locked dependency fetching happen explicitly before this gate.
-ci: fmt-check deps-check lint doc-check m0-test m0-lint-wasm native-core-test retention-lint rust-startup-lint managed-graph-lint benchmark-simple-lint native-feasibility-test native-layout-probe native-provider-probe native-map-probe checkpoint-provider-lint
+ci: fmt-check deps-check lint doc-check m0-test m0-lint-wasm native-core-test native-map-page-test retention-lint rust-startup-lint managed-graph-lint benchmark-simple-lint native-feasibility-test native-layout-probe native-provider-probe native-map-probe checkpoint-provider-lint
 
 deps-check: toko-tooling-check deps-pins deps-boundaries
 
@@ -198,6 +202,10 @@ native-map-test:
 	rustfmt --edition 2024 --check qualification/ic-storage-native-feasibility/tests/fixtures/provider_map.rs
 	+cargo clippy $(RETENTION_CARGO) --test provider_link -- -D warnings
 	+@server="$$($(RETENTION_TOOL) --check)" && "$$server" run -- bash qualification/ic-storage-native-feasibility/scripts/run-map-probe.sh installed
+
+native-map-page-test:
+	+cargo clippy --manifest-path qualification/Cargo.toml -p ic-storage-checkpoint-provider-probe --target-dir target/qualification --features native-map-job --lib --tests --locked --offline -- -D warnings
+	+cargo test --manifest-path qualification/Cargo.toml -p ic-storage-checkpoint-provider-probe --target-dir target/qualification --features native-map-job --lib provider::paged_tests --locked --offline -- --nocapture
 
 native-map-job-build:
 	@test -z "$${RUSTFLAGS}$${CARGO_ENCODED_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS}$${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_LINKER}" || { echo 'Map job probe requires the pinned compiler without overrides' >&2; exit 1; }

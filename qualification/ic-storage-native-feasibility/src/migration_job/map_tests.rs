@@ -3,6 +3,104 @@ use ic_storage_native::map::Map;
 
 const A: u64 = 131072;
 const B: u64 = 163840;
+
+#[test]
+fn combined_batch_matches_separate_admission_for_states_and_requests() {
+    fn compare(job: &MapJob, start: u32, limit: u32, target: u64, epoch: u64) {
+        let (metadata, payload) = job.encode_split().unwrap();
+        let mut separate = MapJob::decode_split(&metadata, payload).unwrap();
+        let expected = separate.batch(target, A, epoch, start, limit);
+        let combined =
+            MapJob::decode_split_batch(&metadata, payload, target, A, epoch, start, limit);
+        match (expected, combined) {
+            (Ok(expected), Ok((actual_job, actual))) => {
+                assert_eq!(actual_job, separate);
+                assert_eq!(
+                    (actual.start, actual.end, actual.retry, actual.complete),
+                    (
+                        expected.start,
+                        expected.end,
+                        expected.retry,
+                        expected.complete
+                    )
+                );
+                assert_eq!(actual.checkpoint, expected.checkpoint);
+            }
+            (Err(expected), Err(actual)) => assert_eq!(actual, expected),
+            _ => panic!("combined admission changed the batch outcome"),
+        }
+    }
+    let ready = MapJob::initial(A).unwrap();
+    compare(&ready, 0, 1, A, 0);
+    for counts in [[0, 0], [0, 64], [64, 0], [1, 64], [64, 64]] {
+        let maps = std::array::from_fn(|id| {
+            let mut map = Map::new(64);
+            map.with(|mut view| {
+                for key in 0..counts[id] {
+                    view.insert(key, u64::MAX - key).unwrap();
+                }
+            })
+            .unwrap();
+            map
+        });
+        let mut job = ready.export(A, B, 1, &maps).unwrap();
+        compare(&job, 0, 1, B, 1);
+        job.cancel(A, B, 1).unwrap();
+        compare(&job, 0, 1, B, 1);
+        job = ready.export(A, B, 1, &maps).unwrap();
+        job.begin_import(B, A, 1).unwrap();
+        let mut next = 0;
+        loop {
+            for start in [0, 1, 63, 64, 65, 126, 128, u32::MAX] {
+                for limit in [0, 1, 2, 63, 64, 65, u32::MAX] {
+                    compare(&job, start, limit, B, 1);
+                }
+            }
+            compare(&job, next, 63, A, 1);
+            compare(&job, next, 63, B, 2);
+            let (metadata, payload) = job.encode_split().unwrap();
+            let (advanced, batch) =
+                MapJob::decode_split_batch(&metadata, payload, B, A, 1, next, 63).unwrap();
+            job = advanced;
+            compare(&job, next, 63, B, 1); // latest retry, including completion
+            if batch.complete {
+                compare(&job, batch.end, 1, B, 1);
+                break;
+            }
+            next = batch.end;
+        }
+    }
+}
+
+#[test]
+fn independent_staged_map_envelope_golden() {
+    // Independently assembled with Perl pack/Digest::SHA from the documented
+    // three nested envelopes: one record per map, first record already imported.
+    let hex = include_str!("golden-map-staged.hex").trim();
+    let bytes: Vec<u8> = (0..hex.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).unwrap())
+        .collect();
+    let mut maps = [Map::new(64), Map::new(64)];
+    maps[0]
+        .with(|mut view| view.insert(u64::MAX, u64::MAX - 1).unwrap())
+        .unwrap();
+    maps[1]
+        .with(|mut view| view.insert(7, 70).unwrap())
+        .unwrap();
+    let mut job = MapJob::initial(A).unwrap().export(A, B, 1, &maps).unwrap();
+    job.begin_import(B, A, 1).unwrap();
+    job.batch(B, A, 1, 0, 1).unwrap();
+    assert_eq!(bytes.len(), 344);
+    assert_eq!(job.encode().unwrap(), bytes);
+    assert_eq!(MapJob::decode(&bytes).unwrap(), job);
+    let (metadata, checkpoint) = job.encode_split().unwrap();
+    assert_eq!(&metadata[..64], &bytes[..64]);
+    assert_eq!(checkpoint, &bytes[64..304]);
+    assert_eq!(&metadata[64..], &bytes[304..]);
+    assert_eq!(MapJob::decode_split(&metadata, checkpoint).unwrap(), job);
+}
+
 fn maps() -> [Map; 2] {
     let mut maps = [Map::new(65), Map::new(64)];
     for (id, map) in maps.iter_mut().enumerate() {
@@ -102,14 +200,22 @@ fn map_jobs_bind_domains_epochs_and_both_payloads() {
     assert!(matches!(job.consume(A, B, 1), Err(Error::Domain)));
     assert!(matches!(job.consume(B, A, 2), Err(Error::Epoch)));
     assert_eq!(job, sealed);
-    let mut recovered = job.consume(B, A, 1).unwrap();
-    for (id, map) in recovered.iter_mut().enumerate() {
-        assert_eq!(map.len().unwrap(), 64);
-        assert_eq!(
-            map.with(|view| view.get(u64::MAX)).unwrap(),
-            Some(u64::MAX - id as u64)
-        );
+    let recovered = job.consume(B, A, 1).unwrap();
+    for (id, records) in recovered.iter().enumerate() {
+        assert_eq!(records.len(), 64);
+        assert_eq!(records.last(), Some(&(u64::MAX, u64::MAX - id as u64)));
     }
+    // The adapter constructs new native owners only after logical admission.
+    let recovered = recovered.map(|records| {
+        let mut map = Map::new(64);
+        map.with(|mut view| {
+            for (key, value) in records {
+                assert!(view.insert(key, value).unwrap().is_none());
+            }
+        })
+        .unwrap();
+        map
+    });
     let consumed = MapJob::decode(&job.encode().unwrap()).unwrap();
     assert!(matches!(job.consume(B, A, 1), Err(Error::State)));
     assert_eq!(job.cancel(A, B, 1), Err(Error::State));

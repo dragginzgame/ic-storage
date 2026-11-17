@@ -2,7 +2,7 @@
 use ic_storage_legacy::{DefaultMemoryImpl, Memory, MemoryBacking, StableKey, adapter::StableCell};
 use ic_storage_native_feasibility::{
     checkpoint::maps,
-    migration_job::{METADATA_BYTES, MapJob},
+    migration_job::{Batch, METADATA_BYTES, MapJob, MapPair},
 };
 
 const METADATA: &str = "native.checkpoint.maps.job.metadata.v1";
@@ -41,6 +41,26 @@ impl<M: MemoryBacking> Store<M> {
 impl<M: Memory> Store<M> {
     pub(crate) fn read(&self) -> MapJob {
         MapJob::decode_split(self.metadata.get(), self.checkpoint.get()).unwrap()
+    }
+
+    pub(crate) fn batch(
+        &self,
+        target: u64,
+        source: u64,
+        epoch: u64,
+        start: u32,
+        limit: u32,
+    ) -> (MapJob, Batch<MapPair>) {
+        MapJob::decode_split_batch(
+            self.metadata.get(),
+            self.checkpoint.get(),
+            target,
+            source,
+            epoch,
+            start,
+            limit,
+        )
+        .unwrap()
     }
 
     // IC message rollback, not the cell write order, provides atomicity across

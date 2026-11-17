@@ -44,8 +44,21 @@ progress, restart, cancellation and consumption write only the 104-byte metadata
 payload. Identical writes skip both cells. The adapter relies on the IC transaction
 for atomicity across the two cells and later native publication; write order alone
 does not provide native host crash recovery. A trap between payload and metadata
-publication must roll back both. Complete checkpoint reads, encoding, digest work
-and validation are still proportional to the bounded payload.
+publication must roll back both. Metadata encoding now hashes the existing
+header/checkpoint/seal slices with fixed scratch space. Split decoding admits the
+same slices directly, without allocating a temporary joined envelope. It still
+allocates the validated job's owned checkpoint and logical candidates. Complete
+checkpoint reads, digest work and validation remain proportional to the bounded
+payload; this is not yet a paged reader or incremental prefix validator.
+The product's [sequential page codec](../../docs/design/paged-map-checkpoint.md)
+now has separate governed host qualification. Adopting its manifest and page
+cursor into this installed two-root job remains explicit integration work.
+Batch reads use the shared `decode_split_batch` operation: the logical maps from
+complete admission feed the existing batch transition directly, eliminating a
+second checkpoint decode and map reconstruction. Exact retries also validate
+once per request. There is no cache across requests or caller-supplied validation
+token, and the adapter still validates the complete retained prefix before new
+native writes. Stored bytes, limits and publication ordering are unchanged.
 
 Current native format **8** binds this two-cell job profile and distinguishes active
 settlement 1, frozen-source settlement 2 and private-import settlement 3. It rejects
@@ -92,7 +105,10 @@ Application writes, source cancellation, export and ordinary reopen remain
 blocked. Even an empty pair stays Importing until its first completing batch.
 
 The cursor orders **root 1, then root 2, with ascending u64 keys inside each**.
-Checkpoint decoding builds transient maps and sorts bounded logical copies;
+Checkpoint decoding returns sorted logical records directly through the product
+`Map::records_from_checkpoint` decoder, which checks framing, epoch, count,
+integrity and duplicate keys without allocating native hash buckets. Atomic
+recovery uses the same records. The staged adapter does not copy or re-sort them;
 progress never depends on native buckets, allocation history or decoder iteration
 order. Before a new batch, the adapter compares both native prefix counts and
 every expected key/value against the independent checkpoint. A batch applies
@@ -148,6 +164,57 @@ whole-canister snapshot rollback protection or production recovery authority is
 claimed. Consumer cutovers require their own authorization and data contracts.
 
 ## Qualification evidence
+
+The v0.75.3 delivery passed the repository CI gate on 17 November 2026 after
+the module-directory cleanup. Final installed artifacts passed under
+`target/evidence/`: `native-map-provider/attempt.a1pvqs` (three artifact checks
+and three map-job cases, 10.47 seconds), `native-map-provider/attempt.7VuLcD`
+(three artifact checks and bare-map recovery, 3.18 seconds),
+`provider-link/attempt.UcgQK4` (19 artifact checks and seven scalar-job cases,
+39.78 seconds), and `provider-link/attempt.UUSKQJ` (19 artifact checks and five
+record-job cases, 43.93 seconds). The separate paged format remains host-qualified;
+these installed cohorts use the existing job/checkpoint format.
+
+Direct logical-record decoding passed five product checkpoint tests, two paired
+checkpoint tests, eighteen shared job tests and four metered-adapter tests.
+Product tests compare sorted records with native reconstruction through 4,608
+entries and reject nonadjacent duplicates with repaired digests, truncation,
+invalid count/epoch and corruption. Focused host/Wasm Clippy and formatting passed.
+Installed map-job checks passed in
+`target/evidence/native-map-provider/attempt.ywl6IF` (three artifact checks and
+three atomic/staged/restart cases, 10.91 seconds); bare-map recovery passed in
+`attempt.8GXpgi` (three artifact checks and one installed matrix, 3.25 seconds).
+This removes checkpoint-side hash-table reconstruction and the staged adapter's
+record copy; native-prefix validation still reconstructs its independent
+transient view. The 4,608-entry test establishes host codec behavior only; the
+installed limit remains 64 per map. Unchanged scalar/record transitions retain
+their previous installed evidence below.
+
+The combined admission/batch path passed eighteen shared host job tests and four
+metered-adapter tests on 16 November 2026. A test-only payload wrapper delegates
+to the real map decoder and counts calls: separate admission/batch decodes twice,
+combined admission once, and each retry validates once again. A corrupt outer
+digest refuses before logical decoding; re-signing a corrupt nested checkpoint
+still refuses. Transition comparisons cover empty/asymmetric/full pairs, invalid
+offsets/limits/bindings, root crossings and completed retries. Adapter checks use
+the combined operation and retain the 104-byte progress/zero-byte retry bounds.
+Focused host/Wasm Clippy and formatting passed. Final installed artifacts passed
+under `target/evidence/`: `native-map-provider/attempt.nbdC1g` (three artifact
+checks and three map-job tests, 10.56 seconds), `provider-link/attempt.OEEipM`
+(19 artifact checks and seven scalar-job tests, 39.91 seconds), and
+`provider-link/attempt.DcFQ81` (19 artifact checks and five record-job tests,
+43.85 seconds). These results include ordinary reads dropping transient decoded
+values before allocating the owned checkpoint; they do not establish a throughput
+improvement or increase the qualified recovery limits.
+
+The v0.75.3 development codec passed sixteen shared host job tests (including
+the independent staged-map golden), four metered-adapter tests and focused
+Clippy/formatting checks. Installed regressions passed under `target/evidence/`:
+`native-map-provider/attempt.rvYkE8` (three artifact and three map-job tests,
+10.17 seconds), `provider-link/attempt.NTVfdW` (19 artifact and seven scalar-job
+tests, 40.21 seconds), and `provider-link/attempt.8E8fxQ` (19 artifact and five
+record-job tests, 43.45 seconds). These checks preserve the existing byte formats;
+they do not qualify larger checkpoints or bounded-read recovery.
 
 The v0.75.2 delivery passed the repository CI gate and then the affected installed
 checks with Testkit 0.107.4: `attempt.Pg6AxM` (three artifact checks and three job

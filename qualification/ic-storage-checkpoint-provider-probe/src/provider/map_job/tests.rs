@@ -47,7 +47,8 @@ fn progress_writes_are_fixed_size_and_retries_write_nothing() {
         assert_eq!(backing.counts().write_bytes, METADATA_BYTES as u64);
         let mut next = 0;
         loop {
-            let batch = job.batch(B, A, 1, next, 63).unwrap();
+            let (advanced, batch) = store.batch(B, A, 1, next, 63);
+            job = advanced;
             backing.reset();
             store.write(&job);
             let io = backing.counts();
@@ -57,9 +58,11 @@ fn progress_writes_are_fixed_size_and_retries_write_nothing() {
             );
             assert_eq!(store.checkpoint.get(), &payload);
             assert_eq!(store.read(), job);
-            assert!(job.batch(B, A, 1, next, 63).unwrap().retry);
+            let (retried, retry) = store.batch(B, A, 1, next, 63);
+            assert!(retry.retry);
+            assert_eq!(retried, job);
             backing.reset();
-            store.write(&job);
+            store.write(&retried);
             assert_eq!(backing.counts().writes, 0);
             if batch.complete {
                 break;
@@ -137,7 +140,8 @@ fn corrupt_truncated_and_mixed_parts_refuse_without_writes() {
         let backing = MeteredMemory::<VectorMemory>::default();
         let mut store = Store::open(backing.clone(), true);
         let ready = MapJob::initial(A).unwrap();
-        let job = ready.export(A, B, 1, &maps(64)).unwrap();
+        let mut job = ready.export(A, B, 1, &maps(64)).unwrap();
+        job.begin_import(B, A, 1).unwrap();
         store.write(&job);
         match mode {
             0 | 1 => store.damage(mode),
@@ -175,6 +179,13 @@ fn corrupt_truncated_and_mixed_parts_refuse_without_writes() {
             catch_unwind(AssertUnwindSafe(
                 || Store::open(backing.clone(), false).read()
             ))
+            .is_err()
+        );
+        assert_eq!(backing.counts().writes, 0);
+        assert!(
+            catch_unwind(AssertUnwindSafe(|| {
+                Store::open(backing.clone(), false).batch(B, A, 1, 0, 64)
+            }))
             .is_err()
         );
         assert_eq!(backing.counts().writes, 0);

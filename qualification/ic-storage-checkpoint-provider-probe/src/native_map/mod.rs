@@ -81,26 +81,21 @@ extern "C" fn checkpoint_restore() {
         cell.set(Vec::new());
         ic0::trap(b"map recovery after stable write");
     }
-    stage(decoded, fault);
+    stage(&decoded, fault);
 }
-fn stage(mut decoded: [Map; 2], fault: u64) {
+fn stage(decoded: &maps::Records, fault: u64) {
     map_begin(
-        decoded[0].len().unwrap() as u32,
-        decoded[1].len().unwrap() as u32,
+        decoded[0].len() as u32,
+        decoded[1].len() as u32,
         fault as u32,
     );
-    for (id, map) in decoded.iter_mut().enumerate() {
-        let mut index = 0;
-        map.with(|view| {
-            view.for_each(|key, value| {
-                map_put(id as u32, index, key, value);
-                index += 1;
-                if fault == 2 {
-                    ic0::trap(b"map recovery during staging");
-                }
-            })
-        })
-        .unwrap();
+    for (id, records) in decoded.iter().enumerate() {
+        for (index, &(key, value)) in records.iter().enumerate() {
+            map_put(id as u32, index as u32, key, value);
+            if fault == 2 {
+                ic0::trap(b"map recovery during staging");
+            }
+        }
     }
     map_finish(); // Only staging is complete. Wrapper builds native maps after return.
 }

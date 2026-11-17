@@ -81,6 +81,16 @@ fn domain<P: Payload>(value: u64) -> Result<(), Error> {
     }
 }
 
+// Hash the canonical ordering without joining separately stored parts. The
+// digest's scratch space is independent of checkpoint size.
+fn envelope_digest(header: &[u8], checkpoint: &[u8], seal: &[u8]) -> [u8; 32] {
+    let mut digest = Sha256::new();
+    digest.update(header);
+    digest.update(checkpoint);
+    digest.update(seal);
+    digest.finalize().into()
+}
+
 impl<P: Payload> MigrationJob<P> {
     /// Fresh governed locator only; never used as fallback after decode failure.
     pub fn initial(source: u64) -> Result<Self, Error> {
@@ -190,52 +200,7 @@ impl<P: Payload> MigrationJob<P> {
 
     /// Byte-defined job envelope; preserves the checkpoint after consumption.
     pub fn encode(&self) -> Result<Vec<u8>, Error> {
-        let mut bytes = Vec::new();
-        bytes
-            .try_reserve_exact(OVERHEAD + self.checkpoint.len())
-            .map_err(|_| Error::Allocation)?;
-        bytes.extend_from_slice(P::MAGIC);
-        bytes.extend_from_slice(&if self.progress.is_some() { 2u16 } else { 1 }.to_le_bytes());
-        bytes.extend_from_slice(&(self.phase as u16).to_le_bytes());
-        bytes.extend_from_slice(&(HEADER as u32).to_le_bytes());
-        for word in [self.epoch, self.source, self.target] {
-            bytes.extend_from_slice(&word.to_le_bytes());
-        }
-        bytes.extend_from_slice(&(self.checkpoint.len() as u32).to_le_bytes());
-        if let Some(progress) = self.progress {
-            for word in [progress.next, progress.start, progress.limit] {
-                bytes.extend_from_slice(&word.to_le_bytes());
-            }
-            bytes.extend_from_slice(&[0; 8]);
-        } else {
-            bytes.extend_from_slice(&[0; 20]);
-        }
-        bytes.extend_from_slice(&self.checkpoint);
-        bytes.extend_from_slice(b"JOBDONE1");
-        let digest = Sha256::digest(&bytes);
-        bytes.extend_from_slice(&digest);
-        Ok(bytes)
-    }
-
-    /// Separate the existing envelope into fixed metadata and checkpoint bytes.
-    /// Metadata contains the header followed by the completeness marker/digest;
-    /// its digest still covers the complete canonical envelope, including payload.
-    /// Both parts must be published atomically by the storage adapter.
-    pub fn encode_split(&self) -> Result<([u8; METADATA_BYTES], &[u8]), Error> {
-        let bytes = self.encode()?;
-        let mut metadata = [0; METADATA_BYTES];
-        metadata[..HEADER].copy_from_slice(&bytes[..HEADER]);
-        metadata[HEADER..].copy_from_slice(&bytes[bytes.len() - (OVERHEAD - HEADER)..]);
-        Ok((metadata, &self.checkpoint))
-    }
-
-    /// Reassemble and validate separately stored metadata and checkpoint bytes.
-    /// This is the same envelope admission as `decode`, including cross-part
-    /// integrity and nested validation. It still reads the complete checkpoint.
-    pub fn decode_split(metadata: &[u8], checkpoint: &[u8]) -> Result<Self, Error> {
-        if metadata.len() != METADATA_BYTES || checkpoint.len() > P::MAX_BYTES {
-            return Err(Error::Framing);
-        }
+        let (metadata, checkpoint) = self.encode_split()?;
         let mut bytes = Vec::new();
         bytes
             .try_reserve_exact(OVERHEAD + checkpoint.len())
@@ -243,35 +208,119 @@ impl<P: Payload> MigrationJob<P> {
         bytes.extend_from_slice(&metadata[..HEADER]);
         bytes.extend_from_slice(checkpoint);
         bytes.extend_from_slice(&metadata[HEADER..]);
-        Self::decode(&bytes)
+        Ok(bytes)
+    }
+
+    /// Separate the existing envelope into fixed metadata and checkpoint bytes.
+    /// Metadata contains the header followed by the completeness marker/digest;
+    /// its digest still covers the complete canonical envelope, including payload.
+    /// Both parts must be published atomically by the storage adapter.
+    /// Encoding uses fixed scratch space and borrows the unchanged checkpoint.
+    pub fn encode_split(&self) -> Result<([u8; METADATA_BYTES], &[u8]), Error> {
+        let length = u32::try_from(self.checkpoint.len()).map_err(|_| Error::Framing)?;
+        let mut metadata = [0; METADATA_BYTES];
+        metadata[..8].copy_from_slice(P::MAGIC);
+        metadata[8..10]
+            .copy_from_slice(&if self.progress.is_some() { 2u16 } else { 1 }.to_le_bytes());
+        metadata[10..12].copy_from_slice(&(self.phase as u16).to_le_bytes());
+        metadata[12..16].copy_from_slice(&(HEADER as u32).to_le_bytes());
+        for (index, word) in [self.epoch, self.source, self.target]
+            .into_iter()
+            .enumerate()
+        {
+            let offset = 16 + index * 8;
+            metadata[offset..offset + 8].copy_from_slice(&word.to_le_bytes());
+        }
+        metadata[40..44].copy_from_slice(&length.to_le_bytes());
+        if let Some(progress) = self.progress {
+            for (index, word) in [progress.next, progress.start, progress.limit]
+                .into_iter()
+                .enumerate()
+            {
+                let offset = 44 + index * 4;
+                metadata[offset..offset + 4].copy_from_slice(&word.to_le_bytes());
+            }
+        }
+        metadata[HEADER..HEADER + 8].copy_from_slice(b"JOBDONE1");
+        let digest = envelope_digest(
+            &metadata[..HEADER],
+            &self.checkpoint,
+            &metadata[HEADER..HEADER + 8],
+        );
+        metadata[HEADER + 8..].copy_from_slice(&digest);
+        Ok((metadata, &self.checkpoint))
+    }
+
+    /// Validate separately stored metadata and checkpoint bytes without joining
+    /// them into a temporary envelope allocation.
+    /// This is the same envelope admission as `decode`, including cross-part
+    /// integrity and nested validation. It still reads the complete checkpoint
+    /// and allocates the validated job's owned payload and decoded candidates.
+    pub fn decode_split(metadata: &[u8], checkpoint: &[u8]) -> Result<Self, Error> {
+        Self::decode_split_parts(metadata, checkpoint, false).map(|(job, _)| job)
+    }
+
+    fn decode_split_parts(
+        metadata: &[u8],
+        checkpoint: &[u8],
+        retain_decoded: bool,
+    ) -> Result<(Self, Option<P::Decoded>), Error> {
+        if metadata.len() != METADATA_BYTES {
+            return Err(Error::Framing);
+        }
+        Self::decode_parts(
+            &metadata[..HEADER],
+            checkpoint,
+            &metadata[HEADER..],
+            retain_decoded,
+        )
     }
 
     /// Check framing, domain, phase and nested integrity before returning state.
     pub fn decode(bytes: &[u8]) -> Result<Self, Error> {
-        if !(OVERHEAD..=OVERHEAD + P::MAX_BYTES).contains(&bytes.len()) {
+        if bytes.len() < OVERHEAD {
+            return Err(Error::Framing);
+        }
+        let end = bytes.len() - (OVERHEAD - HEADER);
+        Self::decode_parts(&bytes[..HEADER], &bytes[HEADER..end], &bytes[end..], false)
+            .map(|(job, _)| job)
+    }
+
+    // One admission path for contiguous and split storage. Slice lengths are
+    // checked before any field access, and integrity precedes semantic decoding.
+    fn decode_parts(
+        header: &[u8],
+        payload: &[u8],
+        trailer: &[u8],
+        retain_decoded: bool,
+    ) -> Result<(Self, Option<P::Decoded>), Error> {
+        if header.len() != HEADER
+            || trailer.len() != OVERHEAD - HEADER
+            || payload.len() > P::MAX_BYTES
+        {
             return Err(Error::Framing);
         }
         let word = |offset| {
-            bytes[offset..offset + 8]
+            header[offset..offset + 8]
                 .try_into()
                 .map(u64::from_le_bytes)
                 .map_err(|_| Error::Framing)
         };
         let len =
-            u32::from_le_bytes(bytes[40..44].try_into().map_err(|_| Error::Framing)?) as usize;
-        if &bytes[..8] != P::MAGIC
-            || !matches!(bytes[8..10], [1, 0] | [2, 0])
-            || bytes[12..16] != (HEADER as u32).to_le_bytes()
-            || bytes[56..64] != [0; 8]
-            || len != bytes.len() - OVERHEAD
-            || &bytes[bytes.len() - 40..bytes.len() - 32] != b"JOBDONE1"
+            u32::from_le_bytes(header[40..44].try_into().map_err(|_| Error::Framing)?) as usize;
+        if &header[..8] != P::MAGIC
+            || !matches!(header[8..10], [1, 0] | [2, 0])
+            || header[12..16] != (HEADER as u32).to_le_bytes()
+            || header[56..64] != [0; 8]
+            || len != payload.len()
+            || &trailer[..8] != b"JOBDONE1"
         {
             return Err(Error::Framing);
         }
-        if Sha256::digest(&bytes[..bytes.len() - 32])[..] != bytes[bytes.len() - 32..] {
+        if envelope_digest(header, payload, &trailer[..8])[..] != trailer[8..] {
             return Err(Error::Integrity);
         }
-        let phase = match u16::from_le_bytes(bytes[10..12].try_into().map_err(|_| Error::Framing)?)
+        let phase = match u16::from_le_bytes(header[10..12].try_into().map_err(|_| Error::Framing)?)
         {
             0 => Phase::Ready,
             1 => Phase::Sealed,
@@ -283,33 +332,44 @@ impl<P: Payload> MigrationJob<P> {
         let (epoch, source, target) = (word(16)?, word(24)?, word(32)?);
         domain::<P>(source)?;
         domain::<P>(target)?;
-        let payload = &bytes[HEADER..HEADER + len];
-        let count = if phase == Phase::Ready {
+        let decoded = if phase == Phase::Ready {
             if epoch != 0 || source != target || !payload.is_empty() {
                 return Err(Error::State);
             }
-            0
+            None
         } else {
             if epoch == 0 || source == target {
                 return Err(Error::State);
             }
-            P::len(&P::decode(payload, epoch)?) as u32
+            Some(P::decode(payload, epoch)?)
         };
-        let progress = staged::Progress::decode(bytes, phase, count)?;
+        let count = decoded.as_ref().map_or(0, |value| P::len(value) as u32);
+        let progress = staged::Progress::decode(header, phase, count)?;
+        // Keep candidates only for the combined load-and-batch operation. Plain
+        // reads still drop them before copying the job's owned checkpoint.
+        let decoded = if retain_decoded {
+            decoded
+        } else {
+            drop(decoded);
+            None
+        };
         let mut checkpoint = Vec::new();
         checkpoint
             .try_reserve_exact(len)
             .map_err(|_| Error::Allocation)?;
         checkpoint.extend_from_slice(payload);
-        Ok(Self {
-            payload: PhantomData,
-            phase,
-            epoch,
-            source,
-            target,
-            checkpoint,
-            progress,
-        })
+        Ok((
+            Self {
+                payload: PhantomData,
+                phase,
+                epoch,
+                source,
+                target,
+                checkpoint,
+                progress,
+            },
+            decoded,
+        ))
     }
 }
 

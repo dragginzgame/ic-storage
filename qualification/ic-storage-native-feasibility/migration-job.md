@@ -18,6 +18,15 @@ covers atomic recovery and staged prefix validation, retry, interruption and
 explicit restart within the 64-record-per-map bound.
 Its adapter separates fixed 104-byte metadata from the checkpoint using the
 shared envelope codec; scalar and record jobs retain their existing single cells.
+Both storage shapes use the same field, integrity and semantic admission. The
+codec hashes borrowed parts directly and does not assemble a temporary envelope
+for split-cell reads or metadata writes; canonical exported bytes are unchanged.
+`decode_split_batch` performs that complete admission and advances the shared
+batch transition with the decoded values from the same call. The map adapter
+uses it to avoid a second logical decode. It accepts no external validated-value
+token or cached candidates; each request, including a retry, validates anew.
+Ordinary reads discard candidates before copying the owned checkpoint. Batch
+admission retains them until the adapter validates the prefix and stages writes.
 
 ## Contract and bytes
 

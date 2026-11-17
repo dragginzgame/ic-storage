@@ -10,6 +10,7 @@ use alloc::{alloc::Global, vec::Vec};
 use core::alloc::Allocator;
 
 mod checkpoint;
+pub mod paged;
 mod table;
 
 /// Refusal or unavailable native owner.

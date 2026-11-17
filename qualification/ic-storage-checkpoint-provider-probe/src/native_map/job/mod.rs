@@ -55,7 +55,7 @@ extern "C" fn checkpoint_restore() {
     if fault == 1 {
         ic0::trap(b"map job recovery after consumed write");
     }
-    stage(decoded, fault);
+    stage(&decoded, fault);
 }
 #[expect(unsafe_code, reason = "private validated frozen-source resumption")]
 #[unsafe(no_mangle)]

@@ -10,6 +10,10 @@ pub const MAX_BYTES: usize = 96 + 2 * (56 + LIMIT * 16);
 const MAGIC: &[u8; 8] = b"NKPAIR01";
 const SEAL: &[u8; 8] = b"SEALED01";
 
+/// Transient logical records: root 1 then root 2, ascending u64 key per root.
+/// These values carry no native layout, allocation or retained ownership.
+pub type Records = [Vec<(u64, u64)>; 2];
+
 /// Bind both logical maps and their order to one epoch and complete publication.
 pub fn encode(maps: &[Map; 2], epoch: u64) -> Result<Vec<u8>, Error> {
     if maps
@@ -35,8 +39,9 @@ pub fn encode(maps: &[Map; 2], epoch: u64) -> Result<Vec<u8>, Error> {
 }
 
 /// Validate complete framing, root identities, epoch and both product payloads.
-/// Both returned maps are fresh transient candidates; failure publishes neither.
-pub fn decode(bytes: &[u8], epoch: u64) -> Result<[Map; 2], Error> {
+/// Returns sorted logical records without rebuilding native hash tables.
+/// Failure publishes neither root; native construction belongs to the adapter.
+pub fn decode(bytes: &[u8], epoch: u64) -> Result<Records, Error> {
     if !(96..=MAX_BYTES).contains(&bytes.len()) {
         return Err(Error::Checkpoint);
     }
@@ -66,8 +71,8 @@ pub fn decode(bytes: &[u8], epoch: u64) -> Result<[Map; 2], Error> {
         return Err(Error::Integrity);
     }
     Ok([
-        Map::from_checkpoint(&bytes[64..64 + a], epoch, LIMIT)?,
-        Map::from_checkpoint(&bytes[64 + a..end], epoch, LIMIT)?,
+        Map::records_from_checkpoint(&bytes[64..64 + a], epoch, LIMIT)?,
+        Map::records_from_checkpoint(&bytes[64 + a..end], epoch, LIMIT)?,
     ])
 }
 

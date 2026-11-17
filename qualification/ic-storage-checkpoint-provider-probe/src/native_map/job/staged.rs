@@ -2,7 +2,7 @@
 //! stages only the next bounded batch. Native construction happens after return.
 use super::{args, controller, domain, fresh, ic0, map_job};
 use crate::native_map::{map_finish, map_put, read_source};
-use ic_storage_native::map::Map;
+use ic_storage_native_feasibility::checkpoint::maps::Records;
 
 #[expect(
     unsafe_code,
@@ -17,20 +17,8 @@ unsafe extern "C" {
     safe fn stage_ready();
 }
 
-// Canonical cursor order: root 1 then root 2, ascending u64 key in each root.
-// No native probe position or decoder's allocation history enters progress.
-fn ordered(mut maps: [Map; 2]) -> [Vec<(u64, u64)>; 2] {
-    std::array::from_fn(|id| {
-        let mut values = Vec::new();
-        values.try_reserve_exact(maps[id].len().unwrap()).unwrap();
-        maps[id]
-            .with(|view| view.for_each(|key, value| values.push((key, value))))
-            .unwrap();
-        values.sort_unstable_by_key(|entry| entry.0);
-        values
-    })
-}
-fn counts(values: &[Vec<(u64, u64)>; 2], prefix: u32) -> [usize; 2] {
+// The codec supplies root 1 then root 2, ascending u64 key in each root.
+fn counts(values: &Records, prefix: u32) -> [usize; 2] {
     let prefix = prefix as usize;
     assert!(prefix <= values[0].len() + values[1].len());
     [
@@ -38,7 +26,7 @@ fn counts(values: &[Vec<(u64, u64)>; 2], prefix: u32) -> [usize; 2] {
         prefix.saturating_sub(values[0].len()),
     ]
 }
-fn validate(values: &[Vec<(u64, u64)>; 2], prefix: u32) {
+fn validate(values: &Records, prefix: u32) {
     map_stage_state();
     let counts = counts(values, prefix);
     let mut actual = read_source();
@@ -89,7 +77,7 @@ extern "C" fn checkpoint_stage_resume() {
     assert!(fault <= 1);
     let job = map_job::open(false).read();
     let (maps, prefix) = job.importing(domain(), source, epoch).unwrap();
-    validate(&ordered(maps), prefix);
+    validate(&maps, prefix);
     if fault == 1 {
         ic0::trap(b"map import resume after validation");
     }
@@ -105,21 +93,18 @@ extern "C" fn checkpoint_batch() {
         std::array::from_fn(|i| u64::from_le_bytes(bytes[i * 8..i * 8 + 8].try_into().unwrap()));
     assert!(fault <= 4);
     let mut cell = map_job::open(false);
-    let mut job = cell.read();
-    let batch = job
-        .batch(
-            domain(),
-            source,
-            epoch,
-            start.try_into().unwrap(),
-            limit.try_into().unwrap(),
-        )
-        .unwrap();
+    let (job, batch) = cell.batch(
+        domain(),
+        source,
+        epoch,
+        start.try_into().unwrap(),
+        limit.try_into().unwrap(),
+    );
     if batch.retry && batch.complete {
         // The completed retry acknowledges progress without overwriting newer writes.
         stage_ready();
     } else {
-        let values = ordered(batch.checkpoint);
+        let values = batch.checkpoint;
         validate(&values, if batch.retry { batch.end } else { batch.start });
         if !batch.retry {
             let begin = counts(&values, batch.start);

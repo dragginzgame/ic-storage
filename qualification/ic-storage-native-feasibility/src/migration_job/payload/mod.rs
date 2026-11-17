@@ -1,6 +1,10 @@
 //! Closed logical payloads; phase and progress policy stays in MigrationJob.
+#[cfg(test)]
+mod tests;
+
 use super::{Error, checkpoint};
 use crate::record::narrow::V3;
+use alloc::vec::Vec;
 
 mod sealed {
     pub trait Sealed {}
@@ -19,9 +23,6 @@ pub trait Payload: sealed::Sealed {
     /// Validate the complete checkpoint and epoch.
     fn decode(bytes: &[u8], epoch: u64) -> Result<Self::Decoded, Error>;
     /// Number of elements advanced by staged import.
-    ///
-    /// # Panics
-    /// The map payload requires the unchanged, unpoisoned result of `decode`.
     fn len(decoded: &Self::Decoded) -> usize;
 }
 
@@ -71,15 +72,11 @@ impl Payload for MapPair {
     const MAGIC: &'static [u8; 8] = b"ICJMP001";
     const MAX_BYTES: usize = checkpoint::maps::MAX_BYTES;
     const DOMAINS: [u64; 2] = [131072, 163840];
-    type Decoded = [ic_storage_native::map::Map; 2];
+    type Decoded = checkpoint::maps::Records;
     fn decode(bytes: &[u8], epoch: u64) -> Result<Self::Decoded, Error> {
         checkpoint::maps::decode(bytes, epoch).map_err(Error::MapCheckpoint)
     }
     fn len(decoded: &Self::Decoded) -> usize {
-        // Only freshly decoded, unpoisoned maps enter the transition owner.
-        decoded
-            .iter()
-            .map(|map| map.len().expect("decoded map"))
-            .sum()
+        decoded.iter().map(Vec::len).sum()
     }
 }

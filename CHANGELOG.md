@@ -1,5 +1,65 @@
 # Changelog
 
+## [0.75.3] - 2026-11-17
+
+### ➕ Added
+
+- Add a portable map-page codec: a fixed manifest commits to sequential pages
+  of at most 64 sorted records. Validate each page against the preceding hash,
+  epoch, root, position and strict key order without rereading the whole payload.
+  Governed host qualification reaches 4,608 records; current installed jobs keep
+  their existing format and limits. The verifier is transient, not a durable cursor.
+
+### ⚡ Performance
+
+- Hash and validate separate job metadata/checkpoint slices directly. Metadata
+  encoding uses fixed scratch space, and split decoding no longer assembles a
+  temporary full envelope. Stored bytes, integrity checks and recovery limits
+  are unchanged; full checkpoint reads and logical validation remain required.
+- Reuse the logical maps validated during split job admission when advancing a
+  recovery batch. Each request, including retries, decodes the checkpoint once
+  instead of twice; complete integrity and retained-prefix checks remain.
+- Decode portable map checkpoints directly into sorted logical records for
+  atomic and staged recovery, avoiding transient hash-table reconstruction and
+  the following record copy. The product decoder owns framing, integrity and
+  duplicate-key rejection; stored formats and installed limits are unchanged.
+
+### 🔧 Changed
+
+- Consolidate modules with child directories under `mod.rs`, preserving their
+  Rust module paths and contents.
+
+### 🧪 Testing
+
+- Check staged map envelope bytes against an independently generated golden,
+  including both nested checkpoints, full-width values and durable progress.
+- Count actual payload decodes and compare combined admission with existing
+  transitions across empty, asymmetric and full pairs, invalid requests and
+  completed retries. Meter the adapter's combined batch path and corruption refusals.
+- Compare logical-record decoding with native reconstruction through 4,608
+  records on the host, including full-width keys, deletion histories and
+  nonadjacent duplicate keys with repaired digests.
+- Qualify paged checkpoints through published governed Storage handles: opening
+  reads 1,144 bytes and each selected page reads 1,104 bytes at all tested sizes.
+  Cover independently encoded golden bytes, incomplete publication, missing or
+  mixed pages, corruption and refusal without replacement writes. Add the focused
+  `native-map-page-test` host target to CI.
+
+### ▶️ Try it
+
+After the [documented bootstrap](README.md), run the locked offline page checks:
+
+```sh
+cargo test -p ic-storage-native --features map --lib map::paged --locked --offline
+make native-map-page-test
+```
+
+The [page contract](docs/design/paged-map-checkpoint.md) records bytes, custody
+and limits. Installed recovery remains on the existing two-map job format.
+Release checks retain the separately prepared Testkit 0.106.0 launcher alongside
+the current 0.107.4 library; optional launcher refresh is deferred to the next
+tooling-maintenance boundary.
+
 ## [0.75.2] - 2026-11-16
 
 ### ➕ Added

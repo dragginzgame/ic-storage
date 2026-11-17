@@ -712,10 +712,18 @@ Completed retries preserve subsequent application writes. Total recovery remains
 bounded to 64 records per map; the larger growing-pool workload is unqualified.
 Scalar copying scans each map's buckets once, while every import batch still
 decodes the whole checkpoint and validates the complete committed prefix.
+The checkpoint decoder returns sorted logical records directly; it does not
+rebuild transient hash tables merely to stage their contents. Native prefix
+validation and target construction remain separate admission boundaries.
 The map-job adapter stores metadata and checkpoint in separate governed cells,
 so progress updates write only 104 metadata bytes. The shared job digest binds
 both parts, and installed rollback must cover publication between the cells.
 This does not yet bound checkpoint reads or validation independently of total state.
+The [sequential page codec](design/paged-map-checkpoint.md) separately qualifies
+a byte-defined manifest/hash chain and fixed-size page reads through governed
+host handles. It is a portable storage prerequisite, not a second retained
+collection architecture. Current installed jobs have not adopted it: durable
+cursor binding, two-root publication and native-prefix costs remain to be qualified.
 
 The [governed job](../qualification/ic-storage-native-feasibility/migration-job.md)
 adds controller authority, durable epochs, consumption, pre-cutover cancellation

@@ -32,10 +32,26 @@ fn two_maps_recover_independently_after_sources_are_destroyed() {
         let expected = [records(&mut maps[0]), records(&mut maps[1])];
         let bytes = encode(&maps, 17).unwrap();
         drop(maps);
-        let mut restored = decode(&bytes, 17).unwrap();
-        for (id, map) in restored.iter_mut().enumerate() {
-            assert_eq!(records(map), expected[id]);
+        let decoded = decode(&bytes, 17).unwrap();
+        for (id, records) in decoded.iter().enumerate() {
+            assert_eq!(
+                records,
+                &expected[id]
+                    .iter()
+                    .map(|(&k, &v)| (k, v))
+                    .collect::<Vec<_>>()
+            );
         }
+        let mut restored = decoded.map(|records| {
+            let mut map = Map::new(LIMIT);
+            map.with(|mut view| {
+                for (key, value) in records {
+                    assert!(view.insert(key, value).unwrap().is_none());
+                }
+            })
+            .unwrap();
+            map
+        });
         if count > 0 {
             restored[0]
                 .with(|mut view| {

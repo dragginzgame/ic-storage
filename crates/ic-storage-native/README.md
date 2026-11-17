@@ -87,6 +87,16 @@ after complete validation and integrity checks. The streaming encoder needs
 constant scratch space; its caller owns buffering, complete-publication,
 checkpoint custody and freshness. These synchronous APIs do not implement
 resumable cross-message recovery.
+`Map::records_from_checkpoint` validates the same complete portable bytes and
+returns unique `(key, value)` pairs in ascending key order for logical staging.
+It allocates records directly without rebuilding hash buckets; it still reads
+the whole checkpoint and is not a chunked or resumable validator.
+`Map::export_pages` and `map::paged::Manifest` provide a separate byte-defined
+sequential page format with at most 64 records per verified page. The
+[page contract and governed host evidence](../../docs/design/paged-map-checkpoint.md)
+cover the hash chain, reverse export order and failure rules. Export still sorts
+the complete source, and the reader has no durable cross-message cursor. Current
+installed map jobs do not yet use this format.
 
 Run `make native-core-test` for behavior, compile-fail and host/Wasm lint checks.
 Run `make native-map-firehose` for one million live keys, 256 million mixed

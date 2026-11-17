@@ -95,6 +95,19 @@ and digest before allocation. Duplicate keys refuse even with a valid digest.
 The target creates a fresh table and recomputes placement. Invalid input or a
 failed candidate leaves the original owner and poison state intact.
 
+`Map::records_from_checkpoint` shares slice framing/epoch/count/integrity
+admission and returns transient logical pairs sorted by ascending u64 key.
+It allocates one pair per record, sorts in place and rejects adjacent equal keys
+after sorting, including duplicates with matching values. It does not allocate
+native hash buckets. The map checkpoint bridge uses these records directly for
+atomic staging and durable job batches; native construction remains a separate
+step after the checkpoint runtime returns. Whole-input validation and record
+storage still scale with checkpoint size. A separately validated chunk format
+is required before individual batches can avoid reading the complete checkpoint.
+The [sequential page codec](paged-map-checkpoint.md) now supplies that portable
+storage boundary with fixed-size page reads through governed host handles.
+It does not yet replace the installed job's checkpoint or prefix validation.
+
 `export` streams with constant encoder scratch space and chunks up to 32 bytes.
 Its caller should coalesce I/O and publish a checkpoint only after successful
 completion. A sink error may leave an incomplete sink; it cannot mutate the

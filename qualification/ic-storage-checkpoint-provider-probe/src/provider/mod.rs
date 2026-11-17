@@ -11,6 +11,8 @@ const OWNER: &str = "native-checkpoint";
 const PREFIX: &str = "native.checkpoint.";
 #[cfg(feature = "native-map-job")]
 pub(crate) mod map_job;
+#[cfg(all(test, feature = "native-map-job"))]
+mod paged_tests;
 #[cfg(not(any(
     feature = "native-job",
     feature = "native-record-vector",
