@@ -306,7 +306,7 @@ impl<M: Memory> RuntimeMemory<M> {
             DirectoryError::Growth => RuntimeGrowError::BackingRefused {
                 additional_pages: pages,
             },
-            DirectoryError::Budget | DirectoryError::Wire(_) => RuntimeGrowError::CapacityExceeded,
+            DirectoryError::Budget => RuntimeGrowError::CapacityExceeded,
             DirectoryError::Poisoned => RuntimeGrowError::Poisoned,
             _ => RuntimeGrowError::InvalidDirectory,
         })

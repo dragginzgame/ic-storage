@@ -5,7 +5,7 @@ use super::{AllocationId, Directory, Error, Image, Prepared, StorageConfig, hash
 use crate::{Memory, WASM_PAGE_SIZE_BYTES as PAGE};
 use std::cell::Cell;
 
-const MAGIC: &[u8; 8] = b"ICROOTS1";
+const MAGIC: &[u8; 8] = b"ICROOTS2";
 const ROOT_BYTES: usize = 64;
 
 struct Root {
@@ -336,7 +336,7 @@ fn read(
     let mut bytes = [0; ROOT_BYTES];
     memory.read(0, &mut bytes);
     let root = Root::decode(&bytes)?;
-    if root.start < 1 || root.length == 0 || root.length > budget.wire.bytes as u64 {
+    if root.start < 1 || root.length == 0 || root.length > budget.directory_bytes as u64 {
         return Err(Error::Invalid("directory record bounds"));
     }
     let expected_end = root

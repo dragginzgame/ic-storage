@@ -23,7 +23,6 @@ ic-platform-runtime = { workspace = true, features = ["system-raw"] }
 
 [dependencies]
 ic-stable-structures.workspace = true
-ic-wire.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 

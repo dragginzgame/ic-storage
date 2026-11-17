@@ -1,4 +1,5 @@
 //! Owned named-allocation directory and durable extent validation.
+mod format;
 pub(super) mod leases;
 mod persistence;
 
@@ -6,7 +7,7 @@ use crate::{StableKey, hash};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
-const FRAME: &[u8] = b"ICDIRS01";
+const FRAME: &[u8] = b"ICDIRS02";
 
 ///
 /// StorageConfig
@@ -24,7 +25,7 @@ pub struct StorageConfig {
     /// Maximum physical backing extent, in 64 KiB Wasm pages.
     pub pages: u64,
     /// Encoding and decoding budgets for each directory snapshot.
-    pub wire: ic_wire::Limits,
+    pub directory_bytes: usize,
 }
 
 impl Default for StorageConfig {
@@ -33,12 +34,7 @@ impl Default for StorageConfig {
             allocations: 4_096,
             extents: 16_384,
             pages: 1_048_576,
-            wire: ic_wire::Limits {
-                bytes: 4 * 1024 * 1024,
-                allocation: 16 * 1024 * 1024,
-                nodes: 262_144,
-                depth: 16,
-            },
+            directory_bytes: 4 * 1024 * 1024,
         }
     }
 }
@@ -118,9 +114,6 @@ pub enum Error {
     /// directory owner is poisoned after interrupted backing IO.
     #[error("directory owner is poisoned after interrupted backing IO")]
     Poisoned,
-    /// Wire directory record: {0}.
-    #[error("Wire directory record: {0}")]
-    Wire(#[from] ic_wire::Error),
 }
 
 #[derive(Clone, Debug)]
@@ -239,24 +232,18 @@ impl Directory {
     }
 
     fn decode(bytes: &[u8], budget: StorageConfig, data_start: u64) -> Result<Self, Error> {
-        if bytes.len() > budget.wire.bytes {
+        if bytes.len() > budget.directory_bytes {
             return Err(Error::Budget);
         }
         let payload = bytes
             .strip_prefix(FRAME)
             .ok_or(Error::Invalid("directory frame"))?;
-        let image = ic_wire::decode(payload, ic_wire::Encoding::Payload, budget.wire)?;
+        let image = format::decode(payload, budget)?;
         Self::validate(image, budget, data_start)
     }
 
     fn encode(&self) -> Result<Vec<u8>, Error> {
-        let mut limits = self.budget.wire;
-        limits.bytes = limits.bytes.checked_sub(FRAME.len()).ok_or(Error::Budget)?;
-        let payload = ic_wire::encode(&self.image, ic_wire::Encoding::Payload, limits)?;
-        let mut bytes = Vec::with_capacity(FRAME.len() + payload.len());
-        bytes.extend_from_slice(FRAME);
-        bytes.extend_from_slice(&payload);
-        Ok(bytes)
+        format::encode(&self.image, self.budget.directory_bytes)
     }
 
     fn prepare(

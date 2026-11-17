@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.78.0] - 2026-11-17
+
+### ⚠️ Breaking changes
+
+- The allocation directory now uses a Storage-owned binary layout and rejects
+  0.77.0 backing. Start with fresh backing or export using the previous owner.
+- Replace the Wire limits in `StorageConfig` with `directory_bytes`.
+
 ## [0.77.0] - 2026-11-17
 
 ### ⚠️ Breaking changes

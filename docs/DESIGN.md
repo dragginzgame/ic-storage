@@ -32,8 +32,8 @@ errors do not roll back prior writes. Native backing is not transactional; IC
 traps roll back the complete message, including directory growth and collection
 writes. Installed qualification must establish those lifecycle properties.
 
-The replacement directory uses `ICROOTS1` / `ICDIRS01` and current bounded Wire
-payload encoding. It deliberately refuses earlier directories, including 0.64's
+The replacement directory uses `ICROOTS2` / `ICDIRS02` and a bounded binary layout owned by Storage.
+It rejects 0.77.0 directories (`ICROOTS1` / `ICDIRS01`) before writing. It deliberately refuses earlier directories, including 0.64's
 `ICROOTR1` / `ICDIRR01`. Upstream collection payloads also differ from the former
 owned AVL/B-tree formats. This repository replacement does not migrate or reset
 any consumer's deployed data. Such cutovers need explicit data migration.

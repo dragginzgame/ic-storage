@@ -42,14 +42,14 @@ poisons the shared owner.
 
 ## Limits and persistence
 
-`StorageConfig` selects allocation count, extent count, physical page and Wire
-resource limits. Defaults are 4,096 allocations, 16,384 extents, 1,048,576 physical
-pages, 4 MiB directory bytes, 16 MiB decode allocation, 262,144 nodes and depth 16.
+`StorageConfig` selects allocation count, extent count, physical page and snapshot
+byte limits. Defaults are 4,096 allocations, 16,384 extents, 1,048,576 physical
+pages, and 4 MiB per directory snapshot.
 The u64 identity width is not a promise of unbounded allocation count. Reopening
 revalidates the directory under the supplied limits.
 
-The first page contains the protected `ICROOTS1` root. Each directory commit
-writes a bounded `ICDIRS01` Wire snapshot into an inactive reserved arena,
+The first page contains the protected `ICROOTS2` root. Each directory commit
+writes a bounded `ICDIRS02` binary snapshot into an inactive reserved arena,
 then the root, and only then publishes its in-memory state. The active arena is
 never overwritten during preparation/publication. New arenas grow geometrically
 only when no inactive arena can hold the snapshot; all arenas remain excluded
@@ -57,6 +57,12 @@ from application extents. Growth refusal
 preserves the committed state. Recovery never guesses a fallback root or resets
 foreign/corrupt backing. Native partial writes can prevent reopening; Wasm traps
 use the host's rollback contract. Checksums are for accidental corruption.
+
+After the eight-byte directory magic, the layout contains generation, next ID,
+next page, a counted metadata extent list and a counted entry list. Each entry
+contains its ID, a length-prefixed canonical ASCII name and a counted extent
+list. Each extent stores its start and page count. All numbers, including
+counts and byte lengths, are unsigned 64-bit little-endian integers.
 
 Physical extents may be discontiguous; reads and writes translate logical pages
 through the allocation's extent list. Failed native commits can leave an

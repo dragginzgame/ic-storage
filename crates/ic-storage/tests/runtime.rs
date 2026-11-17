@@ -157,8 +157,10 @@ fn default_allocation_limit_refuses_4097_names_without_writes() {
 fn old_directory_is_refused_without_resetting_backing() {
     let backing = VectorMemory::default();
     assert_eq!(Memory::grow(&backing, 1), 0);
-    Memory::write(&backing, 0, b"ICROOTR1");
-    let before = backing.borrow().clone();
-    assert!(MemoryRuntime::new(backing.clone()).is_err());
-    assert_eq!(*backing.borrow(), before);
+    for magic in [b"ICROOTR1", b"ICROOTS1"] {
+        Memory::write(&backing, 0, magic);
+        let before = backing.borrow().clone();
+        assert!(MemoryRuntime::new(backing.clone()).is_err());
+        assert_eq!(*backing.borrow(), before);
+    }
 }

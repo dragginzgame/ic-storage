@@ -37,22 +37,6 @@ fn key_decode_enforces_grammar_and_preserves_current_encoding() {
     let json = serde_json::to_string(&key).unwrap();
     assert_eq!(json, "\"app.users.v1\"");
     assert_eq!(serde_json::from_str::<StableKey>(&json).unwrap(), key);
-    let bytes = ic_wire::encode(
-        &key,
-        ic_wire::Encoding::Payload,
-        crate::StorageConfig::default().wire,
-    )
-    .unwrap();
-    assert_eq!(bytes, b"\x0capp.users.v1");
-    assert_eq!(
-        ic_wire::decode::<StableKey>(
-            &bytes,
-            ic_wire::Encoding::Payload,
-            crate::StorageConfig::default().wire
-        )
-        .unwrap(),
-        key
-    );
 
     for invalid in [
         "App.users.v1",
@@ -64,20 +48,6 @@ fn key_decode_enforces_grammar_and_preserves_current_encoding() {
     ] {
         let json = serde_json::to_string(invalid).unwrap();
         assert!(serde_json::from_str::<StableKey>(&json).is_err());
-        let bytes = ic_wire::encode(
-            &invalid,
-            ic_wire::Encoding::Payload,
-            crate::StorageConfig::default().wire,
-        )
-        .unwrap();
-        assert!(
-            ic_wire::decode::<StableKey>(
-                &bytes,
-                ic_wire::Encoding::Payload,
-                crate::StorageConfig::default().wire
-            )
-            .is_err()
-        );
     }
 }
 

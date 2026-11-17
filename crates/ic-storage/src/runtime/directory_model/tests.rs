@@ -84,7 +84,7 @@ fn publication_enforces_receiving_budget_and_identity_exhaustion_is_fallible() {
 }
 
 #[test]
-fn recovery_rejects_overlap_duplicate_keys_bounds_and_bad_wire() {
+fn recovery_rejects_overlap_duplicate_keys_bounds_and_bad_format() {
     let budget = StorageConfig::default();
     let mut d = Directory::empty(budget, 1).unwrap();
     d.publish(d.prepare(vec![key(0), key(1)], &[]).unwrap())
@@ -101,8 +101,7 @@ fn recovery_rejects_overlap_duplicate_keys_bounds_and_bad_wire() {
             3 => image.entries[0].extents[0].pages = u64::MAX,
             _ => image.entries[1].id = image.entries[0].id,
         }
-        let payload = ic_wire::encode(&image, ic_wire::Encoding::Payload, budget.wire).unwrap();
-        let bytes = [FRAME, &payload].concat();
+        let bytes = format::encode(&image, budget.directory_bytes).unwrap();
         assert!(Directory::decode(&bytes, budget, 1).is_err());
     }
     let bytes = d.encode().unwrap();
@@ -116,14 +115,26 @@ fn recovery_rejects_overlap_duplicate_keys_bounds_and_bad_wire() {
         Directory::decode(
             &bytes,
             StorageConfig {
-                wire: ic_wire::Limits {
-                    bytes: 8,
-                    ..budget.wire
-                },
+                directory_bytes: 8,
                 ..budget
             },
             1
         )
         .is_err()
     );
+}
+
+#[test]
+fn v2_fixture_reopens_and_reencodes_exactly() {
+    // Generation 7, next id 3, next page 4, metadata at page 1.
+    // Entry 2 owns app.rows.v1 and two pages starting at page 2.
+    let bytes = b"ICDIRS02\x07\0\0\0\0\0\0\0\x03\0\0\0\0\0\0\0\x04\0\0\0\0\0\0\0\
+                  \x01\0\0\0\0\0\0\0\x01\0\0\0\0\0\0\0\x01\0\0\0\0\0\0\0\
+                  \x01\0\0\0\0\0\0\0\x02\0\0\0\0\0\0\0\x0b\0\0\0\0\0\0\0app.rows.v1\
+                  \x01\0\0\0\0\0\0\0\x02\0\0\0\0\0\0\0\x02\0\0\0\0\0\0\0";
+    let directory = Directory::decode(bytes, StorageConfig::default(), 1).unwrap();
+    let id = directory.by_key[&StableKey::parse("app.rows.v1").unwrap()];
+    assert_eq!(id.get(), 2);
+    assert_eq!(directory.page(id, 1), Some(3));
+    assert_eq!(directory.encode().unwrap(), bytes);
 }

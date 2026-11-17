@@ -201,15 +201,8 @@ fn foreign_backing_stale_candidates_and_metadata_aliases_refuse() {
         start: root.start,
         pages: 1,
     });
-    let mut bytes = super::super::FRAME.to_vec();
-    bytes.extend(
-        ic_wire::encode(
-            &image,
-            ic_wire::Encoding::Payload,
-            StorageConfig::default().wire,
-        )
-        .unwrap(),
-    );
+    let bytes =
+        super::super::format::encode(&image, StorageConfig::default().directory_bytes).unwrap();
     root.length = bytes.len() as u64;
     root.digest = digest(&bytes);
     memory.write(root.start * PAGE, &bytes);
@@ -245,7 +238,7 @@ fn empty_growth_refusal_and_commit_budgets_have_no_writes() {
 }
 
 #[test]
-fn commit_checks_receiving_allocation_and_wire_limits_before_backing_mutation() {
+fn commit_checks_receiving_allocation_and_byte_limits_before_backing_mutation() {
     let memory = Observed::default();
     let source = Store::create(memory.clone(), StorageConfig::default()).unwrap();
     let root = Root::decode(&source.root).unwrap();
@@ -255,10 +248,7 @@ fn commit_checks_receiving_allocation_and_wire_limits_before_backing_mutation() 
             ..StorageConfig::default()
         },
         StorageConfig {
-            wire: ic_wire::Limits {
-                bytes: usize::try_from(root.length).unwrap(),
-                ..StorageConfig::default().wire
-            },
+            directory_bytes: usize::try_from(root.length).unwrap(),
             ..StorageConfig::default()
         },
     ] {
@@ -266,10 +256,7 @@ fn commit_checks_receiving_allocation_and_wire_limits_before_backing_mutation() 
         let before = memory.bytes.borrow().clone();
         let effects = (memory.grows.get(), memory.writes.get());
         let candidate = source.prepare(vec![key(0), key(1)], &[]).unwrap();
-        assert!(matches!(
-            receiver.commit(candidate),
-            Err(Error::Budget | Error::Wire(_))
-        ));
+        assert!(matches!(receiver.commit(candidate), Err(Error::Budget)));
         assert_eq!(*memory.bytes.borrow(), before);
         assert_eq!((memory.grows.get(), memory.writes.get()), effects);
         assert_eq!(receiver.directory.image, source.directory.image);

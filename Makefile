@@ -38,7 +38,7 @@ deps-check: toko-tooling-check deps-pins deps-boundaries
 deps-pins:
 	+bash "$(TOKO_TOOLING_ROOT)/scripts/ci/check-dependency-pins.sh" --consumer "$(CURDIR)" --cargo-inheritance
 deps-boundaries:
-	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)" --package ic-storage --target wasm32-unknown-unknown --require ic-stable-structures=1 --require ic-platform-runtime=1 --forbid ic-memory --forbid ic-storage-derive --forbid ic-storage-m0 --forbid toko-tooling
+	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)" --package ic-storage --target wasm32-unknown-unknown --require ic-stable-structures=1 --require ic-platform-runtime=1 --forbid ic-wire --forbid ic-memory --forbid ic-storage-derive --forbid ic-storage-m0 --forbid toko-tooling
 
 storage-build:
 	+RUSTFLAGS='-C link-arg=-zstack-size=1048576' cargo build $(QUAL) -p storage-canister --target wasm32-unknown-unknown --release

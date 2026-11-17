@@ -9,7 +9,7 @@ the merged crate. Cell-envelope validation follows the corresponding ic-memory
 0.63.0 implementation. Cached registry archives retain their source identities.
 
 Changes here reconnect upstream Memory/Storable, adopt current Platform raw calls
-and Wire encoding, give the new directory its own magic, and qualify the combined
+and Storage-owned directory encoding, give the new directory its own magic, and qualify the combined
 runtime. No old custom tree implementation is carried forward.
 The upstream collection dependency remains separately licensed and unmodified.
 
