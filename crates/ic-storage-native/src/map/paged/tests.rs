@@ -19,7 +19,7 @@ fn source(count: usize) -> Map {
     map
 }
 
-fn exported(count: usize) -> (Manifest, Vec<[u8; PAGE_BYTES]>) {
+pub(super) fn exported(count: usize) -> (Manifest, Vec<[u8; PAGE_BYTES]>) {
     let map = source(count);
     let mut pages = Vec::new();
     let mut next = count.div_ceil(PAGE_RECORDS);

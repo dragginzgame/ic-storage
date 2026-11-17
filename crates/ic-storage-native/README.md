@@ -94,9 +94,11 @@ the whole checkpoint and is not a chunked or resumable validator.
 `Map::export_pages` and `map::paged::Manifest` provide a separate byte-defined
 sequential page format with at most 64 records per verified page. The
 [page contract and governed host evidence](../../docs/design/paged-map-checkpoint.md)
-cover the hash chain, reverse export order and failure rules. Export still sorts
-the complete source, and the reader has no durable cross-message cursor. Current
-installed map jobs do not yet use this format.
+cover the hash chain, reverse export order and failure rules. The reader can
+checkpoint/resume a 144-byte verifier continuation under trusted custody. The
+governed host adapter binds it to job progress and native-prefix fingerprints;
+this is not authentication of a caller-supplied cursor. Export still sorts the
+complete source, and installed map jobs do not yet use this format.
 
 Run `make native-core-test` for behavior, compile-fail and host/Wasm lint checks.
 Run `make native-map-firehose` for one million live keys, 256 million mixed

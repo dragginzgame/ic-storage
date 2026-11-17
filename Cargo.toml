@@ -8,13 +8,13 @@ members = [
 exclude = ["qualification"]
 
 [workspace.package]
-version = "0.75.3"
+version = "0.75.4"
 edition = "2024"
 rust-version = "1.100.0"
 license-file = "LICENSE.md"
 
 [workspace.dependencies]
-ic-storage-native-derive = { path = "crates/ic-storage-native-derive", version = "0.75.3" }
+ic-storage-native-derive = { path = "crates/ic-storage-native-derive", version = "0.75.4" }
 proc-macro2 = "1.0.107"
 quote = "1.0.47"
 sha2 = { version = "0.11.1", default-features = false }

@@ -1,5 +1,5 @@
 //! Sequential portable pages committed by a manifest and a forward hash chain.
-//! This codec owns bytes and admission, not durable cursors or publication.
+//! This codec owns bytes and admission, not continuation custody or publication.
 
 use alloc::vec::Vec;
 use core::alloc::Allocator;
@@ -8,7 +8,7 @@ use sha2::{Digest, Sha256};
 use super::{Error, ExportError, Map};
 
 mod reader;
-pub use reader::Reader;
+pub use reader::{CONTINUATION_BYTES, Reader};
 
 /// Maximum logical records returned by one successful page read.
 pub const PAGE_RECORDS: usize = 64;
@@ -195,5 +195,7 @@ fn word(bytes: &[u8]) -> u64 {
     u64::from_le_bytes(core::array::from_fn(|i| bytes[i]))
 }
 
+#[cfg(test)]
+mod continuation_tests;
 #[cfg(test)]
 mod tests;

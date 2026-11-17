@@ -722,8 +722,16 @@ This does not yet bound checkpoint reads or validation independently of total st
 The [sequential page codec](design/paged-map-checkpoint.md) separately qualifies
 a byte-defined manifest/hash chain and fixed-size page reads through governed
 host handles. It is a portable storage prerequisite, not a second retained
-collection architecture. Current installed jobs have not adopted it: durable
-cursor binding, two-root publication and native-prefix costs remain to be qualified.
+collection architecture. The host adapter binds both paged roots to one fixed
+pair manifest and uses the shared job state machine for persisted page offsets,
+exact retries and explicit restart. A byte-defined verifier continuation binds
+the exact job metadata to both reader positions and private native fingerprints.
+Each batch reads only its new checkpoint pages while still scanning native maps
+to check those fingerprints. Current installed jobs have not adopted it: atomic
+continuation/progress/native publication, installed restart and bounded native
+prefix-validation costs remain to be qualified. The bounded installed job now
+verifies newly applied native records before publishing either root, providing
+the post-write boundary required for later continuation capture.
 
 The [governed job](../qualification/ic-storage-native-feasibility/migration-job.md)
 adds controller authority, durable epochs, consumption, pre-cutover cancellation

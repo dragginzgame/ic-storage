@@ -7,16 +7,19 @@ use core::marker::PhantomData;
 use sha2::{Digest, Sha256};
 
 mod payload;
-pub use payload::{MapPair, Payload, RecordVector, ScalarVector};
+pub use payload::{MapPair, PagedMapPair, Payload, RecordVector, ScalarVector};
 /// Scalar counter/u64-vector job under the original envelope.
 pub type Job = MigrationJob<ScalarVector>;
 /// V3 record-vector job under its distinct envelope.
 pub type RecordJob = MigrationJob<RecordVector>;
 /// Two-map job under its own envelope and allocation-domain contract.
 pub type MapJob = MigrationJob<MapPair>;
+/// Two paged map roots; progress counts pages, not records. Host-qualified only.
+pub type PagedMapJob = MigrationJob<PagedMapPair>;
 
 mod staged;
 pub use staged::Batch;
+pub mod paged_continuation;
 
 const HEADER: usize = 64;
 const OVERHEAD: usize = HEADER + 8 + 32;
@@ -106,7 +109,7 @@ impl<P: Payload> MigrationJob<P> {
         })
     }
 
-    // One transition owner for both concrete payload encoders. Encode only after
+    // One transition owner for the concrete payload encoders. Encode only after
     // phase/domain/epoch admission, preserving the original refusal ordering.
     fn export_payload(
         &self,
@@ -159,6 +162,8 @@ impl<P: Payload> MigrationJob<P> {
     /// Admit a sealed source for frozen resumption without changing the job.
     /// The caller must separately compare these logical values with its retained
     /// frozen source; matching job metadata alone does not establish continuity.
+    /// A paged payload returns only a manifest: the adapter must also read and
+    /// verify its pages before comparing records with the frozen source.
     pub fn frozen(&self, source: u64, target: u64, epoch: u64) -> Result<P::Decoded, Error> {
         if self.phase != Phase::Sealed {
             return Err(Error::State);
@@ -174,6 +179,7 @@ impl<P: Payload> MigrationJob<P> {
 
     /// Admit and consume exactly one sealed job in transient state. The adapter
     /// publishes this record atomically with successful native reconstruction.
+    /// For paged maps, verifying all referenced pages is also the adapter's duty.
     pub fn consume(&mut self, target: u64, source: u64, epoch: u64) -> Result<P::Decoded, Error> {
         let decoded = self.frozen(source, target, epoch)?;
         self.phase = Phase::Consumed;
@@ -254,8 +260,9 @@ impl<P: Payload> MigrationJob<P> {
     /// Validate separately stored metadata and checkpoint bytes without joining
     /// them into a temporary envelope allocation.
     /// This is the same envelope admission as `decode`, including cross-part
-    /// integrity and nested validation. It still reads the complete checkpoint
-    /// and allocates the validated job's owned payload and decoded candidates.
+    /// integrity and nested validation. It reads the complete stored payload
+    /// and allocates its owned copy and decoded values. A paged payload contains
+    /// only a manifest; admitting it does not validate the referenced page data.
     pub fn decode_split(metadata: &[u8], checkpoint: &[u8]) -> Result<Self, Error> {
         Self::decode_split_parts(metadata, checkpoint, false).map(|(job, _)| job)
     }
@@ -343,7 +350,8 @@ impl<P: Payload> MigrationJob<P> {
             }
             Some(P::decode(payload, epoch)?)
         };
-        let count = decoded.as_ref().map_or(0, |value| P::len(value) as u32);
+        let count =
+            u32::try_from(decoded.as_ref().map_or(0, P::len)).map_err(|_| Error::Framing)?;
         let progress = staged::Progress::decode(header, phase, count)?;
         // Keep candidates only for the combined load-and-batch operation. Plain
         // reads still drop them before copying the job's owned checkpoint.
@@ -422,8 +430,37 @@ impl MapJob {
     }
 }
 
+impl PagedMapJob {
+    /// Bind an already stored complete pair to the next job epoch.
+    /// The adapter must authorize and freeze the source, write both page chains
+    /// before sealing, and publish all parts atomically. This validates manifest
+    /// bytes, not page contents or native custody. Import adapters must verify
+    /// pages before committing progress and keep both target roots private until
+    /// completion. The shared job does not supply those storage transactions.
+    pub fn seal(
+        &self,
+        source: u64,
+        target: u64,
+        epoch: u64,
+        manifest: &checkpoint::maps::paged::Manifest,
+    ) -> Result<Self, Error> {
+        self.export_payload(source, target, epoch, || {
+            let bytes = manifest.encode();
+            PagedMapPair::decode(&bytes, epoch)?;
+            let mut payload = Vec::new();
+            payload
+                .try_reserve_exact(bytes.len())
+                .map_err(|_| Error::Allocation)?;
+            payload.extend_from_slice(&bytes);
+            Ok(payload)
+        })
+    }
+}
+
 #[cfg(test)]
 mod map_tests;
+#[cfg(test)]
+mod paged_tests;
 #[cfg(test)]
 mod record_tests;
 #[cfg(test)]

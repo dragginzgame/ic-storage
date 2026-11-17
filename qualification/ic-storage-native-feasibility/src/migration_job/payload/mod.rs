@@ -20,9 +20,10 @@ pub trait Payload: sealed::Sealed {
     const DOMAINS: [u64; 2];
     /// Validated transient logical values; never retained owners.
     type Decoded;
-    /// Validate the complete checkpoint and epoch.
+    /// Validate the payload and epoch. A paged payload admits only its manifest;
+    /// the adapter separately verifies referenced pages before committing progress.
     fn decode(bytes: &[u8], epoch: u64) -> Result<Self::Decoded, Error>;
-    /// Number of elements advanced by staged import.
+    /// Number of import units (records, or pages for the paged profile).
     fn len(decoded: &Self::Decoded) -> usize;
 }
 
@@ -35,9 +36,13 @@ pub struct RecordVector;
 /// Two independently identified, bounded native maps.
 #[derive(Debug, PartialEq, Eq)]
 pub struct MapPair;
+/// Two page chains committed by a fixed pair manifest. No page data is cached.
+#[derive(Debug, PartialEq, Eq)]
+pub struct PagedMapPair;
 impl sealed::Sealed for ScalarVector {}
 impl sealed::Sealed for RecordVector {}
 impl sealed::Sealed for MapPair {}
+impl sealed::Sealed for PagedMapPair {}
 
 impl Payload for ScalarVector {
     const MAGIC: &'static [u8; 8] = b"ICJOB001";
@@ -78,5 +83,23 @@ impl Payload for MapPair {
     }
     fn len(decoded: &Self::Decoded) -> usize {
         decoded.iter().map(Vec::len).sum()
+    }
+}
+
+impl Payload for PagedMapPair {
+    const MAGIC: &'static [u8; 8] = b"ICJPG001";
+    const MAX_BYTES: usize = checkpoint::maps::paged::MANIFEST_BYTES;
+    const DOMAINS: [u64; 2] = MapPair::DOMAINS;
+    type Decoded = checkpoint::maps::paged::Manifest;
+    fn decode(bytes: &[u8], epoch: u64) -> Result<Self::Decoded, Error> {
+        let manifest = checkpoint::maps::paged::Manifest::decode(bytes, epoch, usize::MAX)
+            .map_err(Error::MapCheckpoint)?;
+        // The shared durable progress format has u32 page offsets. Never truncate
+        // a host-sized count when decoding on either host or Wasm.
+        u32::try_from(manifest.page_count()).map_err(|_| Error::Framing)?;
+        Ok(manifest)
+    }
+    fn len(decoded: &Self::Decoded) -> usize {
+        decoded.page_count()
     }
 }

@@ -1,0 +1,131 @@
+//! Governed host continuation bound to job metadata and private native prefixes.
+//! Checksums detect corruption, not replacement by the trusted storage authority.
+use super::{Error, PagedMapJob, Phase};
+use ic_storage_native::map::{
+    Map,
+    paged::{CONTINUATION_BYTES, PAGE_RECORDS, Reader},
+};
+use sha2::{Digest, Sha256};
+
+/// Header, exact job metadata, two reader cursors, native fingerprints and seal.
+pub const BYTES: usize = 512;
+const CURSORS: usize = 120;
+const PREFIXES: usize = CURSORS + 2 * CONTINUATION_BYTES;
+const SEAL: usize = PREFIXES + 64;
+
+// The fingerprint deliberately includes current native bucket iteration order.
+// Compatible custody retains that order. Reconstruction must explicitly restart;
+// logical equality alone does not authorize reusing another target's continuation.
+fn fingerprint(map: &Map) -> Result<[u8; 32], Error> {
+    let mut digest = Sha256::new();
+    digest.update(b"NKPNAT01");
+    map.export(0, |bytes| {
+        digest.update(bytes);
+        Ok::<_, core::convert::Infallible>(())
+    })
+    .map_err(|error| match error {
+        ic_storage_native::map::ExportError::Map(error) => Error::MapCheckpoint(error),
+        ic_storage_native::map::ExportError::Sink(never) => match never {},
+    })?;
+    Ok(digest.finalize().into())
+}
+
+fn readers(bytes: &[u8], job: &PagedMapJob, maps: Option<&[Map; 2]>) -> Result<[Reader; 2], Error> {
+    if !matches!(job.phase, Phase::Importing | Phase::Consumed) {
+        return Err(Error::State);
+    }
+    let progress = job.progress.ok_or(Error::State)?;
+    let manifest = <super::PagedMapPair as super::Payload>::decode(&job.checkpoint, job.epoch)?;
+    let mut remaining = progress.next as usize;
+    let mut result = [manifest.roots()[0].reader(), manifest.roots()[1].reader()];
+    for (root, reader) in result.iter_mut().enumerate() {
+        let start = CURSORS + root * CONTINUATION_BYTES;
+        *reader = Reader::resume(
+            &manifest.roots()[root],
+            &bytes[start..start + CONTINUATION_BYTES],
+        )
+        .map_err(Error::MapCheckpoint)?;
+        let count = remaining.min(manifest.roots()[root].page_count());
+        remaining -= count;
+        if reader
+            .next_page()
+            .unwrap_or(manifest.roots()[root].page_count())
+            != count
+        {
+            return Err(Error::State);
+        }
+        if let Some(maps) = maps {
+            let records = count
+                .checked_mul(PAGE_RECORDS)
+                .ok_or(Error::Framing)?
+                .min(manifest.roots()[root].len());
+            if maps[root].len().map_err(Error::MapCheckpoint)? != records {
+                return Err(Error::State);
+            }
+        }
+    }
+    if remaining != 0 {
+        return Err(Error::State);
+    }
+    Ok(result)
+}
+
+/// Capture cursors only after the authorized batch's native writes have succeeded.
+/// The adapter must atomically publish this record, exact job metadata and native
+/// changes under exclusive custody. This function checks binding/counts, not the
+/// semantic correctness of caller-applied writes. No IC transaction is supplied.
+pub fn encode(
+    job: &PagedMapJob,
+    cursors: &[Reader; 2],
+    maps: &[Map; 2],
+) -> Result<[u8; BYTES], Error> {
+    let mut bytes = [0; BYTES];
+    bytes[..8].copy_from_slice(b"NKPCNT01");
+    bytes[8..16].copy_from_slice(&1u64.to_le_bytes());
+    bytes[16..120].copy_from_slice(&job.encode_split()?.0);
+    for (root, cursor) in cursors.iter().enumerate() {
+        let start = CURSORS + root * CONTINUATION_BYTES;
+        bytes[start..start + CONTINUATION_BYTES].copy_from_slice(&cursor.checkpoint());
+        let start = PREFIXES + root * 32;
+        bytes[start..start + 32].copy_from_slice(&fingerprint(&maps[root])?);
+    }
+    readers(&bytes, job, Some(maps))?;
+    bytes[SEAL..SEAL + 8].copy_from_slice(b"CONTDONE");
+    let digest = Sha256::digest(&bytes[..SEAL + 8]);
+    bytes[SEAL + 8..].copy_from_slice(&digest);
+    Ok(bytes)
+}
+
+/// Reopen trusted storage without rereading consumed checkpoint pages. Refuses
+/// corrupt/mixed/stale records and changed private native prefixes. Native scans
+/// are O(prefix capacity), with constant hash scratch; this is not bounded CPU.
+/// A completed exact retry may preserve later native writes, so consumed jobs
+/// validate cursor binding but deliberately do not compare their old fingerprints.
+pub fn decode(bytes: &[u8], job: &PagedMapJob, maps: &[Map; 2]) -> Result<[Reader; 2], Error> {
+    if bytes.len() != BYTES
+        || &bytes[..8] != b"NKPCNT01"
+        || bytes[8..16] != 1u64.to_le_bytes()
+        || &bytes[SEAL..SEAL + 8] != b"CONTDONE"
+    {
+        return Err(Error::Framing);
+    }
+    if Sha256::digest(&bytes[..SEAL + 8]).as_slice() != &bytes[SEAL + 8..] {
+        return Err(Error::Integrity);
+    }
+    if bytes[16..120] != job.encode_split()?.0 {
+        return Err(Error::State);
+    }
+    let cursors = readers(bytes, job, (job.phase == Phase::Importing).then_some(maps))?;
+    if job.phase == Phase::Importing {
+        for (root, map) in maps.iter().enumerate() {
+            let start = PREFIXES + root * 32;
+            if bytes[start..start + 32] != fingerprint(map)? {
+                return Err(Error::Integrity);
+            }
+        }
+    }
+    Ok(cursors)
+}
+
+#[cfg(test)]
+mod tests;

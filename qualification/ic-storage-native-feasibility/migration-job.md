@@ -28,6 +28,15 @@ token or cached candidates; each request, including a retry, validates anew.
 Ordinary reads discard candidates before copying the owned checkpoint. Batch
 admission retains them until the adapter validates the prefix and stages writes.
 
+The [paged-map host profile](../../docs/design/paged-map-checkpoint.md#durable-page-offsets-on-the-host)
+now reuses this same state machine with a fixed pair manifest and progress in
+pages. Its payload admission validates only that manifest; the host adapter
+binds verifier continuations and native fingerprints to the exact job metadata.
+It checks those fingerprints before reading only the new pages in each batch.
+This supplies governed host reopening/retry/restart evidence, not an installed
+paged job or constant-cost prefix validation. Existing installed profiles keep
+their present payloads and limits until that integration is qualified.
+
 ## Contract and bytes
 
 The allocation-domain identity is the native provider's actual base, obtained
@@ -282,8 +291,8 @@ formatting passed. Earlier cohorts retain their original scope and identities.
 
 `make native-record-job-test` qualifies the same controller/epoch/phase protocol
 for at most sixteen V3 records (`u32 counter`, `u64 ceiling`, counter ≤ ceiling).
-`MigrationJob<P>` has exactly two sealed payload implementations; scalar `Job`
-and `RecordJob` share transition, progress, envelope and retry validation. The
+`MigrationJob<P>` has a closed payload set; scalar `Job`, `RecordJob`, `MapJob`
+and the host-only `PagedMapJob` share transition, progress, envelope and retry validation. The
 installed `native_job` adapter likewise owns controller checks and lifecycle
 ordering once. Only logical-field extraction, encoding and bounded reconstruction
 are payload-specific. This is qualification code, not a general public job API.

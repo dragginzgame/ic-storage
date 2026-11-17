@@ -3,6 +3,8 @@ use alloc::vec::Vec;
 use ic_storage_native::map::{Error, Map};
 use sha2::{Digest, Sha256};
 
+pub mod paged;
+
 /// Maximum records in each independently identified map.
 pub const LIMIT: usize = 64;
 /// Complete envelope, two maximum product checkpoints, and outer digest.

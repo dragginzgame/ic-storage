@@ -149,6 +149,7 @@ async fn batches_validate_both_prefixes_and_retry_without_replaying_new_writes()
                 args(1, A, 1),
                 args(1, A, 2),
                 args(1, A, 3),
+                args(1, A, 5),
             ] {
                 refused_upgrade(&pic, id, &artifacts.stage, arguments, false).await;
             }
@@ -191,7 +192,7 @@ async fn batches_validate_both_prefixes_and_retry_without_replaying_new_writes()
                 ] {
                     refused_update(&pic, id, "import_batch", arguments).await;
                 }
-                for fault in 1..=4 {
+                for fault in 1..=7 {
                     refused_update(
                         &pic,
                         id,
@@ -312,6 +313,7 @@ async fn restart_rebuilds_only_unfinished_imports_from_the_independent_checkpoin
             args(1, A, 1),
             args(1, A, 2),
             args(1, A, 3),
+            args(1, A, 5),
         ] {
             let native = query(&pic, id, "observe").await;
             let stable = pic.get_stable_memory(id).await;

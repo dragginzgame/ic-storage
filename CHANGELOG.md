@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.75.4] - 2026-11-17
+
+### ➕ Added
+
+- Bind two paged map roots to one epoch and a fixed 328-byte pair manifest.
+  Export returns the manifest only after both page chains succeed; recovery
+  keeps both candidates private until all pages validate. Current installed
+  jobs retain their existing checkpoint format and limits.
+- Reuse the shared migration job for paged-map progress, exact retries and
+  explicit unfinished-target restart. Governed host batches keep the manifest
+  unchanged and write nothing on identical retries. Installed integration remains
+  pending.
+- Persist byte-defined verifier continuations bound to the job and private native
+  prefixes. Recovery reads only newly requested checkpoint pages; progress and
+  continuation writes total 616 bytes per batch. Native fingerprint scans still
+  grow with the imported maps, so total recovery CPU is not yet bounded.
+- Verify installed map-import records after native writes and before publishing
+  either root. Staged start/restart and new batches require a private verification
+  acknowledgment; exact retries continue to preserve later application writes.
+
+### 🔧 Changed
+
+- Validate the qualification workspace with Runtime 0.23.15 and Host Artifacts
+  0.80.3, retaining Testkit 0.107.4 and the prepared 0.106.0 test launcher.
+
+### 🧪 Testing
+
+- Extend the governed page fixture to empty, asymmetric and 4,608-record pairs.
+  Opening reads 1,344 bytes and selected pages still read 1,104 bytes. Verify
+  second-root export failure, cross-root substitution, late corruption, unknown
+  locators and independent pair golden bytes without replacement writes.
+- Exercise page-job reopening, root-boundary batches, damaged native prefixes,
+  late-page corruption and completed retries after application writes. Add an
+  independently encoded consumed-job golden and refuse oversized page offsets.
+- Qualify continuation corruption, stale/mixed publication, native fingerprint
+  mismatches and independent golden bytes. Measure fixed page reads after storage
+  reopening, zero page reads on retries, and detection of damage to previously
+  consumed pages when explicit restart rereads them.
+- Exercise installed rollback after post-apply verification and injected native
+  value corruption, with artifact checks for apply/verify/publish/reply ordering.
+
 ## [0.75.3] - 2026-11-17
 
 ### ➕ Added

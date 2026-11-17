@@ -740,9 +740,9 @@ dependencies = [
 
 [[package]]
 name = "ic-host-artifacts"
-version = "0.80.2"
+version = "0.80.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8645c876c9f26469c46e0ec764b639b192d2f2336d71815a2fd11d4c86b6f1e"
+checksum = "54cd6b9013ecab7db68af690e5c77157289ec007faec965e1d8b1ad1d5f6a43f"
 dependencies = [
  "sha2 0.11.1",
  "thiserror 2.0.18",
@@ -770,9 +770,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform-runtime"
-version = "0.23.14"
+version = "0.23.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6f91abeacf7b1602e67b49391ea1e66d1c8f7e45779de79a5835b9c8dac3afb8"
+checksum = "654fbae9abca1d9f1ccf1aa7835ba1303b08bc828706f12c0e8a45446a206410"
 
 [[package]]
 name = "ic-storage"
@@ -787,7 +787,7 @@ dependencies = [
 
 [[package]]
 name = "ic-storage"
-version = "0.75.3"
+version = "0.75.4"
 dependencies = [
  "sha2 0.11.1",
 ]
@@ -796,7 +796,7 @@ dependencies = [
 name = "ic-storage-checkpoint-provider-probe"
 version = "0.1.0"
 dependencies = [
- "ic-platform-runtime 0.23.14",
+ "ic-platform-runtime 0.23.15",
  "ic-storage 0.74.1",
  "ic-storage-native",
  "ic-storage-native-feasibility",
@@ -805,7 +805,7 @@ dependencies = [
 
 [[package]]
 name = "ic-storage-native"
-version = "0.75.3"
+version = "0.75.4"
 dependencies = [
  "ic-storage-native-derive",
  "sha2 0.11.1",
@@ -813,7 +813,7 @@ dependencies = [
 
 [[package]]
 name = "ic-storage-native-derive"
-version = "0.75.3"
+version = "0.75.4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -846,8 +846,8 @@ dependencies = [
 name = "ic-storage-rust-startup-probe"
 version = "0.1.0"
 dependencies = [
- "ic-platform-runtime 0.23.14",
- "ic-storage 0.75.3",
+ "ic-platform-runtime 0.23.15",
+ "ic-storage 0.75.4",
  "ic-storage-simple-benchmarks",
  "toko-tooling",
 ]
@@ -857,7 +857,7 @@ name = "ic-storage-simple-benchmarks"
 version = "0.1.0"
 dependencies = [
  "ic-host-artifacts",
- "ic-platform-runtime 0.23.14",
+ "ic-platform-runtime 0.23.15",
  "ic-storage 0.74.1",
  "ic-storage-retention-probe",
  "ic-testkit",

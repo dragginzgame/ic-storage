@@ -117,9 +117,26 @@ every expected key/value against the independent checkpoint. A batch applies
 The adapter first writes the new durable cursor, then stages only the next
 records through scalar callbacks. After Rust returns, the wrapper temporarily
 admits native mutation, inserts the batch, verifies both resulting counts and
-returns to private settlement unless complete. Reply happens after this wrapper.
+returns to private settlement, including for the final batch. Once every native
+Rust owner has ended, a private checkpoint entry reopens the job and compares
+the actual native counts and every key/value with its newly committed prefix.
+The shared job owner admits staged Importing or Consumed progress at the exact
+epoch/domains; Ready, Sealed, Cancelled and atomic-only Consumed jobs cannot use
+this post-apply path. The verifier acknowledges completion through a scalar WAT
+callback, which checks that the native publication flag agrees with the job.
+Only after that acknowledgment may the wrapper publish active custody and reply.
 The cursor, native allocations and settlement commit in one IC message. Failure
 rolls back that message while preserving earlier committed batches.
+
+Staged start and explicit fresh-target restart use the same post-apply boundary
+to verify their new empty roots. Native apply, checkpoint verification and native
+publication are sequential frames, never reentrant calls between Rust domains.
+All sixteen map-job scalar callbacks retain a closed WAT-only call graph. The
+new commit callbacks are private after composition, and artifact checks require
+verification between application and publication in both upgrade and batch paths.
+The transient acknowledgment is not persisted Rust state or a new native format.
+This is the required post-write location for future paged continuation capture;
+the installed profile still uses `NKPAIR01`, not the paged payload.
 
 Only the exact latest `(start, requested_limit)` retries. An unfinished retry
 validates the already committed prefix and makes no new writes. A completed
@@ -143,14 +160,19 @@ Export/cancel/frozen resume use three little-endian u64 words
 and restart use `(epoch, source_domain, fault)`. `import_batch` takes five:
 `(epoch, source_domain, start, limit, fault)`. Zero fault is normal operation.
 Start/restart faults 1–3 trap after stable publication, native initialization and
-private settlement. Batch faults 1–4 trap after the progress write, during scalar
-staging, during actual insertion and after native prefix/final publication.
+private settlement; fault 5 traps after post-apply verification. Batch faults 1–4
+trap after the progress write, during scalar staging, during actual insertion
+and after native insertion before verification. Batch fault 5 traps after
+verification; fault 6 changes an applied native value so verification must refuse.
+Fault 7 changes the native completion flag while retaining valid records; the
+job-owned completion decision must reject that mismatch before publication.
 Faults apply to new batches; retry acknowledges existing progress without writing.
 Export fault 1 traps after complete job publication; fault 2 traps after the
 checkpoint cell write and before the metadata write.
 
 Export is still one bounded transaction. Each batch/resume decodes the whole
-checkpoint and validates the whole committed prefix; sorting, admission scans
+checkpoint and validates the whole committed prefix; a new batch additionally
+decodes and checks its resulting prefix after native application. Sorting, admission scans
 and transient-domain clearing are fixture costs. Native scalar copying uses the
 [sequential reader](native-map-recovery.md#runtime-domains-and-sequencing), bounded
 by the two bucket counts per read, including private-prefix validation. It does
@@ -164,6 +186,29 @@ whole-canister snapshot rollback protection or production recovery authority is
 claimed. Consumer cutovers require their own authorization and data contracts.
 
 ## Qualification evidence
+
+The v0.75.4 delivery candidate passed the repository CI gate and strict lint on
+17 November 2026. After the final Host Artifacts 0.80.3 lockfile update, affected
+dependency, retention and benchmark checks passed again. Final installed cohorts
+under `target/evidence/` passed with Runtime 0.23.15 and Testkit 0.107.4:
+`native-map-provider/attempt.1tUWpo` (three native artifact checks, one ordering
+check and three installed cases, 11.59 seconds for the job group),
+`provider-link/attempt.zox0Zp` (19 artifact checks and seven scalar-job cases,
+40.83 seconds), and `provider-link/attempt.yRIfoI` (19 artifact checks and five
+record-job cases, 44.52 seconds). The separate paged recovery profile remains
+host-qualified; installed jobs retain their existing payloads and limits.
+
+The 0.75.4 development post-apply boundary passed on 17 November 2026 in
+`target/evidence/native-map-provider/attempt.1sGans`: three native artifact
+checks, one lifecycle-ordering artifact check, and all three installed map-job
+cases (11.60 seconds for the job group). The new fault cases cover post-verification
+traps during staged start/restart and batches, corruption after real native
+insertion, and mismatched completion flags on partial and completing batches.
+Refusals preserve complete native
+observations and stable bytes; failed upgrades also preserve the old executable.
+Exact completed retries preserve subsequent application mutations. Twenty-seven
+shared host job tests, four governed-cell tests and focused host/Wasm Clippy
+passed with Runtime 0.23.15, Testkit 0.107.4 and the prepared 0.106.0 launcher.
 
 The v0.75.3 delivery passed the repository CI gate on 17 November 2026 after
 the module-directory cleanup. Final installed artifacts passed under
@@ -279,6 +324,6 @@ also passed. These paths are beneath `target/evidence/`.
 Earlier atomic-only format-6 evidence remains in `attempt.RCttsN` (4.62 seconds),
 with scalar regression `provider-link/attempt.whF5TW` and record regression
 `provider-link/attempt.x21bYQ`; those historical results do not establish staged
-map behavior. Current fixtures use Rust 1.100.0, Toko 0.44.11, Runtime 0.23.14,
+map behavior. Current fixtures use Rust 1.100.0, Toko 0.44.11, Runtime 0.23.15,
 Testkit 0.107.4 and the separately prepared 0.106.0 launcher. The next integration
 step is recovery of larger grown pools with bounded storage/validation costs.

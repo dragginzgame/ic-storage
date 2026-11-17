@@ -5,6 +5,38 @@ const A: u64 = 131072;
 const B: u64 = 163840;
 
 #[test]
+fn post_apply_prefix_requires_staged_state_and_exact_binding() {
+    let ready = MapJob::initial(A).unwrap();
+    assert!(ready.staged_prefix(A, A, 0).is_err());
+    let mut job = ready.export(A, B, 1, &maps()).unwrap();
+    assert!(job.staged_prefix(B, A, 1).is_err());
+    job.cancel(A, B, 1).unwrap();
+    assert!(job.staged_prefix(B, A, 1).is_err());
+    job = ready.export(A, B, 1, &maps()).unwrap();
+    job.consume(B, A, 1).unwrap();
+    assert!(job.staged_prefix(B, A, 1).is_err()); // atomic consumption has no cursor
+    job = ready.export(A, B, 1, &maps()).unwrap();
+    job.begin_import(B, A, 1).unwrap();
+    assert_eq!(job.staged_prefix(B, A, 1).unwrap().1, 0);
+    job.batch(B, A, 1, 0, 64).unwrap();
+    let before = job.encode().unwrap();
+    let (values, prefix, complete) = job.staged_prefix(B, A, 1).unwrap();
+    assert_eq!(
+        (values[0].len(), values[1].len(), prefix, complete),
+        (64, 64, 64, false)
+    );
+    assert!(job.staged_prefix(A, A, 1).is_err());
+    assert!(job.staged_prefix(B, B, 1).is_err());
+    assert!(job.staged_prefix(B, A, 2).is_err());
+    assert_eq!(job.encode().unwrap(), before);
+    job.batch(B, A, 1, 64, 64).unwrap();
+    let reopened = MapJob::decode(&job.encode().unwrap()).unwrap();
+    let (_, prefix, complete) = reopened.staged_prefix(B, A, 1).unwrap();
+    assert_eq!((prefix, complete), (128, true));
+    assert!(reopened.importing(B, A, 1).is_err());
+}
+
+#[test]
 fn combined_batch_matches_separate_admission_for_states_and_requests() {
     fn compare(job: &MapJob, start: u32, limit: u32, target: u64, epoch: u64) {
         let (metadata, payload) = job.encode_split().unwrap();

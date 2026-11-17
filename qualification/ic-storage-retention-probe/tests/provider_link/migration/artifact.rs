@@ -163,6 +163,8 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
                     "map_stage_prepare",
                     "map_stage_state",
                     "map_stage_damage",
+                    "map_stage_commit_state",
+                    "map_stage_verified",
                     "stage_ready",
                 ]);
             }
@@ -252,6 +254,10 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
                 callbacks.contains(&"domain")
             );
         }
+        assert_eq!(
+            result.exports.contains_key("checkpoint_stage_commit"),
+            callbacks.contains(&"map_stage_commit_state")
+        );
         for name in result.exports.keys() {
             assert!(matches!(
                 name.as_str(),
@@ -273,6 +279,7 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
                     | "checkpoint_stage_restart"
                     | "checkpoint_batch"
                     | "checkpoint_stage_damage"
+                    | "checkpoint_stage_commit"
                     | "checkpoint_convert"
                     | "checkpoint_narrow"
                     | "checkpoint_widen"
@@ -323,7 +330,7 @@ fn inventory(bytes: &[u8], bridge: bool) -> Inventory {
             pending.len(),
             if result.exports.contains_key("ncp_domain") {
                 if result.exports.contains_key("ncp_map_count") {
-                    14
+                    16
                 } else if result.exports.contains_key("ncp_record_value") {
                     17
                 } else {
@@ -693,6 +700,8 @@ pub(crate) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
                     ];
                     if maps {
                         calls.push(ncall("__bridge_stage_apply"));
+                        calls.push(pcall("checkpoint_stage_commit"));
+                        calls.push(ncall("__bridge_stage_commit"));
                     }
                     calls
                 }
@@ -744,6 +753,9 @@ pub(crate) fn combine(native: &[u8], bridge: &[u8], post: Post) -> Vec<u8> {
                 vec![
                     ncall("__bridge_batch_before"),
                     pcall("checkpoint_batch"),
+                    ncall("__bridge_stage_apply"),
+                    pcall("checkpoint_stage_commit"),
+                    ncall("__bridge_stage_commit"),
                     ncall("__bridge_batch_after"),
                 ]
             } else {

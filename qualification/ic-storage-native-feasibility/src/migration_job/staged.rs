@@ -49,7 +49,7 @@ impl Progress {
 /// Bounded prefix transition; the adapter validates the old prefix and publishes
 /// native writes together with the new envelope in a single IC message.
 pub struct Batch<P: Payload = ScalarVector> {
-    /// Logical checkpoint bounded by the selected scalar or record profile.
+    /// Admitted logical payload; for paged maps this is the manifest only.
     pub checkpoint: P::Decoded,
     /// Prefix length before a new batch (or before the acknowledged retry).
     pub start: u32,
@@ -123,8 +123,32 @@ impl<P: Payload> MigrationJob<P> {
         Ok((P::decode(&self.checkpoint, epoch)?, progress.next))
     }
 
-    /// Advance at most 64 elements. Only the exact latest (offset, limit) request
-    /// is retryable; older or changed requests refuse without changing this job.
+    /// Read the staged target prefix, including the final Consumed batch, for
+    /// verification after native writes and before transaction publication.
+    /// This does not replay a batch or authorize replacing later application
+    /// writes. The adapter must enter through its private post-apply boundary.
+    pub fn staged_prefix(
+        &self,
+        target: u64,
+        source: u64,
+        epoch: u64,
+    ) -> Result<(P::Decoded, u32, bool), Error> {
+        self.import_binding(target, source, epoch)?;
+        if !matches!(self.phase, Phase::Importing | Phase::Consumed) {
+            return Err(Error::State);
+        }
+        let progress = self.progress.ok_or(Error::State)?;
+        Ok((
+            P::decode(&self.checkpoint, epoch)?,
+            progress.next,
+            self.phase == Phase::Consumed,
+        ))
+    }
+
+    /// Advance at most 64 import units (pages in the paged profile). Only the
+    /// exact latest (offset, limit) request is retryable; older or changed requests
+    /// refuse without changing this job. A paged adapter must validate the chain
+    /// and native prefix before publishing the returned progress.
     pub fn batch(
         &mut self,
         target: u64,
@@ -180,7 +204,7 @@ impl<P: Payload> MigrationJob<P> {
         start: u32,
         limit: u32,
     ) -> Result<Batch<P>, Error> {
-        let total = P::len(&decoded) as u32;
+        let total = u32::try_from(P::len(&decoded)).map_err(|_| Error::Framing)?;
         let retry = progress.limit != 0 && start == progress.start && limit == progress.limit;
         if !retry && (self.phase != Phase::Importing || start != progress.next) {
             return Err(Error::State);

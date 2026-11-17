@@ -10,6 +10,7 @@ use crate::{
 use ic_storage_retention_probe::artifact::{sha256, sha256_hex};
 use ic_testkit::pocket_ic::{CanisterId, ErrorCode, PocketIcBuilder, nonblocking::PocketIc};
 use std::fs;
+mod commit_tests;
 mod staged;
 const A: u64 = 131072;
 const B: u64 = 163840;

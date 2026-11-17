@@ -1,18 +1,17 @@
 //! Host conformance of the product page codec against governed Storage handles.
-//! This is not an installed job adapter or a durable import cursor.
+//! The child job fixture persists offsets; neither fixture is an installed adapter.
+mod job_tests;
 use ic_storage_legacy::{
     Memory, MemoryBacking, StableKey, VectorMemory,
     adapter::{StableCell, StableVec},
     testing::MeteredMemory,
 };
-use ic_storage_native::map::{
-    Error, Map,
-    paged::{MANIFEST_BYTES, Manifest, PAGE_BYTES},
-};
+use ic_storage_native::map::{Error, Map, paged::PAGE_BYTES};
+use ic_storage_native_feasibility::checkpoint::maps::paged::{self, MANIFEST_BYTES, Manifest};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
-const MANIFEST: &str = "native.checkpoint.paged.map.manifest.v1";
-const PAGES: &str = "native.checkpoint.paged.map.pages.v1";
+const MANIFEST: &str = "native.checkpoint.paged.maps.manifest.v1";
+const PAGES: &str = "native.checkpoint.paged.maps.pages.v1";
 
 struct Store<M: Memory> {
     manifest: StableCell<[u8; MANIFEST_BYTES], M>,
@@ -22,6 +21,10 @@ struct Store<M: Memory> {
 impl<M: MemoryBacking> Store<M> {
     fn open(memory: M, create: bool) -> Self {
         let runtime = super::runtime(memory, &[MANIFEST, PAGES], create);
+        Self::from_runtime(&runtime, create)
+    }
+
+    fn from_runtime(runtime: &ic_storage_legacy::MemoryRuntime<M>, create: bool) -> Self {
         let metadata = runtime
             .open_memory(&StableKey::parse(MANIFEST).unwrap())
             .unwrap();
@@ -43,74 +46,87 @@ impl<M: MemoryBacking> Store<M> {
 }
 
 impl<M: Memory> Store<M> {
-    fn publish(&mut self, source: &Map) {
+    fn publish(&mut self, source: &[Map; 2]) {
         // Fresh storage only. Failed exports remain unsealed, never a fallback
         // for an older checkpoint or authorization to erase an existing one.
         assert!(self.pages.is_empty());
         assert_eq!(self.manifest.get(), &[0; MANIFEST_BYTES]);
-        let manifest = source
-            .export_pages(17, 9, |_, page| {
-                self.pages.push(page);
-                Ok::<_, ()>(())
-            })
-            .unwrap();
+        let manifest = paged::export(source, 17, |_, _, page| {
+            self.pages.push(page);
+            Ok::<_, ()>(())
+        })
+        .unwrap();
         assert_eq!(self.pages.len(), manifest.page_count() as u64);
         self.manifest.set(manifest.encode());
     }
 
     fn admit(&self, limit: usize) -> Manifest {
-        let manifest = Manifest::decode(self.manifest.get(), 17, 9, limit).unwrap();
+        let manifest = Manifest::decode(self.manifest.get(), 17, limit).unwrap();
         assert_eq!(self.pages.len(), manifest.page_count() as u64);
         manifest
     }
 
-    fn page(&self, manifest: &Manifest, index: usize) -> [u8; PAGE_BYTES] {
-        // The exporter writes backwards; physical vector order is reversed.
-        let physical = manifest.page_count().checked_sub(index + 1).unwrap();
+    fn page(&self, manifest: &Manifest, root: usize, index: usize) -> [u8; PAGE_BYTES] {
+        // Roots are appended in order; each root's physical pages are reversed.
+        let start = if root == 0 {
+            0
+        } else {
+            manifest.roots()[0].page_count()
+        };
+        let physical = start
+            + manifest.roots()[root]
+                .page_count()
+                .checked_sub(index + 1)
+                .unwrap();
         self.pages.get(physical as u64).unwrap()
     }
 
-    fn restore(&self, limit: usize) -> Result<Map, Error> {
+    fn restore(&self, limit: usize) -> Result<[Map; 2], Error> {
         let manifest = self.admit(limit);
-        let mut reader = manifest.reader();
-        let mut candidate = Map::new(limit);
-        while let Some(index) = reader.next_page() {
-            let records = reader.read_page(&self.page(&manifest, index))?;
-            candidate.with(|mut view| {
-                for (key, value) in records {
-                    assert!(view.insert(key, value)?.is_none());
-                }
-                Ok::<_, Error>(())
-            })??;
+        let mut candidates = [Map::new(limit), Map::new(limit)];
+        for (root, candidate) in candidates.iter_mut().enumerate() {
+            let mut reader = manifest.roots()[root].reader();
+            while let Some(index) = reader.next_page() {
+                let records = reader.read_page(&self.page(&manifest, root, index))?;
+                candidate.with(|mut view| {
+                    for (key, value) in records {
+                        assert!(view.insert(key, value)?.is_none());
+                    }
+                    Ok::<_, Error>(())
+                })??;
+            }
         }
-        Ok(candidate)
+        Ok(candidates) // Neither root escapes if the second root fails.
     }
 }
 
-fn create_source(count: usize) -> Map {
-    let mut map = Map::new(count);
-    map.with(|mut view| {
-        for key in 0..count as u64 {
-            view.insert(u64::MAX - key, key).unwrap();
-        }
+fn create_sources(counts: [usize; 2]) -> [Map; 2] {
+    std::array::from_fn(|root| {
+        let mut map = Map::new(counts[root]);
+        map.with(|mut view| {
+            for key in 0..counts[root] as u64 {
+                view.insert(u64::MAX - key, key + root as u64).unwrap();
+            }
+        })
+        .unwrap();
+        map
     })
-    .unwrap();
-    map
 }
 
 #[test]
 fn selected_page_reads_stay_fixed_after_independent_governed_reopening() {
     let mut open_bytes = None;
-    for count in [0, 1, 64, 65, 4608] {
+    for counts in [[0, 0], [0, 65], [65, 0], [1, 1], [64, 65], [2304, 2304]] {
+        let limit = counts[0].max(counts[1]);
         let backing = MeteredMemory::<VectorMemory>::default();
         let mut store = Store::open(backing.clone(), true);
-        let source = create_source(count);
+        let source = create_sources(counts);
         store.publish(&source);
         drop(source);
         drop(store); // No source owner or provider handle survives the handoff.
         backing.reset();
         let store = Store::open(backing.clone(), false);
-        let manifest = store.admit(count);
+        let manifest = store.admit(limit);
         let opening = backing.counts();
         assert_eq!(opening.writes, 0);
         assert!(!opening.overflowed);
@@ -119,37 +135,39 @@ fn selected_page_reads_stay_fixed_after_independent_governed_reopening() {
         }
         open_bytes = Some(opening.read_bytes);
         drop(store);
-        let mut reader = manifest.reader();
-        let mut candidate = Map::new(count);
-        while let Some(index) = reader.next_page() {
-            let store = Store::open(backing.clone(), false);
-            assert_eq!(store.admit(count), manifest);
-            backing.reset();
-            let page = store.page(&manifest, index);
-            let records = reader.read_page(&page).unwrap();
-            let io = backing.counts();
-            assert_eq!(
-                (io.read_bytes, io.writes, io.grows, io.overflowed),
-                (PAGE_BYTES as u64, 0, 0, false)
-            );
+        let mut candidates = counts.map(Map::new);
+        for (root, candidate) in candidates.iter_mut().enumerate() {
+            let mut reader = manifest.roots()[root].reader();
+            while let Some(index) = reader.next_page() {
+                let store = Store::open(backing.clone(), false);
+                assert_eq!(store.admit(limit), manifest);
+                backing.reset();
+                let page = store.page(&manifest, root, index);
+                let records = reader.read_page(&page).unwrap();
+                let io = backing.counts();
+                assert_eq!(
+                    (io.read_bytes, io.writes, io.grows, io.overflowed),
+                    (PAGE_BYTES as u64, 0, 0, false)
+                );
+                candidate
+                    .with(|mut view| {
+                        for (key, value) in records {
+                            assert!(view.insert(key, value).unwrap().is_none());
+                        }
+                    })
+                    .unwrap();
+            }
+            assert_eq!(candidate.len(), Ok(counts[root]));
             candidate
-                .with(|mut view| {
-                    for (key, value) in records {
-                        assert!(view.insert(key, value).unwrap().is_none());
+                .with(|view| {
+                    for key in 0..counts[root] as u64 {
+                        assert_eq!(view.get(u64::MAX - key), Some(key + root as u64));
                     }
                 })
                 .unwrap();
         }
-        assert_eq!(candidate.len(), Ok(count));
-        candidate
-            .with(|view| {
-                for key in 0..count as u64 {
-                    assert_eq!(view.get(u64::MAX - key), Some(key));
-                }
-            })
-            .unwrap();
         println!(
-            "paged checkpoint records={count} open_read_bytes={} selected_page_read_bytes={PAGE_BYTES}",
+            "paged pair records={counts:?} open_read_bytes={} selected_page_read_bytes={PAGE_BYTES}",
             opening.read_bytes
         );
     }
@@ -160,12 +178,16 @@ fn failed_publication_missing_extra_mixed_and_corrupt_pages_refuse() {
     for fault in 0..8 {
         let backing = MeteredMemory::<VectorMemory>::default();
         let mut store = Store::open(backing.clone(), true);
-        let source = create_source(129);
+        let source = create_sources([129, 129]);
         if fault == 0 {
             // A sink can retain partial pages, but no successful manifest escapes.
-            let result = source.export_pages(17, 9, |_, page| {
+            let result = paged::export(&source, 17, |root, _, page| {
                 store.pages.push(page);
-                Err::<(), _>("interrupted export")
+                if root == 2 {
+                    Err("interrupted second root")
+                } else {
+                    Ok(())
+                }
             });
             assert!(result.is_err());
         } else {
@@ -184,30 +206,34 @@ fn failed_publication_missing_extra_mixed_and_corrupt_pages_refuse() {
                 }
                 4 => {
                     let first = store.pages.get(2).unwrap();
-                    let last = store.pages.get(0).unwrap();
-                    store.pages.set(2, &last);
-                    store.pages.set(0, &first);
+                    let second = store.pages.get(5).unwrap();
+                    store.pages.set(2, &second);
+                    store.pages.set(5, &first);
                 }
                 5 => {
-                    let mut bad = store.pages.get(0).unwrap();
-                    bad[88] ^= 1; // late corruption: first two pages still verify
-                    store.pages.set(0, &bad);
+                    let mut bad = store.pages.get(3).unwrap();
+                    bad[88] ^= 1; // last page of root 2: root 1 still verifies
+                    store.pages.set(3, &bad);
                     let manifest = store.admit(129);
-                    let mut reader = manifest.reader();
-                    reader.read_page(&store.page(&manifest, 0)).unwrap();
-                    reader.read_page(&store.page(&manifest, 1)).unwrap();
+                    let mut first = manifest.roots()[0].reader();
+                    while let Some(index) = first.next_page() {
+                        first.read_page(&store.page(&manifest, 0, index)).unwrap();
+                    }
+                    let mut reader = manifest.roots()[1].reader();
+                    reader.read_page(&store.page(&manifest, 1, 0)).unwrap();
+                    reader.read_page(&store.page(&manifest, 1, 1)).unwrap();
                     assert_eq!(
-                        reader.read_page(&store.page(&manifest, 2)),
+                        reader.read_page(&store.page(&manifest, 1, 2)),
                         Err(Error::Integrity)
                     );
                     assert_eq!(reader.next_page(), Some(2));
                 }
                 6 => {
-                    let mut other = create_source(129);
-                    other
+                    let mut other = create_sources([129, 129]);
+                    other[1]
                         .with(|mut view| view.insert(u64::MAX, 777).unwrap())
                         .unwrap();
-                    let foreign = other.export_pages(17, 9, |_, _| Ok::<_, ()>(())).unwrap();
+                    let foreign = paged::export(&other, 17, |_, _, _| Ok::<_, ()>(())).unwrap();
                     store.manifest.set(foreign.encode());
                 }
                 _ => {
@@ -235,6 +261,10 @@ fn absent_paged_locators_never_create_replacement_state() {
         vec![MANIFEST],
         vec![PAGES],
         vec!["native.checkpoint.maps.job.checkpoint.v1"],
+        vec![
+            "native.checkpoint.paged.map.manifest.v1",
+            "native.checkpoint.paged.map.pages.v1",
+        ],
     ] {
         let backing = MeteredMemory::<VectorMemory>::default();
         if !keys.is_empty() {

@@ -15,6 +15,8 @@ unsafe extern "C" {
     safe fn map_stage_state();
     safe fn map_stage_damage(mode: u32);
     safe fn stage_ready();
+    safe fn map_stage_commit_state() -> u32;
+    safe fn map_stage_verified(complete: u32);
 }
 
 // The codec supplies root 1 then root 2, ascending u64 key in each root.
@@ -28,6 +30,9 @@ fn counts(values: &Records, prefix: u32) -> [usize; 2] {
 }
 fn validate(values: &Records, prefix: u32) {
     map_stage_state();
+    validate_records(values, prefix);
+}
+fn validate_records(values: &Records, prefix: u32) {
     let counts = counts(values, prefix);
     let mut actual = read_source();
     for id in 0..2 {
@@ -41,6 +46,32 @@ fn validate(values: &Records, prefix: u32) {
             .unwrap();
     }
 }
+
+#[expect(
+    unsafe_code,
+    reason = "private verification after native owners have ended"
+)]
+#[unsafe(no_mangle)]
+extern "C" fn checkpoint_stage_commit() {
+    if map_stage_commit_state() == 0 {
+        return; // Exact retry: no new native writes, including after consumption.
+    }
+    let size = ic0::msg_arg_data_size();
+    assert!(size == 24 || size == 40);
+    let mut bytes = [0; 16];
+    ic0::msg_arg_data_copy(&mut bytes, 0);
+    let epoch = u64::from_le_bytes(bytes[..8].try_into().unwrap());
+    let source = u64::from_le_bytes(bytes[8..].try_into().unwrap());
+    let job = map_job::open(false).read();
+    let (values, prefix, complete) = job.staged_prefix(domain(), source, epoch).unwrap();
+    validate_records(&values, prefix);
+    let mut fault = [0; 8];
+    ic0::msg_arg_data_copy(&mut fault, size - 8);
+    if u64::from_le_bytes(fault) == 5 {
+        ic0::trap(b"map batch after post-apply verification");
+    }
+    map_stage_verified(u32::from(complete));
+}
 #[expect(unsafe_code, reason = "private staged-start upgrade entry")]
 #[unsafe(no_mangle)]
 extern "C" fn checkpoint_stage() {
@@ -53,7 +84,7 @@ extern "C" fn checkpoint_stage_restart() {
 }
 fn start(restart: bool) {
     let [epoch, source, fault] = args();
-    assert!(fault <= 3);
+    assert!(fault <= 3 || fault == 5);
     fresh();
     let mut cell = map_job::open(false);
     let mut job = cell.read();
@@ -91,7 +122,7 @@ extern "C" fn checkpoint_batch() {
     ic0::msg_arg_data_copy(&mut bytes, 0);
     let [epoch, source, start, limit, fault]: [u64; 5] =
         std::array::from_fn(|i| u64::from_le_bytes(bytes[i * 8..i * 8 + 8].try_into().unwrap()));
-    assert!(fault <= 4);
+    assert!(fault <= 7);
     let mut cell = map_job::open(false);
     let (job, batch) = cell.batch(
         domain(),
