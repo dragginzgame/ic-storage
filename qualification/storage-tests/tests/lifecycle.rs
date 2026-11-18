@@ -1,11 +1,14 @@
 //! Installed ordinary-upgrade, query isolation and whole-message rollback witness.
 use ic_testkit::pocket_ic::{CanisterId, PocketIcBuilder, nonblocking::PocketIc};
+
 fn args(words: [u64; 4]) -> Vec<u8> {
     words.into_iter().flat_map(u64::to_le_bytes).collect()
 }
+
 async fn query(pic: &PocketIc, id: CanisterId, method: &str, words: [u64; 4]) -> Vec<u8> {
     pic.query_call(id, id, method, args(words)).await.unwrap()
 }
+
 #[tokio::test]
 #[ignore = "requires prepared local Testkit server and built storage-canister artifact"]
 async fn stable_collections_survive_upgrades_and_roll_back_failed_messages() {
@@ -28,6 +31,12 @@ async fn stable_collections_survive_upgrades_and_roll_back_failed_messages() {
             .unwrap();
     }
     let expected = query(&pic, id, "stats", [0; 4]).await;
+    assert_eq!(expected.len(), 32);
+    let stats: [u64; 4] = std::array::from_fn(|i| {
+        u64::from_le_bytes(expected[i * 8..(i + 1) * 8].try_into().unwrap())
+    });
+    assert_eq!(&stats[..3], &[32, 32, 32]);
+    assert!(stats[3] > 0);
     for (key, size) in [(1, 4096), (100, 1024 * 1024)] {
         assert!(
             pic.update_call(id, id, "put", args([key, 99, size, 1]))

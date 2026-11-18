@@ -1,4 +1,8 @@
 //! Sparse exclusive leases retain the backing claim through detached handles.
+
+#[cfg(test)]
+mod tests;
+
 use super::{AllocationId, Error, StableKey, StorageConfig, persistence::Store};
 use crate::{Memory, MemoryBacking, runtime::custody::BackingClaim};
 use std::{cell::RefCell, collections::BTreeSet, rc::Rc};
@@ -35,6 +39,7 @@ impl<M: Memory> Owner<M> {
     pub fn allocation_id(&self, key: &StableKey) -> Option<AllocationId> {
         self.0.store.borrow().directory.by_key.get(key).copied()
     }
+
     pub fn bindings(&self) -> Vec<(StableKey, AllocationId, u64)> {
         let store = self.0.store.borrow();
         store
@@ -51,12 +56,15 @@ impl<M: Memory> Owner<M> {
             })
             .collect()
     }
+
     pub fn generation(&self) -> u64 {
         self.0.store.borrow().directory.image.generation
     }
+
     pub fn verify(&self) -> Result<(), Error> {
         self.0.store.borrow().verify()
     }
+
     pub fn bind(&self, keys: Vec<StableKey>) -> Result<(), Error> {
         let mut store = self.0.store.borrow_mut();
         store.healthy()?;
@@ -104,6 +112,7 @@ impl<M: Memory> Lease<M> {
         }
         Ok(previous)
     }
+
     pub fn size(&self) -> u64 {
         self.state
             .store
@@ -134,6 +143,3 @@ impl<M: Memory> Drop for Lease<M> {
         self.state.live.borrow_mut().remove(&self.id);
     }
 }
-
-#[cfg(test)]
-mod tests;

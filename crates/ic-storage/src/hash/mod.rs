@@ -1,5 +1,8 @@
 //! Shared non-cryptographic FNV-1a hashing for checksums and diagnostics.
 
+#[cfg(test)]
+mod tests;
+
 /// FNV-1a initial state.
 pub const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
 
@@ -10,6 +13,3 @@ pub fn fnv64(mut hash: u64, bytes: &[u8]) -> u64 {
     }
     hash
 }
-
-#[cfg(test)]
-mod tests;

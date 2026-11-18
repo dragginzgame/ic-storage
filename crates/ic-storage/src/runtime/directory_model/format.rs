@@ -80,13 +80,13 @@ pub(super) fn decode(payload: &[u8], budget: StorageConfig) -> Result<Image, Err
     let generation = reader.number()?;
     let next_id = reader.number()?;
     let next_page = reader.number()?;
-    let metadata = reader.extents(128)?;
+    let metadata = reader.extents(super::MAX_METADATA_ARENAS)?;
     let count = reader.count(budget.allocations)?;
     let mut entries = Vec::new();
     let mut remaining = budget.extents;
     for _ in 0..count {
         let id = AllocationId(reader.number()?);
-        let length = reader.count(128)?;
+        let length = reader.count(crate::key::MAX_KEY_BYTES)?;
         let name = std::str::from_utf8(reader.take(length)?)
             .map_err(|_| Error::Invalid("key encoding"))?;
         let key = StableKey::parse(name).map_err(|_| Error::Invalid("key grammar"))?;

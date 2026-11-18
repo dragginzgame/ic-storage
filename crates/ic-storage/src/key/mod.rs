@@ -1,11 +1,11 @@
+#[cfg(test)]
+mod tests;
+
 use serde::{Deserialize, Deserializer, Serialize, de::Error as _};
 use std::{fmt, str::FromStr};
 
-const MAX_KEY_BYTES: usize = 128;
+pub(crate) const MAX_KEY_BYTES: usize = 128;
 
-///
-/// StableKey
-///
 /// Canonical durable logical allocation identity.
 ///
 /// A stable key names the logical store, not the current storage backend or
@@ -14,8 +14,6 @@ const MAX_KEY_BYTES: usize = 128;
 ///
 /// Construction and deserialization enforce the same bounded canonical grammar.
 /// A checked key establishes identity syntax, not allocation or open authority.
-///
-
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct StableKey(String);
 
@@ -76,9 +74,6 @@ impl FromStr for StableKey {
     }
 }
 
-///
-/// StableKeyError
-///
 /// Stable-key grammar validation failure.
 #[derive(Clone, Debug, Eq, thiserror::Error, PartialEq)]
 #[error("stable key '{stable_key}' is invalid: {reason}")]
@@ -180,6 +175,3 @@ fn invalid<T>(stable_key: &str, reason: &'static str) -> Result<T, StableKeyErro
         reason,
     })
 }
-
-#[cfg(test)]
-mod tests;

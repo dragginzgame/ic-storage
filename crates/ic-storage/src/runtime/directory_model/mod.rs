@@ -1,4 +1,8 @@
 //! Owned named-allocation directory and durable extent validation.
+
+#[cfg(test)]
+mod tests;
+
 mod format;
 pub(super) mod leases;
 mod persistence;
@@ -7,15 +11,11 @@ use crate::{StableKey, hash};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
+const MAX_METADATA_ARENAS: usize = 128;
 const FRAME: &[u8] = b"ICDIRS02";
 
-///
-/// StorageConfig
-///
 /// Resource ceilings checked when creating, opening and extending the directory.
 /// Physical page accounting includes retained metadata and abandoned tails.
-///
-
 #[derive(Clone, Copy, Debug)]
 pub struct StorageConfig {
     /// Maximum retained named allocations, including currently omitted names.
@@ -39,12 +39,7 @@ impl Default for StorageConfig {
     }
 }
 
-///
-/// AllocationId
-///
 /// Opaque durable identity assigned by the directory. It grants no access.
-///
-
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct AllocationId(u64);
 impl AllocationId {
@@ -55,13 +50,13 @@ impl AllocationId {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 struct Extent {
     start: u64,
     pub pages: u64,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 struct Entry {
     id: AllocationId,
     key: StableKey,
@@ -69,7 +64,7 @@ struct Entry {
     extents: Vec<Extent>,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 struct Image {
     generation: u64,
     next_id: u64,
@@ -158,7 +153,7 @@ impl Directory {
         }
         let mut by_key = BTreeMap::new();
         let mut by_id = BTreeMap::new();
-        if image.metadata.len() > 128 {
+        if image.metadata.len() > MAX_METADATA_ARENAS {
             return Err(Error::Budget);
         }
         let mut ranges = Vec::new();
@@ -320,6 +315,3 @@ impl Directory {
         self.page_span(id, logical).map(|(page, _)| page)
     }
 }
-
-#[cfg(test)]
-mod tests;

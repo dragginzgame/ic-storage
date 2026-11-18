@@ -8,9 +8,6 @@ pub const STABLE_CELL_HEADER_SIZE: usize = 8;
 /// Byte offset where the stable-cell value payload starts.
 pub const STABLE_CELL_VALUE_OFFSET: u64 = STABLE_CELL_HEADER_SIZE as u64;
 
-///
-/// StableCellPayloadError
-///
 /// Stable-cell payload decode failure.
 ///
 #[non_exhaustive]
@@ -69,6 +66,7 @@ pub fn stable_cell_payload_length<M: Memory>(
     if value_len > maximum as u64 {
         return Err(StableCellPayloadError::TooLarge { value_len });
     }
+
     #[expect(
         clippy::cast_possible_truncation,
         reason = "the admitted caller ceiling is representable as usize"

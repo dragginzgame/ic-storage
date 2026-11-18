@@ -4,6 +4,7 @@ use crate::{
     AllocationGrants, GenericAllocationPolicy, MemoryAuthority, MemoryRequest, MemoryRuntime,
     SealedDeclarationSnapshot, StableKey, VectorMemory,
 };
+
 fn runtime(backing: VectorMemory) -> MemoryRuntime<VectorMemory> {
     let mut runtime = MemoryRuntime::new(backing).unwrap();
     let source = SealedDeclarationSnapshot::new(
@@ -30,11 +31,13 @@ fn runtime(backing: VectorMemory) -> MemoryRuntime<VectorMemory> {
         .unwrap();
     runtime
 }
+
 fn lease(runtime: &MemoryRuntime<VectorMemory>, name: &str) -> crate::RuntimeMemory<VectorMemory> {
     runtime
         .open_memory(&StableKey::parse(name).unwrap())
         .unwrap()
 }
+
 #[test]
 fn upstream_collections_reopen_and_keep_independent_allocations() {
     let backing = VectorMemory::default();
@@ -82,6 +85,7 @@ fn upstream_collections_reopen_and_keep_independent_allocations() {
     map.insert(301, vec![8; 4096]);
     assert_eq!(map.remove(&301), Some(vec![8; 4096]));
 }
+
 #[test]
 fn foreign_collection_load_and_creation_never_reset_bytes() {
     let backing = VectorMemory::default();

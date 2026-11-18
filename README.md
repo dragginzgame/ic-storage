@@ -11,8 +11,8 @@ One crate for named stable-memory allocations and upstream
 
 See the [crate API and example](crates/ic-storage/README.md),
 [design](docs/DESIGN.md) and [allocation contract](docs/ALLOCATION.md).
-Version 0.77.0 replaces the experimental OP API and stored
-formats. No consumer migration or reset is performed by this repository change.
+Version 0.78 uses a Storage-owned directory format. Use fresh backing or
+explicitly export older data with its previous owner before migration.
 
 ## Development
 
@@ -46,8 +46,3 @@ and CI; running it immediately before publication repeats those checks.
 For an optional preflight, `make publish-check` runs product host and Wasm lint
 and Cargo's registry dry run. A later upload always runs its full qualification.
 Both commands record attempt evidence under `target/publication/`.
-
-The OP source was removed from the active workspace. Its Git history is intact;
-the pre-replacement worktree and history backup remain locally under
-`target/op-archive/2026-11-17/`, and the original source trees under `.op-backup/`.
-These local backups include uncommitted work and are not required to build.

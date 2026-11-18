@@ -1,17 +1,18 @@
 //! Operation-local collection access within a retained allocation region.
 use super::{Memory, Storable};
-use crate::{DefaultMemoryImpl, substrate};
-use crate::{RuntimeGrowError, RuntimeMemory, WASM_PAGE_SIZE_BYTES as PAGE_BYTES};
-use std::{marker::PhantomData, ops::Range, ops::RangeBounds, rc::Rc};
+use crate::{
+    DefaultMemoryImpl, RuntimeGrowError, RuntimeMemory, WASM_PAGE_SIZE_BYTES as PAGE_BYTES,
+    substrate,
+};
+use std::{
+    marker::PhantomData,
+    ops::{Range, RangeBounds},
+    rc::Rc,
+};
 
 const MAX_PAGES: u64 = 4_194_304;
 
-///
-/// `RegionGrowError`
-///
 /// Failure to reserve a governed region's virtual extent, before any writes.
-///
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum RegionGrowError {
     /// The requested relative extent exceeds the selected region.

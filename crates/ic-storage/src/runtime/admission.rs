@@ -21,6 +21,7 @@ pub enum AdmissionError {
     #[error("unknown historical allocation or declaration budget exceeded")]
     Limit,
 }
+
 fn owner_valid(owner: &str) -> bool {
     !owner.is_empty()
         && owner.len() <= 128
@@ -35,6 +36,7 @@ pub struct MemoryAuthority {
     authority: String,
     prefix: String,
 }
+
 impl MemoryAuthority {
     /// Check owner and namespace syntax. Names do not select numeric IDs.
     pub fn new(
@@ -65,6 +67,7 @@ impl AllocationGrants {
         }
         Ok(Self(grants))
     }
+
     pub(super) fn check(&self, request: &MemoryRequest) -> Result<(), AdmissionError> {
         if self.0.iter().any(|grant| {
             grant.authority == request.authority && request.key.as_str().starts_with(&grant.prefix)
@@ -82,6 +85,7 @@ pub struct MemoryRequest {
     authority: String,
     key: StableKey,
 }
+
 impl MemoryRequest {
     /// Construct a key-only allocation request.
     pub fn new(authority: impl Into<String>, key: &str) -> Result<Self, AdmissionError> {
@@ -94,11 +98,13 @@ impl MemoryRequest {
             key: StableKey::parse(key)?,
         })
     }
+
     /// Declaring authority label.
     #[must_use]
     pub fn authority(&self) -> &str {
         &self.authority
     }
+
     /// Requested durable name.
     #[must_use]
     pub const fn stable_key(&self) -> &StableKey {
@@ -118,6 +124,7 @@ impl SealedDeclarationSnapshot {
         }
         Ok(Self(requests))
     }
+
     /// Borrow checked requests.
     #[must_use]
     pub fn requests(&self) -> &[MemoryRequest] {
@@ -145,6 +152,7 @@ pub struct BootstrapAdmission<'a> {
     maximum: usize,
     failure: Option<AdmissionError>,
 }
+
 impl<'a> BootstrapAdmission<'a> {
     pub(super) fn new(
         source: &SealedDeclarationSnapshot,
@@ -167,16 +175,19 @@ impl<'a> BootstrapAdmission<'a> {
             failure: None,
         })
     }
+
     /// Retained names, identities and extents. This grants no memory access.
     #[must_use]
     pub const fn recovered_allocations(&self) -> &[(StableKey, AllocationId, u64)] {
         self.recovered
     }
+
     /// Whether this bootstrap has selected a key.
     #[must_use]
     pub fn is_declared(&self, key: &StableKey) -> bool {
         self.keys.contains(key)
     }
+
     /// Select a retained name under current grants. An ignored failure still rejects bootstrap.
     pub fn include_historical(&mut self, authority: &str, key: &str) -> Result<(), AdmissionError> {
         if let Some(error) = &self.failure {
@@ -188,6 +199,7 @@ impl<'a> BootstrapAdmission<'a> {
         }
         result
     }
+
     fn include(&mut self, authority: &str, key: &str) -> Result<(), AdmissionError> {
         let request = MemoryRequest::new(authority, key)?;
         self.grants.check(&request)?;
@@ -202,6 +214,7 @@ impl<'a> BootstrapAdmission<'a> {
         self.selected.push(request);
         Ok(())
     }
+
     pub(super) fn complete(self) -> Result<Vec<MemoryRequest>, AdmissionError> {
         if let Some(error) = self.failure {
             Err(error)
@@ -224,9 +237,11 @@ pub trait RuntimeBootstrapPolicy {
     ) -> Result<(), Self::Error> {
         Ok(())
     }
+
     /// Bind all effective host policy configuration.
     fn runtime_bootstrap_identity(&self) -> PolicyIdentity;
 }
+
 /// Standard policy relying on Storage's namespace admission and resource limits.
 pub struct GenericAllocationPolicy;
 impl RuntimeBootstrapPolicy for GenericAllocationPolicy {
@@ -234,6 +249,7 @@ impl RuntimeBootstrapPolicy for GenericAllocationPolicy {
     fn validate_allocation(&self, _key: &StableKey) -> Result<(), Self::Error> {
         Ok(())
     }
+
     fn runtime_bootstrap_identity(&self) -> PolicyIdentity {
         PolicyIdentity::new(*b"ic-storage.noop-policy..........")
     }

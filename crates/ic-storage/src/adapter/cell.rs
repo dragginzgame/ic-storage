@@ -1,12 +1,8 @@
 //! Governed cell collection implementation.
 use super::{Bound, Memory, Storable};
-use crate::RuntimeMemory;
-use crate::{DefaultMemoryImpl, substrate};
+use crate::{DefaultMemoryImpl, RuntimeMemory, substrate};
 use std::borrow::Cow;
 
-///
-/// `StableCell`
-///
 /// Governed upstream `Cell` with explicit initialization and read-only loading.
 ///
 /// Values and stored bytes retain the upstream codec and layout contracts.
@@ -64,6 +60,7 @@ impl<T: Storable, M: Memory> StableCell<T, M> {
             inner: substrate::Cell::new(memory, CellValue(Some(value))),
         }
     }
+
     /// Load an existing cell without initializing, writing or growing memory.
     ///
     /// Requires no default value or `Default`/`Clone` bound. The retained value
@@ -90,6 +87,7 @@ impl<T: Storable, M: Memory> StableCell<T, M> {
             inner: substrate::Cell::init(memory, CellValue(None)),
         })
     }
+
     /// Delegates to upstream `Cell::get` with the governed allocation.
     #[expect(
         clippy::missing_panics_doc,
@@ -98,6 +96,7 @@ impl<T: Storable, M: Memory> StableCell<T, M> {
     pub fn get(&self) -> &T {
         self.inner.get().0.as_ref().expect("loaded cell value")
     }
+
     /// Delegates to upstream `Cell::set` with the governed allocation.
     ///
     /// # Panics

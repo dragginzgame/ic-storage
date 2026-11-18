@@ -1,12 +1,12 @@
 //! Governed log collection implementation.
 use super::{LogIter, LogWriteError, Memory, Storable};
-use crate::RuntimeMemory;
-use crate::{DefaultMemoryImpl, substrate};
+use crate::{DefaultMemoryImpl, RuntimeMemory, substrate};
 
 /// Governed upstream `Log`; initialization and failures follow upstream contracts.
 pub struct StableLog<T: Storable, M: Memory = DefaultMemoryImpl> {
     inner: substrate::Log<T, RuntimeMemory<M>, RuntimeMemory<M>>,
 }
+
 impl<T: Storable, M: Memory> StableLog<T, M> {
     /// Create a log only when both admitted memories have zero pages.
     ///
@@ -51,37 +51,44 @@ impl<T: Storable, M: Memory> StableLog<T, M> {
             inner: substrate::Log::init(index_memory, data_memory),
         }
     }
+
     /// Delegates to upstream `Log::first` with the governed allocation.
     #[must_use]
     pub fn first(&self) -> Option<T> {
         self.inner.first()
     }
+
     /// Delegates to upstream `Log::last` with the governed allocation.
     #[must_use]
     pub fn last(&self) -> Option<T> {
         self.inner.last()
     }
+
     /// Delegates to upstream `Log::get` with the governed allocation.
     #[must_use]
     pub fn get(&self, idx: u64) -> Option<T> {
         self.inner.get(idx)
     }
+
     /// Delegates to upstream `Log::len` with the governed allocation.
     #[must_use]
     pub fn len(&self) -> u64 {
         self.inner.len()
     }
+
     /// Delegates to upstream `Log::is_empty` with the governed allocation.
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
     }
+
     /// Delegates to upstream `Log::append` with the governed allocation.
     /// # Errors
     /// Returns the upstream write error if memory cannot grow.
     pub fn append(&self, item: &T) -> Result<u64, LogWriteError> {
         self.inner.append(item)
     }
+
     /// Delegates to upstream `Log::iter` with the governed allocation.
     #[must_use]
     pub fn iter(&self) -> LogIter<'_, T, M> {

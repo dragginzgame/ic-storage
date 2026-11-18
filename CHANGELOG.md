@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.78.3] - 2026-11-18
+
+- Adopt Toko Tooling 0.45.8 and group host and Wasm backing implementations by target.
+
+### 🎯 Qualification
+
+- Check row and index counts and revision before exercising installed rollback.
+
 ## [0.78.2] - 2026-11-18
 
 - Adopt Toko Tooling 0.45.6 in both workspaces.

@@ -1,16 +1,21 @@
 use ic_platform_runtime::raw as ic0;
-use ic_storage::adapter::{StableBTreeMap, StableBTreeSet, StableCell};
 use ic_storage::{
     AllocationGrants, DefaultMemoryImpl, GenericAllocationPolicy, MemoryAuthority, MemoryRequest,
     MemoryRuntime, SealedDeclarationSnapshot, StableKey,
+    adapter::{StableBTreeMap, StableBTreeSet, StableCell},
 };
 use std::cell::RefCell;
+
 struct Stores {
     rows: StableBTreeMap<u64, Vec<u8>>,
     index: StableBTreeSet<u64>,
     revision: StableCell<u64>,
 }
-thread_local! {static STORES: RefCell<Option<Stores>> = const { RefCell::new(None) };}
+
+thread_local! {
+    static STORES: RefCell<Option<Stores>> = const { RefCell::new(None) };
+}
+
 fn open(create: bool) {
     let mut host = MemoryRuntime::new(DefaultMemoryImpl::default()).unwrap();
     let mut keys = vec![
@@ -47,21 +52,27 @@ fn open(create: bool) {
     };
     STORES.with(|state| *state.borrow_mut() = Some(stores));
 }
+
 fn args() -> [u64; 4] {
     assert_eq!(ic0::msg_arg_data_size(), 32);
     let mut bytes = [0; 32];
     ic0::msg_arg_data_copy(&mut bytes, 0);
     std::array::from_fn(|i| u64::from_le_bytes(bytes[i * 8..i * 8 + 8].try_into().unwrap()))
 }
+
 fn reply(bytes: &[u8]) {
     ic0::msg_reply_data_append(bytes);
     ic0::msg_reply();
 }
+
+/// Creates the three named collections on a fresh installation.
 #[expect(unsafe_code, reason = "IC entrypoint export")]
 #[unsafe(export_name = "canister_init")]
 pub extern "C" fn init() {
     open(true);
 }
+
+/// Reopens existing collections and optionally traps to exercise upgrade rollback.
 #[expect(unsafe_code, reason = "IC entrypoint export")]
 #[unsafe(export_name = "canister_post_upgrade")]
 pub extern "C" fn upgrade() {
@@ -73,6 +84,7 @@ pub extern "C" fn upgrade() {
         ic0::trap(b"failed target startup");
     }
 }
+
 fn write() {
     let [key, value, size, fail] = args();
     assert!(size <= 1024 * 1024);
@@ -88,16 +100,22 @@ fn write() {
     }
     reply(&[]);
 }
+
+/// Updates a row, its index and the revision in one message.
 #[expect(unsafe_code, reason = "IC entrypoint export")]
 #[unsafe(export_name = "canister_update put")]
 pub extern "C" fn put() {
     write();
 }
+
+/// Exercises query isolation by running the same writes as an update.
 #[expect(unsafe_code, reason = "IC entrypoint export")]
 #[unsafe(export_name = "canister_query query_put")]
 pub extern "C" fn query_put() {
     write();
 }
+
+/// Removes a row and its index entry, with optional failure after both writes.
 #[expect(unsafe_code, reason = "IC entrypoint export")]
 #[unsafe(export_name = "canister_update delete")]
 pub extern "C" fn delete() {
@@ -113,6 +131,8 @@ pub extern "C" fn delete() {
     }
     reply(&[]);
 }
+
+/// Returns the selected row payload or an empty reply when absent.
 #[expect(unsafe_code, reason = "IC entrypoint export")]
 #[unsafe(export_name = "canister_query get")]
 pub extern "C" fn get() {
@@ -129,6 +149,8 @@ pub extern "C" fn get() {
         )
     });
 }
+
+/// Reports row count, index count, revision and physical stable pages.
 #[expect(unsafe_code, reason = "IC entrypoint export")]
 #[unsafe(export_name = "canister_query stats")]
 pub extern "C" fn stats() {

@@ -3,6 +3,7 @@ use crate::{
     AllocationGrants, GenericAllocationPolicy, MemoryAuthority, MemoryBacking, MemoryRequest,
     MemoryRuntime, SealedDeclarationSnapshot, StorageConfig,
 };
+
 /// Construct a host runtime with one namespace and a complete request roster.
 pub fn fixture_runtime<M: MemoryBacking>(
     memory: M,

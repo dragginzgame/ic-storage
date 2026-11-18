@@ -1,15 +1,20 @@
 //! Process-local backing claims, retained by every issued runtime handle.
+#[cfg(not(target_arch = "wasm32"))]
+mod native;
+#[cfg(target_arch = "wasm32")]
+mod wasm;
+
+#[cfg(not(target_arch = "wasm32"))]
+use native::with_claims;
+#[cfg(target_arch = "wasm32")]
+use wasm::with_claims;
+
 use super::RuntimeConstructionError;
 use crate::{Memory, VectorMemory};
-use std::{collections::BTreeSet, rc::Rc, sync::Arc};
+use std::{rc::Rc, sync::Arc};
 
-///
-/// BackingIdentity
-///
 /// Identity of a physical backing allocation, shared by all of its wrappers.
 /// This is host custody metadata, not a virtual memory ID or durable record.
-///
-
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct BackingIdentity(usize);
 
@@ -29,9 +34,6 @@ impl BackingIdentity {
     }
 }
 
-///
-/// MemoryBacking
-///
 /// Host boundary for a backing whose aliases can be identified consistently.
 ///
 /// All wrappers and clones over the same physical backing must return the same
@@ -59,36 +61,6 @@ impl<M: MemoryBacking> MemoryBacking for Rc<M> {
     fn backing_identity(&self) -> BackingIdentity {
         self.as_ref().backing_identity()
     }
-}
-
-#[cfg(target_arch = "wasm32")]
-impl MemoryBacking for crate::DefaultMemoryImpl {
-    fn backing_identity(&self) -> BackingIdentity {
-        // Every default handle addresses the same canister stable memory.
-        BackingIdentity(0)
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-static CLAIMS: std::sync::Mutex<BTreeSet<BackingIdentity>> = std::sync::Mutex::new(BTreeSet::new());
-
-#[cfg(target_arch = "wasm32")]
-thread_local! {
-    static CLAIMS: std::cell::RefCell<BTreeSet<BackingIdentity>> = const {
-        std::cell::RefCell::new(BTreeSet::new())
-    };
-}
-
-fn with_claims<T>(operation: impl FnOnce(&mut BTreeSet<BackingIdentity>) -> T) -> T {
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        let mut claims = CLAIMS
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        operation(&mut claims)
-    }
-    #[cfg(target_arch = "wasm32")]
-    CLAIMS.with(|claims| operation(&mut claims.borrow_mut()))
 }
 
 pub(super) struct BackingClaim(BackingIdentity);

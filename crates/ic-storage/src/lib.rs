@@ -18,6 +18,7 @@ pub use runtime::*;
 pub use stable_cell::{
     STABLE_CELL_HEADER_SIZE, StableCellPayloadError, stable_cell_payload_length,
 };
+
 /// Governed collections over checked named allocations and upstream codecs.
 pub mod adapter;
 #[cfg(any(test, feature = "test-support"))]

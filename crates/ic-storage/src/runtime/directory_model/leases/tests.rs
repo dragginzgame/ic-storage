@@ -95,6 +95,7 @@ impl Memory for Faults {
     fn size(&self) -> u64 {
         self.memory.size()
     }
+
     fn grow(&self, pages: u64) -> i64 {
         if self.refuse_growth.get() {
             -1
@@ -102,11 +103,13 @@ impl Memory for Faults {
             self.memory.grow(pages)
         }
     }
+
     fn read(&self, offset: u64, bytes: &mut [u8]) {
         self.reads.set(self.reads.get() + 1);
         assert!(!self.fail_io.get(), "injected read failure");
         self.memory.read(offset, bytes);
     }
+
     fn write(&self, offset: u64, bytes: &[u8]) {
         assert!(!self.fail_io.get(), "injected write failure");
         self.memory.write(offset, bytes);

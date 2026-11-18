@@ -1,6 +1,10 @@
 //! Reusable snapshot arenas with a fixed protected root.
 //! The owner is poisoned before fallible backing IO and must be dropped after
 //! a panic. Native partial root writes are detected, not repaired or rolled back.
+
+#[cfg(test)]
+mod tests;
+
 use super::{AllocationId, Directory, Error, Image, Prepared, StorageConfig, hash};
 use crate::{Memory, WASM_PAGE_SIZE_BYTES as PAGE};
 use std::cell::Cell;
@@ -368,6 +372,3 @@ fn read(
     }
     Ok((bytes, directory))
 }
-
-#[cfg(test)]
-mod tests;

@@ -8,32 +8,36 @@
 //! Drop collections and all shared lease owners before reopening.
 //! Storage enforces one live lease per allocation within each runtime;
 //! hosts retain exclusive custody of the backing across runtimes.
-/// Exact substrate interfaces for backing bounds and record codecs.
-/// Implementing `Memory` grants no allocation authority; constructors require
-/// committed `RuntimeMemory` leases.
-pub use crate::Memory;
-use crate::RuntimeMemory;
-use crate::{DefaultMemoryImpl, substrate};
-pub use substrate::{Storable, storable, storable::Bound};
+
+mod cell;
+mod heap;
+mod log;
+mod map;
+mod region;
+mod set;
+mod vector;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests;
 
-mod region;
-pub use region::{BTreeMapRegion, RegionGrowError};
+/// Exact substrate interfaces for backing bounds and record codecs.
+/// Implementing `Memory` grants no allocation authority; constructors require
+/// committed `RuntimeMemory` leases.
+pub use crate::Memory;
+use crate::{DefaultMemoryImpl, RuntimeMemory, substrate};
+pub use substrate::{
+    Storable,
+    log::WriteError as LogWriteError,
+    storable::{self, Bound},
+};
 
-mod map;
-pub use map::StableBTreeMap;
-mod set;
-pub use set::StableBTreeSet;
-mod cell;
 pub use cell::StableCell;
-mod vector;
-pub use vector::StableVec;
-mod heap;
 pub use heap::StableMinHeap;
-mod log;
 pub use log::StableLog;
+pub use map::StableBTreeMap;
+pub use region::{BTreeMapRegion, RegionGrowError};
+pub use set::StableBTreeSet;
+pub use vector::StableVec;
 
 /// Upstream map iterator with governed memory.
 pub type MapIter<'a, K, V, M = DefaultMemoryImpl> =
@@ -43,5 +47,3 @@ pub type SetIter<'a, K, M = DefaultMemoryImpl> = substrate::btreeset::Iter<'a, K
 /// Upstream log iterator with governed index and data memories.
 pub type LogIter<'a, T, M = DefaultMemoryImpl> =
     substrate::log::Iter<'a, T, RuntimeMemory<M>, RuntimeMemory<M>>;
-
-pub use substrate::log::WriteError as LogWriteError;

@@ -19,6 +19,7 @@ impl Memory for Observed {
     fn size(&self) -> u64 {
         self.bytes.size()
     }
+
     fn grow(&self, pages: u64) -> i64 {
         self.grows.set(self.grows.get() + 1);
         if self.refuse_growth.get() {
@@ -27,9 +28,11 @@ impl Memory for Observed {
             self.bytes.grow(pages)
         }
     }
+
     fn read(&self, offset: u64, target: &mut [u8]) {
         self.bytes.read(offset, target);
     }
+
     fn write(&self, offset: u64, bytes: &[u8]) {
         self.writes.set(self.writes.get() + 1);
         if let Some((remaining, prefix)) = self.fail_write.get() {

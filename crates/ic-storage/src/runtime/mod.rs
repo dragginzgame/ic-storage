@@ -9,9 +9,8 @@ pub use admission::{
     MemoryRequest, PolicyIdentity, RuntimeBootstrapPolicy, SealedDeclarationSnapshot,
 };
 pub use custody::{BackingIdentity, MemoryBacking};
-pub use directory_model::Error as DirectoryError;
 use directory_model::leases::{Lease, Owner};
-pub use directory_model::{AllocationId, StorageConfig};
+pub use directory_model::{AllocationId, Error as DirectoryError, StorageConfig};
 use std::collections::BTreeSet;
 
 /// Construction refuses aliased or malformed backing without resetting it.
@@ -95,9 +94,6 @@ struct Binding {
     admitted: BTreeSet<StableKey>,
 }
 
-///
-/// MemoryRuntime
-///
 /// One custodian of named allocations on a backing. Bootstrap validates namespace
 /// grants and host policy, commits bindings, then permits exclusive leases.
 /// Omitted retained names keep their allocation, but require current admission
@@ -117,6 +113,7 @@ impl<M: Memory> MemoryRuntime<M> {
     {
         Self::new_with_config(memory, StorageConfig::default())
     }
+
     /// Use explicit directory resource limits; reopening revalidates under those limits.
     pub fn new_with_config(
         memory: M,
@@ -135,11 +132,13 @@ impl<M: Memory> MemoryRuntime<M> {
             binding: None,
         })
     }
+
     /// Whether current host authority has been committed.
     #[must_use]
     pub const fn is_bootstrapped(&self) -> bool {
         self.binding.is_some()
     }
+
     /// Current durable directory generation, after bootstrap admission.
     pub fn committed_generation(&self) -> Result<u64, RuntimeOpenError> {
         if self.binding.is_none() {
@@ -147,11 +146,13 @@ impl<M: Memory> MemoryRuntime<M> {
         }
         Ok(self.owner.generation())
     }
+
     /// Effective resource admission limits.
     #[must_use]
     pub const fn config(&self) -> StorageConfig {
         self.config
     }
+
     /// Admit a complete declaration set, retaining omitted historical bindings.
     pub fn bootstrap<P: RuntimeBootstrapPolicy>(
         &mut self,
@@ -188,6 +189,7 @@ impl<M: Memory> MemoryRuntime<M> {
         });
         Ok(self.owner.generation())
     }
+
     /// Compare the complete established binding without IO or policy callbacks.
     pub fn verify_bootstrap<P: RuntimeBootstrapPolicy>(
         &self,
@@ -207,6 +209,7 @@ impl<M: Memory> MemoryRuntime<M> {
         }
         Ok(self.owner.generation())
     }
+
     /// Open one currently admitted name, preserving custody through detached handles.
     ///
     /// # Panics
@@ -227,6 +230,7 @@ impl<M: Memory> MemoryRuntime<M> {
         })?;
         Ok(RuntimeMemory { lease })
     }
+
     /// Verify component requirements against current host admission without IO.
     pub fn verify_authority(
         &self,
@@ -247,11 +251,13 @@ impl<M: Memory> MemoryRuntime<M> {
         }
         Ok(())
     }
+
     /// Resolve a retained identity for diagnostics; this grants no access.
     #[must_use]
     pub fn allocation_id(&self, key: &StableKey) -> Option<AllocationId> {
         self.owner.allocation_id(key)
     }
+
     /// Observe checked directory entries and actual logical extents.
     pub fn memory_allocations(&self) -> Result<Vec<MemoryAllocation>, DirectoryError> {
         self.owner.verify()?;
@@ -268,9 +274,6 @@ impl<M: Memory> MemoryRuntime<M> {
     }
 }
 
-///
-/// MemoryAllocation
-///
 /// Passive diagnostic entry; no lease or allocation authority is carried.
 ///
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
@@ -283,9 +286,6 @@ pub struct MemoryAllocation {
     pub pages: u64,
 }
 
-///
-/// RuntimeMemory
-///
 /// Exclusive non-cloneable allocation lease. IO trusts custody between checked
 /// boundaries; growth commits the directory before publishing its new extent.
 /// A detached lease retains the backing claim until it is dropped.
@@ -293,12 +293,14 @@ pub struct MemoryAllocation {
 pub struct RuntimeMemory<M: Memory> {
     lease: Lease<M>,
 }
+
 impl<M: Memory> RuntimeMemory<M> {
     /// Logical page extent.
     #[must_use]
     pub fn size(&self) -> u64 {
         self.lease.size()
     }
+
     /// Reserve additional zero-filled logical pages without exposing backing.
     pub fn grow(&self, pages: u64) -> Result<u64, RuntimeGrowError> {
         self.lease.try_grow(pages).map_err(|error| match error {
@@ -311,26 +313,32 @@ impl<M: Memory> RuntimeMemory<M> {
             _ => RuntimeGrowError::InvalidDirectory,
         })
     }
+
     /// Read a completely bounds-checked logical range.
     pub fn read(&self, offset: u64, bytes: &mut [u8]) {
         self.lease.read(offset, bytes);
     }
+
     /// Write a completely bounds-checked logical range.
     pub fn write(&self, offset: u64, bytes: &[u8]) {
         self.lease.write(offset, bytes);
     }
 }
+
 impl<M: Memory> Memory for RuntimeMemory<M> {
     fn size(&self) -> u64 {
         self.size()
     }
+
     fn grow(&self, pages: u64) -> i64 {
         self.grow(pages)
             .map_or(-1, |previous| i64::try_from(previous).expect("page count"))
     }
+
     fn read(&self, offset: u64, bytes: &mut [u8]) {
         self.read(offset, bytes);
     }
+
     fn write(&self, offset: u64, bytes: &[u8]) {
         self.write(offset, bytes);
     }

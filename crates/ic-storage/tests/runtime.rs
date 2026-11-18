@@ -1,5 +1,6 @@
 //! Public allocation admission and custody regression tests.
 use ic_storage::*;
+
 fn source(keys: &[&str]) -> SealedDeclarationSnapshot {
     SealedDeclarationSnapshot::new(
         keys.iter()
