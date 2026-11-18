@@ -1,5 +1,5 @@
 //! Upstream memory contract and Platform-backed canister storage.
-pub use ic_stable_structures::{Memory, VectorMemory};
+pub use crate::substrate::{Memory, VectorMemory};
 
 /// Native default backing for fixture and host integration.
 #[cfg(not(target_arch = "wasm32"))]

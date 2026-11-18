@@ -14,9 +14,8 @@ Do not modify the legacy sibling repository or reset consumer storage.
 
 This repository adopts `TOKO-TOOLING.md` and its revision-bound references.
 The canonical exporter owns Toko 0.45.0 under `vendor/toko-tooling/` and
-`.toko-tooling.snapshot`. User authorization explicitly selects the direct
-`ic-stable-structures` dependency as the product collection engine; this is the
-scoped exception to routing external IC crates through Platform. Stable-memory
+`.toko-tooling.snapshot`. Access upstream collection engines and memory traits through
+`ic_platform::stable_structures` with the Platform facade’s defaults disabled. Stable-memory
 system calls continue through `ic-platform-runtime`.
 
 Keep Rust 1.100.0 as pinned compiler and support floor. Check for active Cargo,

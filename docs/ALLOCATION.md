@@ -4,7 +4,7 @@ A host constructs one `MemoryRuntime` over an identified `MemoryBacking`.
 `Memory` is the upstream four-method backing interface: `size`, `grow`, `read`
 and `write`. Growth appends zeroed Wasm pages or returns -1 without mutation.
 `VectorMemory` is the native shared-byte backing. On Wasm, `DefaultMemoryImpl`
-uses IC Platform's owned stable-memory calls. Collection engines come directly from `ic-stable-structures`; its fixed-ID
+uses IC Platform's owned stable-memory calls. Platform re-exports the collection engines from `ic-stable-structures`; its fixed-ID
 memory manager is not used.
 
 `MemoryBacking` must identify all physical aliases consistently. Storage rejects

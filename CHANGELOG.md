@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.78.1] - 2026-11-18
+
+- Use the `ic-platform 0.34.16` stable-structures feature for collection engines and memory traits.
+- Remove two unused Toko tooling helpers and their supporting policy files (#7).
+
 ## [0.78.0] - 2026-11-17
 
 ### ⚠️ Breaking changes

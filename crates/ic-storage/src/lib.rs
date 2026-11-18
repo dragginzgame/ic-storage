@@ -7,7 +7,7 @@ mod key;
 mod memory;
 mod runtime;
 mod stable_cell;
-use ic_stable_structures as substrate;
+use ic_platform::stable_structures as substrate;
 pub use substrate::storable;
 
 /// WebAssembly stable-memory page size in bytes.
