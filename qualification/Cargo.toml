@@ -13,7 +13,7 @@ ic-platform-runtime = { version = "0.23.17", default-features = false }
 ic-storage = { path = "../crates/ic-storage" }
 ic-testkit = "0.110.0"
 tokio = { version = "1.54.1", features = ["macros", "rt"] }
-toko-tooling = "=0.45.0"
+toko-tooling = "=0.45.6"
 
 [workspace.lints.rust]
 unsafe_code = "deny"

@@ -4,19 +4,22 @@ members = ["crates/ic-storage"]
 exclude = ["qualification"]
 
 [workspace.package]
-version = "0.78.1"
+version = "0.78.2"
 edition = "2024"
 rust-version = "1.100.0"
 license-file = "LICENSE.md"
 repository = "https://github.com/dragginzgame/ic-storage"
 
 [workspace.dependencies]
+# Production
 ic-platform = { version = "0.34.16", default-features = false, features = ["stable-structures"] }
 ic-platform-runtime = { version = "0.23.17", default-features = false }
 serde = { version = "1.0.229", features = ["derive"] }
-serde_json = "1.0.154"
 thiserror = "2.0.18"
-toko-tooling = "=0.45.0"
+
+# Tests and tooling
+serde_json = "1.0.154"
+toko-tooling = "=0.45.6"
 trybuild = "1.0.121"
 
 [workspace.lints.cargo]

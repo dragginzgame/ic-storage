@@ -13,7 +13,7 @@ or corrupt data. Applications own schemas and explicitly authorize migrations.
 Do not modify the legacy sibling repository or reset consumer storage.
 
 This repository adopts `TOKO-TOOLING.md` and its revision-bound references.
-The canonical exporter owns Toko 0.45.0 under `vendor/toko-tooling/` and
+The canonical exporter owns Toko 0.45.6 under `vendor/toko-tooling/` and
 `.toko-tooling.snapshot`. Access upstream collection engines and memory traits through
 `ic_platform::stable_structures` with the Platform facade’s defaults disabled. Stable-memory
 system calls continue through `ic-platform-runtime`.

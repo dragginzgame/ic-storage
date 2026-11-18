@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.78.2] - 2026-11-18
+
+- Adopt Toko Tooling 0.45.6 in both workspaces.
+- Run full release qualification during upload and keep the optional registry dry run lightweight.
+
 ## [0.78.1] - 2026-11-18
 
 - Use the `ic-platform 0.34.16` stable-structures feature for collection engines and memory traits.

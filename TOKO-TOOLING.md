@@ -205,6 +205,11 @@ file or separate review framework.
 
 ## Validation and evidence
 
+- Cargo may retrieve missing locked dependencies during normal work and releases.
+  Offline mode requires explicit authorization for the invocation or job. Preserve
+  the caller’s Cargo settings and report Cargo’s error if a selected package is
+  unavailable. Complete dependency preparation before sealing reusable evidence.
+
 - Ordinary coding and cleanup end after the relevant focused checks pass. Do not
   turn that handoff into release preparation, fleet adoption or qualification of
   every supported host. Those are separately requested workflows; missing broad
@@ -240,6 +245,10 @@ file or separate review framework.
   Offline admission checks every member, Cargo.lock and installed bytes together.
   See the
   [tooling selection rule](https://github.com/dragginzgame/toko-tooling/blob/d4b09ceb6dd94d825adee2b894fa26dac4618ae0/rules/cargo-dependencies.md#toko-tooling-during-dependency-updates).
+- When adding or widening a release check, record the failure it detects, the
+  changes that require it, its existing callers and its observed elapsed cost in
+  the owning release plan or review. Use existing timing evidence. If the cost
+  is unknown, record it on the next ordinary delivery.
 - Give repeated validation one execution owner: selected group scope must reach
   the leaf commands, and aggregate gates must not repeat full lint/setup through
   nested targets. Reuse unchanged release-stage evidence only through the
@@ -905,8 +914,12 @@ unused alias from its group's dependency roster when removing its declaration;
 retain the package in the group's member roster. Private product dependencies
 may use path-only entries; qualification owns its own workspace catalog.
 Remove unused workspace dependencies and their obsolete aliases; do not allow
-the unused-dependency lint merely to preserve a display catalog. Cargo.toml needs
-no release-group blocks, role sections or changelog comments. Keep group ownership
+the unused-dependency lint merely to preserve a display catalog. When
+`[workspace.dependencies]` contains multiple roles, group the used entries
+under `# Production`, `# Production and tests`, and `# Tests and tooling`,
+in that order. Omit empty groups and sort within each. Production includes
+normal and build dependencies across supported targets and features. Use the
+mixed heading for entries also declared for tests or tooling. Keep group ownership
 in the existing JSON policy under the
 [workspace versioning rules](https://github.com/dragginzgame/toko-tooling/blob/626da7cd9626cc2e152594862a2d82ea82ef51da/rules/rust-workspaces.md#coordinated-versions-and-workspace-boundaries).
 Dependency adoption must distinguish required compatibility/security changes from

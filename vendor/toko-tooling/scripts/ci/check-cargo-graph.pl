@@ -75,7 +75,7 @@ for my $requirement (@maximums) {
         or die "duplicate or conflicting identity count\n";
     $caps{$name} = $count;
 }
-my @command = ('cargo', 'tree', '--locked', '--offline', '--color', 'never',
+my @command = ('cargo', 'tree', '--locked', '--color', 'never',
     '--target', $target, '--edges', $edges . (@forbidden_features ? ',features' : ''),
     '--prefix', $explain ? 'indent' : 'none', '--format', $observations ? "{p}\t{f}" : '{p}');
 push @command, ('--charset', 'ascii') if $explain;
@@ -84,7 +84,6 @@ push @command, ('--depth', $depth) if defined $depth;
 push @command, '--all-features' if $all_features;
 push @command, '--no-default-features' if $no_defaults;
 push @command, ('--features', $features) if defined $features;
-$ENV{CARGO_NET_OFFLINE} = 'true';
 $ENV{RUSTUP_AUTO_INSTALL} = '0';
 open my $cargo, '-|', @command or die "cannot observe Cargo graph: $!\n";
 my $graph;

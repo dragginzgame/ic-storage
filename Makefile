@@ -3,7 +3,8 @@ FORMAT_RUST_ARGS := --extra-workspace qualification --rustfmt rustfmt
 CARGO_PUBLISH_PACKAGES := ic-storage
 CARGO_PUBLISH_REGISTRY := crates-io
 CARGO_PUBLISH_ALL_FEATURES := 1
-CARGO_PUBLISH_VERIFY_TARGETS := lint deps-check fmt-check test doc-check qualification-lint storage-installed-test
+override CARGO_PUBLISH_VERIFY_TARGETS := lint deps-check fmt-check test doc-check qualification-lint storage-installed-test
+publish-check: override CARGO_PUBLISH_VERIFY_TARGETS := lint
 include vendor/toko-tooling/make/consumer.mk
 include vendor/toko-tooling/make/cargo-dependencies.mk
 

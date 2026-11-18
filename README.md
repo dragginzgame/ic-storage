@@ -34,6 +34,19 @@ Shared setup/formatting/tool identity mechanics belong to Toko Tooling. Product
 commands select the library and qualification workspace; CI calls the same commands.
 Checks do not install compilers or fetch dependencies.
 
+## Publication
+
+For an authorized release from a clean release commit, run `make publish` once.
+It runs product lint, dependency and formatting checks, host tests, docs,
+qualification lint, and the installed upgrade and rollback test before Cargo
+verifies the archive and uploads `ic-storage` to crates.io. Prepare the installed
+test server with `make storage-setup` if needed. Use `make ci` for development
+and CI; running it immediately before publication repeats those checks.
+
+For an optional preflight, `make publish-check` runs product host and Wasm lint
+and Cargo's registry dry run. A later upload always runs its full qualification.
+Both commands record attempt evidence under `target/publication/`.
+
 The OP source was removed from the active workspace. Its Git history is intact;
 the pre-replacement worktree and history backup remain locally under
 `target/op-archive/2026-11-17/`, and the original source trees under `.op-backup/`.
