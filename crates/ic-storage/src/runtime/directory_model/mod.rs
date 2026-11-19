@@ -287,20 +287,6 @@ impl Directory {
         })
     }
 
-    // Model-only publication; durable publication belongs to Store.
-    #[cfg(test)]
-    fn publish(&mut self, prepared: Prepared) -> Result<(), Error> {
-        if self.image != prepared.base || self.data_start != prepared.candidate.data_start {
-            return Err(Error::Stale);
-        }
-        // Re-admit the candidate under this owner's budgets, even when two
-        // owners began from the same image with different local limits.
-        let candidate = Self::validate(prepared.candidate.image, self.budget, self.data_start)?;
-        candidate.encode()?;
-        *self = candidate;
-        Ok(())
-    }
-
     fn page_span(&self, id: AllocationId, logical: u64) -> Option<(u64, u64)> {
         let index = *self.by_id.get(&id)?;
         let ends = &self.logical_ends[index];
@@ -308,10 +294,5 @@ impl Directory {
         let extent = self.image.entries[index].extents.get(slot)?;
         let start = if slot == 0 { 0 } else { ends[slot - 1] };
         Some((extent.start + logical - start, ends[slot] - logical))
-    }
-
-    #[cfg(test)]
-    fn page(&self, id: AllocationId, logical: u64) -> Option<u64> {
-        self.page_span(id, logical).map(|(page, _)| page)
     }
 }

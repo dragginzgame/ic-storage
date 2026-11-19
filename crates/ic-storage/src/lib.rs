@@ -9,7 +9,7 @@ mod key;
 mod memory;
 mod runtime;
 mod stable_cell;
-#[cfg(any(test, feature = "test-support"))]
+#[cfg(feature = "test-support")]
 pub mod testing;
 
 use ic_platform::stable_structures as substrate;

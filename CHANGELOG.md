@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.78.5] - 2026-11-19
+
+- Adopt Toko Tooling 0.45.16 and share backing custody across host and Wasm builds.
+- Compile the qualification canister without a module guard and run portable collection fixtures with explicit vector backing.
+
 ## [0.78.4] - 2026-11-19
 
 - Adopt Toko Tooling 0.45.15 and its bounded CI diagnostic redaction.

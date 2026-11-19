@@ -1,5 +1,24 @@
 use super::*;
 
+impl Directory {
+    // Model-only publication; durable publication belongs to Store.
+    fn publish(&mut self, prepared: Prepared) -> Result<(), Error> {
+        if self.image != prepared.base || self.data_start != prepared.candidate.data_start {
+            return Err(Error::Stale);
+        }
+        // Re-admit the candidate under this owner's budgets, even when two
+        // owners began from the same image with different local limits.
+        let candidate = Self::validate(prepared.candidate.image, self.budget, self.data_start)?;
+        candidate.encode()?;
+        *self = candidate;
+        Ok(())
+    }
+
+    pub(super) fn page(&self, id: AllocationId, logical: u64) -> Option<u64> {
+        self.page_span(id, logical).map(|(page, _)| page)
+    }
+}
+
 fn key(i: usize) -> StableKey {
     StableKey::parse(format!("test.store{i}.v1")).unwrap()
 }

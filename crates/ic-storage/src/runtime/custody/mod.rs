@@ -1,17 +1,11 @@
 //! Process-local backing claims, retained by every issued runtime handle.
-#[cfg(not(target_arch = "wasm32"))]
-mod native;
-#[cfg(target_arch = "wasm32")]
-mod wasm;
-
-#[cfg(not(target_arch = "wasm32"))]
-use native::with_claims;
-#[cfg(target_arch = "wasm32")]
-use wasm::with_claims;
-
 use super::RuntimeConstructionError;
 use crate::{Memory, VectorMemory};
-use std::{rc::Rc, sync::Arc};
+use std::{
+    collections::BTreeSet,
+    rc::Rc,
+    sync::{Arc, Mutex, PoisonError},
+};
 
 /// Identity of a physical backing allocation, shared by all of its wrappers.
 /// This is host custody metadata, not a virtual memory ID or durable record.
@@ -51,6 +45,15 @@ pub trait MemoryBacking: Memory {
     fn backing_identity(&self) -> BackingIdentity;
 }
 
+// On hosts the default backing is already covered by the VectorMemory implementation.
+#[cfg(target_arch = "wasm32")]
+impl MemoryBacking for crate::DefaultMemoryImpl {
+    fn backing_identity(&self) -> BackingIdentity {
+        // Every default handle addresses the same canister stable memory.
+        BackingIdentity(0)
+    }
+}
+
 impl MemoryBacking for VectorMemory {
     fn backing_identity(&self) -> BackingIdentity {
         BackingIdentity::of_rc(self)
@@ -61,6 +64,13 @@ impl<M: MemoryBacking> MemoryBacking for Rc<M> {
     fn backing_identity(&self) -> BackingIdentity {
         self.as_ref().backing_identity()
     }
+}
+
+static CLAIMS: Mutex<BTreeSet<BackingIdentity>> = Mutex::new(BTreeSet::new());
+
+fn with_claims<T>(operation: impl FnOnce(&mut BTreeSet<BackingIdentity>) -> T) -> T {
+    let mut claims = CLAIMS.lock().unwrap_or_else(PoisonError::into_inner);
+    operation(&mut claims)
 }
 
 pub(super) struct BackingClaim(BackingIdentity);

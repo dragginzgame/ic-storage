@@ -43,10 +43,11 @@ fn upstream_collections_reopen_and_keep_independent_allocations() {
     let backing = VectorMemory::default();
     {
         let host = runtime(backing.clone());
-        let mut map = StableBTreeMap::<u64, Vec<u8>>::create(lease(&host, "app.map.v1"));
-        let mut set = StableBTreeSet::<u64>::create(lease(&host, "app.set.v1"));
-        let mut cell = StableCell::<u64>::create(lease(&host, "app.cell.v1"), 7);
-        let vector = StableVec::<u64>::create(lease(&host, "app.vec.v1"));
+        let mut map =
+            StableBTreeMap::<u64, Vec<u8>, VectorMemory>::create(lease(&host, "app.map.v1"));
+        let mut set = StableBTreeSet::<u64, VectorMemory>::create(lease(&host, "app.set.v1"));
+        let mut cell = StableCell::<u64, VectorMemory>::create(lease(&host, "app.cell.v1"), 7);
+        let vector = StableVec::<u64, VectorMemory>::create(lease(&host, "app.vec.v1"));
         for key in 0..300 {
             map.insert(key, vec![key as u8; 1024]);
             set.insert(key);
@@ -63,10 +64,10 @@ fn upstream_collections_reopen_and_keep_independent_allocations() {
         );
     }
     let host = runtime(backing);
-    let mut map = StableBTreeMap::<u64, Vec<u8>>::load(lease(&host, "app.map.v1"));
-    let set = StableBTreeSet::<u64>::load(lease(&host, "app.set.v1"));
-    let cell = StableCell::<u64>::load(lease(&host, "app.cell.v1")).unwrap();
-    let vector = StableVec::<u64>::load(lease(&host, "app.vec.v1"));
+    let mut map = StableBTreeMap::<u64, Vec<u8>, VectorMemory>::load(lease(&host, "app.map.v1"));
+    let set = StableBTreeSet::<u64, VectorMemory>::load(lease(&host, "app.set.v1"));
+    let cell = StableCell::<u64, VectorMemory>::load(lease(&host, "app.cell.v1")).unwrap();
+    let vector = StableVec::<u64, VectorMemory>::load(lease(&host, "app.vec.v1"));
     assert_eq!(map.len(), 200);
     assert_eq!(set.len(), 200);
     assert_eq!(*cell.get(), 9);
@@ -86,8 +87,10 @@ fn upstream_collections_reopen_and_keep_independent_allocations() {
     assert_eq!(map.remove(&301), Some(vec![8; 4096]));
 }
 
+// These upstream map constructors panic on foreign bytes. Inspecting the backing requires unwinding.
+#[cfg(panic = "unwind")]
 #[test]
-fn foreign_collection_load_and_creation_never_reset_bytes() {
+fn foreign_map_load_and_creation_never_reset_bytes() {
     let backing = VectorMemory::default();
     let host = runtime(backing.clone());
     let memory = lease(&host, "app.map.v1");
@@ -97,24 +100,30 @@ fn foreign_collection_load_and_creation_never_reset_bytes() {
     let before = backing.borrow().clone();
     assert!(
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            StableBTreeMap::<u64, u64>::load(lease(&host, "app.map.v1"))
+            StableBTreeMap::<u64, u64, VectorMemory>::load(lease(&host, "app.map.v1"))
         }))
         .is_err()
     );
     assert_eq!(*backing.borrow(), before);
     assert!(
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            StableBTreeMap::<u64, u64>::create(lease(&host, "app.map.v1"))
+            StableBTreeMap::<u64, u64, VectorMemory>::create(lease(&host, "app.map.v1"))
         }))
         .is_err()
     );
     assert_eq!(*backing.borrow(), before);
+}
+
+#[test]
+fn foreign_cell_load_preserves_bytes() {
+    let backing = VectorMemory::default();
+    let host = runtime(backing.clone());
     let cell_memory = lease(&host, "app.cell.v1");
     cell_memory.grow(1).unwrap();
     cell_memory.write(0, b"ICCELL01");
     let before = backing.borrow().clone();
     assert!(matches!(
-        StableCell::<u64>::load(cell_memory),
+        StableCell::<u64, VectorMemory>::load(cell_memory),
         Err(crate::StableCellPayloadError::NotStableCell)
     ));
     assert_eq!(*backing.borrow(), before);
@@ -126,20 +135,20 @@ fn upstream_heap_log_and_regions_reopen_without_custom_engines() {
     let backing = VectorMemory::default();
     {
         let host = runtime(backing.clone());
-        let mut heap = StableMinHeap::<u64>::create(lease(&host, "app.heap.v1"));
+        let mut heap = StableMinHeap::<u64, VectorMemory>::create(lease(&host, "app.heap.v1"));
         for item in [9, 2, 7] {
             heap.push(&item);
         }
         assert_eq!(heap.pop(), Some(2));
-        let log = StableLog::<Vec<u8>>::create(
+        let log = StableLog::<Vec<u8>, VectorMemory>::create(
             lease(&host, "app.logindex.v1"),
             lease(&host, "app.logdata.v1"),
         );
         log.append(&vec![1; 70000]).unwrap();
         log.append(&vec![2; 90000]).unwrap();
         let memory = Rc::new(lease(&host, "app.map.v1"));
-        let mut a = BTreeMapRegion::<u64, u64>::new(memory.clone(), 0..4);
-        let mut b = BTreeMapRegion::<u64, u64>::new(memory, 4..8);
+        let mut a = BTreeMapRegion::<u64, u64, VectorMemory>::new(memory.clone(), 0..4);
+        let mut b = BTreeMapRegion::<u64, u64, VectorMemory>::new(memory, 4..8);
         a.initialize();
         b.initialize();
         a.insert(3, 30);
@@ -148,18 +157,18 @@ fn upstream_heap_log_and_regions_reopen_without_custom_engines() {
         assert_eq!(b.get(&3), Some(300));
     }
     let host = runtime(backing);
-    let mut heap = StableMinHeap::<u64>::load(lease(&host, "app.heap.v1"));
+    let mut heap = StableMinHeap::<u64, VectorMemory>::load(lease(&host, "app.heap.v1"));
     assert_eq!(heap.pop(), Some(7));
     assert_eq!(heap.pop(), Some(9));
-    let log = StableLog::<Vec<u8>>::load(
+    let log = StableLog::<Vec<u8>, VectorMemory>::load(
         lease(&host, "app.logindex.v1"),
         lease(&host, "app.logdata.v1"),
     );
     assert_eq!(log.get(0), Some(vec![1; 70000]));
     assert_eq!(log.get(1), Some(vec![2; 90000]));
     let memory = Rc::new(lease(&host, "app.map.v1"));
-    let a = BTreeMapRegion::<u64, u64>::new(memory.clone(), 0..4);
-    let b = BTreeMapRegion::<u64, u64>::new(memory, 4..8);
+    let a = BTreeMapRegion::<u64, u64, VectorMemory>::new(memory.clone(), 0..4);
+    let b = BTreeMapRegion::<u64, u64, VectorMemory>::new(memory, 4..8);
     assert_eq!(a.get(&3), Some(30));
     assert_eq!(b.get(&3), Some(300));
 }
