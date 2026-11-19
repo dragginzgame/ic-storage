@@ -15,6 +15,18 @@ fn grants() -> AllocationGrants {
 }
 
 #[test]
+fn vector_backing_claim_follows_the_allocation() {
+    let first = VectorMemory::default();
+    let second = VectorMemory::default();
+    let _first_host = MemoryRuntime::new(first.clone()).unwrap();
+    let _second_host = MemoryRuntime::new(second).unwrap();
+    assert!(matches!(
+        MemoryRuntime::new(first),
+        Err(RuntimeConstructionError::BackingAlreadyClaimed)
+    ));
+}
+
+#[test]
 fn public_runtime_retains_omitted_names_and_requires_current_admission() {
     let memory = VectorMemory::default();
     let mut host = MemoryRuntime::new(memory.clone()).unwrap();

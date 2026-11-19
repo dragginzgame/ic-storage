@@ -1,32 +1,11 @@
 //! Process-local backing claims, retained by every issued runtime handle.
 use super::RuntimeConstructionError;
-use crate::{Memory, VectorMemory};
+use crate::{BackingIdentity, Memory, VectorMemory};
 use std::{
     collections::BTreeSet,
     rc::Rc,
-    sync::{Arc, Mutex, PoisonError},
+    sync::{Mutex, PoisonError},
 };
-
-/// Identity of a physical backing allocation, shared by all of its wrappers.
-/// This is host custody metadata, not a virtual memory ID or durable record.
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct BackingIdentity(usize);
-
-impl BackingIdentity {
-    /// Identify an Rc-owned backing. Its allocation must remain alive through
-    /// every runtime/handle using this identity. Identify the underlying backing,
-    /// not a newly allocated wrapper or an address inside a growable byte buffer.
-    #[must_use]
-    pub fn of_rc<T: ?Sized>(backing: &Rc<T>) -> Self {
-        Self(Rc::as_ptr(backing).cast::<()>() as usize)
-    }
-
-    /// Identify an Arc-owned backing under the same contract as [`Self::of_rc`].
-    #[must_use]
-    pub fn of_arc<T: ?Sized>(backing: &Arc<T>) -> Self {
-        Self(Arc::as_ptr(backing).cast::<()>() as usize)
-    }
-}
 
 /// Host boundary for a backing whose aliases can be identified consistently.
 ///
@@ -43,15 +22,6 @@ impl BackingIdentity {
 pub trait MemoryBacking: Memory {
     /// Return the physical backing identity under the trait's host contract.
     fn backing_identity(&self) -> BackingIdentity;
-}
-
-// On hosts the default backing is already covered by the VectorMemory implementation.
-#[cfg(target_arch = "wasm32")]
-impl MemoryBacking for crate::DefaultMemoryImpl {
-    fn backing_identity(&self) -> BackingIdentity {
-        // Every default handle addresses the same canister stable memory.
-        BackingIdentity(0)
-    }
 }
 
 impl MemoryBacking for VectorMemory {

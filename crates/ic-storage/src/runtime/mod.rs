@@ -8,7 +8,7 @@ pub use admission::{
     AdmissionError, AllocationGrants, BootstrapAdmission, GenericAllocationPolicy, MemoryAuthority,
     MemoryRequest, PolicyIdentity, RuntimeBootstrapPolicy, SealedDeclarationSnapshot,
 };
-pub use custody::{BackingIdentity, MemoryBacking};
+pub use custody::MemoryBacking;
 use directory_model::leases::{Lease, Owner};
 pub use directory_model::{AllocationId, Error as DirectoryError, StorageConfig};
 use std::collections::BTreeSet;

@@ -1,4 +1,5 @@
-use super::Memory;
+use super::{BackingIdentity, Memory};
+use crate::MemoryBacking;
 
 /// Canister stable memory through Platform's system-call boundary.
 #[derive(Clone, Copy, Default)]
@@ -23,5 +24,12 @@ impl Memory for DefaultMemoryImpl {
 
     fn write(&self, offset: u64, bytes: &[u8]) {
         ic_platform_runtime::raw::stable64_write(offset, bytes);
+    }
+}
+
+impl MemoryBacking for DefaultMemoryImpl {
+    fn backing_identity(&self) -> BackingIdentity {
+        // Every default handle addresses the same canister stable memory.
+        BackingIdentity(0)
     }
 }

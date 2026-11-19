@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.78.6] - 2026-11-19
+
+- Select the default physical backing at one boundary and verify independent volatile custody alongside IC stable memory.
+
+- Adopt Toko Tooling 0.45.18 and group the qualification canister exports with their access policies and argument limits.
+
 ## [0.78.5] - 2026-11-19
 
 - Adopt Toko Tooling 0.45.16 and share backing custody across host and Wasm builds.
