@@ -2,7 +2,11 @@
 use super::{Memory, Storable};
 use crate::{DefaultMemoryImpl, RuntimeMemory, substrate};
 
+///
+/// StableVec
 /// Governed upstream `Vec`; initialization and failures follow upstream contracts.
+///
+
 pub struct StableVec<T: Storable, M: Memory = DefaultMemoryImpl> {
     inner: substrate::Vec<T, RuntimeMemory<M>>,
 }
@@ -16,6 +20,7 @@ impl<T: Storable, M: Memory> StableVec<T, M> {
     #[must_use]
     pub fn create(memory: RuntimeMemory<M>) -> Self {
         assert_eq!(memory.size(), 0, "collection memory is not empty");
+
         Self::reset(memory)
     }
 
@@ -38,6 +43,7 @@ impl<T: Storable, M: Memory> StableVec<T, M> {
     #[must_use]
     pub fn load(memory: RuntimeMemory<M>) -> Self {
         assert!(memory.size() > 0, "collection memory is empty");
+
         Self {
             inner: substrate::Vec::init(memory),
         }

@@ -9,6 +9,7 @@ pub(super) fn encode(image: &Image, limit: usize) -> Result<Vec<u8>, Error> {
             return Err(Error::Budget);
         }
         bytes.extend_from_slice(part);
+
         Ok(())
     };
     append(FRAME)?;
@@ -31,11 +32,13 @@ pub(super) fn encode(image: &Image, limit: usize) -> Result<Vec<u8>, Error> {
         append(&(name.len() as u64).to_le_bytes())?;
         append(name)?;
         append(&(entry.extents.len() as u64).to_le_bytes())?;
+
         for extent in &entry.extents {
             append(&extent.start.to_le_bytes())?;
             append(&extent.pages.to_le_bytes())?;
         }
     }
+
     Ok(bytes)
 }
 
@@ -59,6 +62,7 @@ impl<'a> Reader<'a> {
         if count > limit {
             return Err(Error::Budget);
         }
+
         Ok(count)
     }
 
@@ -71,6 +75,7 @@ impl<'a> Reader<'a> {
                 pages: self.number()?,
             });
         }
+
         Ok(extents)
     }
 }
@@ -97,6 +102,7 @@ pub(super) fn decode(payload: &[u8], budget: StorageConfig) -> Result<Image, Err
     if !reader.0.is_empty() {
         return Err(Error::Invalid("trailing directory bytes"));
     }
+
     Ok(Image {
         generation,
         next_id,

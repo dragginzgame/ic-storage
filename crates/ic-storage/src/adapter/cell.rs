@@ -3,40 +3,15 @@ use super::{Bound, Memory, Storable};
 use crate::{DefaultMemoryImpl, RuntimeMemory, substrate};
 use std::borrow::Cow;
 
+///
+/// StableCell
 /// Governed upstream `Cell` with explicit initialization and read-only loading.
 ///
 /// Values and stored bytes retain the upstream codec and layout contracts.
 ///
+
 pub struct StableCell<T: Storable, M: Memory = DefaultMemoryImpl> {
     inner: substrate::Cell<CellValue<T>, RuntimeMemory<M>>,
-}
-
-// Upstream has no load constructor. An absent value is an internal loading
-// marker, never a default T or a persisted record. Serialization refuses it
-// before upstream can grow/write on its initialization fallback. Successful
-// construction always holds Some(T), decoded exactly once by upstream.
-struct CellValue<T>(Option<T>);
-
-impl<T: Storable> Storable for CellValue<T> {
-    const BOUND: Bound = T::BOUND;
-
-    fn to_bytes(&self) -> Cow<'_, [u8]> {
-        self.0
-            .as_ref()
-            .expect("cannot initialize a loading cell")
-            .to_bytes_checked()
-    }
-
-    fn into_bytes(self) -> Vec<u8> {
-        self.0
-            .expect("cannot initialize a loading cell")
-            .into_bytes_checked()
-    }
-
-    fn from_bytes(bytes: Cow<'_, [u8]>) -> Self {
-        T::check_bounds(&bytes);
-        Self(Some(T::from_bytes(bytes)))
-    }
 }
 
 impl<T: Storable, M: Memory> StableCell<T, M> {
@@ -47,6 +22,7 @@ impl<T: Storable, M: Memory> StableCell<T, M> {
     /// writing. Growth and codec failures retain upstream behavior.
     pub fn create(memory: RuntimeMemory<M>, value: T) -> Self {
         assert_eq!(memory.size(), 0, "cell memory is not empty");
+
         Self::reset(memory, value)
     }
 
@@ -83,6 +59,7 @@ impl<T: Storable, M: Memory> StableCell<T, M> {
             Bound::Unbounded => usize::MAX,
         };
         crate::stable_cell_payload_length(&memory, maximum)?;
+
         Ok(Self {
             inner: substrate::Cell::init(memory, CellValue(None)),
         })
@@ -106,5 +83,38 @@ impl<T: Storable, M: Memory> StableCell<T, M> {
             .set(CellValue(Some(value)))
             .0
             .expect("loaded cell value")
+    }
+}
+
+///
+/// CellValue
+/// Upstream has no load constructor. An absent value is an internal loading
+/// marker, never a default T or a persisted record. Serialization refuses it
+/// before upstream can grow/write on its initialization fallback. Successful
+/// construction always holds Some(T), decoded exactly once by upstream.
+///
+
+struct CellValue<T>(Option<T>);
+
+impl<T: Storable> Storable for CellValue<T> {
+    const BOUND: Bound = T::BOUND;
+
+    fn to_bytes(&self) -> Cow<'_, [u8]> {
+        self.0
+            .as_ref()
+            .expect("cannot initialize a loading cell")
+            .to_bytes_checked()
+    }
+
+    fn into_bytes(self) -> Vec<u8> {
+        self.0
+            .expect("cannot initialize a loading cell")
+            .into_bytes_checked()
+    }
+
+    fn from_bytes(bytes: Cow<'_, [u8]>) -> Self {
+        T::check_bounds(&bytes);
+
+        Self(Some(T::from_bytes(bytes)))
     }
 }

@@ -3,7 +3,11 @@ use super::{Memory, SetIter, Storable};
 use crate::{DefaultMemoryImpl, RuntimeMemory, substrate};
 use std::ops::RangeBounds;
 
+///
+/// StableBTreeSet
 /// Governed upstream `BTreeSet`; initialization and failures follow upstream contracts.
+///
+
 pub struct StableBTreeSet<K: Storable + Ord + Clone, M: Memory = DefaultMemoryImpl> {
     inner: substrate::BTreeSet<K, RuntimeMemory<M>>,
 }
@@ -17,6 +21,7 @@ impl<K: Storable + Ord + Clone, M: Memory> StableBTreeSet<K, M> {
     #[must_use]
     pub fn create(memory: RuntimeMemory<M>) -> Self {
         assert_eq!(memory.size(), 0, "collection memory is not empty");
+
         Self::reset(memory)
     }
 

@@ -2,7 +2,11 @@
 use super::{Memory, Storable};
 use crate::{DefaultMemoryImpl, RuntimeMemory, substrate};
 
+///
+/// StableMinHeap
 /// Governed upstream `MinHeap`; initialization and failures follow upstream contracts.
+///
+
 pub struct StableMinHeap<T: Storable + Ord, M: Memory = DefaultMemoryImpl> {
     inner: substrate::MinHeap<T, RuntimeMemory<M>>,
 }
@@ -16,6 +20,7 @@ impl<T: Storable + Ord, M: Memory> StableMinHeap<T, M> {
     #[must_use]
     pub fn create(memory: RuntimeMemory<M>) -> Self {
         assert_eq!(memory.size(), 0, "collection memory is not empty");
+
         Self::reset(memory)
     }
 
@@ -38,6 +43,7 @@ impl<T: Storable + Ord, M: Memory> StableMinHeap<T, M> {
     #[must_use]
     pub fn load(memory: RuntimeMemory<M>) -> Self {
         assert!(memory.size() > 0, "collection memory is empty");
+
         Self {
             inner: substrate::MinHeap::init(memory),
         }

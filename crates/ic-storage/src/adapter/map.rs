@@ -3,7 +3,11 @@ use super::{MapIter, Memory, Storable};
 use crate::{DefaultMemoryImpl, RuntimeMemory, substrate};
 use std::ops::RangeBounds;
 
+///
+/// StableBTreeMap
 /// Governed upstream `BTreeMap`; initialization and failures follow upstream contracts.
+///
+
 pub struct StableBTreeMap<K: Storable + Ord + Clone, V: Storable, M: Memory = DefaultMemoryImpl> {
     inner: substrate::BTreeMap<K, V, RuntimeMemory<M>>,
 }
@@ -17,6 +21,7 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> StableBTreeMap<K, V, M> 
     #[must_use]
     pub fn create(memory: RuntimeMemory<M>) -> Self {
         assert_eq!(memory.size(), 0, "collection memory is not empty");
+
         Self::reset(memory)
     }
 
@@ -64,6 +69,7 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> StableBTreeMap<K, V, M> 
         let memory = self.inner.into_memory();
         let additional = minimum.saturating_sub(memory.size());
         let result = memory.grow(additional).map(|_| ());
+
         (Self::load(memory), result)
     }
 
@@ -76,6 +82,7 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> StableBTreeMap<K, V, M> 
     pub fn allocated_pages(self) -> (Self, u64) {
         let memory = self.inner.into_memory();
         let pages = memory.size();
+
         (Self::load(memory), pages)
     }
 

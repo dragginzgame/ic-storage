@@ -1,7 +1,11 @@
 use super::{BackingIdentity, Memory};
 use crate::MemoryBacking;
 
+///
+/// DefaultMemoryImpl
 /// Canister stable memory through Platform's system-call boundary.
+///
+
 #[derive(Clone, Copy, Default)]
 pub struct DefaultMemoryImpl {
     _private: (),

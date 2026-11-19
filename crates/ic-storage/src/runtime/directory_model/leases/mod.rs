@@ -27,6 +27,7 @@ impl<M: MemoryBacking> Owner<M> {
         } else {
             Store::create(Rc::clone(&memory), budget)
         }?;
+
         Ok(Self(Rc::new(State {
             _claim: claim,
             store: RefCell::new(store),
@@ -42,6 +43,7 @@ impl<M: Memory> Owner<M> {
 
     pub fn bindings(&self) -> Vec<(StableKey, AllocationId, u64)> {
         let store = self.0.store.borrow();
+
         store
             .directory
             .image
@@ -75,6 +77,7 @@ impl<M: Memory> Owner<M> {
             return Ok(());
         }
         let candidate = store.prepare(keys, &[])?;
+
         store.commit(candidate)
     }
 
@@ -87,6 +90,7 @@ impl<M: Memory> Owner<M> {
         }
         store.verify()?;
         self.0.live.borrow_mut().insert(id);
+
         Ok(Lease {
             state: Rc::clone(&self.0),
             id,
@@ -110,6 +114,7 @@ impl<M: Memory> Lease<M> {
             let prepared = store.prepare(vec![], &[(self.id, pages)])?;
             store.commit(prepared)?;
         }
+
         Ok(previous)
     }
 

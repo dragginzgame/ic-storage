@@ -20,5 +20,6 @@ pub fn fixture_runtime<M: MemoryBacking>(
     )?;
     let grants = AllocationGrants::new(vec![MemoryAuthority::new(authority, prefix)?])?;
     runtime.bootstrap(&source, &grants, &GenericAllocationPolicy)?;
+
     Ok(runtime)
 }

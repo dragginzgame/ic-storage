@@ -28,6 +28,8 @@ pub enum RegionGrowError {
     Runtime(#[source] RuntimeGrowError),
 }
 
+///
+/// BTreeMapRegion
 /// A B-tree view inside one existing, governed allocation lease.
 ///
 /// The caller retains its `Rc<RuntimeMemory>` for disjoint application frames.
@@ -42,6 +44,8 @@ pub enum RegionGrowError {
 /// region. No method reinitializes nonempty memory or exports raw backing.
 /// As with ordinary collections, callers must not reenter collection access
 /// from a codec or mutate the tree's bytes through their retained lease.
+///
+
 pub struct BTreeMapRegion<K: Storable + Ord + Clone, V: Storable, M: Memory = DefaultMemoryImpl> {
     memory: RegionMemory<M>,
     record: PhantomData<(K, V)>,
@@ -59,6 +63,7 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> BTreeMapRegion<K, V, M> 
     #[must_use]
     pub fn new(memory: Rc<RuntimeMemory<M>>, pages: Range<u64>) -> Self {
         assert!(pages.start < pages.end && pages.end <= MAX_PAGES);
+
         Self {
             memory: RegionMemory { memory, pages },
             record: PhantomData,
@@ -154,6 +159,7 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> BTreeMapRegion<K, V, M> 
         if limit == 0 {
             return Vec::new().into_iter();
         }
+
         self.current_map()
             .keys_range(bounds)
             .take(limit)
@@ -166,8 +172,12 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> BTreeMapRegion<K, V, M> 
     }
 }
 
-// Private bounded IO over an admitted lease. Upstream RestrictedMemory does not
-// bound reads/writes and may overgrow an absent region; enforce both here.
+///
+/// RegionMemory
+/// Private bounded IO over an admitted lease. Upstream RestrictedMemory does not
+/// bound reads/writes and may overgrow an absent region; enforce both here.
+///
+
 struct RegionMemory<M: Memory> {
     memory: Rc<RuntimeMemory<M>>,
     pages: Range<u64>,
@@ -186,6 +196,7 @@ impl<M: Memory> RegionMemory<M> {
                 .grow(additional)
                 .map_err(RegionGrowError::Runtime)?;
         }
+
         Ok(())
     }
 
@@ -205,6 +216,7 @@ impl<M: Memory> Memory for &RegionMemory<M> {
         let Some(minimum) = previous.checked_add(delta) else {
             return -1;
         };
+
         if self.reserve_pages(minimum).is_ok() {
             // The selected range is bounded by MAX_PAGES.
             i64::try_from(previous).unwrap()
@@ -215,6 +227,7 @@ impl<M: Memory> Memory for &RegionMemory<M> {
 
     fn read(&self, offset: u64, dst: &mut [u8]) {
         self.check_io(offset, dst.len());
+
         if !dst.is_empty() {
             self.memory
                 .read(self.pages.start * PAGE_BYTES + offset, dst);
@@ -223,6 +236,7 @@ impl<M: Memory> Memory for &RegionMemory<M> {
 
     fn write(&self, offset: u64, src: &[u8]) {
         self.check_io(offset, src.len());
+
         if !src.is_empty() {
             self.memory
                 .write(self.pages.start * PAGE_BYTES + offset, src);

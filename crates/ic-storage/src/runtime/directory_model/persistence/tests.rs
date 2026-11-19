@@ -22,6 +22,7 @@ impl Memory for Observed {
 
     fn grow(&self, pages: u64) -> i64 {
         self.grows.set(self.grows.get() + 1);
+
         if self.refuse_growth.get() {
             -1
         } else {
@@ -155,6 +156,7 @@ fn interrupted_writes_poison_owner_and_never_guess_a_fallback_root() {
         assert!(matches!(store.commit(retry), Err(Error::Poisoned)));
         drop(store);
         let recovered = Store::open(memory, StorageConfig::default());
+
         match outcome {
             0 => assert_eq!(recovered.unwrap().directory.image, base),
             1 => assert!(recovered.is_err()),
@@ -170,6 +172,7 @@ fn every_root_byte_and_directory_corruption_is_rejected_without_writes() {
     let root = Root::decode(&store.root).unwrap();
     let original = memory.bytes.borrow().clone();
     drop(store);
+
     for offset in (0..ROOT_BYTES).chain([usize::try_from(root.start * PAGE).unwrap()]) {
         *memory.bytes.borrow_mut() = original.clone();
         memory.bytes.borrow_mut()[offset] ^= 1;
@@ -245,6 +248,7 @@ fn commit_checks_receiving_allocation_and_byte_limits_before_backing_mutation() 
     let memory = Observed::default();
     let source = Store::create(memory.clone(), StorageConfig::default()).unwrap();
     let root = Root::decode(&source.root).unwrap();
+
     for budget in [
         StorageConfig {
             allocations: 1,
@@ -314,6 +318,7 @@ fn snapshot_arenas_bound_metadata_growth_and_coalesce_data_extents() {
     assert_eq!(store.directory.image.entries[0].extents.len(), 1);
     drop(store);
     let reopened = Store::open(memory, StorageConfig::default()).unwrap();
+
     for index in 0_u64..100 {
         let mut bytes = [0; 8];
         reopened.read_data(id, index * PAGE, &mut bytes).unwrap();

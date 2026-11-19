@@ -13,8 +13,12 @@ cfg_select! {
 pub use crate::substrate::{Memory, VectorMemory};
 use std::{rc::Rc, sync::Arc};
 
+///
+/// BackingIdentity
 /// Identity of a physical backing allocation, shared by all of its wrappers.
 /// This is host custody metadata, not a virtual memory ID or durable record.
+///
+
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct BackingIdentity(usize);
 

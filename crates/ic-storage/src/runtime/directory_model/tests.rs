@@ -11,6 +11,7 @@ impl Directory {
         let candidate = Self::validate(prepared.candidate.image, self.budget, self.data_start)?;
         candidate.encode()?;
         *self = candidate;
+
         Ok(())
     }
 

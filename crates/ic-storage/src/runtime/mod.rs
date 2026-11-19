@@ -94,11 +94,14 @@ struct Binding {
     admitted: BTreeSet<StableKey>,
 }
 
+///
+/// MemoryRuntime
 /// One custodian of named allocations on a backing. Bootstrap validates namespace
 /// grants and host policy, commits bindings, then permits exclusive leases.
 /// Omitted retained names keep their allocation, but require current admission
 /// before opening. IDs are opaque u64 values, never selected by applications.
 ///
+
 pub struct MemoryRuntime<M: Memory> {
     owner: Owner<M>,
     config: StorageConfig,
@@ -126,6 +129,7 @@ impl<M: Memory> MemoryRuntime<M> {
             DirectoryError::AlreadyClaimed => RuntimeConstructionError::BackingAlreadyClaimed,
             error => RuntimeConstructionError::Directory(error),
         })?;
+
         Ok(Self {
             owner,
             config,
@@ -144,6 +148,7 @@ impl<M: Memory> MemoryRuntime<M> {
         if self.binding.is_none() {
             return Err(RuntimeOpenError::NotBootstrapped);
         }
+
         Ok(self.owner.generation())
     }
 
@@ -187,6 +192,7 @@ impl<M: Memory> MemoryRuntime<M> {
             policy: policy_identity,
             admitted,
         });
+
         Ok(self.owner.generation())
     }
 
@@ -207,6 +213,7 @@ impl<M: Memory> MemoryRuntime<M> {
         {
             return Err(RuntimeBootstrapError::BindingMismatch);
         }
+
         Ok(self.owner.generation())
     }
 
@@ -228,6 +235,7 @@ impl<M: Memory> MemoryRuntime<M> {
             },
             error => RuntimeOpenError::Directory(error),
         })?;
+
         Ok(RuntimeMemory { lease })
     }
 
@@ -249,6 +257,7 @@ impl<M: Memory> MemoryRuntime<M> {
                 return Err(RuntimeOpenError::NotAdmitted(request.stable_key().clone()));
             }
         }
+
         Ok(())
     }
 
@@ -261,6 +270,7 @@ impl<M: Memory> MemoryRuntime<M> {
     /// Observe checked directory entries and actual logical extents.
     pub fn memory_allocations(&self) -> Result<Vec<MemoryAllocation>, DirectoryError> {
         self.owner.verify()?;
+
         Ok(self
             .owner
             .bindings()
@@ -274,8 +284,11 @@ impl<M: Memory> MemoryRuntime<M> {
     }
 }
 
+///
+/// MemoryAllocation
 /// Passive diagnostic entry; no lease or allocation authority is carried.
 ///
+
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct MemoryAllocation {
     /// Durable name.
@@ -286,10 +299,13 @@ pub struct MemoryAllocation {
     pub pages: u64,
 }
 
+///
+/// RuntimeMemory
 /// Exclusive non-cloneable allocation lease. IO trusts custody between checked
 /// boundaries; growth commits the directory before publishing its new extent.
 /// A detached lease retains the backing claim until it is dropped.
 ///
+
 pub struct RuntimeMemory<M: Memory> {
     lease: Lease<M>,
 }

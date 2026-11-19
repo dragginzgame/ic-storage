@@ -2,7 +2,11 @@
 use super::{LogIter, LogWriteError, Memory, Storable};
 use crate::{DefaultMemoryImpl, RuntimeMemory, substrate};
 
+///
+/// StableLog
 /// Governed upstream `Log`; initialization and failures follow upstream contracts.
+///
+
 pub struct StableLog<T: Storable, M: Memory = DefaultMemoryImpl> {
     inner: substrate::Log<T, RuntimeMemory<M>, RuntimeMemory<M>>,
 }
@@ -17,6 +21,7 @@ impl<T: Storable, M: Memory> StableLog<T, M> {
     pub fn create(index_memory: RuntimeMemory<M>, data_memory: RuntimeMemory<M>) -> Self {
         assert_eq!(index_memory.size(), 0, "log index is not empty");
         assert_eq!(data_memory.size(), 0, "log data is not empty");
+
         Self::reset(index_memory, data_memory)
     }
 
@@ -45,6 +50,7 @@ impl<T: Storable, M: Memory> StableLog<T, M> {
         let mut magic = [0; 3];
         data_memory.read(0, &mut magic);
         assert_eq!(&magic, b"GLD", "foreign log data");
+
         // With recognized data magic upstream refuses every other incompatible
         // header before writes, including invalid/missing index magic.
         Self {

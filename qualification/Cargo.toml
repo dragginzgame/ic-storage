@@ -9,19 +9,11 @@ rust-version = "1.100.0"
 license-file = "../LICENSE.md"
 
 [workspace.dependencies]
-ic-platform-runtime = { version = "0.23.17", default-features = false }
+ic-platform-runtime = { version = "0.23.22", default-features = false }
 ic-storage = { path = "../crates/ic-storage" }
 ic-testkit = "0.110.0"
 tokio = { version = "1.54.1", features = ["macros", "rt"] }
-toko-tooling = "=0.45.18"
-
-[workspace.lints.rust]
-unsafe_code = "deny"
-missing_docs = "warn"
-unfulfilled_lint_expectations = "deny"
-
-[workspace.lints.clippy]
-all = "warn"
+toko-tooling = "=0.45.21"
 
 [workspace.lints.cargo]
 unused_dependencies = "deny"
@@ -29,6 +21,29 @@ unused_workspace_dependencies = "deny"
 unused_workspace_package_fields = "deny"
 missing_lints_inheritance = "deny"
 unknown_lints = "deny"
+
+[workspace.lints.rust]
+dead_code = "deny"
+unused_must_use = "deny"
+unfulfilled_lint_expectations = "deny"
+unsafe_code = "deny"
+unsafe_op_in_unsafe_fn = "deny"
+missing_docs = "warn"
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "deny"
+invalid_markdown_table = "deny"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -2 }
+correctness = { level = "deny", priority = -1 }
+redundant_clone = "warn"
+needless_pass_by_value = "warn"
+wildcard_imports = "warn"
+missing_panics_doc = "warn"
+must_use_candidate = "warn"
+too_many_lines = "allow"
+empty_line_after_doc_comments = "allow"
 
 [profile.release]
 panic = "abort"

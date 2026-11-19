@@ -40,6 +40,7 @@ static CLAIMS: Mutex<BTreeSet<BackingIdentity>> = Mutex::new(BTreeSet::new());
 
 fn with_claims<T>(operation: impl FnOnce(&mut BTreeSet<BackingIdentity>) -> T) -> T {
     let mut claims = CLAIMS.lock().unwrap_or_else(PoisonError::into_inner);
+
     operation(&mut claims)
 }
 
@@ -48,6 +49,7 @@ pub(super) struct BackingClaim(BackingIdentity);
 impl BackingClaim {
     pub fn acquire(memory: &impl MemoryBacking) -> Result<Self, RuntimeConstructionError> {
         let identity = memory.backing_identity();
+
         if with_claims(|claims| claims.insert(identity)) {
             Ok(Self(identity))
         } else {

@@ -30,7 +30,11 @@ fn owner_valid(owner: &str) -> bool {
             .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
 }
 
+///
+/// MemoryAuthority
 /// Host grant for one owner and a dot-terminated namespace.
+///
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MemoryAuthority {
     authority: String,
@@ -48,13 +52,19 @@ impl MemoryAuthority {
         if !owner_valid(&authority) || !crate::key::is_key_prefix(&prefix) {
             return Err(AdmissionError::Invalid);
         }
+
         Ok(Self { authority, prefix })
     }
 }
 
+///
+/// AllocationGrants
 /// Canonical, non-overlapping namespace grants for a host composition.
+///
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AllocationGrants(Vec<MemoryAuthority>);
+
 impl AllocationGrants {
     /// Validate namespace overlap before runtime bootstrap.
     pub fn new(mut grants: Vec<MemoryAuthority>) -> Result<Self, AdmissionError> {
@@ -65,6 +75,7 @@ impl AllocationGrants {
         {
             return Err(AdmissionError::Duplicate);
         }
+
         Ok(Self(grants))
     }
 
@@ -79,7 +90,11 @@ impl AllocationGrants {
     }
 }
 
+///
+/// MemoryRequest
 /// Checked request naming a store under one host-granted authority.
+///
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MemoryRequest {
     authority: String,
@@ -93,6 +108,7 @@ impl MemoryRequest {
         if !owner_valid(&authority) {
             return Err(AdmissionError::Invalid);
         }
+
         Ok(Self {
             authority,
             key: StableKey::parse(key)?,
@@ -112,9 +128,14 @@ impl MemoryRequest {
     }
 }
 
+///
+/// SealedDeclarationSnapshot
 /// Immutable canonical request set, with duplicate names rejected.
+///
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SealedDeclarationSnapshot(Vec<MemoryRequest>);
+
 impl SealedDeclarationSnapshot {
     /// Seal the complete host-composed requests.
     pub fn new(mut requests: Vec<MemoryRequest>) -> Result<Self, AdmissionError> {
@@ -122,6 +143,7 @@ impl SealedDeclarationSnapshot {
         if requests.windows(2).any(|pair| pair[0].key == pair[1].key) {
             return Err(AdmissionError::Duplicate);
         }
+
         Ok(Self(requests))
     }
 
@@ -132,9 +154,14 @@ impl SealedDeclarationSnapshot {
     }
 }
 
+///
+/// PolicyIdentity
 /// Host-selected token binding the exact configured policy to a runtime.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct PolicyIdentity([u8; 32]);
+
 impl PolicyIdentity {
     /// Construct a complete policy identity.
     #[must_use]
@@ -143,7 +170,11 @@ impl PolicyIdentity {
     }
 }
 
+///
+/// BootstrapAdmission
 /// Read-only recovered entries and explicit current historical admission.
+///
+
 pub struct BootstrapAdmission<'a> {
     grants: &'a AllocationGrants,
     recovered: &'a [(StableKey, AllocationId, u64)],
@@ -166,6 +197,7 @@ impl<'a> BootstrapAdmission<'a> {
         for request in &source.0 {
             grants.check(request)?;
         }
+
         Ok(Self {
             grants,
             recovered,
@@ -197,6 +229,7 @@ impl<'a> BootstrapAdmission<'a> {
         if let Err(error) = &result {
             self.failure = Some(error.clone());
         }
+
         result
     }
 
@@ -212,6 +245,7 @@ impl<'a> BootstrapAdmission<'a> {
             return Err(AdmissionError::Duplicate);
         }
         self.selected.push(request);
+
         Ok(())
     }
 
@@ -242,8 +276,13 @@ pub trait RuntimeBootstrapPolicy {
     fn runtime_bootstrap_identity(&self) -> PolicyIdentity;
 }
 
+///
+/// GenericAllocationPolicy
 /// Standard policy relying on Storage's namespace admission and resource limits.
+///
+
 pub struct GenericAllocationPolicy;
+
 impl RuntimeBootstrapPolicy for GenericAllocationPolicy {
     type Error = std::convert::Infallible;
     fn validate_allocation(&self, _key: &StableKey) -> Result<(), Self::Error> {

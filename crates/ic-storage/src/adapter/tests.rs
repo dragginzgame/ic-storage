@@ -29,6 +29,7 @@ fn runtime(backing: VectorMemory) -> MemoryRuntime<VectorMemory> {
             &GenericAllocationPolicy,
         )
         .unwrap();
+
     runtime
 }
 

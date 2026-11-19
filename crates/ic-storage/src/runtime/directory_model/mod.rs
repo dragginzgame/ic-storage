@@ -14,8 +14,12 @@ use std::collections::{BTreeMap, BTreeSet};
 const MAX_METADATA_ARENAS: usize = 128;
 const FRAME: &[u8] = b"ICDIRS02";
 
+///
+/// StorageConfig
 /// Resource ceilings checked when creating, opening and extending the directory.
 /// Physical page accounting includes retained metadata and abandoned tails.
+///
+
 #[derive(Clone, Copy, Debug)]
 pub struct StorageConfig {
     /// Maximum retained named allocations, including currently omitted names.
@@ -39,9 +43,14 @@ impl Default for StorageConfig {
     }
 }
 
+///
+/// AllocationId
 /// Opaque durable identity assigned by the directory. It grants no access.
+///
+
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct AllocationId(u64);
+
 impl AllocationId {
     /// Opaque diagnostic identity; callers cannot choose an allocation ID.
     #[must_use]
@@ -50,11 +59,21 @@ impl AllocationId {
     }
 }
 
+///
+/// Extent
+/// A contiguous range of physical backing pages.
+///
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct Extent {
     start: u64,
     pub pages: u64,
 }
+
+///
+/// Entry
+/// The stable key, identity and logical extent order for one named allocation.
+///
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct Entry {
@@ -63,6 +82,11 @@ struct Entry {
     // Logical page order is explicit; physical ranges need not be contiguous.
     extents: Vec<Extent>,
 }
+
+///
+/// Image
+/// The committed directory generation and its allocation and metadata extents.
+///
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct Image {
@@ -122,7 +146,11 @@ struct Directory {
     data_start: u64,
 }
 
-// A candidate owns all tentative changes. Preparation never mutates its base.
+///
+/// Prepared
+/// A candidate owns all tentative changes. Preparation never mutates its base.
+///
+
 #[derive(Debug)]
 struct Prepared {
     base: Image,
@@ -185,6 +213,7 @@ impl Directory {
                 return Err(Error::Budget);
             }
             data_extents += entry.extents.len();
+
             for extent in &entry.extents {
                 let end = extent
                     .start
@@ -205,17 +234,20 @@ impl Directory {
             .iter()
             .map(|entry| {
                 let mut total = 0;
+
                 entry
                     .extents
                     .iter()
                     .map(|extent| {
                         // Disjoint ranges fit within the admitted physical watermark.
                         total += extent.pages;
+
                         total
                     })
                     .collect()
             })
             .collect();
+
         Ok(Self {
             image,
             by_key,
@@ -234,6 +266,7 @@ impl Directory {
             .strip_prefix(FRAME)
             .ok_or(Error::Invalid("directory frame"))?;
         let image = format::decode(payload, budget)?;
+
         Self::validate(image, budget, data_start)
     }
 
@@ -271,6 +304,7 @@ impl Directory {
             }
             let start = image.next_page;
             image.next_page = start.checked_add(pages).ok_or(Error::Budget)?;
+
             if let Some(last) = image.entries[index].extents.last_mut()
                 && last.start + last.pages == start
             {
@@ -281,6 +315,7 @@ impl Directory {
         }
         image.generation = image.generation.checked_add(1).ok_or(Error::Budget)?;
         let candidate = Self::validate(image, self.budget, self.data_start)?;
+
         Ok(Prepared {
             base: self.image.clone(),
             candidate,
@@ -293,6 +328,7 @@ impl Directory {
         let slot = ends.partition_point(|&end| end <= logical);
         let extent = self.image.entries[index].extents.get(slot)?;
         let start = if slot == 0 { 0 } else { ends[slot - 1] };
+
         Some((extent.start + logical - start, ends[slot] - logical))
     }
 }

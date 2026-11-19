@@ -12,16 +12,17 @@ use std::cell::Cell;
 const MAGIC: &[u8; 8] = b"ICROOTS2";
 const ROOT_BYTES: usize = 64;
 
+///
+/// Root
+/// The fixed record locating the active directory snapshot and recording its checksum.
+///
+
 struct Root {
     generation: u64,
     start: u64,
     length: u64,
     end: u64,
     digest: u64,
-}
-
-fn digest(bytes: &[u8]) -> u64 {
-    hash::fnv64(hash::FNV_OFFSET, bytes)
 }
 
 impl Root {
@@ -42,6 +43,7 @@ impl Root {
         }
         let checksum = digest(&bytes[..48]);
         bytes[48..56].copy_from_slice(&checksum.to_le_bytes());
+
         bytes
     }
 
@@ -53,6 +55,7 @@ impl Root {
         if digest(&bytes[..48]) != word(48) {
             return Err(Error::Invalid("root checksum"));
         }
+
         Ok(Self {
             generation: word(8),
             start: word(16),
@@ -63,6 +66,10 @@ impl Root {
     }
 }
 
+fn digest(bytes: &[u8]) -> u64 {
+    hash::fnv64(hash::FNV_OFFSET, bytes)
+}
+
 pub struct Store<M: Memory> {
     memory: M,
     pub(super) directory: Directory,
@@ -70,7 +77,11 @@ pub struct Store<M: Memory> {
     poisoned: Cell<bool>,
 }
 
-// The immutable candidate includes the reservation for its own metadata bytes.
+///
+/// Commit
+/// The immutable candidate includes the reservation for its own metadata bytes.
+///
+
 struct Commit {
     directory: Directory,
     payload: Vec<u8>,
@@ -99,6 +110,7 @@ impl Commit {
                 };
                 candidate.next_page = arena.start.checked_add(pages).ok_or(Error::Budget)?;
                 candidate.metadata.push(arena.clone());
+
                 arena
             };
             let directory = Directory::validate(candidate, budget, 1)?;
@@ -114,6 +126,7 @@ impl Commit {
                     digest: digest(&payload),
                 };
                 root.end.checked_mul(PAGE).ok_or(Error::Budget)?;
+
                 return Ok(Self {
                     directory,
                     payload,
@@ -122,6 +135,7 @@ impl Commit {
             }
             pages = required.checked_next_power_of_two().ok_or(Error::Budget)?;
         }
+
         Err(Error::Invalid("metadata reservation did not converge"))
     }
 }
@@ -140,11 +154,13 @@ impl<M: Memory> Store<M> {
             poisoned: Cell::new(false),
         };
         owner.install(commit)?;
+
         Ok(owner)
     }
 
     pub(super) fn open(memory: M, budget: StorageConfig) -> Result<Self, Error> {
         let (root, directory) = read(&memory, budget)?;
+
         Ok(Self {
             memory,
             directory,
@@ -166,6 +182,7 @@ impl<M: Memory> Store<M> {
         let planning = Directory::validate(base, self.directory.budget, 1)?;
         let mut prepared = planning.prepare(keys, growth)?;
         prepared.base = self.directory.image.clone();
+
         Ok(prepared)
     }
 
@@ -184,6 +201,7 @@ impl<M: Memory> Store<M> {
             let retained = self.directory.by_id.get(&entry.id).map_or(0, |&index| {
                 self.directory.image.entries[index].extents.len()
             });
+
             if entry
                 .extents
                 .iter()
@@ -211,6 +229,7 @@ impl<M: Memory> Store<M> {
             self.directory.budget,
             Some(Root::decode(&self.root)?.start),
         )?;
+
         self.install(commit)
     }
 
@@ -231,6 +250,7 @@ impl<M: Memory> Store<M> {
             return Err(Error::Invalid("directory changed outside its owner"));
         }
         self.poisoned.set(false);
+
         Ok(())
     }
 
@@ -239,12 +259,14 @@ impl<M: Memory> Store<M> {
         self.poisoned.set(true);
         let pages = self.memory.size();
         self.poisoned.set(false);
+
         Ok(pages)
     }
 
     pub(super) fn pages(&self, id: AllocationId) -> Result<u64, Error> {
         self.healthy()?;
         let index = *self.directory.by_id.get(&id).ok_or(Error::Missing)?;
+
         // Disjoint extents fit within the admitted physical page budget.
         Ok(self.directory.logical_ends[index]
             .last()
@@ -282,6 +304,7 @@ impl<M: Memory> Store<M> {
             done += count;
         }
         self.poisoned.set(false);
+
         Ok(())
     }
 
@@ -312,6 +335,7 @@ impl<M: Memory> Store<M> {
         let pages = self.memory.size();
         if commit.root.end > pages && self.memory.grow(commit.root.end - pages) == -1 {
             self.poisoned.set(false);
+
             return Err(Error::Growth);
         }
         let root = commit.root.encode();
@@ -322,6 +346,7 @@ impl<M: Memory> Store<M> {
         self.root = root;
         self.directory = commit.directory;
         self.poisoned.set(false);
+
         Ok(())
     }
 }
@@ -370,5 +395,6 @@ fn read(
     {
         return Err(Error::Invalid("root is not in a reserved metadata arena"));
     }
+
     Ok((bytes, directory))
 }

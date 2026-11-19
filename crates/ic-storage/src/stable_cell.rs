@@ -72,5 +72,6 @@ pub fn stable_cell_payload_length<M: Memory>(
         reason = "the admitted caller ceiling is representable as usize"
     )]
     let value_len = value_len as usize;
+
     Ok(value_len)
 }

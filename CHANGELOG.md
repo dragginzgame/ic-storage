@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.78.7] - 2026-11-19
+
+- Adopt IC Platform 0.34.18, Platform Runtime 0.23.22 and Toko Tooling 0.45.21.
+- Align workspace lints, storage type documentation and qualification endpoint budgets with the new rules.
+
 ## [0.78.6] - 2026-11-19
 
 - Select the default physical backing at one boundary and verify independent volatile custody alongside IC stable memory.

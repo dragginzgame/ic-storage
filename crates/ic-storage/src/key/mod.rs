@@ -6,6 +6,8 @@ use std::{fmt, str::FromStr};
 
 pub(crate) const MAX_KEY_BYTES: usize = 128;
 
+///
+/// StableKey
 /// Canonical durable logical allocation identity.
 ///
 /// A stable key names the logical store, not the current storage backend or
@@ -14,21 +16,10 @@ pub(crate) const MAX_KEY_BYTES: usize = 128;
 ///
 /// Construction and deserialization enforce the same bounded canonical grammar.
 /// A checked key establishes identity syntax, not allocation or open authority.
+///
+
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct StableKey(String);
-
-impl<'de> Deserialize<'de> for StableKey {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        // Retain the serialized newtype shape before checking its owned text.
-        #[derive(Deserialize)]
-        #[serde(rename = "StableKey")]
-        struct Text(String);
-
-        let Text(value) = Text::deserialize(deserializer)?;
-        validate(&value).map_err(D::Error::custom)?;
-        Ok(Self(value))
-    }
-}
 
 impl StableKey {
     /// Parse and validate a canonical stable key string.
@@ -38,6 +29,7 @@ impl StableKey {
     pub fn parse(value: impl AsRef<str>) -> Result<Self, StableKeyError> {
         let value = value.as_ref();
         validate(value)?;
+
         Ok(Self(value.to_string()))
     }
 
@@ -60,6 +52,20 @@ impl AsRef<str> for StableKey {
     }
 }
 
+impl<'de> Deserialize<'de> for StableKey {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        // Retain the serialized newtype shape before checking its owned text.
+        #[derive(Deserialize)]
+        #[serde(rename = "StableKey")]
+        struct Text(String);
+
+        let Text(value) = Text::deserialize(deserializer)?;
+        validate(&value).map_err(D::Error::custom)?;
+
+        Ok(Self(value))
+    }
+}
+
 impl fmt::Display for StableKey {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(self.as_str())
@@ -74,7 +80,11 @@ impl FromStr for StableKey {
     }
 }
 
+///
+/// StableKeyError
 /// Stable-key grammar validation failure.
+///
+
 #[derive(Clone, Debug, Eq, thiserror::Error, PartialEq)]
 #[error("stable key '{stable_key}' is invalid: {reason}")]
 pub struct StableKeyError {
@@ -148,6 +158,7 @@ pub fn is_key_prefix(value: &str) -> bool {
     let Some(prefix) = value.strip_suffix('.') else {
         return false;
     };
+
     value.len() <= MAX_KEY_BYTES - "v1".len()
         && prefix
             .as_bytes()
@@ -166,6 +177,7 @@ fn validate_segment(segment: &[u8]) -> Result<(), &'static str> {
     if !bytes.all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_') {
         return Err("segments may contain only lowercase letters, digits, and underscores");
     }
+
     Ok(())
 }
 

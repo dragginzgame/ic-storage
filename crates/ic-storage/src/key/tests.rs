@@ -63,6 +63,7 @@ fn whitespace_rejection_preserves_input_and_precedence() {
             })
         );
     }
+
     for (key, reason) in [
         ("app.us\u{a0}ers.v1", "must be ASCII"),
         ("App.us\u{b}ers.v1", "must be lowercase"),
