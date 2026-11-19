@@ -2,7 +2,9 @@
 # Consumer-owned bounded setup/test diagnostics. Never copy raw evidence trees.
 use strict;
 use warnings;
-use Cwd qw(abs_path);
+use FindBin;
+use lib "$FindBin::Bin/../../vendor/toko-tooling/scripts/ci";
+use SetupDiagnostics qw(excerpt);
 use File::Find;
 use File::Path qw(make_path);
 use File::Spec;
@@ -22,34 +24,21 @@ sub sanitized {
     my ($path) = @_;
     die "refusing nonregular or symlinked evidence\n" unless regular_path($path);
     open my $in, '<:raw', $path or die "open selected diagnostic: $!\n";
-    my $count = read($in, my $text, 1024 * 1024 + 1);
+    my $count = sysread($in, my $text, 1024 * 1024 + 1);
     defined $count or die "read selected diagnostic: $!\n";
-    close $in or die "close diagnostic: $!\n";
     return "[binary diagnostic omitted]\n" if $text =~ /\x00/;
     return "[private-key diagnostic omitted in full]\n" if $text =~ /-----BEGIN .*PRIVATE KEY/;
-    my $truncated = $count > 1024 * 1024;
-    # Never expose a partial line/token at the input bound.
-    $text =~ s/[^\n]*\z// if $truncated;
-    $text =~ s/\e\[[0-9;]*[[:alpha:]]//g;
-    $text =~ s/[\x01-\x08\x0b-\x1f\x7f]/?/g;
-    for my $name (keys %ENV) {
-        next unless $name =~ /(?:TOKEN|PASSWORD|PASSWD|SECRET|PRIVATE_KEY|API_KEY|ACCESS_KEY)/i;
-        my $secret = $ENV{$name};
-        next unless defined $secret && length($secret) >= 4;
-        $text =~ s/\Q$secret\E/[REDACTED]/g;
+    # Preserve whole-file refusal for binary/PEM samples. The shared helper
+    # reads a bounded tail and drops incomplete lines at the input ceiling.
+    sysseek($in, 0, 0) or die "rewind selected diagnostic: $!";
+    # Pass historical PASSWD values to the shared filter before line clipping.
+    local %ENV = %ENV;
+    for my $name (grep { /PASSWD/i } keys %ENV) {
+        $ENV{"STORAGE_DIAGNOSTIC_SECRET_$name"} = $ENV{$name};
     }
-    # Drop whole sensitive-field lines, including shell/env and JSON spellings.
-    $text =~ s/^.*(?:authorization|cookie|password|passwd|token|secret|private[_ -]?key|api[_ -]?key|access[_ -]?key)\s*["']?\s*[:=].*$/[sensitive field omitted]/gmi;
-    $text =~ s{(https?://)[^/\s\@]+\@}{${1}[REDACTED]\@}g;
-    $text =~ s{(https?://[^\s?]+)\?[^\s]+}{$1?[query omitted]}g;
-    my @lines = split /(?<=\n)/, $text;
-    my $out = '';
-    for my $line (@lines) {
-        if (length($out) + length($line) > 65408) { $truncated = 1; last; }
-        $out .= $line;
-    }
-    $out .= "\n[diagnostic truncated: input 1 MiB, output 64 KiB limits]\n" if $truncated;
-    return length($out) ? $out : "[diagnostic empty]\n";
+    my $out = excerpt($in, 1024 * 1024);
+    close $in or die "close diagnostic: $!\n";
+    return $out;
 }
 sub write_file {
     my ($path, $text) = @_;
@@ -62,6 +51,7 @@ my $mode = shift @ARGV // '';
 if ($mode eq 'excerpt') {
     @ARGV == 1 or die "excerpt INPUT\n";
     my $text = sanitized($ARGV[0]);
+    print "[diagnostic truncated]\n" if $text =~ /\A\[.*input truncated at byte limit/;
     # A bounded tail, already sanitized without cutting tokens at the input edge.
     my @lines = split /\n/, $text;
     print "[excerpt: last 30 sanitized lines]\n";

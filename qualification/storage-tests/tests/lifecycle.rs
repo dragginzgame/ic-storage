@@ -38,10 +38,15 @@ async fn stable_collections_survive_upgrades_and_roll_back_failed_messages() {
     assert_eq!(&stats[..3], &[32, 32, 32]);
     assert!(stats[3] > 0);
     for (key, size) in [(1, 4096), (100, 1024 * 1024)] {
+        let rejection = pic
+            .update_call(id, id, "put", args([key, 99, size, 1]))
+            .await
+            .unwrap_err();
         assert!(
-            pic.update_call(id, id, "put", args([key, 99, size, 1]))
-                .await
-                .is_err()
+            rejection
+                .reject_message
+                .contains("rollback rows, index, revision and allocation growth"),
+            "{rejection}"
         );
         assert_eq!(query(&pic, id, "stats", [0; 4]).await, expected);
     }
@@ -50,10 +55,13 @@ async fn stable_collections_survive_upgrades_and_roll_back_failed_messages() {
         .unwrap();
     assert_eq!(query(&pic, id, "get", [1, 0, 0, 0]).await, vec![1; 4096]);
     assert_eq!(query(&pic, id, "stats", [0; 4]).await, expected);
+    let rejection = pic
+        .upgrade_canister(id, wasm.clone(), vec![1], None)
+        .await
+        .unwrap_err();
     assert!(
-        pic.upgrade_canister(id, wasm.clone(), vec![1], None)
-            .await
-            .is_err()
+        rejection.reject_message.contains("failed target startup"),
+        "{rejection}"
     );
     assert_eq!(query(&pic, id, "stats", [0; 4]).await, expected);
     pic.upgrade_canister(id, wasm.clone(), vec![], None)
@@ -66,10 +74,13 @@ async fn stable_collections_survive_upgrades_and_roll_back_failed_messages() {
             vec![key as u8; 4096]
         );
     }
+    let rejection = pic
+        .update_call(id, id, "delete", args([1, 0, 0, 1]))
+        .await
+        .unwrap_err();
     assert!(
-        pic.update_call(id, id, "delete", args([1, 0, 0, 1]))
-            .await
-            .is_err()
+        rejection.reject_message.contains("rollback deletion"),
+        "{rejection}"
     );
     assert_eq!(query(&pic, id, "get", [1, 0, 0, 0]).await, vec![1; 4096]);
     pic.update_call(id, id, "delete", args([1, 0, 0, 0]))

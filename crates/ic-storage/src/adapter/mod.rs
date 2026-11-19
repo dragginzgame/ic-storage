@@ -17,6 +17,7 @@ mod region;
 mod set;
 mod vector;
 
+// The corruption fixtures catch native unwinds and use host-backed default collections.
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests;
 

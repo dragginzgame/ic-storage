@@ -113,7 +113,10 @@ fn foreign_collection_load_and_creation_never_reset_bytes() {
     cell_memory.grow(1).unwrap();
     cell_memory.write(0, b"ICCELL01");
     let before = backing.borrow().clone();
-    assert!(StableCell::<u64>::load(cell_memory).is_err());
+    assert!(matches!(
+        StableCell::<u64>::load(cell_memory),
+        Err(crate::StableCellPayloadError::NotStableCell)
+    ));
     assert_eq!(*backing.borrow(), before);
 }
 

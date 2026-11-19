@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.78.4] - 2026-11-19
+
+- Adopt Toko Tooling 0.45.15 and its bounded CI diagnostic redaction.
+
+### 🎯 Qualification
+
+- Check the refusal reasons for namespace, allocation-limit and foreign-format failures alongside backing preservation.
+
 ## [0.78.3] - 2026-11-18
 
 - Adopt Toko Tooling 0.45.8 and group host and Wasm backing implementations by target.

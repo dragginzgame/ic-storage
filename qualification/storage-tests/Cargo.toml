@@ -6,15 +6,13 @@ rust-version.workspace = true
 license-file.workspace = true
 publish = false
 
-[target.'cfg(any())'.dev-dependencies]
-toko-tooling.workspace = true
-
 [package.metadata.toko-tooling.loc]
 category = "tests"
 
 [dev-dependencies]
 ic-testkit.workspace = true
 tokio.workspace = true
+toko-tooling.workspace = true
 
 [lints]
 workspace = true

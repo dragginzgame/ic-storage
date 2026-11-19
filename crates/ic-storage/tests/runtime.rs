@@ -9,6 +9,7 @@ fn source(keys: &[&str]) -> SealedDeclarationSnapshot {
     )
     .unwrap()
 }
+
 fn grants() -> AllocationGrants {
     AllocationGrants::new(vec![MemoryAuthority::new("app", "app.").unwrap()]).unwrap()
 }
@@ -65,15 +66,18 @@ impl RuntimeBootstrapPolicy for Select {
     fn validate_allocation(&self, _: &StableKey) -> Result<(), Self::Error> {
         Ok(())
     }
+
     fn runtime_bootstrap_identity(&self) -> PolicyIdentity {
         PolicyIdentity::new([7; 32])
     }
+
     fn prepare_bootstrap(&self, admission: &mut BootstrapAdmission<'_>) -> Result<(), Self::Error> {
         admission
             .include_historical("app", "app.old.v1")
             .map_err(|_| "selection")
     }
 }
+
 #[test]
 fn historical_selection_warm_binding_and_namespace_refusal() {
     let memory = VectorMemory::default();
@@ -82,10 +86,12 @@ fn historical_selection_warm_binding_and_namespace_refusal() {
         SealedDeclarationSnapshot::new(vec![MemoryRequest::new("other", "app.old.v1").unwrap()])
             .unwrap();
     let before = memory.borrow().clone();
-    assert!(
-        host.bootstrap(&invalid, &grants(), &GenericAllocationPolicy)
-            .is_err()
-    );
+    assert!(matches!(
+        host.bootstrap(&invalid, &grants(), &GenericAllocationPolicy),
+        Err(RuntimeBootstrapError::Admission(
+            AdmissionError::Unauthorized
+        ))
+    ));
     assert_eq!(*memory.borrow(), before);
     host.bootstrap(
         &source(&["app.old.v1"]),
@@ -147,10 +153,10 @@ fn default_allocation_limit_refuses_4097_names_without_writes() {
     let names: Vec<_> = (0..4097).map(|n| format!("app.rows{n}.v1")).collect();
     let names: Vec<_> = names.iter().map(String::as_str).collect();
     let before = backing.borrow().clone();
-    assert!(
-        host.bootstrap(&source(&names), &grants(), &GenericAllocationPolicy)
-            .is_err()
-    );
+    assert!(matches!(
+        host.bootstrap(&source(&names), &grants(), &GenericAllocationPolicy),
+        Err(RuntimeBootstrapError::Admission(AdmissionError::Limit))
+    ));
     assert_eq!(*backing.borrow(), before);
 }
 
@@ -161,7 +167,12 @@ fn old_directory_is_refused_without_resetting_backing() {
     for magic in [b"ICROOTR1", b"ICROOTS1"] {
         Memory::write(&backing, 0, magic);
         let before = backing.borrow().clone();
-        assert!(MemoryRuntime::new(backing.clone()).is_err());
+        assert!(matches!(
+            MemoryRuntime::new(backing.clone()),
+            Err(RuntimeConstructionError::Directory(
+                DirectoryError::Invalid("root marker or reserved bytes")
+            ))
+        ));
         assert_eq!(*backing.borrow(), before);
     }
 }
