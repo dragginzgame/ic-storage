@@ -9,8 +9,8 @@ include vendor/toko-tooling/make/consumer.mk
 include vendor/toko-tooling/make/cargo-dependencies.mk
 
 export RUSTUP_AUTO_INSTALL := 0
-PRODUCT := -p ic-storage --locked --offline
-QUAL := --manifest-path qualification/Cargo.toml --target-dir target/qualification --locked --offline
+PRODUCT := -p ic-storage --locked
+QUAL := --manifest-path qualification/Cargo.toml --target-dir target/qualification --locked
 SERVER_TOOL := bash vendor/toko-tooling/scripts/dev/install-rust-tools.sh --consumer "$(CURDIR)" --package ic-testkit --version 0.110.0 --bin ic-testkit-server --profile release --features cli
 SERVER_DIRECTORY := $(CURDIR)/.tools/testkit-server
 
@@ -18,7 +18,6 @@ SERVER_DIRECTORY := $(CURDIR)/.tools/testkit-server
 help:
 	@printf '%s\n' 'make test                    Host allocation/collection and ownership tests' 'make lint                    Product host/Wasm Clippy' 'make storage-setup           Explicit Testkit server setup' 'make storage-installed-test  Installed upgrade and rollback tests' 'make ci                      Aggregate local CI checks'
 
-check lint test doc-check ci deps-check deps-pins deps-boundaries storage-build storage-installed-test qualification-lint: export CARGO_NET_OFFLINE := true
 check lint test doc-check deps-check deps-pins deps-boundaries storage-build storage-installed-test qualification-lint: | toko-execution-check
 check:
 	+cargo check $(PRODUCT)

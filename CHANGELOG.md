@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.78.8] - 2026-11-20
+
+- Adopt Toko Tooling 0.45.23 and respect the caller’s Cargo network mode in product and qualification checks (#9).
+
 ## [0.78.7] - 2026-11-19
 
 - Adopt IC Platform 0.34.18, Platform Runtime 0.23.22 and Toko Tooling 0.45.21.

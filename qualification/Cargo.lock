@@ -199,9 +199,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.11.2"
+version = "1.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33ef9e3e8154a45c7a95cff4c1299702106ad94062d7bb85fdc5d3a5afd91d45"
+checksum = "02f0e023adb368345ce0ca6cdfc0f24a06554468d0e8503e14a0841de79bfa69"
 dependencies = [
  "find-msvc-tools",
  "jobserver",
@@ -716,9 +716,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform-runtime"
-version = "0.23.22"
+version = "0.23.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49ac0af0e78945df40f85dc34a65e47b2a9acd9716354169ecfc1911c6923f2a"
+checksum = "882feebba07b8aa72b36e16b097e7cf974237848c93716516c8927c85e601b7e"
 
 [[package]]
 name = "ic-stable-structures"
@@ -731,7 +731,7 @@ dependencies = [
 
 [[package]]
 name = "ic-storage"
-version = "0.78.7"
+version = "0.78.8"
 dependencies = [
  "ic-platform",
  "ic-platform-runtime",
@@ -741,9 +741,9 @@ dependencies = [
 
 [[package]]
 name = "ic-testkit"
-version = "0.110.2"
+version = "0.110.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a099c0ffe0b615664ad66484e4796e09a574a91153635c93dfa8fc37cec60f31"
+checksum = "0b04e07e411ea98842fedb02173150d51869c9c4a6c105dede249369322d7b2c"
 dependencies = [
  "pocket-ic",
 ]
@@ -2090,9 +2090,9 @@ dependencies = [
 
 [[package]]
 name = "toko-tooling"
-version = "0.45.21"
+version = "0.45.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af1ba8e16aaf1dae0951f08a228a4f00b928d09ff68997bd94ccc397ace5e4be"
+checksum = "34f25161ac689c2204ba923e506286b8dd06d0490d2f4143f1cd2e606e2c6067"
 
 [[package]]
 name = "tower"

@@ -94,6 +94,7 @@ jobs:
       - name: Prepare and run pinned validators
         run: |
           bash scripts/ci/tests/diagnostics.sh
+          bash scripts/ci/tests/cargo-network.sh
           bash scripts/ci/setup-step.sh validators bash -e -o pipefail <<'SETUP'
           tool_dir="$RUNNER_TEMP/ci-tools"
           actionlint_bin="$(bash vendor/toko-tooling/scripts/ci/install-ci-tool.sh actionlint --install-dir "$tool_dir")"

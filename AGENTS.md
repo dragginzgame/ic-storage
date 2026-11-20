@@ -13,14 +13,14 @@ or corrupt data. Applications own schemas and explicitly authorize migrations.
 Do not modify the legacy sibling repository or reset consumer storage.
 
 This repository adopts `TOKO-TOOLING.md` and its revision-bound references.
-The canonical exporter owns Toko 0.45.21 under `vendor/toko-tooling/` and
+The canonical exporter owns Toko 0.45.23 under `vendor/toko-tooling/` and
 `.toko-tooling.snapshot`. Access upstream collection engines and memory traits through
 `ic_platform::stable_structures` with the Platform facade’s defaults disabled. Stable-memory
 system calls continue through `ic-platform-runtime`.
 
 Keep Rust 1.100.0 as pinned compiler and support floor. Check for active Cargo,
-rustc and rustdoc processes before editing or compiling. Use focused locked
-offline checks; setup is explicit. Keep Rust library code under `crates/` and
+rustc and rustdoc processes before editing or compiling. Use focused, locked checks and leave Cargo network mode to the caller.
+Setup is explicit. Keep Rust library code under `crates/` and
 installed tests in the independent `qualification/` workspace. Use `foo/mod.rs`
 when a module has children. Preserve source notices and historical evidence.
 

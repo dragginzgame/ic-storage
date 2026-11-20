@@ -32,7 +32,8 @@ Common tools live under `.tools/host/bin` and `.tools/rust/common/bin`;
 
 Shared setup/formatting/tool identity mechanics belong to Toko Tooling. Product
 commands select the library and qualification workspace; CI calls the same commands.
-Checks do not install compilers or fetch dependencies.
+Cargo checks use the lockfile and inherit the caller’s network settings. With dependencies cached,
+run `CARGO_NET_OFFLINE=true make ci` to opt into offline verification.
 
 ## Publication
 

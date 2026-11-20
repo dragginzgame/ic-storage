@@ -9,6 +9,5 @@ Two private packages exercise the current public library:
   growth rollback, deletion and subsequent reuse.
 
 Run `make storage-setup` explicitly when the selected server is not prepared,
-then `make storage-installed-test`. Inputs build offline with the pinned compiler
-and lockfile. Server evidence remains under `target/evidence/testkit/`.
+then `make storage-installed-test`. Cargo uses the pinned compiler and lockfile and inherits the caller’s network settings. Server evidence remains under `target/evidence/testkit/`.
 This does not migrate or qualify a deployed consumer's application schema.
