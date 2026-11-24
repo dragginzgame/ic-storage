@@ -6,7 +6,7 @@ use ic_storage::{
     MemoryRuntime, RuntimeConstructionError, SealedDeclarationSnapshot, StableKey, VectorMemory,
     adapter::{StableBTreeMap, StableBTreeSet, StableCell},
 };
-use std::cell::RefCell;
+use std::{cell::RefCell, collections::BTreeSet};
 
 // init
 // Creates the three named collections on a fresh installation.
@@ -112,6 +112,69 @@ extern "C" fn stats() {
         );
     });
 }
+
+// seed_delete_rows
+// Inserts a bounded chunk of the physical records for matched deletion measurements.
+// limits : request exactly 32 bytes, empty reply
+#[expect(unsafe_code, reason = "IC entrypoint export")]
+#[unsafe(export_name = "canister_update seed_delete_rows")]
+extern "C" fn seed_delete_rows() {
+    let [start, count, _, _] = args();
+    assert!(count <= 64 && start <= 2048 - count);
+    STORES.with_borrow_mut(|state| {
+        let rows = &mut state.as_mut().unwrap().rows;
+        for key in start..start + count {
+            let size = if key % 13 == 0 { 8192 } else { 15 };
+            rows.insert(key, vec![key as u8; size]);
+        }
+    });
+    reply(&[]);
+}
+
+// measure_delete
+// Deletes up to 1,022 prepared physical keys, trapping on an unexpected removal count.
+// limits : request exactly 32 bytes, 32-byte reply
+#[expect(unsafe_code, reason = "IC entrypoint export")]
+#[unsafe(export_name = "canister_update measure_delete")]
+extern "C" fn measure_delete() {
+    let [count, stride, bulk, expected] = args();
+    assert!(count <= 1022 && matches!(stride, 1 | 2) && bulk <= 1);
+    let initial_heap = HEAP.current_usage();
+    HEAP.reset_peak_usage();
+    let initial_pages = core::arch::wasm32::memory_size::<0>();
+    let start = ic0::instruction_counter();
+    let keys: BTreeSet<_> = (0..count).map(|i| i * stride).collect();
+
+    let removed = STORES.with_borrow_mut(|state| {
+        let rows = &mut state.as_mut().unwrap().rows;
+        if bulk == 1 {
+            rows.remove_many(keys)
+        } else {
+            let mut removed = 0;
+            for key in keys {
+                removed += u64::from(rows.remove(&key).is_some());
+            }
+
+            removed
+        }
+    });
+    if removed != expected {
+        ic0::trap(b"prepared removal count changed");
+    }
+    let instructions = ic0::instruction_counter() - start;
+    let growth = core::arch::wasm32::memory_size::<0>() - initial_pages;
+    let working_heap = HEAP.peak_usage() - initial_heap;
+    let words = [removed, instructions, growth as u64, working_heap as u64];
+    reply(
+        &words
+            .into_iter()
+            .flat_map(u64::to_le_bytes)
+            .collect::<Vec<_>>(),
+    );
+}
+
+#[global_allocator]
+static HEAP: peak_alloc::PeakAlloc = peak_alloc::PeakAlloc;
 
 ///
 /// Stores

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.78.9] - 2026-11-24
+
+### 🚀 Features
+
+- Add `StableBTreeMap::remove_many` for prepared sets of exact keys. It reports actual removals, including zero on retry. [#10 Support bounded bulk removal of sorted keys in the next Storage engine](https://github.com/dragginzgame/ic-storage/issues/10)
+
+### 🎯 Qualification
+
+- Measure point and batch instruction counts, Wasm growth and peak working heap for 126 and 1,022 physical deletions. Verify byte-identical rollback and successful retry.
+
+### 🧪 Testing
+
+- Adopt Toko Tooling 0.46.3 and select the CI setup script directly, retiring three unused action and cache files.
+
 ## [0.78.8] - 2026-11-20
 
 - Adopt Toko Tooling 0.45.23 and respect the caller’s Cargo network mode in product and qualification checks (#9).

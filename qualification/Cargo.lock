@@ -19,9 +19,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.104"
+version = "1.0.105"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
+checksum = "2cb931c189b85683d69a5cfad41d4d418671e1ac413dd209f3f2fc31e3cfd902"
 
 [[package]]
 name = "ar_archive_writer"
@@ -287,9 +287,9 @@ dependencies = [
 
 [[package]]
 name = "crc32fast"
-version = "1.5.5"
+version = "1.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b929dd2a135771f40afabd1073f85eed59c800b7c61901e5c254270497dad64"
+checksum = "fd9ae8fcb3ea71b0b26338b4ffb13006bb175de8fd07921089a906ce7e5e6945"
 dependencies = [
  "cfg-if",
 ]
@@ -426,9 +426,9 @@ checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
 name = "form_urlencoded"
-version = "1.2.2"
+version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb4cb245038516f5f85277875cdaa4f7d2c9a0fa0468de06ed190163b1581fcf"
+checksum = "afa489199eaffb1211795df1c6236ce1ad0d41a6fa45250add73e3b02420f06e"
 dependencies = [
  "percent-encoding",
 ]
@@ -564,9 +564,9 @@ checksum = "1b43ede17f21864e81be2fa654110bf1e793774238d86ef8555c37e6519c0403"
 
 [[package]]
 name = "hashbrown"
-version = "0.17.1"
+version = "0.17.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
+checksum = "735eaa21a6a5ffb2e84362faaeb90c05ba8e19797ca30428478cb6ea3a4921bc"
 
 [[package]]
 name = "heck"
@@ -624,9 +624,9 @@ checksum = "6dbf3de79e51f3d586ab4cb9d5c3e2c14aa28ed23d180cf89b4df0454a69cc87"
 
 [[package]]
 name = "hyper"
-version = "1.12.0"
+version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c3e324da4c95177d6291d4c8730197c0d1822f8a9766814a4a44fa5ab797c9c"
+checksum = "229c6ff5584df4c6becbfe00567128bac768c8cd32ebc8a8366bd81ed072e8f3"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -707,18 +707,18 @@ dependencies = [
 
 [[package]]
 name = "ic-platform"
-version = "0.34.18"
+version = "0.34.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b59c6bf641d9d87b4c7cac1012398998b1f4a6217b81bd580b3c84d421b43a2d"
+checksum = "6372d2e30ba4e84ff47824dd1a4542e88215a18890afd9804fed99525bc35962"
 dependencies = [
  "ic-stable-structures",
 ]
 
 [[package]]
 name = "ic-platform-runtime"
-version = "0.23.23"
+version = "0.23.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "882feebba07b8aa72b36e16b097e7cf974237848c93716516c8927c85e601b7e"
+checksum = "186742997b9845806c447b095aa4358231ad2daf6963736a5767b005c17ccf5e"
 
 [[package]]
 name = "ic-stable-structures"
@@ -731,7 +731,7 @@ dependencies = [
 
 [[package]]
 name = "ic-storage"
-version = "0.78.8"
+version = "0.78.9"
 dependencies = [
  "ic-platform",
  "ic-platform-runtime",
@@ -741,9 +741,9 @@ dependencies = [
 
 [[package]]
 name = "ic-testkit"
-version = "0.110.3"
+version = "0.110.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b04e07e411ea98842fedb02173150d51869c9c4a6c105dede249369322d7b2c"
+checksum = "5617b2cbdc7adf055c6c7f4bdcbca8ad0ef5b367b65996acda10cad7fb79bb13"
 dependencies = [
  "pocket-ic",
 ]
@@ -1171,6 +1171,12 @@ name = "paste"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
+
+[[package]]
+name = "peak_alloc"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ccc90935a8dd139fdf341762773687a1e361d3f54b396a55d9dd1f7001e484bb"
 
 [[package]]
 name = "percent-encoding"
@@ -1840,6 +1846,7 @@ version = "0.1.0"
 dependencies = [
  "ic-platform-runtime",
  "ic-storage",
+ "peak_alloc",
  "toko-tooling",
 ]
 
@@ -2090,9 +2097,9 @@ dependencies = [
 
 [[package]]
 name = "toko-tooling"
-version = "0.45.23"
+version = "0.46.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34f25161ac689c2204ba923e506286b8dd06d0490d2f4143f1cd2e606e2c6067"
+checksum = "3f6d677af6c5ed88e3ba9ccf4d7b0c2eaad5f0fc49f0ad5b697e412ea4be600e"
 
 [[package]]
 name = "tower"
@@ -2271,9 +2278,9 @@ checksum = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
 
 [[package]]
 name = "url"
-version = "2.5.8"
+version = "2.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff67a8a4397373c3ef660812acab3268222035010ab8680ec4215f38ba3d0eed"
+checksum = "f00cd2407bb42c0ef17be88d4cf020f5cceffd121665bac9b8b9493a369b3b1a"
 dependencies = [
  "form_urlencoded",
  "idna",
@@ -2310,9 +2317,9 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "walkdir"
-version = "2.5.0"
+version = "2.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "29790946404f91d9c5d06f9874efddea1dc06c5efe94541a7d6863108e3a5e4b"
+checksum = "b42e295b7452c4604982280d8586001fcad9b8b201cac67bca9771e7a7475403"
 dependencies = [
  "same-file",
  "winapi-util",
@@ -2618,9 +2625,9 @@ dependencies = [
 
 [[package]]
 name = "zlib-rs"
-version = "0.6.8"
+version = "0.6.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b268e58e7c693d7c271f93ffc4ba3b380412554231c85bf61ca7af91042a4112"
+checksum = "aa76918995d776d9dd34d371030be228d021137449771493d56e29f77e4148ac"
 
 [[package]]
 name = "zmij"

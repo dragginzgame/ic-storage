@@ -1,7 +1,7 @@
 //! Governed map collection implementation.
 use super::{MapIter, Memory, Storable};
 use crate::{DefaultMemoryImpl, RuntimeMemory, substrate};
-use std::ops::RangeBounds;
+use std::{collections::BTreeSet, ops::RangeBounds};
 
 ///
 /// StableBTreeMap
@@ -116,6 +116,20 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> StableBTreeMap<K, V, M> 
     /// Delegates to upstream `BTreeMap::remove` with the governed allocation.
     pub fn remove(&mut self, key: &K) -> Option<V> {
         self.inner.remove(key)
+    }
+
+    /// Consume a prepared set of distinct keys and return the number present.
+    /// Empty sets, missing keys and retries contribute zero. The caller bounds
+    /// the set during admission. The released engine performs one removal per key.
+    /// A caller relying on prior existence checks must trap on a count mismatch
+    /// in the same IC update to roll back its writes.
+    pub fn remove_many(&mut self, keys: BTreeSet<K>) -> u64 {
+        let mut removed = 0;
+        for key in keys {
+            removed += u64::from(self.inner.remove(&key).is_some());
+        }
+
+        removed
     }
 
     /// Delegates to upstream `BTreeMap::first_key_value` with the governed allocation.

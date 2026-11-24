@@ -17,6 +17,7 @@ doctest = false
 [dependencies]
 ic-platform-runtime = { workspace = true, features = ["system-raw"] }
 ic-storage.workspace = true
+peak_alloc.workspace = true
 
 [dev-dependencies]
 toko-tooling.workspace = true

@@ -173,3 +173,42 @@ fn upstream_heap_log_and_regions_reopen_without_custom_engines() {
     assert_eq!(a.get(&3), Some(30));
     assert_eq!(b.get(&3), Some(300));
 }
+
+#[test]
+fn bulk_removal_preserves_exact_survivors_across_reopen() {
+    use std::collections::{BTreeMap, BTreeSet};
+
+    let backing = VectorMemory::default();
+    let mut expected = BTreeMap::new();
+    let host = runtime(backing.clone());
+    let mut tree = StableBTreeMap::<_, _, VectorMemory>::create(lease(&host, "app.map.v1"));
+    for key in 0_u64..512 {
+        let value = vec![key as u8; if key % 13 == 0 { 8192 } else { 15 }];
+        tree.insert(key, value.clone());
+        expected.insert(key, value);
+    }
+    assert_eq!(tree.remove_many(BTreeSet::new()), 0);
+    drop(tree);
+    drop(host);
+
+    for parity in [0, 1] {
+        let host = runtime(backing.clone());
+        let mut tree =
+            StableBTreeMap::<u64, Vec<u8>, VectorMemory>::load(lease(&host, "app.map.v1"));
+        assert!(
+            tree.iter()
+                .map(|e| (*e.key(), e.value()))
+                .eq(expected.clone())
+        );
+        let keys: BTreeSet<u64> = (parity..514).step_by(2).collect();
+        expected.retain(|key, _| !keys.contains(key));
+        assert_eq!(tree.remove_many(keys.clone()), 256);
+        assert_eq!(tree.remove_many(keys), 0);
+    }
+
+    let host = runtime(backing);
+    let mut tree = StableBTreeMap::<u64, Vec<u8>, VectorMemory>::load(lease(&host, "app.map.v1"));
+    assert!(tree.is_empty());
+    tree.insert(42_u64, vec![7_u8; 8192]);
+    assert_eq!(tree.get(&42), Some(vec![7; 8192]));
+}
