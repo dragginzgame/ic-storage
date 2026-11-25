@@ -2,7 +2,7 @@
 
 Two private packages exercise the current public library:
 
-- `storage-canister`: 4,096 named allocations; upstream map, set and cell over
+- `storage-canister`: 4,096 named allocations; owned B-tree maps for rows and index entries, plus a Cell over
   checked Storage leases. Ordinary init/post-upgrade rebuild transient owners.
 - `storage-tests`: Testkit 0.110 installed tests for heap-replacing upgrades,
   failed post-upgrade rollback, query-write isolation, multi-root mutation and
@@ -11,6 +11,10 @@ Two private packages exercise the current public library:
 Run `make storage-setup` explicitly when the selected server is not prepared,
 then `make storage-installed-test`. Cargo uses the pinned compiler and lockfile and inherits the caller’s network settings. Server evidence remains under `target/evidence/testkit/`.
 This does not migrate or qualify a deployed consumer's application schema.
+
+Run `make storage-engine-matrix` to compare the owned Cell and B-tree with upstream on PocketIC. The [engine audit](ENGINE-MATRIX.md) covers behavior, instruction counts, heap use, stable-memory growth and Wasm size.
+
+The [consumer benchmarks](CONSUMER-BENCHMARKS.md) compare IC DB, Auth, Wasm Store and Blob Storage against their locked Storage releases on PocketIC.
 
 ## Exact-key deletion baseline
 
@@ -37,7 +41,7 @@ allocated bytes above the pre-set baseline. Both instruction columns include
 that instrumentation. The released tree traverses once per key in both paths.
 A future engine can run the same fixture against this baseline. [Storage issue #10](https://github.com/dragginzgame/ic-storage/issues/10)
 
-## Current engine comparison
+## Historical 0.79 engine comparison
 
 On 2026-11-25, the patched 0.7.2 tree reused the loaded leaf for successive
 requested keys while node occupancy allowed. Qualification compared point and
@@ -70,3 +74,16 @@ engine produced the following PocketIC instruction counts on the same fixtures.
 
 Peak extra heap matched the preceding table and Wasm linear memory growth was
 zero pages in all eight runs.
+
+## Owned B-tree hard cut
+
+The same PocketIC workloads exercise the degree-six B-tree with up to 32
+requested removals per group of staged writes. Every run reported zero Wasm
+linear memory growth.
+
+| Physical keys | Selection | Individual instructions | Bulk instructions | Individual peak extra heap | Bulk peak extra heap |
+| ---: | --- | ---: | ---: | ---: | ---: |
+| 126 | Adjacent | 11,067,339 | 8,869,491 | 12,758 B | 13,487 B |
+| 126 | Alternating | 13,167,631 | 10,941,940 | 13,473 B | 15,486 B |
+| 1,022 | Adjacent | 88,215,499 | 67,951,593 | 21,881 B | 23,153 B |
+| 1,022 | Alternating | 106,485,827 | 83,656,481 | 22,511 B | 25,138 B |

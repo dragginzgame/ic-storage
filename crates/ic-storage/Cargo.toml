@@ -7,7 +7,7 @@ license-file.workspace = true
 repository.workspace = true
 publish = ["crates-io"]
 readme = "README.md"
-description = "Named stable-memory allocations and governed upstream stable collections"
+description = "Named stable-memory allocations and owned stable B-tree and Cell collections"
 
 [package.metadata.cargo-machete]
 ignored = ["toko-tooling"]
@@ -19,7 +19,6 @@ test-support = []
 ic-platform-runtime = { workspace = true, features = ["system-raw"] }
 
 [dependencies]
-ic-platform.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 

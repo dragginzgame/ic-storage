@@ -38,8 +38,9 @@ deps-check: toko-tooling-check deps-pins deps-boundaries
 deps-pins:
 	+bash "$(TOKO_TOOLING_ROOT)/scripts/ci/check-dependency-pins.sh" --consumer "$(CURDIR)" --cargo-inheritance
 deps-boundaries:
-	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)" --package ic-storage --target all --depth 1 --require ic-platform=1 --forbid ic-stable-structures
-	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)" --package ic-storage --target wasm32-unknown-unknown --require ic-stable-structures=1 --require ic-platform-runtime=1 --forbid ic-wire --forbid ic-memory --forbid ic-storage-derive --forbid ic-storage-m0 --forbid toko-tooling
+	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)" --package ic-storage --target all --forbid ic-stable-structures
+	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)" --package ic-storage --target wasm32-unknown-unknown --forbid ic-stable-structures --require ic-platform-runtime=1 --forbid ic-wire --forbid ic-memory --forbid ic-storage-derive --forbid ic-storage-m0 --forbid toko-tooling
+	+perl "$(TOKO_TOOLING_ROOT)/scripts/ci/check-cargo-graph.pl" --consumer "$(CURDIR)/qualification" --package storage-canister --target wasm32-unknown-unknown --forbid ic-stable-structures
 
 storage-build:
 	+RUSTFLAGS='-C link-arg=-zstack-size=1048576' cargo build $(QUAL) -p storage-canister --target wasm32-unknown-unknown --release
@@ -47,3 +48,8 @@ storage-setup:
 	+@umask 077; server="$$($(SERVER_TOOL))" && mkdir -p target/evidence/testkit && attempt="$$(mktemp -d "$(CURDIR)/target/evidence/testkit/setup.XXXXXX")" && "$$server" setup "$(SERVER_DIRECTORY)" "$$attempt/evidence" /usr/bin/curl /usr/bin/gzip
 storage-installed-test: storage-build
 	+@umask 077; server="$$($(SERVER_TOOL) --check)" && mkdir -p target/evidence/testkit && attempt="$$(mktemp -d "$(CURDIR)/target/evidence/testkit/run.XXXXXX")" && STORAGE_CANISTER_WASM="$(CURDIR)/target/qualification/wasm32-unknown-unknown/release/storage_canister.wasm" "$$server" run "$(SERVER_DIRECTORY)" "$$attempt/evidence" --ttl 300 -- cargo test $(QUAL) -p storage-tests --test lifecycle -- --ignored --nocapture
+
+.PHONY: storage-engine-matrix
+storage-engine-matrix: | toko-execution-check
+	+STORAGE_MATRIX_SIZE_ENGINE=both RUSTFLAGS='-C link-arg=-zstack-size=1048576' cargo build $(QUAL) -p storage-canister --example engine_matrix --target wasm32-unknown-unknown --release
+	+@umask 077; server="$$($(SERVER_TOOL) --check)" && mkdir -p target/evidence/testkit && attempt="$$(mktemp -d "$(CURDIR)/target/evidence/testkit/matrix.XXXXXX")" && ENGINE_MATRIX_WASM="$(CURDIR)/target/qualification/wasm32-unknown-unknown/release/examples/engine_matrix.wasm" "$$server" run "$(SERVER_DIRECTORY)" "$$attempt/evidence" --ttl 300 -- cargo test $(QUAL) -p storage-tests --test engine_matrix -- --ignored --nocapture

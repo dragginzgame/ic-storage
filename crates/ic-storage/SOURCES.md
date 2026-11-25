@@ -8,16 +8,21 @@ commit `d545eccd9dbb52fa32dbc7716b67a0e729619ef1`, with their imports adapted to
 the merged crate. Cell-envelope validation follows the corresponding ic-memory
 0.63.0 implementation. Cached registry archives retain their source identities.
 
-Changes here reconnect upstream Memory/Storable, adopt current Platform raw calls
-and Storage-owned directory encoding, give the new directory its own magic, and qualify the combined
-runtime. No old custom tree implementation is carried forward.
-The map engine in `src/map_engine/` derives from DFINITY ic-stable-structures
-0.7.2, distributed under Apache-2.0 (see `LICENSE-stable-structures`). It
-includes the IC DB prototype for batching ordered deletions in a leaf, uses safe
-slice-based I/O and explicit packed-header field encoding, and omits unused
-upstream entry points. Memory and record codecs come from the Platform facade.
+The B-tree and checked record framing derive from the MIT-licensed
+`ic-storage` 0.67.0, revision `816e520bf3bfba5763700f1330817127cf039a00`.
+The original grant is reproduced below. Its
+[provenance record](https://github.com/dragginzgame/ic-storage-legacy/blob/816e520bf3bfba5763700f1330817127cf039a00/docs/storage/upstreams.md)
+documents an independent implementation of standard B-tree algorithms. This
+cut adds bounded bulk mutation and a dedicated binary root and free-link codec.
 
-The imported 0.63/0.64 source was distributed under this grant, retained here:
+The Cell, backing interface and primitive record codecs derive from
+`ic-storage` 0.74.1, revision `f001cf4373786ad76dc6cc55c62eb353029987b8`,
+under the Toko Studios Network Licence. See its
+[implementation record](https://github.com/dragginzgame/ic-storage-legacy/blob/f001cf4373786ad76dc6cc55c62eb353029987b8/docs/storage/upstreams.md).
+The current API uses initialized slice reads and retains Storage's existing
+collection call signatures.
+
+The imported 0.63/0.64/0.67 source was distributed under this grant, retained here:
 
 MIT License
 

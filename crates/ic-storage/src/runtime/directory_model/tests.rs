@@ -145,10 +145,10 @@ fn recovery_rejects_overlap_duplicate_keys_bounds_and_bad_format() {
 }
 
 #[test]
-fn v2_fixture_reopens_and_reencodes_exactly() {
+fn v1_fixture_reopens_and_reencodes_exactly() {
     // Generation 7, next id 3, next page 4, metadata at page 1.
     // Entry 2 owns app.rows.v1 and two pages starting at page 2.
-    let bytes = b"ICDIRS02\x07\0\0\0\0\0\0\0\x03\0\0\0\0\0\0\0\x04\0\0\0\0\0\0\0\
+    let bytes = b"ICPDIR01\x07\0\0\0\0\0\0\0\x03\0\0\0\0\0\0\0\x04\0\0\0\0\0\0\0\
                   \x01\0\0\0\0\0\0\0\x01\0\0\0\0\0\0\0\x01\0\0\0\0\0\0\0\
                   \x01\0\0\0\0\0\0\0\x02\0\0\0\0\0\0\0\x0b\0\0\0\0\0\0\0app.rows.v1\
                   \x01\0\0\0\0\0\0\0\x02\0\0\0\0\0\0\0\x02\0\0\0\0\0\0\0";

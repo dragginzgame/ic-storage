@@ -1,4 +1,4 @@
-//! Directory v2. Scalars and counts are little-endian u64s. Names are
+//! Directory v1. Scalars and counts are little-endian u64s. Names are
 //! length-prefixed ASCII. Extents are (start, pages) pairs in logical order.
 use super::{AllocationId, Entry, Error, Extent, FRAME, Image, StableKey, StorageConfig};
 

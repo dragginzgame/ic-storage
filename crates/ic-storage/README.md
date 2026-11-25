@@ -1,8 +1,8 @@
 # IC Storage
 
-Named stable-memory allocations with upstream `ic-stable-structures` collections.
-One crate owns allocation names, namespace grants, exclusive leases and checked
-reopening. DFINITY's library owns the B-tree, set, cell, vector, heap and log engines.
+Named stable-memory allocations with a Storage-owned degree-six B-tree and Cell.
+The crate owns allocation names, namespace grants, exclusive leases, record
+traits and collection formats.
 
 The default allocation limit is 4,096. `StableKey` accepts up to 128 bytes of
 lowercase ASCII dot-separated names ending in a nonzero `.vN`, for example
@@ -35,9 +35,36 @@ Each collection consumes a non-cloneable allocation lease. Drop every collection
 before reopening the same allocation. Raw backing aliases are infrastructure-only;
 applications must not bypass the runtime's custody checks. Ordinary errors are
 not transactions; installed IC traps roll back the message. Native writes are
-not atomic. Upstream codec, growth and panic contracts apply.
+not atomic.
 
-This version replaces the experimental OP API. It is not stored-format compatible
-with OP or the 0.64 custom collection engines. The directory uses a new identity
-and refuses earlier backing. Existing deployments need an explicit migration or
-fresh storage; installing this crate does not authorize resetting application data.
+The current B-tree uses `ICPMAP001` and the Cell uses `STORCELL` version 1.
+Both require fresh allocations when moving from 0.79. Loading an old map or cell
+refuses its framing before writing. The new V1 allocation directory requires fresh backing. To retain records, export them with the previous reader and import them into
+a fresh V1 backing before switching applications. Previous `ICMAP003` and
+`ICMAP004` headers are refused on load.
+
+### Per-map allocation options
+
+Use `create_with_options` when a named map has a distinct workload. For
+example, a chunk index that stores 1 MiB values can use a 257-byte allocation
+unit. Its 1,048,596-byte framed value fits in a 1,052,672-byte block. The
+default 256-byte unit rounds the same frame up to 2 MiB.
+
+```rust
+use ic_storage::{Memory, RuntimeMemory};
+use ic_storage::adapter::{BTreeMapOptions, StableBTreeMap};
+
+fn create_chunks<M: Memory>(lease: RuntimeMemory<M>) -> StableBTreeMap<[u8; 32], Vec<u8>, M> {
+    StableBTreeMap::create_with_options(lease, BTreeMapOptions {
+        allocation_unit_bytes: 257,
+        ..Default::default()
+    })
+}
+```
+
+`node_target_bytes` controls the initial node reservation (default 1,024).
+`allocation_unit_bytes` controls the minimum block size for nodes and external
+values (default 256). Both accept 256 through 65,535 bytes. Each allocation has
+its own settings. Call `load(lease)` after upgrade and `options()` to inspect
+the recovered settings. Changing the layout of a populated map requires
+copying into a fresh map. Use `reset_with_options` only to discard its contents.

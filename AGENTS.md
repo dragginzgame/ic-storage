@@ -1,10 +1,9 @@
 # Repository instructions
 
-This repository implements named stable-memory allocations and governed
-`ic-stable-structures` collections in one `ic-storage` crate. On 17 November 2026
-the user explicitly retired the OP experiment and selected the merged 0.64
-allocation design with upstream collection engines. Do not resume OP, custom
-collection engines or a separate `ic-memory` package without a new request.
+This repository implements named stable-memory allocations, an owned Cell and an
+owned multi-entry B-tree in one `ic-storage` crate. The 25 November 2026 hard cut
+retains the merged allocation design and selects the independent Storage engines.
+OP and a separate `ic-memory` package remain retired.
 
 Read `docs/DESIGN.md` before implementation. Keep 4,096 named allocations by
 default and canonical string keys bounded to 128 bytes. Preserve namespace grants,
@@ -13,10 +12,9 @@ or corrupt data. Applications own schemas and explicitly authorize migrations.
 Do not modify the legacy sibling repository or reset consumer storage.
 
 This repository adopts `TOKO-TOOLING.md` and its revision-bound references.
-The canonical exporter owns Toko 0.46.3 under `vendor/toko-tooling/` and
-`.toko-tooling.snapshot`. Access upstream collection engines and memory traits through
-`ic_platform::stable_structures` with the Platform facade’s defaults disabled. The approved 0.79 map exception packages the modified 0.7.2 map inside ic-storage.
-It uses the facade Memory and Storable traits. All other collections retain their facade engines. Stable-memory
+The canonical exporter owns Toko 0.46.4 under `vendor/toko-tooling/` and
+`.toko-tooling.snapshot`. Use Storage-owned Memory and Storable contracts. Keep `ic-stable-structures` out of product and normal canister dependency graphs.
+The qualification matrix may use the released crate as a dev-dependency. Stable-memory
 system calls continue through `ic-platform-runtime`.
 
 Keep Rust 1.100.0 as pinned compiler and support floor. Check for active Cargo,

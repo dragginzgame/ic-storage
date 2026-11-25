@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.80.0] - 2026-11-25
+
+### 💥 Breaking changes
+
+- Require the new `ICPMAP001` B-tree format with per-map allocation settings. Loading a previous map refuses before writing. The V1 allocation directory also requires fresh backing. To retain data, export it with the previous release and import it into fresh V1 storage.
+- Replace the collection backend with Storage-owned Cell and degree-six B-tree engines. Use fresh allocations for the new map and Cell formats. The set, vector, heap, log and region adapters are removed.
+- Use Storage's own `Memory`, `Bound` and `Storable` types. Application codecs must implement the trait exported by Storage.
+
+### Changes
+
+- Adopt Toko Tooling 0.46.4 and its canonical Toko Studios Network Licence 1.1.
+- Support three-component stable records, including Canic’s sharding registry rows.
+
 ## [0.79.0] - 2026-11-25
 
 ### 🚀 Features

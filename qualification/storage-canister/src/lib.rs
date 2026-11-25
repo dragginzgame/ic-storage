@@ -1,10 +1,10 @@
-//! Installed witness using only public allocation and upstream collection APIs.
+//! Installed witness using only public allocation and owned collection APIs.
 
 use ic_platform_runtime::raw as ic0;
 use ic_storage::{
     AllocationGrants, DefaultMemoryImpl, GenericAllocationPolicy, MemoryAuthority, MemoryRequest,
     MemoryRuntime, RuntimeConstructionError, SealedDeclarationSnapshot, StableKey, VectorMemory,
-    adapter::{StableBTreeMap, StableBTreeSet, StableCell},
+    adapter::{StableBTreeMap, StableCell},
 };
 use std::{cell::RefCell, collections::BTreeSet};
 
@@ -201,7 +201,7 @@ static HEAP: peak_alloc::PeakAlloc = peak_alloc::PeakAlloc;
 
 struct Stores {
     rows: StableBTreeMap<u64, Vec<u8>>,
-    index: StableBTreeSet<u64>,
+    index: StableBTreeMap<u64, ()>,
     revision: StableCell<u64>,
 }
 
@@ -243,13 +243,13 @@ fn open(create: bool) {
     let stores = if create {
         Stores {
             rows: StableBTreeMap::create(rows),
-            index: StableBTreeSet::create(index),
+            index: StableBTreeMap::create(index),
             revision: StableCell::create(revision, 0),
         }
     } else {
         Stores {
             rows: StableBTreeMap::load(rows),
-            index: StableBTreeSet::load(index),
+            index: StableBTreeMap::load(index),
             revision: StableCell::load(revision).unwrap(),
         }
     };
@@ -276,7 +276,7 @@ fn write() {
         let mut state = state.borrow_mut();
         let stores = state.as_mut().unwrap();
         stores.rows.insert(key, vec![value as u8; size as usize]);
-        stores.index.insert(key);
+        stores.index.insert(key, ());
         stores.revision.set(stores.revision.get() + 1);
     });
     if fail != 0 {

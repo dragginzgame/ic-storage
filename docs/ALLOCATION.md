@@ -1,11 +1,10 @@
 # Named allocation and host integration
 
 A host constructs one `MemoryRuntime` over an identified `MemoryBacking`.
-`Memory` is the upstream four-method backing interface: `size`, `grow`, `read`
+`Memory` is the Storage four-method backing interface: `size`, `grow`, `read`
 and `write`. Growth appends zeroed Wasm pages or returns -1 without mutation.
 `VectorMemory` is the native shared-byte backing. On Wasm, `DefaultMemoryImpl`
-uses IC Platform's owned stable-memory calls. Platform re-exports the collection engines from `ic-stable-structures`; its fixed-ID
-memory manager is not used.
+uses the Platform Runtime stable-memory system calls.
 
 `MemoryBacking` must identify all physical aliases consistently. Storage rejects
 another runtime before backing IO while any owner or detached lease retains its
@@ -48,8 +47,8 @@ pages, and 4 MiB per directory snapshot.
 The u64 identity width is not a promise of unbounded allocation count. Reopening
 revalidates the directory under the supplied limits.
 
-The first page contains the protected `ICROOTS2` root. Each directory commit
-writes a bounded `ICDIRS02` binary snapshot into an inactive reserved arena,
+The first page contains the protected `ICPROOT1` root. Each directory commit
+writes a bounded `ICPDIR01` binary snapshot into an inactive reserved arena,
 then the root, and only then publishes its in-memory state. The active arena is
 never overwritten during preparation/publication. New arenas grow geometrically
 only when no inactive arena can hold the snapshot; all arenas remain excluded
@@ -75,6 +74,6 @@ page budgets include all reserved arenas and abandoned tails.
 
 This manager is a storage-format and public-API hard cut. Use fresh/reset whole
 backing, rebuild hosts against `StorageConfig`, `AllocationGrants` and
-`allocation_id`, and update application admission for the upstream collection
+`allocation_id`, and update application admission for the owned collection
 formats. No legacy manager/ledger decoder remains. Publication and downstream
 adoption are separate actions.

@@ -1,0 +1,542 @@
+{
+  "date": "2026-11-25",
+  "rustc": "1.100.0",
+  "profile": "release",
+  "candidate_storage_source_sha256": "f7e76f35d8635a70e2a69e15834c35f6dd2786e9172ce03f8b49878c8e7b73a6",
+  "consumers": {
+    "ic-db": {
+      "git_base": "fbc6bb1bcdf342bb8d5fa69cbcdbb67eabc4c59b",
+      "locked_storage": "0.78.9",
+      "working_tree_crates_rs_sha256": "a7b3e96e3ca46ca0ed71f8b732190306252138737a5297d97417d3a3137bd99a"
+    },
+    "ic-auth": {
+      "git_base": "6005745c15cfca1274c3f057e627d9b127753462",
+      "locked_storage": "0.78.9",
+      "working_tree_crates_rs_sha256": "f09a5fd0dd7a3624c06c9905e88dd0eb64e6fa1a64b0dfc2226fd5c1f582a73c"
+    },
+    "ic-wasm-store": {
+      "git_base": "05675dbf1e10feee704bf3b7f70fff27f3b61b1a",
+      "locked_storage": "0.78.9",
+      "working_tree_crates_rs_sha256": "b6b6d0313e7f26ca3720248656cc2f377ba788106fece9639d5119f0685b7256"
+    },
+    "ic-blob-storage": {
+      "git_base": "e9385e8d5b453bca5aa8cd5baf0e49cb858b430c",
+      "locked_storage": "0.78.8",
+      "working_tree_crates_rs_sha256": "8a22fa5dc012d8d82d1806559457e3ac1bf0125f8240a19354b7d0f144bad179"
+    }
+  },
+  "wasm_sha256": {
+    "ic-auth-candidate-meter.wasm": "253cd7bfe9d293194ffb3c83a6d3551e111f653dbcefd889e786473ad4846803",
+    "ic-auth-candidate.wasm": "3dfb2f4475aee1858a1809826a7c9409bee8fd499957b8ddbafd95b6b5639396",
+    "ic-auth-locked-meter.wasm": "d9471469fb1b0dc7f50d8e9b131de3fb41c20c156c914a10c1772240636a80c1",
+    "ic-auth-locked.wasm": "dc797eb2ab8f33fb936ef403610aea874bc55099db7fd9289635bc025156be09",
+    "ic-blob-storage-candidate-meter.wasm": "85d353469fd582aeb1fe5300e1b224f28e3ad3ab0ca7fd591b79c6e4a2813fce",
+    "ic-blob-storage-locked-meter.wasm": "7ff6c427a6d928cfc4d4ab25447581ccdade72ac993d64b08c2f49cb2eb09c09",
+    "ic-db-candidate.wasm": "80a145302089083a886a24d2fcc15b34381e9d8664af6b7a8759aa25718fe06d",
+    "ic-db-locked.wasm": "955eea1905ed82a9880c9dd16ae53009ac8b6769d51b63c386e03fd2637f9112",
+    "ic-wasm-store-candidate-meter.wasm": "1f037cbcf9ea213a80e461f0f5657f00a05b2464d787bf89c023d8b234639d70",
+    "ic-wasm-store-candidate.wasm": "15c92caf559f80198b99c2b700a728397245287f94857c451f435f8ced7f3aa7",
+    "ic-wasm-store-locked-meter.wasm": "77e8c2feba7bcb71b45030002d7215702083d8f4aea61970ab7142c6e20383e7",
+    "ic-wasm-store-locked.wasm": "6f32c503c5a1270c82c3781a1c97454641d28f7f82b73d5315d54fdfd4d734f2"
+  },
+  "installed": {
+    "ic-db": {
+      "locked": {
+        "measured_membership_and_empty_text_return_expected_counts": [
+          "filter-cost,early-hit,membership-count,2,5,0,526383",
+          "filter-cost,early-hit,membership-exists,1,2,1,410535",
+          "filter-cost,early-hit,empty-text-count,2,2,0,307263",
+          "filter-cost,early-hit,ordinary-scan,4,6,6,340970",
+          "filter-cost,late-hit,membership-count,1,5,0,590041",
+          "filter-cost,late-hit,membership-exists,1,5,1,730482"
+        ],
+        "ordered_listing_paths_match_sqlite_page_by_page": [
+          "listing-count,population=130,work=41,result=Err(\"Limit\"),instructions=5848978",
+          "listing-count,population=130,work=512,result=Ok((40, 129, 129)),instructions=17761128",
+          "listing-range shape=5 upper=1 cursor=true examined=80 fetched=80 instructions=11720694",
+          "listing-range shape=6 upper=2 cursor=false examined=41 fetched=41 instructions=6005001",
+          "listing-range shape=7 upper=1 cursor=true examined=20 fetched=20 instructions=3290605",
+          "listing-page,full,1,20,80,80,11518549,11497999",
+          "listing-page,full,2,20,48,48,6727079,6706407",
+          "listing-page,full,3,0,1,1,582435,561673",
+          "listing-page,sparse,1,0,5,5,1155682,1134961",
+          "listing-page,sparse,2,0,5,5,1171981,1151415",
+          "listing-page,sparse,3,1,5,5,1135902,1115161",
+          "listing-page,sparse,4,0,5,5,1166367,1145801",
+          "listing-page,sparse,5,1,5,5,1162182,1141411",
+          "listing-page,sparse,6,0,5,5,1137939,1117373",
+          "listing-page,sparse,7,3,5,5,1188758,1168131",
+          "listing-page,sparse,8,5,5,5,1136527,1116007",
+          "listing-page,sparse,9,3,5,5,1198884,1178242",
+          "listing-page,sparse,10,1,5,5,1171977,1151411",
+          "listing-page,sparse,11,0,5,5,1156163,1135597",
+          "listing-page,sparse,12,1,5,5,1119839,1099349",
+          "listing-page,sparse,13,0,5,5,1135479,1114837",
+          "listing-page,sparse,14,0,5,5,1175548,1154982",
+          "listing-page,sparse,15,1,5,5,1151797,1131231",
+          "listing-page,sparse,16,4,5,5,1184519,1163923",
+          "listing-page,sparse,17,5,5,5,1137174,1116684",
+          "listing-page,sparse,18,2,5,5,1164087,1143418",
+          "listing-page,sparse,19,1,5,5,1092857,1072291",
+          "listing-page,sparse,20,0,5,5,1140955,1120389",
+          "listing-page,sparse,21,0,5,5,1177538,1156972",
+          "listing-page,sparse,22,1,5,5,1157283,1136717",
+          "listing-page,sparse,23,0,5,5,1107124,1086558",
+          "listing-page,sparse,24,3,5,5,1053477,1032863",
+          "listing-page,sparse,25,5,5,5,1087355,1066759",
+          "listing-page,sparse,26,3,4,4,898996,878400",
+          "listing-page,byte,1,2,32,32,4889021,4868470",
+          "listing-page,byte,2,2,3,3,894620,873910",
+          "listing-page,byte,3,2,3,3,883086,862357",
+          "listing-page,byte,4,2,3,3,837071,816475",
+          "listing-page,byte,5,2,3,3,876096,855530",
+          "listing-page,byte,6,2,3,3,876917,856275",
+          "listing-page,byte,7,2,17,17,2763498,2742872",
+          "listing-page,byte,8,2,19,19,3021138,3000572",
+          "listing-page,byte,9,2,3,3,893193,872551",
+          "listing-page,byte,10,2,3,3,879835,859238",
+          "listing-page,byte,11,2,3,3,879804,859238",
+          "listing-page,byte,12,2,3,3,862331,841765",
+          "listing-page,byte,13,2,3,3,860901,840305",
+          "listing-page,byte,14,2,21,21,3284920,3264278",
+          "listing-page,byte,15,2,13,13,2094784,2074218",
+          "listing-page,byte,16,2,3,3,736226,715660",
+          "listing-page,byte,17,2,3,3,849048,828451",
+          "listing-page,byte,18,2,3,3,846719,826123",
+          "listing-page,byte,19,2,3,3,838342,817776",
+          "listing-page,byte,20,2,3,3,774549,753953",
+          "listing-top20,sorted,rows=20,examined=100,fetched=100,instructions=2151681,repeat=2151681",
+          "listing-top20,indexed,rows=20,examined=87,fetched=87,instructions=12554014,repeat=12554032",
+          "listing-selectivity,max_id=20,eligible=6,returned=6,examined=129,fetched=129,instructions=17916712",
+          "listing-selectivity,max_id=60,eligible=18,returned=18,examined=129,fetched=129,instructions=17933570",
+          "listing-selectivity,max_id=100,eligible=31,returned=20,examined=87,fetched=87,instructions=12554014",
+          "listing-selectivity,max_id=130,eligible=40,returned=20,examined=80,fetched=80,instructions=11554801",
+          "listing-all-states,examined=28,fetched=28,instructions=4366641,continued=true",
+          "listing-storage,installed=262144,seeded=327680",
+          "listing-write,1,0,1837741",
+          "listing-write,1,1,1387206",
+          "listing-write,1,2,1669276",
+          "listing-write,1,3,1687741",
+          "listing-write,1,4,2044593",
+          "listing-write,2,0,1395425",
+          "listing-write,2,1,1387374",
+          "listing-write,2,2,1670011",
+          "listing-write,2,3,1689951",
+          "listing-write,2,4,1866445",
+          "listing-write,3,0,1395425",
+          "listing-write,3,1,1387374",
+          "listing-write,3,2,1670011",
+          "listing-write,3,3,1689951",
+          "listing-write,3,4,1866445",
+          "listing-storage,after_delete=327680",
+          "listing-count,population=530,work=441,result=Err(\"Limit\"),instructions=72178261",
+          "listing-count,population=530,work=512,result=Err(\"Limit\"),instructions=84030692",
+          "listing-large-first,examined=20,instructions=4359032",
+          "listing-large,returned=440,pages=23,instructions=105287704"
+        ],
+        "projected_bulk_lookup_matches_full_and_fluent_reads": [
+          "bulk-selection,note=0,keys=1,mixed=false,instructions=[105379, 63899, 65293]",
+          "bulk-selection,note=0,keys=1,mixed=true,instructions=[132381, 97119, 96722]",
+          "bulk-selection,note=0,keys=8,mixed=false,instructions=[981818, 640384, 649094]",
+          "bulk-selection,note=0,keys=8,mixed=true,instructions=[965175, 481697, 489182]",
+          "bulk-selection,note=0,keys=32,mixed=false,instructions=[4100041, 2743991, 2780994]",
+          "bulk-selection,note=0,keys=32,mixed=true,instructions=[3949706, 1581816, 1603931]",
+          "bulk-selection,note=64,keys=1,mixed=false,instructions=[105901, 65504, 66116]",
+          "bulk-selection,note=64,keys=1,mixed=true,instructions=[132381, 97119, 96722]",
+          "bulk-selection,note=64,keys=8,mixed=false,instructions=[991577, 651852, 656103]",
+          "bulk-selection,note=64,keys=8,mixed=true,instructions=[968548, 489880, 494244]",
+          "bulk-selection,note=64,keys=32,mixed=false,instructions=[4136755, 2819572, 2812051]",
+          "bulk-selection,note=64,keys=32,mixed=true,instructions=[3975182, 1623520, 1625186]"
+        ],
+        "ulid_time_listing_resumes_inside_a_millisecond": [
+          "ulid-listing,ids_only=true,bytes=128,rows=8,examined=8,fetched=8,open=170883,query=250357",
+          "ulid-listing,ids_only=true,bytes=128,rows=8,examined=8,fetched=8,open=170961,query=271807",
+          "ulid-listing,ids_only=true,bytes=80,rows=5,examined=5,fetched=5,open=170961,query=196808",
+          "ulid-listing,ids_only=false,bytes=200,rows=8,examined=8,fetched=8,open=170883,query=245829",
+          "ulid-listing,ids_only=false,bytes=200,rows=8,examined=8,fetched=8,open=170961,query=268532",
+          "ulid-listing,ids_only=false,bytes=125,rows=5,examined=5,fetched=5,open=170961,query=193114"
+        ]
+      },
+      "candidate": {
+        "measured_membership_and_empty_text_return_expected_counts": [
+          "filter-cost,early-hit,membership-count,2,5,0,470433",
+          "filter-cost,early-hit,membership-exists,1,2,1,424030",
+          "filter-cost,early-hit,empty-text-count,2,2,0,310881",
+          "filter-cost,early-hit,ordinary-scan,4,6,6,343138",
+          "filter-cost,late-hit,membership-count,1,5,0,472688",
+          "filter-cost,late-hit,membership-exists,1,5,1,575132"
+        ],
+        "ordered_listing_paths_match_sqlite_page_by_page": [
+          "listing-count,population=130,work=41,result=Err(\"Limit\"),instructions=5127859",
+          "listing-count,population=130,work=512,result=Ok((40, 129, 129)),instructions=15675686",
+          "listing-range shape=5 upper=1 cursor=true examined=80 fetched=80 instructions=10297326",
+          "listing-range shape=6 upper=2 cursor=false examined=41 fetched=41 instructions=5526576",
+          "listing-range shape=7 upper=1 cursor=true examined=20 fetched=20 instructions=3017137",
+          "listing-page,full,1,20,80,80,10109645,10032189",
+          "listing-page,full,2,20,48,48,6120099,6072118",
+          "listing-page,full,3,0,1,1,605094,583809",
+          "listing-page,sparse,1,0,5,5,1148968,1123915",
+          "listing-page,sparse,2,0,5,5,1144713,1122391",
+          "listing-page,sparse,3,1,5,5,1144258,1124194",
+          "listing-page,sparse,4,0,5,5,1138890,1119678",
+          "listing-page,sparse,5,1,5,5,1155298,1134226",
+          "listing-page,sparse,6,0,5,5,1150073,1129871",
+          "listing-page,sparse,7,3,5,5,1056502,1036035",
+          "listing-page,sparse,8,5,5,5,1154780,1134094",
+          "listing-page,sparse,9,3,5,5,1099304,1076203",
+          "listing-page,sparse,10,1,5,5,1057641,1035449",
+          "listing-page,sparse,11,0,5,5,1057171,1031965",
+          "listing-page,sparse,12,1,5,5,1087956,1063629",
+          "listing-page,sparse,13,0,5,5,1046059,1021259",
+          "listing-page,sparse,14,0,5,5,1091606,1066706",
+          "listing-page,sparse,15,1,5,5,1081717,1060357",
+          "listing-page,sparse,16,4,5,5,1032719,1010574",
+          "listing-page,sparse,17,5,5,5,1049677,1028096",
+          "listing-page,sparse,18,2,5,5,1053856,1031940",
+          "listing-page,sparse,19,1,5,5,1086288,1061679",
+          "listing-page,sparse,20,0,5,5,1057953,1033176",
+          "listing-page,sparse,21,0,5,5,1063387,1038487",
+          "listing-page,sparse,22,1,5,5,1111852,1089541",
+          "listing-page,sparse,23,0,5,5,1050485,1031015",
+          "listing-page,sparse,24,3,5,5,1050378,1029724",
+          "listing-page,sparse,25,5,5,5,1147129,1126332",
+          "listing-page,sparse,26,3,4,4,856549,835353",
+          "listing-page,byte,1,2,32,32,4371331,4343939",
+          "listing-page,byte,2,2,3,3,835041,814669",
+          "listing-page,byte,3,2,3,3,828333,807723",
+          "listing-page,byte,4,2,3,3,911471,891489",
+          "listing-page,byte,5,2,3,3,827457,807307",
+          "listing-page,byte,6,2,3,3,809184,788636",
+          "listing-page,byte,7,2,17,17,2492282,2467333",
+          "listing-page,byte,8,2,19,19,2726926,2704215",
+          "listing-page,byte,9,2,3,3,824222,802883",
+          "listing-page,byte,10,2,3,3,826176,804433",
+          "listing-page,byte,11,2,3,3,814906,793544",
+          "listing-page,byte,12,2,3,3,806241,784602",
+          "listing-page,byte,13,2,3,3,814956,793349",
+          "listing-page,byte,14,2,21,21,2935987,2912628",
+          "listing-page,byte,15,2,13,13,2032304,2010539",
+          "listing-page,byte,16,2,3,3,819125,798595",
+          "listing-page,byte,17,2,3,3,906167,885544",
+          "listing-page,byte,18,2,3,3,817677,797470",
+          "listing-page,byte,19,2,3,3,754134,733695",
+          "listing-page,byte,20,2,3,3,788414,767284",
+          "listing-top20,sorted,rows=20,examined=100,fetched=100,instructions=2364795,repeat=2364795",
+          "listing-top20,indexed,rows=20,examined=87,fetched=87,instructions=10930812,repeat=10935282",
+          "listing-selectivity,max_id=20,eligible=6,returned=6,examined=129,fetched=129,instructions=15821230",
+          "listing-selectivity,max_id=60,eligible=18,returned=18,examined=129,fetched=129,instructions=15806739",
+          "listing-selectivity,max_id=100,eligible=31,returned=20,examined=87,fetched=87,instructions=10915537",
+          "listing-selectivity,max_id=130,eligible=40,returned=20,examined=80,fetched=80,instructions=10097971",
+          "listing-all-states,examined=28,fetched=28,instructions=3931578,continued=true",
+          "listing-storage,installed=262144,seeded=393216",
+          "listing-write,1,0,1553306",
+          "listing-write,1,1,1345443",
+          "listing-write,1,2,1624439",
+          "listing-write,1,3,1605097",
+          "listing-write,1,4,1595341",
+          "listing-write,2,0,1408130",
+          "listing-write,2,1,1350988",
+          "listing-write,2,2,1629972",
+          "listing-write,2,3,1610680",
+          "listing-write,2,4,1459406",
+          "listing-write,3,0,1408130",
+          "listing-write,3,1,1350988",
+          "listing-write,3,2,1629972",
+          "listing-write,3,3,1610680",
+          "listing-write,3,4,1459406",
+          "listing-storage,after_delete=393216",
+          "listing-count,population=530,work=441,result=Err(\"Limit\"),instructions=55368858",
+          "listing-count,population=530,work=512,result=Err(\"Limit\"),instructions=64301561",
+          "listing-large-first,examined=20,instructions=3499112",
+          "listing-large,returned=440,pages=23,instructions=84383295"
+        ],
+        "projected_bulk_lookup_matches_full_and_fluent_reads": [
+          "bulk-selection,note=0,keys=1,mixed=false,instructions=[108670, 65474, 66612]",
+          "bulk-selection,note=0,keys=1,mixed=true,instructions=[97206, 59721, 59501]",
+          "bulk-selection,note=0,keys=8,mixed=false,instructions=[861975, 466958, 478151]",
+          "bulk-selection,note=0,keys=8,mixed=true,instructions=[843915, 379365, 387757]",
+          "bulk-selection,note=0,keys=32,mixed=false,instructions=[3434564, 1959561, 1999963]",
+          "bulk-selection,note=0,keys=32,mixed=true,instructions=[3369881, 1140381, 1167983]",
+          "bulk-selection,note=64,keys=1,mixed=false,instructions=[110815, 68311, 68929]",
+          "bulk-selection,note=64,keys=1,mixed=true,instructions=[97206, 59721, 59501]",
+          "bulk-selection,note=64,keys=8,mixed=false,instructions=[882009, 492156, 496664]",
+          "bulk-selection,note=64,keys=8,mixed=true,instructions=[858234, 396210, 399853]",
+          "bulk-selection,note=64,keys=32,mixed=false,instructions=[3508257, 2056344, 2069171]",
+          "bulk-selection,note=64,keys=32,mixed=true,instructions=[3412335, 1200526, 1212237]"
+        ],
+        "ulid_time_listing_resumes_inside_a_millisecond": [
+          "ulid-listing,ids_only=true,bytes=128,rows=8,examined=8,fetched=8,open=186296,query=238481",
+          "ulid-listing,ids_only=true,bytes=128,rows=8,examined=8,fetched=8,open=186509,query=260793",
+          "ulid-listing,ids_only=true,bytes=80,rows=5,examined=5,fetched=5,open=186509,query=195397",
+          "ulid-listing,ids_only=false,bytes=200,rows=8,examined=8,fetched=8,open=186296,query=235288",
+          "ulid-listing,ids_only=false,bytes=200,rows=8,examined=8,fetched=8,open=186509,query=257456",
+          "ulid-listing,ids_only=false,bytes=125,rows=5,examined=5,fetched=5,open=186509,query=193573"
+        ]
+      }
+    },
+    "ic-auth": {
+      "locked": [
+        "LOG SAMPLE seal 1414625 6",
+        "LOG SAMPLE seal 1414625 6",
+        "LOG SAMPLE reopen 1613181 6",
+        "LOG SAMPLE seal 1369022 6",
+        "LOG SAMPLE reopen 1556671 6"
+      ],
+      "candidate": [
+        "LOG SAMPLE seal 1411881 6",
+        "LOG SAMPLE seal 1411881 6",
+        "LOG SAMPLE reopen 1603333 6",
+        "LOG SAMPLE seal 1365710 6",
+        "LOG SAMPLE reopen 1546823 6"
+      ]
+    },
+    "ic-wasm-store": {
+      "locked": [
+        "READ 0 88993556",
+        "READ 1 88993556",
+        "READ 2 88914803",
+        "READ 3 88993556",
+        "READ 4 88993556",
+        "READ 5 88993556",
+        "READ 6 88993556",
+        "READ 7 88993556",
+        "LOG SAMPLE prepare 1268413 9",
+        "LOG SAMPLE put 93294517 141",
+        "LOG SAMPLE publish 172824313 141",
+        "LOG SAMPLE observe 346464 141",
+        "LOG SAMPLE put 100992927 141",
+        "LOG SAMPLE put 109439963 141",
+        "LOG SAMPLE put 117725178 141",
+        "LOG SAMPLE put 126008641 141",
+        "LOG SAMPLE put 134293526 141",
+        "LOG SAMPLE put 142577501 141",
+        "LOG SAMPLE put 150858952 141",
+        "LOG SAMPLE publish 1373151265 141",
+        "LOG SAMPLE publish 1054399 141",
+        "LOG SAMPLE prepare 1343200 141",
+        "LOG SAMPLE prepare 141346 141",
+        "LOG SAMPLE configure 342 141",
+        "LOG SAMPLE configure 167492 141",
+        "LOG SAMPLE remove 1271996 141",
+        "LOG SAMPLE remove 145972389 141"
+      ],
+      "candidate": [
+        "READ 0 96364967",
+        "READ 1 97564639",
+        "READ 2 97644967",
+        "READ 3 97644803",
+        "READ 4 97644803",
+        "READ 5 97644475",
+        "READ 6 97644803",
+        "READ 7 97644803",
+        "LOG SAMPLE prepare 698569 7",
+        "LOG SAMPLE put 103003965 39",
+        "LOG SAMPLE publish 181559117 39",
+        "LOG SAMPLE observe 354444 39",
+        "LOG SAMPLE put 108146225 71",
+        "LOG SAMPLE put 103193720 103",
+        "LOG SAMPLE put 103203541 135",
+        "LOG SAMPLE put 103216824 167",
+        "LOG SAMPLE put 103229163 199",
+        "LOG SAMPLE put 103240086 231",
+        "LOG SAMPLE put 103249704 263",
+        "LOG SAMPLE publish 1441627171 263",
+        "LOG SAMPLE publish 482811 263",
+        "LOG SAMPLE prepare 768779 263",
+        "LOG SAMPLE prepare 134985 263",
+        "LOG SAMPLE configure 335 263",
+        "LOG SAMPLE configure 167448 263",
+        "LOG SAMPLE remove 679985 263",
+        "LOG SAMPLE remove 100039822 263"
+      ]
+    },
+    "ic-blob-storage": {
+      "locked": [
+        "create 1084117 4",
+        "authorize_63 36365246 4",
+        "reopen_full 1572133 4",
+        "release_64 69503451 4",
+        "reopen_drained 1570794 4"
+      ],
+      "candidate": [
+        "create 1082202 4",
+        "authorize_63 36314720 4",
+        "reopen_full 1570158 4",
+        "release_64 69410651 4",
+        "reopen_drained 1568819 4"
+      ]
+    },
+    "wasm_store_cross_version_upgrade": "candidate post_upgrade trapped; full physical stable memory byte-identical; predecessor resumed partial upload with identical status"
+  },
+  "native_lease_io": {
+    "ic-db": {
+      "counts_use_final_batch_deltas_and_preserve_noops": {
+        "locked": [
+          841,
+          6100,
+          399,
+          3819,
+          1
+        ],
+        "candidate": [
+          86,
+          6338,
+          27,
+          5771,
+          1
+        ]
+      },
+      "copied_counts_resume_and_validate_before_publication": {
+        "locked": [
+          1529,
+          13953,
+          770,
+          9748,
+          2
+        ],
+        "candidate": [
+          202,
+          15660,
+          49,
+          9561,
+          2
+        ]
+      },
+      "text_indexes_preserve_exact_order_and_component_boundaries": {
+        "locked": [
+          7864,
+          70475,
+          2744,
+          27161,
+          1
+        ],
+        "candidate_error": "refused unbounded raw Vec<u8> key on reopen of bounded StoreKey map"
+      }
+    },
+    "ic-wasm-store": {
+      "interrupted_upload_reopens_multiple_versions_without_duplicate_payloads": {
+        "locked": [
+          1440,
+          12607779,
+          162,
+          7343331,
+          138
+        ],
+        "candidate": [
+          550,
+          7377698,
+          33,
+          2103303,
+          68
+        ]
+      },
+      "deletion_and_cancellation_preserve_identity_and_reclaim_only_unshared_payloads": {
+        "locked": [
+          1110,
+          9452878,
+          333,
+          8393422,
+          138
+        ],
+        "candidate": [
+          438,
+          4216507,
+          73,
+          3157993,
+          36
+        ]
+      },
+      "history_pages_are_bounded_and_keep_all_versions": {
+        "locked": [
+          5709,
+          43794,
+          887,
+          9964,
+          6
+        ],
+        "candidate": [
+          756,
+          74177,
+          72,
+          15626,
+          4
+        ]
+      }
+    },
+    "ic-blob-storage": {
+      "full_capacity_reopens_and_cleanup_needs_no_new_slot": {
+        "locked": [
+          18,
+          14538,
+          780,
+          781125,
+          1
+        ],
+        "candidate": [
+          9,
+          14610,
+          260,
+          781125,
+          1
+        ]
+      },
+      "retired_grants_and_denied_calls_survive_reopen_without_reset": {
+        "locked": [
+          6,
+          121,
+          12,
+          240,
+          1
+        ],
+        "candidate": [
+          3,
+          145,
+          5,
+          264,
+          1
+        ]
+      }
+    },
+    "ic-auth": {
+      "lib": {
+        "locked": [
+          5,
+          301,
+          8,
+          301,
+          1
+        ],
+        "candidate": [
+          2,
+          309,
+          3,
+          333,
+          1
+        ]
+      },
+      "receiver_memory": {
+        "locked": [
+          30,
+          9806,
+          72,
+          13043,
+          3
+        ],
+        "candidate": [
+          12,
+          9854,
+          27,
+          13331,
+          3
+        ]
+      }
+    }
+  },
+  "native_lease_io_columns": [
+    "logical_read_calls",
+    "logical_read_bytes",
+    "logical_write_calls",
+    "logical_write_bytes",
+    "logical_pages_grown"
+  ]
+}

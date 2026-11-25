@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
 const MAX_METADATA_ARENAS: usize = 128;
-const FRAME: &[u8] = b"ICDIRS02";
+const FRAME: &[u8] = b"ICPDIR01";
 
 ///
 /// StorageConfig

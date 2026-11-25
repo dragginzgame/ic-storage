@@ -1,12 +1,11 @@
 # IC Storage
 
-One crate for named stable-memory allocations and upstream
-`ic-stable-structures` collections on the Internet Computer.
+One crate for named stable-memory allocations with an owned B-tree and Cell on the Internet Computer.
 
 - Use names such as `app.users.v1` instead of assigning numeric memory IDs.
 - Default limits: **4,096 named allocations**, **128 bytes per name**.
 - Namespace grants and exclusive leases keep independently owned stores apart.
-- BTreeMap, BTreeSet, Cell, Vec, MinHeap and Log use upstream engines and codecs.
+- The B-tree and Cell use Storage-owned memory and record interfaces.
 - Ordinary stable-memory persistence on stable Rust 1.100.0.
 
 See the [crate API and example](crates/ic-storage/README.md),
@@ -23,7 +22,7 @@ Common tools live under `.tools/host/bin` and `.tools/rust/common/bin`;
 
 | Command | Scope |
 | --- | --- |
-| `make test` | Allocation and upstream collection integration, ownership compile failures and documentation examples |
+| `make test` | Allocation and owned collection integration, ownership compile failures and documentation examples |
 | `make lint` | Product host targets and Wasm library |
 | `make fmt-check` | Product and qualification formatting |
 | `make storage-setup` | Explicit installed-test server preparation |

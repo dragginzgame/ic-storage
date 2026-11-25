@@ -2,19 +2,18 @@
 #![deny(rustdoc::broken_intra_doc_links)]
 #![doc = include_str!("../README.md")]
 
-/// Governed collections over checked named allocations and upstream codecs.
+/// Governed collections over checked named allocations and Storage codecs.
 pub mod adapter;
 mod hash;
 mod key;
-mod map_engine;
+
 mod memory;
 mod runtime;
 mod stable_cell;
 #[cfg(feature = "test-support")]
 pub mod testing;
 
-use ic_platform::stable_structures as substrate;
-pub use substrate::storable;
+pub mod storable;
 
 pub use key::{StableKey, StableKeyError};
 pub use memory::{BackingIdentity, DefaultMemoryImpl, Memory, VectorMemory};

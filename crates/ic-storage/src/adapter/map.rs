@@ -1,38 +1,83 @@
 //! Governed map collection implementation.
+use super::tree::Tree;
 use super::{MapIter, Memory, Storable};
-use crate::{DefaultMemoryImpl, RuntimeMemory, map_engine::btreemap::BTreeMap};
+use crate::{DefaultMemoryImpl, RuntimeMemory};
 use std::{collections::BTreeSet, ops::RangeBounds};
+
+/// Allocation policy for one B-tree. The map persists this choice on creation.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct BTreeMapOptions {
+    /// Target reservation for an encoded node. Bounded codecs can use a smaller
+    /// target. The default is 1,024 bytes and the minimum is 256.
+    pub node_target_bytes: u16,
+    /// Smallest allocator block in bytes. Successive block sizes double.
+    /// The default and minimum are 256. For framed 1 MiB values, 257 saves
+    /// space by allowing the payload and frame to fit in 4,096 units.
+    pub allocation_unit_bytes: u16,
+}
+
+impl Default for BTreeMapOptions {
+    fn default() -> Self {
+        Self {
+            node_target_bytes: 1024,
+            allocation_unit_bytes: 256,
+        }
+    }
+}
+
+impl BTreeMapOptions {
+    pub(super) fn valid(self) -> bool {
+        self.node_target_bytes >= 256 && self.allocation_unit_bytes >= 256
+    }
+}
 
 ///
 /// StableBTreeMap
-/// Governed upstream `BTreeMap`; initialization and failures follow upstream contracts.
+/// Degree-six ordered B-tree over an exclusive allocation.
 ///
 
 pub struct StableBTreeMap<K: Storable + Ord + Clone, V: Storable, M: Memory = DefaultMemoryImpl> {
-    inner: BTreeMap<K, V, RuntimeMemory<M>>,
+    inner: Tree<K, V, RuntimeMemory<M>>,
 }
 
 impl<K: Storable + Ord + Clone, V: Storable, M: Memory> StableBTreeMap<K, V, M> {
     /// Create a collection only in zero-page memory.
     ///
     /// # Panics
-    /// Refuses nonempty memory before writing. Growth and codec failures retain
-    /// upstream behavior.
+    /// Refuses nonempty memory before writing. Growth and codec failures trap.
     #[must_use]
     pub fn create(memory: RuntimeMemory<M>) -> Self {
+        Self::create_with_options(memory, BTreeMapOptions::default())
+    }
+
+    /// Create an empty B-tree with per-allocation sizing options.
+    ///
+    /// # Panics
+    /// Refuses invalid options or occupied memory before writing.
+    #[must_use]
+    pub fn create_with_options(memory: RuntimeMemory<M>, options: BTreeMapOptions) -> Self {
         assert_eq!(memory.size(), 0, "collection memory is not empty");
 
-        Self::reset(memory)
+        Self::reset_with_options(memory, options)
     }
 
     /// Deliberately replace any contents in this admitted allocation.
     ///
     /// # Panics
-    /// Growth and codec failures retain upstream behavior.
+    /// Growth and codec failures trap.
     #[must_use]
     pub fn reset(memory: RuntimeMemory<M>) -> Self {
+        Self::reset_with_options(memory, BTreeMapOptions::default())
+    }
+
+    /// Deliberately replace this allocation using the supplied sizing options.
+    ///
+    /// # Panics
+    /// Invalid options are refused before writing. Backing failures trap.
+    #[must_use]
+    pub fn reset_with_options(memory: RuntimeMemory<M>, options: BTreeMapOptions) -> Self {
         Self {
-            inner: BTreeMap::new(memory),
+            inner: Tree::reset(memory, options).expect("cannot create B-tree"),
         }
     }
 
@@ -40,134 +85,158 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> StableBTreeMap<K, V, M> 
     ///
     /// # Panics
     /// Refuses empty or foreign memory and incompatible layouts/bounds without
-    /// writing. Record decoding and backing failures retain upstream behavior.
+    /// writing. Record decoding and backing failures trap.
     #[must_use]
     pub fn load(memory: RuntimeMemory<M>) -> Self {
         Self {
-            inner: BTreeMap::load(memory),
+            inner: Tree::load(memory).expect("invalid B-tree"),
         }
     }
 
+    /// Return the allocation policy recovered from this map’s header.
+    #[must_use]
+    pub fn options(&self) -> BTreeMapOptions {
+        self.inner.options()
+    }
+
     /// Clear entries while retaining this allocation's exclusive lease.
+    ///
+    /// # Panics
+    /// Panics on backing, record integrity, or codec failure.
     pub fn clear(&mut self) {
-        self.inner.clear_new();
+        self.inner.clear().expect("cannot clear B-tree");
     }
 
     /// Reserve a minimum virtual extent without exposing or duplicating the lease.
     ///
-    /// Returns the map on both success and ordinary growth refusal. Entries are
-    /// preserved; reloading the upstream header refreshes its cached allocator.
-    /// Backing traps retain the upstream panic contract.
+    /// Returns the map on both success and ordinary growth refusal. The reservation preserves all entries.
     ///
     /// `minimum` is an absolute virtual extent in 65,536-byte Wasm pages, not an
     /// entry count or additional pages. Existing extents never shrink. A request
     /// already covered performs no growth or writes. This reserves backing only:
     /// it does not promise that any particular number or encoding of entries fits.
     /// Callers own their byte/page budget and must qualify it for their codecs;
-    /// upstream node-layout constants are not a supported capacity contract.
+    /// owned node-layout constants are not a supported capacity contract.
     pub fn reserve_pages(self, minimum: u64) -> (Self, Result<(), crate::RuntimeGrowError>) {
-        let memory = self.inner.into_memory();
-        let additional = minimum.saturating_sub(memory.size());
-        let result = memory.grow(additional).map(|_| ());
-
-        (Self::load(memory), result)
+        let additional = minimum.saturating_sub(self.inner.memory.size());
+        let result = self.inner.memory.grow(additional).map(|_| ());
+        (self, result)
     }
 
     /// Observe the virtual extent in 65,536-byte pages while retaining the lease.
     ///
-    /// Consumes and returns the map because upstream exposes memory only through
-    /// ownership transfer. Reloading reads the header without writing or growing.
+    /// Consumes and returns the map together with its allocation size.
     /// This is allocated extent, not free space or guaranteed entry capacity.
     #[must_use]
     pub fn allocated_pages(self) -> (Self, u64) {
-        let memory = self.inner.into_memory();
-        let pages = memory.size();
+        let pages = self.inner.memory.size();
 
-        (Self::load(memory), pages)
+        (self, pages)
     }
 
-    /// Delegates to upstream `BTreeMap::insert` with the governed allocation.
+    /// Insert or replace a value, returning the previous value.
+    ///
+    /// # Panics
+    /// Panics on backing, record integrity, or codec failure.
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
-        self.inner.insert(key, value)
+        self.inner.insert(key, value).expect("B-tree insert failed")
     }
 
-    /// Delegates to upstream `BTreeMap::get` with the governed allocation.
+    /// Read the value for an exact key.
+    ///
+    /// # Panics
+    /// Panics on backing, record integrity, or codec failure.
     pub fn get(&self, key: &K) -> Option<V> {
-        self.inner.get(key)
+        self.inner.get(key).expect("B-tree get failed")
     }
 
-    /// Delegates to upstream `BTreeMap::contains_key` with the governed allocation.
+    /// Check whether the map contains a key.
+    ///
+    /// # Panics
+    /// Panics on backing, record integrity, or codec failure.
     pub fn contains_key(&self, key: &K) -> bool {
-        self.inner.contains_key(key)
+        self.inner
+            .contains_key(key)
+            .expect("B-tree contains_key failed")
     }
 
-    /// Delegates to upstream `BTreeMap::is_empty` with the governed allocation.
+    /// Whether the map contains no entries.
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.inner.is_empty()
+        self.len() == 0
     }
 
-    /// Delegates to upstream `BTreeMap::len` with the governed allocation.
+    /// Number of committed entries.
     #[must_use]
     pub fn len(&self) -> u64 {
         self.inner.len()
     }
 
-    /// Delegates to upstream `BTreeMap::remove` with the governed allocation.
+    /// Remove a matching entry and return its value.
+    ///
+    /// # Panics
+    /// Panics on backing, record integrity, or codec failure.
     pub fn remove(&mut self, key: &K) -> Option<V> {
-        self.inner.remove(key)
+        self.inner.remove(key).expect("B-tree remove failed")
     }
 
     /// Consume a prepared set of distinct keys and return the number present.
     /// Empty sets, missing keys and retries contribute zero. The caller bounds
-    /// the set during admission. Consecutive keys may share a leaf traversal.
+    /// the set during admission. Groups of keys share staged writes and root publication.
     /// A caller relying on prior existence checks must trap on a count mismatch
     /// in the same IC update to roll back its writes.
+    ///
+    /// # Panics
+    /// Panics on backing, record integrity, or codec failure.
     pub fn remove_many(&mut self, keys: BTreeSet<K>) -> u64 {
-        self.inner.remove_many(keys)
+        self.inner
+            .remove_many(keys)
+            .expect("B-tree remove_many failed")
     }
 
-    /// Delegates to upstream `BTreeMap::first_key_value` with the governed allocation.
+    /// Read the smallest key and its value.
     #[must_use]
     pub fn first_key_value(&self) -> Option<(K, V)> {
-        self.inner.first_key_value()
+        self.iter().next().map(|e| e.into_pair())
     }
 
-    /// Delegates to upstream `BTreeMap::last_key_value` with the governed allocation.
+    /// Read the largest key and its value.
     #[must_use]
     pub fn last_key_value(&self) -> Option<(K, V)> {
-        self.inner.last_key_value()
+        self.iter().next_back().map(|e| e.into_pair())
     }
 
-    /// Delegates to upstream `BTreeMap::pop_first` with the governed allocation.
+    /// Remove and return the first entry.
     pub fn pop_first(&mut self) -> Option<(K, V)> {
-        self.inner.pop_first()
+        let key = self.keys().next()?;
+        self.remove(&key).map(|value| (key, value))
     }
 
-    /// Delegates to upstream `BTreeMap::pop_last` with the governed allocation.
+    /// Remove and return the last entry.
     pub fn pop_last(&mut self) -> Option<(K, V)> {
-        self.inner.pop_last()
+        let key = self.keys().next_back()?;
+        self.remove(&key).map(|value| (key, value))
     }
 
-    /// Delegates to upstream `BTreeMap::iter` with the governed allocation.
+    /// Iterate over all entries in key order.
     #[must_use]
     pub fn iter(&self) -> MapIter<'_, K, V, M> {
-        self.inner.iter()
+        self.inner.range(..)
     }
 
-    /// Delegates to upstream `BTreeMap::range` with the governed allocation.
+    /// Iterate within the supplied key bounds.
     pub fn range(&self, key_range: impl RangeBounds<K>) -> MapIter<'_, K, V, M> {
         self.inner.range(key_range)
     }
 
-    /// Delegates to upstream `BTreeMap::keys` with the governed allocation.
+    /// Iterate over keys without reading external values.
     pub fn keys(&self) -> impl DoubleEndedIterator<Item = K> + '_ {
-        self.inner.keys()
+        self.inner.keys_range(..)
     }
 
-    /// Delegates to upstream `BTreeMap::values` with the governed allocation.
+    /// Iterate over values in key order.
     pub fn values(&self) -> impl DoubleEndedIterator<Item = V> + '_ {
-        self.inner.values()
+        self.iter().map(|e| e.into_value())
     }
 }
 

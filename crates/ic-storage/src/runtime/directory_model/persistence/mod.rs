@@ -9,7 +9,7 @@ use super::{AllocationId, Directory, Error, Image, Prepared, StorageConfig, hash
 use crate::{Memory, WASM_PAGE_SIZE_BYTES as PAGE};
 use std::cell::Cell;
 
-const MAGIC: &[u8; 8] = b"ICROOTS2";
+const MAGIC: &[u8; 8] = b"ICPROOT1";
 const ROOT_BYTES: usize = 64;
 
 ///

@@ -1,120 +1,124 @@
-//! Governed cell collection implementation.
-use super::{Bound, Memory, Storable};
-use crate::{DefaultMemoryImpl, RuntimeMemory, substrate};
-use std::borrow::Cow;
+//! One cached application value persisted under an exclusive governed lease.
+
+use crate::{
+    DefaultMemoryImpl, Memory, RuntimeMemory,
+    stable_cell::{read_payload, stable_cell_payload_length, write_payload},
+    storable::{Bound, Storable},
+};
+use std::{borrow::Cow, mem};
 
 ///
-/// StableCell
-/// Governed upstream `Cell` with explicit initialization and read-only loading.
+/// `StableCell`
 ///
-/// Values and stored bytes retain the upstream codec and layout contracts.
+/// An application value cached in memory and persisted in an exclusive Storage
+/// allocation. Dropping the Cell releases its lease without changing its bytes.
 ///
-
 pub struct StableCell<T: Storable, M: Memory = DefaultMemoryImpl> {
-    inner: substrate::Cell<CellValue<T>, RuntimeMemory<M>>,
+    memory: RuntimeMemory<M>,
+    value: T,
+    encoded_length: usize,
 }
 
 impl<T: Storable, M: Memory> StableCell<T, M> {
-    /// Create a cell only in zero-page memory, enforcing declared record bounds.
+    /// Create a Cell only in an empty allocation.
     ///
     /// # Panics
-    /// Refuses nonempty memory or a value outside its declared bound before
-    /// writing. Growth and codec failures retain upstream behavior.
+    /// Panics on encoding, backing or growth failure.
     pub fn create(memory: RuntimeMemory<M>, value: T) -> Self {
-        assert_eq!(memory.size(), 0, "cell memory is not empty");
-
+        if Memory::size(&memory) != 0 {
+            panic!("collection memory is not empty");
+        }
         Self::reset(memory, value)
     }
 
-    /// Deliberately replace any contents, enforcing the record's declared bound.
+    /// Explicitly replace an allocation's contents with a new Cell.
     ///
     /// # Panics
-    /// Refuses oversized/fixed-width mismatches before writing. Growth and codec
-    /// failures retain upstream behavior. Unbounded record types remain allowed.
+    /// Panics on encoding, backing or growth failure.
     pub fn reset(memory: RuntimeMemory<M>, value: T) -> Self {
+        let bytes = encode(&value);
+        let encoded_length = bytes.len();
+        if !write_payload(&memory, &bytes, None) {
+            panic!("cell growth failed");
+        }
+        drop(bytes);
         Self {
-            inner: substrate::Cell::new(memory, CellValue(Some(value))),
+            memory,
+            value,
+            encoded_length,
         }
     }
 
-    /// Load an existing cell without initializing, writing or growing memory.
+    /// Open a Cell without modifying its allocation.
     ///
-    /// Requires no default value or `Default`/`Clone` bound. The retained value
-    /// is decoded by upstream using `T::from_bytes`. A successful load retains
-    /// the allocation's exclusive lease until this cell is dropped.
+    /// The type's declared ceiling is checked
+    /// before allocating or reading the application payload.
     ///
     /// # Errors
-    /// Returns [`crate::StableCellPayloadError`] for empty/foreign memory,
-    /// unsupported layout versions, a payload beyond memory or the declared maximum. The
-    /// consumed lease is released on failure; no bytes are changed.
+    /// Returns a Cell framing error if framing, extent or size admission fails.
     ///
     /// # Panics
-    /// Codec and backing failures propagate as upstream panics. Loading does
-    /// not write or grow even on these failures. Ordinary unwinding releases
-    /// the consumed lease; Wasm traps retain the host's rollback semantics.
-    /// This validates the envelope, not the application's schema or recovery policy.
+    /// Panics if decoding fails, the length violates a fixed-size codec bound,
+    /// or backing IO fails. Decode failure releases the lease without writing.
     pub fn load(memory: RuntimeMemory<M>) -> Result<Self, crate::StableCellPayloadError> {
         let maximum = match T::BOUND {
-            Bound::Bounded { max_size, .. } => max_size as usize,
             Bound::Unbounded => usize::MAX,
+            Bound::Bounded { max_size, .. } => max_size as usize,
         };
-        crate::stable_cell_payload_length(&memory, maximum)?;
-
+        let length = stable_cell_payload_length(&memory, maximum)?;
+        check_bound::<T>(length);
+        let bytes = read_payload(&memory, length);
+        let value = T::from_bytes(Cow::Owned(bytes));
         Ok(Self {
-            inner: substrate::Cell::init(memory, CellValue(None)),
+            memory,
+            value,
+            encoded_length: length,
         })
     }
 
-    /// Delegates to upstream `Cell::get` with the governed allocation.
-    #[expect(
-        clippy::missing_panics_doc,
-        reason = "constructors always establish a cached value"
-    )]
-    pub fn get(&self) -> &T {
-        self.inner.get().0.as_ref().expect("loaded cell value")
+    /// Borrow the cached value without accessing backing memory or its codec.
+    #[must_use]
+    pub const fn get(&self) -> &T {
+        &self.value
     }
 
-    /// Delegates to upstream `Cell::set` with the governed allocation.
+    /// Persist a replacement and return the previous cached value.
     ///
     /// # Panics
-    /// Panics on insufficient memory or codec/backing failure, as upstream.
+    /// Panics on encoding or bound failure, refused growth, or backing IO
+    /// failure.
     pub fn set(&mut self, value: T) -> T {
-        self.inner
-            .set(CellValue(Some(value)))
-            .0
-            .expect("loaded cell value")
+        // RuntimeMemory checks owner health from its admitted heap state here,
+        // even when the replacement will need no backing IO.
+        let _ = Memory::size(&self.memory);
+        let bytes = encode(&value);
+        let encoded_length = bytes.len();
+        assert!(
+            write_payload(&self.memory, &bytes, Some(self.encoded_length)),
+            "Cell replacement reservation failed"
+        );
+        drop(bytes);
+        self.encoded_length = encoded_length;
+        mem::replace(&mut self.value, value)
     }
 }
 
-///
-/// CellValue
-/// Upstream has no load constructor. An absent value is an internal loading
-/// marker, never a default T or a persisted record. Serialization refuses it
-/// before upstream can grow/write on its initialization fallback. Successful
-/// construction always holds Some(T), decoded exactly once by upstream.
-///
+fn encode<T: Storable>(value: &T) -> Cow<'_, [u8]> {
+    let bytes = value.to_bytes();
+    check_bound::<T>(bytes.len());
+    bytes
+}
 
-struct CellValue<T>(Option<T>);
-
-impl<T: Storable> Storable for CellValue<T> {
-    const BOUND: Bound = T::BOUND;
-
-    fn to_bytes(&self) -> Cow<'_, [u8]> {
-        self.0
-            .as_ref()
-            .expect("cannot initialize a loading cell")
-            .to_bytes_checked()
-    }
-
-    fn into_bytes(self) -> Vec<u8> {
-        self.0
-            .expect("cannot initialize a loading cell")
-            .into_bytes_checked()
-    }
-
-    fn from_bytes(bytes: Cow<'_, [u8]>) -> Self {
-        T::check_bounds(&bytes);
-
-        Self(Some(T::from_bytes(bytes)))
+fn check_bound<T: Storable>(length: usize) {
+    if let Bound::Bounded {
+        max_size,
+        is_fixed_size,
+    } = T::BOUND
+    {
+        let maximum = max_size as usize;
+        assert!(
+            length <= maximum && (!is_fixed_size || length == maximum),
+            "Cell codec length violates its declared bound"
+        );
     }
 }

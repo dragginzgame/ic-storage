@@ -539,9 +539,9 @@ dependencies = [
 
 [[package]]
 name = "h2"
-version = "0.4.20"
+version = "0.4.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d29020232d6aa3fb1daca64c1127cf662cf97f254ae16c18c05b8ab635fc118"
+checksum = "b634322c4924093fe6a6e05ecbe5717cd3c6014934455f4ae8e5cf14ba3264a8"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -706,19 +706,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "ic-platform"
-version = "0.34.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6372d2e30ba4e84ff47824dd1a4542e88215a18890afd9804fed99525bc35962"
-dependencies = [
- "ic-stable-structures",
-]
-
-[[package]]
 name = "ic-platform-runtime"
-version = "0.23.25"
+version = "0.23.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "186742997b9845806c447b095aa4358231ad2daf6963736a5767b005c17ccf5e"
+checksum = "54d94d66be307c67deb2063d1e735e781e614a26d8ec0f13ba97092a03ebb788"
 
 [[package]]
 name = "ic-stable-structures"
@@ -731,9 +722,8 @@ dependencies = [
 
 [[package]]
 name = "ic-storage"
-version = "0.79.0"
+version = "0.80.0"
 dependencies = [
- "ic-platform",
  "ic-platform-runtime",
  "serde",
  "thiserror 2.0.18",
@@ -1845,6 +1835,7 @@ name = "storage-canister"
 version = "0.1.0"
 dependencies = [
  "ic-platform-runtime",
+ "ic-stable-structures",
  "ic-storage",
  "peak_alloc",
  "toko-tooling",
@@ -2097,9 +2088,9 @@ dependencies = [
 
 [[package]]
 name = "toko-tooling"
-version = "0.46.3"
+version = "0.46.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f6d677af6c5ed88e3ba9ccf4d7b0c2eaad5f0fc49f0ad5b697e412ea4be600e"
+checksum = "d3889bff0f8ff6dc8c80b161c908f4b598125b55bf55f18146471f9ac3294cff"
 
 [[package]]
 name = "tower"

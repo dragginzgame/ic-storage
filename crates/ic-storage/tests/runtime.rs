@@ -177,7 +177,7 @@ fn old_directory_is_refused_without_resetting_backing() {
     let backing = VectorMemory::default();
     assert_eq!(Memory::grow(&backing, 1), 0);
 
-    for magic in [b"ICROOTR1", b"ICROOTS1"] {
+    for magic in [b"ICROOTR1", b"ICROOTS1", b"ICROOTS2", b"ICPROOT2"] {
         Memory::write(&backing, 0, magic);
         let before = backing.borrow().clone();
         assert!(matches!(

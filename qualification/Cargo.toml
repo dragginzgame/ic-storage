@@ -10,11 +10,12 @@ license-file = "../LICENSE.md"
 
 [workspace.dependencies]
 ic-platform-runtime = { version = "0.23.22", default-features = false }
+ic-stable-structures = "0.7.2"
 ic-storage = { path = "../crates/ic-storage" }
 ic-testkit = "0.110.0"
 peak_alloc = "0.3.0"
 tokio = { version = "1.54.1", features = ["macros", "rt"] }
-toko-tooling = "=0.46.3"
+toko-tooling = "=0.46.4"
 
 [workspace.lints.cargo]
 unused_dependencies = "deny"

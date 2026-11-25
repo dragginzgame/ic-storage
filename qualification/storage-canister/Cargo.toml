@@ -20,7 +20,12 @@ ic-storage.workspace = true
 peak_alloc.workspace = true
 
 [dev-dependencies]
+ic-stable-structures.workspace = true
 toko-tooling.workspace = true
+
+[[example]]
+name = "engine_matrix"
+crate-type = ["cdylib"]
 
 [lints]
 workspace = true
