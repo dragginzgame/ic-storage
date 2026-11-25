@@ -436,6 +436,20 @@ fn key_range_checks_node_integrity_without_reading_external_records() {
 }
 
 #[test]
+fn default_comparator_preserves_signed_little_endian_order() {
+    let keys = [i32::MIN, -257, -1, 0, 1, 255, 256, i32::MAX];
+    let host = runtime(VectorMemory::default());
+    let mut map = StableBTreeMap::<i32, i32, _>::create(lease(&host, "app.map.v1"));
+    for key in keys.into_iter().rev() {
+        map.insert(key, key);
+    }
+    for key in keys {
+        assert_eq!(map.get(&key), Some(key));
+    }
+    assert!(map.keys_range(..).eq(keys));
+}
+
+#[test]
 fn fallible_batch_stops_before_later_payloads() {
     let backing = VectorMemory::default();
     let host = runtime(backing.clone());

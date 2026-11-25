@@ -54,6 +54,9 @@ pub trait Storable: Sized {
     /// Decode application bytes, trapping on invalid encodings.
     ///
     fn from_bytes(bytes: Cow<'_, [u8]>) -> Self;
+    /// Optional comparison of a typed key with a bound-checked stored encoding.
+    /// It must agree with decoded ordering and reject the same invalid records.
+    const CMP_ENCODED: Option<fn(&Self, &[u8]) -> std::cmp::Ordering> = None;
     /// Enforce the declared maximum and exact width where applicable.
     ///
     fn check_bounds(bytes: &[u8]) {
@@ -126,6 +129,8 @@ impl Storable for bool {
     }
 }
 impl Storable for Vec<u8> {
+    const CMP_ENCODED: Option<fn(&Self, &[u8]) -> std::cmp::Ordering> =
+        Some(|key, stored| key.as_slice().cmp(stored));
     const BOUND: Bound = Bound::Unbounded;
     fn to_bytes(&self) -> Cow<'_, [u8]> {
         Cow::Borrowed(self)
@@ -138,6 +143,10 @@ impl Storable for Vec<u8> {
     }
 }
 impl Storable for String {
+    const CMP_ENCODED: Option<fn(&Self, &[u8]) -> std::cmp::Ordering> = Some(|key, stored| {
+        key.as_str()
+            .cmp(std::str::from_utf8(stored).expect("invalid UTF-8 record"))
+    });
     const BOUND: Bound = Bound::Unbounded;
     fn to_bytes(&self) -> Cow<'_, [u8]> {
         Cow::Borrowed(self.as_bytes())

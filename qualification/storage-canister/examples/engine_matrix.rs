@@ -555,3 +555,130 @@ extern "C" fn rollback() {
     }
     ic0::trap(b"matrix rollback after writes");
 }
+
+// Keep the released decode-and-Ord implementation as a control over the same bytes.
+#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+struct DecodedKey(Vec<u8>);
+
+impl ic_storage::storable::Storable for DecodedKey {
+    const BOUND: ic_storage::storable::Bound = ic_storage::storable::Bound::Unbounded;
+
+    fn to_bytes(&self) -> std::borrow::Cow<'_, [u8]> {
+        std::borrow::Cow::Borrowed(&self.0)
+    }
+
+    fn from_bytes(bytes: std::borrow::Cow<'_, [u8]>) -> Self {
+        Self(bytes.into_owned())
+    }
+}
+
+fn encoded_probe(number: u64, width: usize) -> Vec<u8> {
+    let mut bytes = vec![0x41; width];
+    bytes[width - 8..].copy_from_slice(&number.to_be_bytes());
+    bytes
+}
+
+#[expect(unsafe_code, reason = "IC test entrypoint")]
+#[unsafe(export_name = "canister_update seed_comparison_keys")]
+extern "C" fn seed_comparison_keys() {
+    let (_, n, width) = arguments();
+    assert!(matches!(width, 16 | 512));
+    let host = open_host();
+    let mut map = StableBTreeMap::<Vec<u8>, u64>::create(lease(&host, KEY_MAP));
+    for i in 0..n {
+        map.insert(encoded_probe(2 * i, width), i);
+    }
+    ic0::msg_reply();
+}
+
+fn compare_probes<K: ic_storage::storable::Storable + Ord + Clone>(
+    map: &StableBTreeMap<K, u64>,
+    probes: &[K],
+    out: &mut Measurements,
+) {
+    out.run("hits", || {
+        for (i, key) in probes.iter().step_by(2).enumerate() {
+            assert_eq!(map.get(key), Some(i as u64));
+        }
+    });
+    out.run("misses", || {
+        for key in probes.iter().skip(1).step_by(2) {
+            assert_eq!(map.get(key), None);
+        }
+    });
+    for forward in [true, false] {
+        out.run(
+            if forward {
+                "seek_forward"
+            } else {
+                "seek_reverse"
+            },
+            || {
+                // Odd-numbered endpoints fall between stored keys. All seeks are bounded.
+                for (i, window) in probes.windows(5).enumerate().step_by(7) {
+                    let mut range = map.range((
+                        std::ops::Bound::Included(&window[0]),
+                        std::ops::Bound::Included(&window[4]),
+                    ));
+                    let row = if forward {
+                        range.next()
+                    } else {
+                        range.next_back()
+                    }
+                    .unwrap();
+                    let expected = if forward { i.div_ceil(2) } else { (i + 4) / 2 };
+                    assert_eq!(row.value(), expected as u64);
+                }
+            },
+        );
+        out.run(
+            if forward {
+                "all_present_forward"
+            } else {
+                "all_present_reverse"
+            },
+            || {
+                // Probe every stored key so the sample includes all tree levels.
+                for key in probes.iter().step_by(2) {
+                    let bounds = (
+                        std::ops::Bound::Included(key),
+                        std::ops::Bound::Included(key),
+                    );
+                    let mut range = map.keys_range(bounds);
+                    let first = if forward {
+                        range.next()
+                    } else {
+                        range.next_back()
+                    };
+                    assert!(first.as_ref() == Some(key));
+                }
+            },
+        );
+    }
+}
+
+#[expect(unsafe_code, reason = "IC test entrypoint")]
+#[unsafe(export_name = "canister_update compare_stored_keys")]
+extern "C" fn compare_stored_keys() {
+    let (arm, n, width) = arguments();
+    assert!(matches!(width, 16 | 512));
+    let host = open_host();
+    let memory = lease(&host, KEY_MAP);
+    let probes = (0..2 * n).map(|i| encoded_probe(i, width));
+    let mut out = Measurements(Vec::new());
+    if arm == 0 {
+        compare_probes(
+            &StableBTreeMap::load(memory),
+            &probes.map(DecodedKey).collect::<Vec<_>>(),
+            &mut out,
+        );
+    } else {
+        compare_probes(
+            &StableBTreeMap::load(memory),
+            &probes.collect::<Vec<_>>(),
+            &mut out,
+        );
+    }
+    ic0::msg_reply_data_append(&out.0);
+    ic0::msg_reply();
+}

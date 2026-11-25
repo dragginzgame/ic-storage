@@ -87,3 +87,40 @@ async fn compare_engines() {
     }
     pic.drop().await;
 }
+
+#[tokio::test]
+#[ignore = "requires the comparison Wasm and the local PocketIC server"]
+async fn compare_stored_keys() {
+    let url = std::env::var("IC_TESTKIT_POCKET_IC_URL").unwrap();
+    let pic = PocketIcBuilder::new()
+        .with_application_subnet()
+        .with_server_url(url.parse().unwrap())
+        .build_async()
+        .await;
+    let wasm = std::fs::read(std::env::var_os("ENGINE_MATRIX_WASM").unwrap()).unwrap();
+    for width in [16, 512] {
+        let args = |arm: u64| {
+            [arm, width, 256]
+                .into_iter()
+                .flat_map(u64::to_le_bytes)
+                .collect::<Vec<_>>()
+        };
+        let id = pic.create_canister().await;
+        pic.install_canister(id, wasm.clone(), vec![], None).await;
+        pic.update_call(id, id, "seed_comparison_keys", args(0))
+            .await
+            .unwrap();
+        let before = pic.get_stable_memory(id).await;
+        for arm in [0, 1] {
+            let reply = pic
+                .update_call(id, id, "compare_stored_keys", args(arm))
+                .await
+                .unwrap();
+            for line in std::str::from_utf8(&reply).unwrap().lines() {
+                println!("comparison {width} {arm} {line}");
+            }
+            assert_eq!(pic.get_stable_memory(id).await, before);
+        }
+    }
+    pic.drop().await;
+}

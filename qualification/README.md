@@ -123,3 +123,37 @@ Including database open, the first full page of 1 KiB rows went from 547,188 to 
 The complete installed Storage matrix had 91 improvements, 337 ties and three increases among 431 engine instruction comparisons. The largest increase was 335,094 to 335,158 instructions on the 16-byte-key range (+0.0191%). All 431 upstream controls matched. None of the 24 comparator/seek probes, 96 read-path probes or eight deletion measurements increased in instructions. Native mixed-direction and corrupted-value tests, Clippy and installed upgrade/rollback tests passed. Auth and Blob Storage had identical measured instructions and Wasm sizes. The Wasm Store upload/read/upgrade fixture passed, with its largest instruction increase at 0.0067% and its Wasm 522 bytes larger. [Paired Storage matrix](lookahead-0802-storage-matrix.tsv)
 
 For reproduction, apply the [IC DB qualification patch](ic-db-primary-page-lookahead.patch) to the IC DB working source (HEAD `ba9accc4f0a73cfbd2ae97577e0af99c79522ff7`; SHA-256 of the pre-probe tracked diff `8b60a12294432d01ca4a6cbc609ea09532886c6184f646858fa887a0d3587315`). For each arm, build `make m2-sort-costs-artifact` and run the `listing_costs` driver test `primary_page_lookahead` with `--ignored --exact` under the prepared PocketIC server and `IC_DB_M1_RECORDS_WASM` set to that artifact. Set `IC_DB_PAGE_PREDECESSOR` to the baseline artifact for the cross-version run. The Storage suites were `storage-engine-matrix`, `storage-read-paths`, `storage-installed-test`, and the three-arm `storage-lookahead` probe.
+
+### Borrowed key comparison against v0.80.3
+
+Three builds used the same installed engine matrix and Wasm Store fixture. The baseline used v0.80.3. The second build added a default comparator method and the third used an optional associated constant, `Storable::CMP_ENCODED`. Both candidates specialized byte vectors. This comparison isolates the comparator from the inclusive seek change.
+
+| Measurement | v0.80.3 | Default method | Optional constant |
+| --- | ---: | ---: | ---: |
+| 16-byte key hit, instructions | 7,736,074 | 7,172,897 | 7,027,974 |
+| 256-byte key hit, instructions | 30,978,403 | 29,196,106 | 29,051,183 |
+| Tuple key hit, instructions | 5,902,800 | 6,048,235 | 5,902,800 |
+| u128 key hit, instructions | 5,844,356 | 5,879,899 | 5,844,356 |
+| Wasm Store fixture, bytes | 709,224 | 718,741 | 709,234 |
+
+Across 431 owned-engine rows, the optional constant reduced instruction counts in nine, matched 418 and increased four. The largest increase was 0.118% on the text-key/optional-value hit.
+
+In an isolated IC DB v0.31.0 fixture, its bounded `StoreKey` opted into slice comparison. Both builds passed all five installed `listing_costs` tests. The 440-row listing took 85,733,651 instructions at baseline and 81,343,795 with the comparator. Both returned 23 pages. Indexed top-20 fell from 11,062,032 to 10,517,142 instructions with 87 rows examined and fetched in each run. The candidate Wasm was 132 bytes smaller.
+
+#### UTF-8 string keys and combined working-tree results
+
+All four instruction increases in the optional-constant matrix above occurred on `String` keys with `Option<u32>` values. The string comparator validates the borrowed pivot with `str::from_utf8` before comparing it. Invalid UTF-8 still traps. On the same v0.80.3 fixture, string inserts used 4.96% fewer instructions, hits 11.85% fewer, ranges 0.83% fewer and removals 3.75% fewer.
+
+The following counts compare instructions against v0.80.3. The comparator-only build includes the byte-vector and string overrides. The combined build also includes the inclusive range-seek change.
+
+| Workload | Cases | Comparator only, faster / equal / slower | Combined, faster / equal / slower | Largest combined increase |
+| --- | ---: | ---: | ---: | ---: |
+| Owned engine | 431 | 13 / 418 / 0 | 29 / 325 / 77 | 0.065% |
+| Upstream controls | 431 | 0 / 431 / 0 | 0 / 431 / 0 | 0 |
+| Encoded-key probes | 24 | 12 / 0 / 12 | 16 / 0 / 8 | 0.150% |
+| Read paths | 96 | 0 / 96 / 0 | 0 / 72 / 24 | 0.028% |
+| Deletions | 8 | 0 / 8 / 0 | 0 / 8 / 0 | 0 |
+
+In the combined build, the largest encoded-key improvement was 12.31% on a reverse inclusive seek over present 16-byte keys. The largest increase was the decoded-key control on 16-byte misses. Run the paired comparison for the current checkout with `make storage-compare-release BENCHMARK_BASE=v0.80.3`. Its paired TSV retains the values for each case.
+
+Installed sibling fixtures compared the combined build with v0.80.3. The IC DB fixture opted in for its bounded byte key. It returned the same 440 rows over 23 pages in 81,343,887 instructions (5.12% fewer) and its Wasm shrank by 115 bytes. Auth and Blob Storage each matched all five recorded instruction samples. Their Wasms shrank by one byte and matched in size, respectively. Wasm Store passed the upload, read and upgrade scenario. Of its 27 instruction samples, 25 increased and two tied. The largest relative increase was 17 instructions on prepare (0.013%), and the Wasm grew by 27 bytes.

@@ -10,13 +10,15 @@ include vendor/toko-tooling/make/cargo-dependencies.mk
 
 export RUSTUP_AUTO_INSTALL := 0
 PRODUCT := -p ic-storage --locked
-QUAL := --manifest-path qualification/Cargo.toml --target-dir target/qualification --locked
+QUAL_MANIFEST ?= qualification/Cargo.toml
+QUAL_TARGET_DIR ?= target/qualification
+QUAL := --manifest-path "$(QUAL_MANIFEST)" --target-dir "$(QUAL_TARGET_DIR)" --locked
 SERVER_TOOL := bash vendor/toko-tooling/scripts/dev/install-rust-tools.sh --consumer "$(CURDIR)" --package ic-testkit --version 0.110.0 --bin ic-testkit-server --profile release --features cli
 SERVER_DIRECTORY := $(CURDIR)/.tools/testkit-server
 
 .PHONY: help check lint test doc-check ci deps-check deps-pins deps-boundaries storage-build storage-setup storage-installed-test qualification-lint
 help:
-	@printf '%s\n' 'make test                    Host allocation/collection and ownership tests' 'make lint                    Product host/Wasm Clippy' 'make storage-setup           Explicit Testkit server setup' 'make storage-installed-test  Installed upgrade and rollback tests' 'make ci                      Aggregate local CI checks'
+	@printf '%s\n' 'make test                    Host allocation/collection and ownership tests' 'make lint                    Product host/Wasm Clippy' 'make storage-setup           Explicit Testkit server setup' 'make storage-installed-test  Installed upgrade and rollback tests' 'make storage-compare-release  Compare all installed Storage benchmarks with BENCHMARK_BASE' 'make ci                      Aggregate local CI checks'
 
 check lint test doc-check deps-check deps-pins deps-boundaries storage-build storage-installed-test qualification-lint: | toko-execution-check
 check:
@@ -47,25 +49,30 @@ storage-build:
 storage-setup:
 	+@umask 077; server="$$($(SERVER_TOOL))" && mkdir -p target/evidence/testkit && attempt="$$(mktemp -d "$(CURDIR)/target/evidence/testkit/setup.XXXXXX")" && "$$server" setup "$(SERVER_DIRECTORY)" "$$attempt/evidence" /usr/bin/curl /usr/bin/gzip
 storage-installed-test: storage-build
-	+@umask 077; server="$$($(SERVER_TOOL) --check)" && mkdir -p target/evidence/testkit && attempt="$$(mktemp -d "$(CURDIR)/target/evidence/testkit/run.XXXXXX")" && STORAGE_CANISTER_WASM="$(CURDIR)/target/qualification/wasm32-unknown-unknown/release/storage_canister.wasm" "$$server" run "$(SERVER_DIRECTORY)" "$$attempt/evidence" --ttl 300 -- cargo test $(QUAL) -p storage-tests --test lifecycle -- --ignored --nocapture
+	+@umask 077; server="$$($(SERVER_TOOL) --check)" && mkdir -p target/evidence/testkit && attempt="$$(mktemp -d "$(CURDIR)/target/evidence/testkit/run.XXXXXX")" && STORAGE_CANISTER_WASM="$(abspath $(QUAL_TARGET_DIR))/wasm32-unknown-unknown/release/storage_canister.wasm" "$$server" run "$(SERVER_DIRECTORY)" "$$attempt/evidence" --ttl 300 -- cargo test $(QUAL) -p storage-tests --test lifecycle -- --ignored --nocapture
 
 .PHONY: storage-engine-matrix
 storage-engine-matrix: | toko-execution-check
 	+STORAGE_MATRIX_SIZE_ENGINE=both RUSTFLAGS='-C link-arg=-zstack-size=1048576' cargo build $(QUAL) -p storage-canister --example engine_matrix --target wasm32-unknown-unknown --release
-	+@umask 077; server="$$($(SERVER_TOOL) --check)" && mkdir -p target/evidence/testkit && attempt="$$(mktemp -d "$(CURDIR)/target/evidence/testkit/matrix.XXXXXX")" && ENGINE_MATRIX_WASM="$(CURDIR)/target/qualification/wasm32-unknown-unknown/release/examples/engine_matrix.wasm" "$$server" run "$(SERVER_DIRECTORY)" "$$attempt/evidence" --ttl 300 -- cargo test $(QUAL) -p storage-tests --test engine_matrix -- --ignored --nocapture
+	+@umask 077; server="$$($(SERVER_TOOL) --check)" && mkdir -p target/evidence/testkit && attempt="$$(mktemp -d "$(CURDIR)/target/evidence/testkit/matrix.XXXXXX")" && ENGINE_MATRIX_WASM="$(abspath $(QUAL_TARGET_DIR))/wasm32-unknown-unknown/release/examples/engine_matrix.wasm" "$$server" run "$(SERVER_DIRECTORY)" "$$attempt/evidence" --ttl 300 -- cargo test $(QUAL) -p storage-tests --test engine_matrix -- --ignored --nocapture
 
 .PHONY: storage-read-paths
 storage-read-paths: | toko-execution-check
 	+RUSTFLAGS='-C link-arg=-zstack-size=1048576' cargo build $(QUAL) -p storage-canister --example read_paths --target wasm32-unknown-unknown --release
-	@wc -c target/qualification/wasm32-unknown-unknown/release/examples/read_paths.wasm
+	@wc -c "$(QUAL_TARGET_DIR)"/wasm32-unknown-unknown/release/examples/read_paths.wasm
 	+RUSTFLAGS='-C link-arg=-zstack-size=1048576' cargo build $(QUAL) -p storage-canister --example read_paths --features shared-reads --target wasm32-unknown-unknown --release
-	@wc -c target/qualification/wasm32-unknown-unknown/release/examples/read_paths.wasm
-	+@umask 077; server="$$($(SERVER_TOOL) --check)" && mkdir -p target/evidence/testkit && attempt="$$(mktemp -d "$(CURDIR)/target/evidence/testkit/reads.XXXXXX")" && STORAGE_READ_WASM="$(CURDIR)/target/qualification/wasm32-unknown-unknown/release/examples/read_paths.wasm" "$$server" run "$(SERVER_DIRECTORY)" "$$attempt/evidence" --ttl 300 -- cargo test $(QUAL) -p storage-tests --test read_paths -- --ignored --nocapture
+	@wc -c "$(QUAL_TARGET_DIR)"/wasm32-unknown-unknown/release/examples/read_paths.wasm
+	+@umask 077; server="$$($(SERVER_TOOL) --check)" && mkdir -p target/evidence/testkit && attempt="$$(mktemp -d "$(CURDIR)/target/evidence/testkit/reads.XXXXXX")" && STORAGE_READ_WASM="$(abspath $(QUAL_TARGET_DIR))/wasm32-unknown-unknown/release/examples/read_paths.wasm" "$$server" run "$(SERVER_DIRECTORY)" "$$attempt/evidence" --ttl 300 -- cargo test $(QUAL) -p storage-tests --test read_paths -- --ignored --nocapture
+
+.PHONY: storage-compare-release
+BENCHMARK_BASE ?= v0.80.1
+storage-compare-release: | toko-execution-check
+	+python3 qualification/compare_release.py "$(BENCHMARK_BASE)"
 
 .PHONY: storage-lookahead
 storage-lookahead: | toko-execution-check
 	+RUSTFLAGS='-C link-arg=-zstack-size=1048576' cargo build $(QUAL) -p storage-canister --example lookahead --target wasm32-unknown-unknown --release
-	@wc -c target/qualification/wasm32-unknown-unknown/release/examples/lookahead.wasm
+	@wc -c "$(QUAL_TARGET_DIR)"/wasm32-unknown-unknown/release/examples/lookahead.wasm
 	+RUSTFLAGS='-C link-arg=-zstack-size=1048576' cargo build $(QUAL) -p storage-canister --example lookahead --features positioned-keys --target wasm32-unknown-unknown --release
-	@wc -c target/qualification/wasm32-unknown-unknown/release/examples/lookahead.wasm
-	+@umask 077; server="$$($(SERVER_TOOL) --check)" && mkdir -p target/evidence/testkit && attempt="$$(mktemp -d "$(CURDIR)/target/evidence/testkit/reads.XXXXXX")" && LOOKAHEAD_WASM="$(CURDIR)/target/qualification/wasm32-unknown-unknown/release/examples/lookahead.wasm" "$$server" run "$(SERVER_DIRECTORY)" "$$attempt/evidence" --ttl 300 -- cargo test $(QUAL) -p storage-tests --test lookahead -- --ignored --nocapture
+	@wc -c "$(QUAL_TARGET_DIR)"/wasm32-unknown-unknown/release/examples/lookahead.wasm
+	+@umask 077; server="$$($(SERVER_TOOL) --check)" && mkdir -p target/evidence/testkit && attempt="$$(mktemp -d "$(CURDIR)/target/evidence/testkit/reads.XXXXXX")" && LOOKAHEAD_WASM="$(abspath $(QUAL_TARGET_DIR))/wasm32-unknown-unknown/release/examples/lookahead.wasm" "$$server" run "$(SERVER_DIRECTORY)" "$$attempt/evidence" --ttl 300 -- cargo test $(QUAL) -p storage-tests --test lookahead -- --ignored --nocapture

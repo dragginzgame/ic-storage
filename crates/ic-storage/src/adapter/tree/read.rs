@@ -72,9 +72,12 @@ impl ReadNode {
         let (mut low, mut high) = (0, self.len());
         while low < high {
             let mid = low + (high - low) / 2;
-            match key.cmp(&K::from_bytes(Cow::Borrowed(
-                &self.bytes[self.entries[mid].key.clone()],
-            ))) {
+            let stored = &self.bytes[self.entries[mid].key.clone()];
+            let order = match K::CMP_ENCODED {
+                Some(compare) => compare(key, stored),
+                None => key.cmp(&K::from_bytes(Cow::Borrowed(stored))),
+            };
+            match order {
                 Ordering::Less => high = mid,
                 Ordering::Greater => low = mid + 1,
                 Ordering::Equal => return Ok(Ok(mid)),
@@ -125,5 +128,33 @@ impl ReadNode {
             entries: (0..self.len()).map(|i| self.entry(i)).collect(),
             children: self.children.clone(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn single_byte_pivot(byte: u8) -> ReadNode {
+        ReadNode {
+            bytes: vec![byte],
+            entries: vec![ReadEntry {
+                key: 0..1,
+                value: ReadValue::Inline(1..1),
+            }],
+            children: vec![],
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "invalid boolean encoding")]
+    fn search_rejects_an_invalid_boolean_pivot() {
+        let _ = single_byte_pivot(2).search(&true);
+    }
+
+    #[test]
+    #[should_panic(expected = "invalid UTF-8 record")]
+    fn search_rejects_an_invalid_string_pivot() {
+        let _ = single_byte_pivot(0xff).search(&String::new());
     }
 }

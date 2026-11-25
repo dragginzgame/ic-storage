@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- B-tree search can compare a typed key with its stored encoding through `Storable::CMP_ENCODED`. Byte-vector and string keys skip pivot allocations. String comparisons validate the stored UTF-8. Existing codecs inherit decoded ordering and validation.
+
 ## [0.80.3] - 2026-11-25
 
 - Add `next_key` and `next_back_key` on positioned entry iterators. These consume one key and skip its external value.
