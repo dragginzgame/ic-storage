@@ -53,3 +53,11 @@ storage-installed-test: storage-build
 storage-engine-matrix: | toko-execution-check
 	+STORAGE_MATRIX_SIZE_ENGINE=both RUSTFLAGS='-C link-arg=-zstack-size=1048576' cargo build $(QUAL) -p storage-canister --example engine_matrix --target wasm32-unknown-unknown --release
 	+@umask 077; server="$$($(SERVER_TOOL) --check)" && mkdir -p target/evidence/testkit && attempt="$$(mktemp -d "$(CURDIR)/target/evidence/testkit/matrix.XXXXXX")" && ENGINE_MATRIX_WASM="$(CURDIR)/target/qualification/wasm32-unknown-unknown/release/examples/engine_matrix.wasm" "$$server" run "$(SERVER_DIRECTORY)" "$$attempt/evidence" --ttl 300 -- cargo test $(QUAL) -p storage-tests --test engine_matrix -- --ignored --nocapture
+
+.PHONY: storage-read-paths
+storage-read-paths: | toko-execution-check
+	+RUSTFLAGS='-C link-arg=-zstack-size=1048576' cargo build $(QUAL) -p storage-canister --example read_paths --target wasm32-unknown-unknown --release
+	@wc -c target/qualification/wasm32-unknown-unknown/release/examples/read_paths.wasm
+	+RUSTFLAGS='-C link-arg=-zstack-size=1048576' cargo build $(QUAL) -p storage-canister --example read_paths --features shared-reads --target wasm32-unknown-unknown --release
+	@wc -c target/qualification/wasm32-unknown-unknown/release/examples/read_paths.wasm
+	+@umask 077; server="$$($(SERVER_TOOL) --check)" && mkdir -p target/evidence/testkit && attempt="$$(mktemp -d "$(CURDIR)/target/evidence/testkit/reads.XXXXXX")" && STORAGE_READ_WASM="$(CURDIR)/target/qualification/wasm32-unknown-unknown/release/examples/read_paths.wasm" "$$server" run "$(SERVER_DIRECTORY)" "$$attempt/evidence" --ttl 300 -- cargo test $(QUAL) -p storage-tests --test read_paths -- --ignored --nocapture

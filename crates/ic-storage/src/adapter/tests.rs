@@ -352,3 +352,84 @@ fn canic_project_registry_row_survives_reopen() {
         mixed
     );
 }
+
+#[test]
+fn bounded_keys_interleave_across_separators_and_respect_endpoints() {
+    use std::ops::Bound::{Excluded, Included};
+    let host = runtime(VectorMemory::default());
+    let mut map = StableBTreeMap::<u64, Vec<u8>, _>::create(lease(&host, "app.map.v1"));
+    for i in 0..100 {
+        map.insert(i, vec![i as u8; 64]);
+    }
+    for (bounds, expected) in [
+        ((Excluded(11), Included(75)), 12..76),
+        ((Included(11), Excluded(75)), 11..75),
+        ((Included(12), Included(12)), 12..13),
+        ((Excluded(12), Included(12)), 12..12),
+    ] {
+        let mut iter = map.keys_range(bounds);
+        let mut oracle = expected;
+        while !oracle.is_empty() {
+            assert_eq!(iter.next(), oracle.next());
+            assert_eq!(iter.next_back(), oracle.next_back());
+        }
+        assert_eq!(iter.next(), None);
+        assert_eq!(iter.next_back(), None);
+    }
+}
+
+#[cfg(feature = "test-support")]
+#[test]
+fn shared_reads_match_point_lookups_including_branch_hits_and_adjacent_misses() {
+    let backing = VectorMemory::default();
+    let host = runtime(backing.clone());
+    let mut map = StableBTreeMap::<u64, Vec<u8>, _>::create(lease(&host, "app.map.v1"));
+    let compare = |map: &StableBTreeMap<u64, Vec<u8>, VectorMemory>, keys: &[u64]| {
+        let before = backing.borrow().clone();
+        let mut seen = Vec::new();
+        map.visit_sorted_keys(keys, |key, value| seen.push((*key, value)));
+        assert_eq!(
+            seen,
+            keys.iter()
+                .map(|key| (*key, map.get(key)))
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(*backing.borrow(), before);
+    };
+    compare(&map, &[]);
+    compare(&map, &[1, 2]);
+    for i in 0..512 {
+        map.insert(2 * i, vec![i as u8; if i % 2 == 0 { 7 } else { 1024 }]);
+    }
+    for keys in (0..1025).collect::<Vec<_>>().chunks(32) {
+        compare(&map, keys);
+    }
+    compare(&map, &[0, 1022, u64::MAX]);
+}
+
+#[cfg(panic = "unwind")]
+#[test]
+fn key_range_checks_node_integrity_without_reading_external_records() {
+    let backing = VectorMemory::default();
+    let host = runtime(backing.clone());
+    let mut map = StableBTreeMap::<u64, Vec<u8>, _>::create(lease(&host, "app.map.v1"));
+    map.insert(7, vec![25; 1024]);
+    let corrupt_digest = |magic: &[u8]| {
+        let mut bytes = backing.borrow_mut();
+        let offset = bytes
+            .windows(magic.len())
+            .position(|window| window == magic)
+            .unwrap();
+        bytes[offset + 12] ^= 1;
+    };
+    corrupt_digest(b"ICBTVAL1");
+    assert_eq!(map.keys_range(7..=7).next(), Some(7));
+    assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| map.get(&7))).is_err());
+    corrupt_digest(b"ICBTND01");
+    assert!(
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| map
+            .keys_range(7..=7)
+            .next()))
+        .is_err()
+    );
+}

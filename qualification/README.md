@@ -87,3 +87,17 @@ linear memory growth.
 | 126 | Alternating | 13,167,631 | 10,941,940 | 13,473 B | 15,486 B |
 | 1,022 | Adjacent | 88,215,499 | 67,951,593 | 21,881 B | 23,153 B |
 | 1,022 | Alternating | 106,485,827 | 83,656,481 | 22,511 B | 25,138 B |
+
+### Bounded key ranges and shared reads
+
+`make storage-read-paths` builds matching release Wasms with and without the shared-read experiment, then installs the combined comparison in PocketIC. Each map holds 512 even-numbered keys with 16-byte inline or 4,096-byte external values. Each read runs as an update, so the stable-memory comparison after each group can detect writes. Tests run before and after reopening. The measured region includes routing, payload decoding, instrumented backing reads and the same byte-for-byte result checks in both multi-key arms. It excludes preparing the sorted distinct input and sending the reply. The counters count 20-byte node and external-value record headers on this fixture. [Full Storage measurements](read-paths.tsv)
+
+After reopen, 32 clustered inline probes took 825,072 instructions with repeated point reads and 176,985 with shared traversal (90 versus 9 routing nodes). Scattered inline hits took 911,759 versus 448,440 (90 versus 38 nodes). Scattered misses took 920,738 versus 452,892 (96 versus 43 nodes). With external values, clustered hits took 5,163,303 versus 4,527,735, with 32 external reads in each arm. Shared traversal retained ancestor routing buffers and yielded one value at a time. Peak additional heap on those external hits grew from 4,096 to 5,853 bytes. The single-key control uses the point path. The feature-enabled Wasm grew from 194,526 to 196,852 bytes. The callback remains available for experiments through Storage's `test-support` feature.
+
+For a 32-key range over external rows after reopen, ordinary iteration took 2,044,970 instructions and read 32 external records. Key-only iteration took 639,848 instructions and read zero external records. Both read nine routing nodes.
+
+#### IC DB count and threshold comparison
+
+Two builds from a disposable IC DB v0.31.0 checkout used the same count-profile fixture and Rust 1.100.0. For reproduction, apply the [driver and threshold probe patch](ic-db-read-profile.patch) to a disposable checkout and run `make m2-count-profile`. For the second build, patch the qualification workspace's crates.io dependency on Storage 0.80.0 to this product crate and change the single `db.map.range` call in `count_keys` to `db.map.keys_range`. Use a separate evidence directory through `IC_DB_COUNT_EVIDENCE_DIR`. The driver correction reflects the current inclusive 512-candidate budget. The explicit 31-candidate count and 7/8-candidate threshold arms exercise refusal and exact-budget success. [All 180 paired observations](ic-db-read-paths.tsv)
+
+With 512 rows after reopening, the automatic 511-row primary range count fell from 3,564,098 to 3,207,506 work instructions (10.0%). Database opening cost another 553,393 and 553,292 instructions respectively. The eight-hit threshold on that range fell from 170,854 to 165,210 work instructions (3.3%). A seven-candidate budget returned the same limit error in both builds. The validated count stayed at 6,431,875 work instructions. The driver checked every result and backing snapshot. The uncompressed count-profile Wasm shrank from 403,654 to 403,178 bytes. The baseline SHA-256 was `d5d3e084d987a874b4280737847072cf85141f320ba9ce9820fcf1434f0cb7eb` and the candidate was `f108c885e1965b718fcf1a4585beca78ff6e396b7b8e9ad4f2cf690606c847e3`.

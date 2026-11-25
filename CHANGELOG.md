@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.80.1] - 2026-11-25
+
+- Add `StableBTreeMap::keys_range(bounds)` for double-ended traversal without external value reads. The existing map layout reopens directly.
+- Add experimental shared traversal for sorted multi-key reads under the `test-support` feature.
+
 ## [0.80.0] - 2026-11-25
 
 ### 💥 Breaking changes

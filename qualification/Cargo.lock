@@ -722,7 +722,7 @@ dependencies = [
 
 [[package]]
 name = "ic-storage"
-version = "0.80.0"
+version = "0.80.1"
 dependencies = [
  "ic-platform-runtime",
  "serde",
@@ -731,9 +731,9 @@ dependencies = [
 
 [[package]]
 name = "ic-testkit"
-version = "0.110.4"
+version = "0.110.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5617b2cbdc7adf055c6c7f4bdcbca8ad0ef5b367b65996acda10cad7fb79bb13"
+checksum = "f72c4ef2bc7cb1244d20e10d64416b8d8da4c5afda5018c476ae8253a75aadc6"
 dependencies = [
  "pocket-ic",
 ]

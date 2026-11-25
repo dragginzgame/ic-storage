@@ -295,16 +295,73 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> Tree<K, V, M> {
         let Some((node, index)) = self.find(key)? else {
             return Ok(None);
         };
+        self.decode_hit(node, index).map(Some)
+    }
+    fn decode_hit(&self, node: Rc<ReadNode>, index: usize) -> Result<V> {
         if let Some(bytes) = node.inline_value(index) {
             V::BOUND.check(bytes);
-            Ok(Some(V::from_bytes(Cow::Borrowed(bytes))))
+            Ok(V::from_bytes(Cow::Borrowed(bytes)))
         } else {
             let value = node.value(index);
-            // External decoding does not borrow the routing buffer. Release it
-            // before allocating the payload, as in the original lookup path.
             drop(node);
-            decode(self.value(value)?).map(Some)
+            decode(self.value(value)?)
         }
+    }
+
+    #[cfg(feature = "test-support")]
+    pub fn visit_sorted_keys(
+        &self,
+        keys: &[K],
+        mut visit: impl FnMut(&K, Option<V>),
+    ) -> Result<()> {
+        if let [key] = keys {
+            visit(key, self.get(key)?);
+            return Ok(());
+        }
+        self.healthy()?;
+        self.visit_subtree(self.root.borrow().top, 0, keys, &mut visit)
+    }
+
+    #[cfg(feature = "test-support")]
+    fn visit_subtree(
+        &self,
+        pointer: Option<Pointer>,
+        depth: usize,
+        mut keys: &[K],
+        visit: &mut impl FnMut(&K, Option<V>),
+    ) -> Result<()> {
+        if keys.is_empty() {
+            return Ok(());
+        }
+        let Some(pointer) = pointer else {
+            for key in keys {
+                visit(key, None);
+            }
+            return Ok(());
+        };
+        let node = self.read_node(pointer, depth)?;
+        // Partition at separators in ascending order. Start at the first requested
+        // slot so even a pair of distant probes only descends into relevant children.
+        let first = node.search(&keys[0])?.unwrap_or_else(|slot| slot);
+        for slot in first..node.len() {
+            let separator = K::from_bytes(Cow::Borrowed(node.key_bytes(slot)));
+            let split = keys.partition_point(|key| key < &separator);
+            self.visit_subtree(
+                node.children.get(slot).copied(),
+                depth + 1,
+                &keys[..split],
+                visit,
+            )?;
+            keys = &keys[split..];
+            if keys.first() == Some(&separator) {
+                visit(&keys[0], Some(self.decode_hit(Rc::clone(&node), slot)?));
+                keys = &keys[1..];
+            }
+            if keys.is_empty() {
+                return Ok(());
+            }
+        }
+        self.visit_subtree(node.children.last().copied(), depth + 1, keys, visit)
     }
     pub fn contains_key(&self, key: &K) -> Result<bool> {
         Ok(self.find(key)?.is_some())

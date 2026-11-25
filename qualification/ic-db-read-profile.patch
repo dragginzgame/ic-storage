@@ -1,0 +1,77 @@
+diff --git a/qualification/ic-db-m0-rollback-driver/tests/support/scalar_workload.rs b/qualification/ic-db-m0-rollback-driver/tests/support/scalar_workload.rs
+index 572cd80..ba5e814 100644
+--- a/qualification/ic-db-m0-rollback-driver/tests/support/scalar_workload.rs
++++ b/qualification/ic-db-m0-rollback-driver/tests/support/scalar_workload.rs
+@@ -717,11 +717,7 @@ pub async fn run(label: &str, wasm_path: &std::ffi::OsStr, needs_settling: bool)
+                 };
+                 for &mode in modes {
+                     let (result, opening, work) = profile_count(mode, category).await;
+-                    let expected_result = if mode == 0 && expected_rows.len() >= 512 {
+-                        None
+-                    } else {
+-                        Some(expected)
+-                    };
++                    let expected_result = Some(expected);
+                     assert_eq!(
+                         result, expected_result,
+                         "profile mode {mode}, {phase}, {category:?}"
+@@ -741,9 +737,15 @@ pub async fn run(label: &str, wasm_path: &std::ffi::OsStr, needs_settling: bool)
+                     .iter()
+                     .filter(|row| (1..upper).contains(&row.0))
+                     .count();
+-                let expected = (matches < 512).then_some(matches as u64);
+-                for (mode, path) in [(7, "automatic"), (8, "validated")] {
++
++                for (mode, path) in [(7, "automatic"), (8, "validated"), (12, "threshold7"), (13, "threshold8"), (14, "budget31")] {
+                     let (result, opening, work) = profile_count(mode, Some(upper)).await;
++                    let expected = match mode {
++                        12 if matches >= 8 => None,
++                        12 | 13 => Some(u64::from(matches >= 8)),
++                        14 if matches > 31 => None,
++                        _ => Some(matches as u64),
++                    };
+                     assert_eq!(result, expected, "{path}, {phase}, id < {upper}");
+                     assert_eq!(pic.get_stable_memory(canister).await, backing);
+                     eprintln!(
+diff --git a/qualification/ic-db-records-benchmark-canister/src/count_profile.rs b/qualification/ic-db-records-benchmark-canister/src/count_profile.rs
+index 28ffec7..ebc62be 100644
+--- a/qualification/ic-db-records-benchmark-canister/src/count_profile.rs
++++ b/qualification/ic-db-records-benchmark-canister/src/count_profile.rs
+@@ -21,15 +21,15 @@ use std::ops::Bound;
+ )]
+ fn count_profile((mode, operand): (u8, Option<u64>)) -> (Option<u64>, u64, u64) {
+     let start = ic_platform_runtime::raw::instruction_counter();
+-    if matches!(mode, 0 | 1 | 5..=11) {
++    if matches!(mode, 0 | 1 | 5..=14) {
+         let db = database();
+         let opened = ic_platform_runtime::raw::instruction_counter();
+         let mut query = db.query::<Entry>();
+         // Mode 11 exercises the application default. The comparison arms admit 512 candidates.
+         if mode != 11 {
+-            query = query.work_limit(512);
++            query = query.work_limit(match mode { 12 => 7, 13 => 8, 14 => 31, _ => 512 });
+         }
+-        if matches!(mode, 7 | 8) {
++        if matches!(mode, 7 | 8 | 12..=14) {
+             query = query.filter("id", Comparison::Ge, 1_u64).filter(
+                 "id",
+                 Comparison::Lt,
+@@ -47,9 +47,17 @@ fn count_profile((mode, operand): (u8, Option<u64>)) -> (Option<u64>, u64, u64)
+         if matches!(mode, 9 | 10) {
+             query = query.filter("amount", Comparison::Ge, 0_u64);
+         }
++        if matches!(mode, 12 | 13) {
++            let result = match query.has_at_least(8) {
++                Ok(answer) => Some(u64::from(answer.value)),
++                Err(Error::Limit) => None,
++                Err(error) => panic!("unexpected threshold error: {error:?}"),
++            };
++            return (result, opened - start, ic_platform_runtime::raw::instruction_counter() - opened);
++        }
+         let count = match mode {
+             5 => query.count_index_entries(),
+-            6 | 7 | 9 | 11 => query.count(),
++            6 | 7 | 9 | 11 | 14 => query.count(),
+             _ => query.count_validated(),
+         };
+         let result = match count {

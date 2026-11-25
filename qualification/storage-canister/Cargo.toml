@@ -14,6 +14,9 @@ crate-type = ["cdylib"]
 test = false
 doctest = false
 
+[features]
+shared-reads = ["ic-storage/test-support"]
+
 [dependencies]
 ic-platform-runtime = { workspace = true, features = ["system-raw"] }
 ic-storage.workspace = true
@@ -25,6 +28,10 @@ toko-tooling.workspace = true
 
 [[example]]
 name = "engine_matrix"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "read_paths"
 crate-type = ["cdylib"]
 
 [lints]

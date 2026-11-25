@@ -150,6 +150,18 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> StableBTreeMap<K, V, M> 
         self.inner.get(key).expect("B-tree get failed")
     }
 
+    /// Qualification experiment. Visit sorted distinct probes in order, including misses.
+    ///
+    /// # Panics
+    /// Panics on unordered or duplicate keys, backing, record integrity or codec failure.
+    #[cfg(feature = "test-support")]
+    pub fn visit_sorted_keys(&self, keys: &[K], visit: impl FnMut(&K, Option<V>)) {
+        assert!(keys.windows(2).all(|pair| pair[0] < pair[1]));
+        self.inner
+            .visit_sorted_keys(keys, visit)
+            .expect("B-tree batch read failed");
+    }
+
     /// Check whether the map contains a key.
     ///
     /// # Panics
@@ -231,7 +243,15 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> StableBTreeMap<K, V, M> 
 
     /// Iterate over keys without reading external values.
     pub fn keys(&self) -> impl DoubleEndedIterator<Item = K> + '_ {
-        self.inner.keys_range(..)
+        self.keys_range(..)
+    }
+
+    /// Iterate over keys within the bounds in either direction, skipping external values.
+    pub fn keys_range(
+        &self,
+        bounds: impl RangeBounds<K>,
+    ) -> impl DoubleEndedIterator<Item = K> + '_ {
+        self.inner.keys_range(bounds)
     }
 
     /// Iterate over values in key order.
