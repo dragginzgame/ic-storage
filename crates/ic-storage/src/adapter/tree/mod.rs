@@ -434,36 +434,24 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> Tree<K, V, M> {
                 Error::Corrupt("map cursor exceeds height bound"),
             )?;
             let node = self.read_node(p, path.len())?;
-            let index = match bound {
-                Bound::Unbounded => {
-                    if forward {
-                        0
-                    } else {
-                        node.len()
-                    }
-                }
-                Bound::Included(k) => match node.search(k)? {
-                    Ok(i) => {
-                        if forward {
-                            i
-                        } else {
-                            i + 1
-                        }
-                    }
-                    Err(i) => i,
+            let (index, at_inclusive_bound) = match bound {
+                Bound::Unbounded => (if forward { 0 } else { node.len() }, false),
+                Bound::Included(key) => match node.search(key)? {
+                    Ok(i) => (i + usize::from(!forward), true),
+                    Err(i) => (i, false),
                 },
-                Bound::Excluded(k) => match node.search(k)? {
-                    Ok(i) => {
-                        if forward {
-                            i + 1
-                        } else {
-                            i
-                        }
-                    }
-                    Err(i) => i,
+                Bound::Excluded(key) => match node.search(key)? {
+                    Ok(i) => (i + usize::from(forward), false),
+                    Err(i) => (i, false),
                 },
             };
-            pointer = node.children.get(index).copied();
+            // An inclusive hit is already the first result, even on a branch.
+            // advance_path will descend on the following step if requested.
+            pointer = if at_inclusive_bound {
+                None
+            } else {
+                node.children.get(index).copied()
+            };
             path.push(Frame {
                 node,
                 index,

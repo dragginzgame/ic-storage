@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.80.5] - 2026-11-25
+
+- Start inclusive forward and reverse ranges directly at an exact match in a B-tree branch.
+
 ## [0.80.4] - 2026-11-25
 
 - B-tree search can compare a typed key with its stored encoding through `Storable::CMP_ENCODED`. Byte-vector and string keys skip pivot allocations. String comparisons validate the stored UTF-8. Existing codecs inherit decoded ordering and validation.

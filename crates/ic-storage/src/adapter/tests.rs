@@ -450,6 +450,52 @@ fn default_comparator_preserves_signed_little_endian_order() {
 }
 
 #[test]
+fn seeks_continue_on_the_correct_side_of_each_stored_key() {
+    let host = runtime(VectorMemory::default());
+    let mut map = StableBTreeMap::<u64, (), _>::create(lease(&host, "app.map.v1"));
+    for key in 0..256 {
+        map.insert(key, ());
+    }
+    for key in 0..256 {
+        assert!(map.keys_range(key..).take(8).eq((key..256).take(8)));
+        assert!(
+            map.keys_range(..=key)
+                .rev()
+                .take(8)
+                .eq((0..=key).rev().take(8))
+        );
+    }
+}
+
+#[test]
+fn positioned_key_and_entry_steps_share_front_back_and_exhaustion() {
+    let host = runtime(VectorMemory::default());
+    let mut map = StableBTreeMap::<u64, Vec<u8>, _>::create(lease(&host, "app.map.v1"));
+    for key in 0..220 {
+        map.insert(key, vec![key as u8; 1024]);
+    }
+    let mut iter = map.range(5..200);
+    let mut oracle = 5..200;
+    for step in 0..195 {
+        match step % 4 {
+            0 => assert_eq!(iter.next_key(), oracle.next()),
+            1 => assert_eq!(iter.next_back_key(), oracle.next_back()),
+            2 => assert_eq!(iter.next().unwrap().into_pair(), {
+                let key = oracle.next().unwrap();
+                (key, vec![key as u8; 1024])
+            }),
+            _ => assert_eq!(iter.next_back().unwrap().into_pair(), {
+                let key = oracle.next_back().unwrap();
+                (key, vec![key as u8; 1024])
+            }),
+        }
+    }
+    assert_eq!(iter.next_key(), None);
+    assert!(iter.next_back().is_none());
+    assert_eq!(iter.next_back_key(), None);
+}
+
+#[test]
 fn fallible_batch_stops_before_later_payloads() {
     let backing = VectorMemory::default();
     let host = runtime(backing.clone());
@@ -479,32 +525,4 @@ fn fallible_batch_stops_before_later_payloads() {
         assert!(visited.into_iter().eq(0..=stop));
     }
     assert_eq!(*backing.borrow(), before);
-}
-
-#[test]
-fn positioned_key_and_entry_steps_share_front_back_and_exhaustion() {
-    let host = runtime(VectorMemory::default());
-    let mut map = StableBTreeMap::<u64, Vec<u8>, _>::create(lease(&host, "app.map.v1"));
-    for key in 0..220 {
-        map.insert(key, vec![key as u8; 1024]);
-    }
-    let mut iter = map.range(5..200);
-    let mut oracle = 5..200;
-    for step in 0..195 {
-        match step % 4 {
-            0 => assert_eq!(iter.next_key(), oracle.next()),
-            1 => assert_eq!(iter.next_back_key(), oracle.next_back()),
-            2 => assert_eq!(iter.next().unwrap().into_pair(), {
-                let key = oracle.next().unwrap();
-                (key, vec![key as u8; 1024])
-            }),
-            _ => assert_eq!(iter.next_back().unwrap().into_pair(), {
-                let key = oracle.next_back().unwrap();
-                (key, vec![key as u8; 1024])
-            }),
-        }
-    }
-    assert_eq!(iter.next_key(), None);
-    assert!(iter.next_back().is_none());
-    assert_eq!(iter.next_back_key(), None);
 }
