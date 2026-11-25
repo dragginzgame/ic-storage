@@ -120,16 +120,11 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> StableBTreeMap<K, V, M> 
 
     /// Consume a prepared set of distinct keys and return the number present.
     /// Empty sets, missing keys and retries contribute zero. The caller bounds
-    /// the set during admission. The released engine performs one removal per key.
+    /// the set during admission. Consecutive keys may share a leaf traversal.
     /// A caller relying on prior existence checks must trap on a count mismatch
     /// in the same IC update to roll back its writes.
     pub fn remove_many(&mut self, keys: BTreeSet<K>) -> u64 {
-        let mut removed = 0;
-        for key in keys {
-            removed += u64::from(self.inner.remove(&key).is_some());
-        }
-
-        removed
+        self.inner.remove_many(keys)
     }
 
     /// Delegates to upstream `BTreeMap::first_key_value` with the governed allocation.

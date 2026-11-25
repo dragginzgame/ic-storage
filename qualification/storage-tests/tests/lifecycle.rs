@@ -1,5 +1,6 @@
 //! Installed ordinary-upgrade, query isolation and whole-message rollback witness.
 use ic_testkit::pocket_ic::{CanisterId, PocketIcBuilder, nonblocking::PocketIc};
+use std::collections::BTreeMap;
 
 fn args(words: [u64; 4]) -> Vec<u8> {
     words.into_iter().flat_map(u64::to_le_bytes).collect()
@@ -113,6 +114,7 @@ async fn compare_prepared_bulk_and_point_removal() {
         // Three indexes per child and one index for the parent in the IC DB fixture.
         let count = (mutations - 1) * 4 + 2;
         for stride in [1, 2] {
+            let mut point_instructions = 0;
             for bulk in [0, 1] {
                 let id = pic.create_canister().await;
                 pic.install_canister(id, wasm.clone(), vec![], None).await;
@@ -152,6 +154,14 @@ async fn compare_prepared_bulk_and_point_removal() {
                     u64::from_le_bytes(reply[i * 8..i * 8 + 8].try_into().unwrap())
                 });
                 assert_eq!(removed, count);
+                if bulk == 0 {
+                    point_instructions = instructions;
+                } else {
+                    assert!(
+                        instructions < point_instructions,
+                        "bulk deletion lost its instruction advantage at {mutations} mutations and stride {stride}"
+                    );
+                }
                 println!(
                     "delete mutations={mutations} keys={count} stride={stride} bulk={bulk} instructions={instructions} wasm_growth_pages={pages} peak_extra_heap_bytes={heap}"
                 );
@@ -169,12 +179,26 @@ async fn compare_prepared_bulk_and_point_removal() {
                     ),
                     count
                 );
-                let survivor = if stride == 1 { count } else { 1 };
-                assert_eq!(
-                    query(&pic, id, "get", [survivor, 0, 0, 0]).await,
-                    vec![survivor as u8; if survivor % 13 == 0 { 8192 } else { 15 }]
-                );
-                assert!(query(&pic, id, "get", [0; 4]).await.is_empty());
+                let mut expected: BTreeMap<_, _> = (0..count * 2)
+                    .map(|key| (key, vec![key as u8; if key % 13 == 0 { 8192 } else { 15 }]))
+                    .collect();
+                for key in (0..count * 2).step_by(stride as usize).take(count as usize) {
+                    expected.remove(&key);
+                }
+                for start in (0..count * 2).step_by(64) {
+                    let end = (start + 64).min(count * 2);
+                    let mut bytes = Vec::new();
+                    for (key, value) in expected.range(start..end) {
+                        bytes.extend_from_slice(&key.to_le_bytes());
+                        bytes.extend_from_slice(&(value.len() as u64).to_le_bytes());
+                        bytes.extend_from_slice(value);
+                    }
+                    let actual = query(&pic, id, "delete_fixture_rows", [start, end, 0, 0]).await;
+                    assert!(
+                        actual == bytes,
+                        "survivor mismatch in {start}..{end}, stride={stride}, bulk={bulk}"
+                    );
+                }
             }
         }
     }

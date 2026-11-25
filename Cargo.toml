@@ -51,3 +51,6 @@ missing_panics_doc = "warn"
 must_use_candidate = "warn"
 too_many_lines = "allow"
 empty_line_after_doc_comments = "allow"
+
+[patch.crates-io]
+ic-stable-structures = { path = "vendor/ic-stable-structures" }

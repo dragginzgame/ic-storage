@@ -131,6 +131,24 @@ extern "C" fn seed_delete_rows() {
     reply(&[]);
 }
 
+// Return fixture rows in key order for comparison with the host's ordered map.
+#[expect(unsafe_code, reason = "IC entrypoint export")]
+#[unsafe(export_name = "canister_query delete_fixture_rows")]
+extern "C" fn delete_fixture_rows() {
+    let [start, end, _, _] = args();
+    assert!(start <= end && end <= 2048 && end - start <= 64);
+    STORES.with_borrow(|state| {
+        let mut bytes = Vec::new();
+        for entry in state.as_ref().unwrap().rows.range(start..end) {
+            let value = entry.value();
+            bytes.extend_from_slice(&entry.key().to_le_bytes());
+            bytes.extend_from_slice(&(value.len() as u64).to_le_bytes());
+            bytes.extend_from_slice(&value);
+        }
+        reply(&bytes);
+    });
+}
+
 // measure_delete
 // Deletes up to 1,022 prepared physical keys, trapping on an unexpected removal count.
 // limits : request exactly 32 bytes, 32-byte reply

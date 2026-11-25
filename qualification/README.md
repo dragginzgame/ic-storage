@@ -36,3 +36,26 @@ measured deletion. The qualification-only allocator measures the peak live
 allocated bytes above the pre-set baseline. Both instruction columns include
 that instrumentation. The released tree traverses once per key in both paths.
 A future engine can run the same fixture against this baseline. [Storage issue #10](https://github.com/dragginzgame/ic-storage/issues/10)
+
+## Current engine comparison
+
+On 2026-11-25, the patched 0.7.2 tree reused the loaded leaf for successive
+requested keys while node occupancy allowed. Qualification compared point and
+bulk deletion on identical Wasm. Each case checked every surviving record after
+upgrade, the retry count and byte-identical stable memory after a forced trap.
+
+| Mutations | Selection | Point instructions | Leaf batching | Leaf batching with discarded payload reads skipped | Peak additional heap bytes (all paths) |
+| ---: | --- | ---: | ---: | ---: | ---: |
+| 32 | Adjacent | 29,694,060 | 11,363,930 | 11,358,189 | 30,207 |
+| 32 | Alternating | 44,323,299 | 35,591,190 | 35,601,818 | 30,207 |
+| 256 | Adjacent | 270,559,711 | 89,394,277 | 89,349,386 | 48,587 |
+| 256 | Alternating | 427,555,759 | 346,714,471 | 346,781,818 | 54,874 |
+
+The point column uses the retained leaf-batching build. The payload-skipping
+variant was measured in a separate build. It changed bulk instructions by less
+than 0.06% in either direction, so the engine retains ordinary entry removal.
+All deletions grew Wasm linear memory by zero pages.
+
+Both workspace manifests select the modified tree with Cargo's root-level
+`[patch.crates-io]`. A separate consuming workspace must select that tree
+in its own root manifest until the Platform dependency supplies the method.

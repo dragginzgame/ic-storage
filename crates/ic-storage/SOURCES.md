@@ -11,7 +11,10 @@ the merged crate. Cell-envelope validation follows the corresponding ic-memory
 Changes here reconnect upstream Memory/Storable, adopt current Platform raw calls
 and Storage-owned directory encoding, give the new directory its own magic, and qualify the combined
 runtime. No old custom tree implementation is carried forward.
-The upstream collection dependency remains separately licensed and unmodified.
+The workspaces select a modified copy of the Apache-2.0 ic-stable-structures
+0.7.2 crate at `vendor/ic-stable-structures`. Its B-tree deletion change comes
+from the IC DB bulk-delete leaf-batching prototype. The vendor directory
+retains the upstream license. The Platform facade supplies the collection types.
 
 The imported 0.63/0.64 source was distributed under this grant, retained here:
 
