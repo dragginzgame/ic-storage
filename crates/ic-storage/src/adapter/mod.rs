@@ -39,9 +39,9 @@ pub use region::{BTreeMapRegion, RegionGrowError};
 pub use set::StableBTreeSet;
 pub use vector::StableVec;
 
-/// Upstream map iterator with governed memory.
+/// Packaged B-tree map iterator with governed memory.
 pub type MapIter<'a, K, V, M = DefaultMemoryImpl> =
-    substrate::btreemap::Iter<'a, K, V, RuntimeMemory<M>>;
+    crate::map_engine::btreemap::Iter<'a, K, V, RuntimeMemory<M>>;
 /// Upstream set iterator with governed memory.
 pub type SetIter<'a, K, M = DefaultMemoryImpl> = substrate::btreeset::Iter<'a, K, RuntimeMemory<M>>;
 /// Upstream log iterator with governed index and data memories.

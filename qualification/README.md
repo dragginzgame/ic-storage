@@ -56,6 +56,17 @@ variant was measured in a separate build. It changed bulk instructions by less
 than 0.06% in either direction, so the engine retains ordinary entry removal.
 All deletions grew Wasm linear memory by zero pages.
 
-Both workspace manifests select the modified tree with Cargo's root-level
-`[patch.crates-io]`. A separate consuming workspace must select that tree
-in its own root manifest until the Platform dependency supplies the method.
+### Packaged 0.79.0 engine
+
+The release uses slice-based I/O and explicit header encoding. Its standalone
+engine produced the following PocketIC instruction counts on the same fixtures.
+
+| Physical keys | Selection | Individual | Bulk |
+| ---: | --- | ---: | ---: |
+| 126 | Adjacent | 29,098,944 | 11,263,511 |
+| 126 | Alternating | 43,576,000 | 35,075,938 |
+| 1,022 | Adjacent | 263,486,963 | 88,222,596 |
+| 1,022 | Alternating | 419,150,394 | 340,755,454 |
+
+Peak extra heap matched the preceding table and Wasm linear memory growth was
+zero pages in all eight runs.

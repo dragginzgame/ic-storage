@@ -4,7 +4,7 @@ members = ["crates/ic-storage"]
 exclude = ["qualification"]
 
 [workspace.package]
-version = "0.78.9"
+version = "0.79.0"
 edition = "2024"
 rust-version = "1.100.0"
 license-file = "LICENSE.md"
@@ -51,6 +51,3 @@ missing_panics_doc = "warn"
 must_use_candidate = "warn"
 too_many_lines = "allow"
 empty_line_after_doc_comments = "allow"
-
-[patch.crates-io]
-ic-stable-structures = { path = "vendor/ic-stable-structures" }

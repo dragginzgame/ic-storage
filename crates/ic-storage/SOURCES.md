@@ -11,10 +11,11 @@ the merged crate. Cell-envelope validation follows the corresponding ic-memory
 Changes here reconnect upstream Memory/Storable, adopt current Platform raw calls
 and Storage-owned directory encoding, give the new directory its own magic, and qualify the combined
 runtime. No old custom tree implementation is carried forward.
-The workspaces select a modified copy of the Apache-2.0 ic-stable-structures
-0.7.2 crate at `vendor/ic-stable-structures`. Its B-tree deletion change comes
-from the IC DB bulk-delete leaf-batching prototype. The vendor directory
-retains the upstream license. The Platform facade supplies the collection types.
+The map engine in `src/map_engine/` derives from DFINITY ic-stable-structures
+0.7.2, distributed under Apache-2.0 (see `LICENSE-stable-structures`). It
+includes the IC DB prototype for batching ordered deletions in a leaf, uses safe
+slice-based I/O and explicit packed-header field encoding, and omits unused
+upstream entry points. Memory and record codecs come from the Platform facade.
 
 The imported 0.63/0.64 source was distributed under this grant, retained here:
 

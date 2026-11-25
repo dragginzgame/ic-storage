@@ -50,6 +50,3 @@ empty_line_after_doc_comments = "allow"
 panic = "abort"
 lto = true
 codegen-units = 1
-
-[patch.crates-io]
-ic-stable-structures = { path = "../vendor/ic-stable-structures" }

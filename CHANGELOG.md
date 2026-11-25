@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.79.0] - 2026-11-25
+
+### 🚀 Features
+
+- Batch exact-key deletion within loaded B-tree leaves. The published crate includes the optimized map engine. [#10 Support bounded bulk removal of sorted keys in the next Storage engine](https://github.com/dragginzgame/ic-storage/issues/10)
+
+### 💥 Breaking changes
+
+- The concrete iterator behind `adapter::MapIter` now belongs to the packaged engine. Callers that name the upstream iterator type should use `adapter::MapIter`. The retained map layout and public record codecs are compatible with 0.78.9.
+
 ## [0.78.9] - 2026-11-24
 
 ### 🚀 Features

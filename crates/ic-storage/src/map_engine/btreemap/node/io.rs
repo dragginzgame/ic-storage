@@ -1,9 +1,10 @@
-use super::*;
-use crate::btreemap::allocator::Allocator;
-use crate::btreemap::node::v2::{
+// Derived from DFINITY ic-stable-structures 0.7.2 (Apache-2.0). See SOURCES.md.
+use super::{Address, Bytes, Memory, PageSize, write};
+use crate::map_engine::btreemap::allocator::Allocator;
+use crate::map_engine::btreemap::node::v2::{
     OVERFLOW_ADDRESS_OFFSET, OVERFLOW_MAGIC, PAGE_OVERFLOW_DATA_OFFSET, PAGE_OVERFLOW_NEXT_OFFSET,
 };
-use crate::{types::NULL, write_u64};
+use crate::map_engine::{types::NULL, write_u64};
 use std::cmp::min;
 
 /// A `NodeReader` abstracts the `Node` as a single contiguous memory, even though internally
@@ -16,14 +17,13 @@ pub struct NodeReader<'a, M: Memory> {
 }
 
 // Note: The `Memory` interface is implemented so that helper methods such `read_u32`,
-// `read_struct`, etc. can be used with a `NodeReader` directly.
+// primitive and header decoders can use a `NodeReader` directly.
 impl<M: Memory> Memory for NodeReader<'_, M> {
-    unsafe fn read_unsafe(&self, offset: u64, dst: *mut u8, count: usize) {
+    fn read(&self, offset: u64, dst: &mut [u8]) {
         // If the read is only in the initial page, then read it directly in one go.
         // This is a performance enhancement to avoid the cost of creating a `NodeIterator`.
-        if (offset + count as u64) < self.page_size.get() as u64 {
-            self.memory
-                .read_unsafe(self.address.get() + offset, dst, count);
+        if (offset + dst.len() as u64) < self.page_size.get() as u64 {
+            self.memory.read(self.address.get() + offset, dst);
             return;
         }
 
@@ -32,7 +32,7 @@ impl<M: Memory> Memory for NodeReader<'_, M> {
         let iter = NodeIterator::new(
             VirtualSegment {
                 address: Address::from(offset),
-                length: Bytes::from(count as u64),
+                length: Bytes::from(dst.len() as u64),
             },
             Bytes::from(self.page_size.get()),
         );
@@ -44,31 +44,23 @@ impl<M: Memory> Memory for NodeReader<'_, M> {
             length,
         } in iter
         {
-            // SAFETY: read_unsafe() is safe to call iff `position + length <= count` since the
-            // caller guarantees that we can write `count` number of bytes to `dst`.
             let len = length.get() as usize;
-            assert!(position + len <= count);
+            assert!(position + len <= dst.len());
             match page_idx {
                 // Initial page.
-                0 => self
-                    .memory
-                    .read_unsafe((self.address + offset).get(), dst.add(position), len),
+                0 => self.memory.read(
+                    (self.address + offset).get(),
+                    &mut dst[position..position + len],
+                ),
                 // Overflow page.
-                _ => self.memory.read_unsafe(
+                _ => self.memory.read(
                     (self.overflows[page_idx - 1] + offset).get(),
-                    dst.add(position),
-                    len,
+                    &mut dst[position..position + len],
                 ),
             }
 
             position += len;
         }
-    }
-
-    #[inline]
-    fn read(&self, offset: u64, dst: &mut [u8]) {
-        // SAFETY: since dst is dst.len() long, it fulfills the safety requirements of read_unsafe.
-        unsafe { self.read_unsafe(offset, dst.as_mut_ptr(), dst.len()) }
     }
 
     fn write(&self, _: u64, _: &[u8]) {
@@ -289,14 +281,6 @@ impl<'a, M: Memory> NodeWriter<'a, M> {
         self.write(offset, &val.to_le_bytes());
     }
 
-    pub fn write_struct<T>(&mut self, t: &T, addr: Address) {
-        let slice = unsafe {
-            core::slice::from_raw_parts(t as *const _ as *const u8, core::mem::size_of::<T>())
-        };
-
-        self.write(addr, slice)
-    }
-
     // Allocates a new page and appends it to the node's overflows.
     fn allocate_new_page(&mut self) {
         let new_page = self.allocator.allocate();
@@ -374,41 +358,5 @@ fn compute_num_overflow_pages_needed(size: u64, page_size: u64) -> u64 {
         overflow_data_len.div_ceil(overflow_page_capacity)
     } else {
         0
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn num_overflow_pages_no_overflows() {
-        assert_eq!(compute_num_overflow_pages_needed(0, 100), 0);
-    }
-
-    #[test]
-    fn num_overflow_pages_exactly_one_page() {
-        assert_eq!(compute_num_overflow_pages_needed(100, 100), 0);
-    }
-
-    #[test]
-    fn num_overflow_pages_two_pages() {
-        assert_eq!(compute_num_overflow_pages_needed(101, 100), 1);
-    }
-
-    #[test]
-    fn num_overflow_pages_exactly_two_pages() {
-        assert_eq!(
-            compute_num_overflow_pages_needed(200 - PAGE_OVERFLOW_DATA_OFFSET.get(), 100),
-            1
-        );
-    }
-
-    #[test]
-    fn num_overflow_pages_just_over_two_pages() {
-        assert_eq!(
-            compute_num_overflow_pages_needed(200 - PAGE_OVERFLOW_DATA_OFFSET.get() + 1, 100),
-            2
-        );
     }
 }

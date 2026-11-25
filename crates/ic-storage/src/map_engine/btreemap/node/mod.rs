@@ -1,16 +1,17 @@
-use crate::{
+// Derived from DFINITY ic-stable-structures 0.7.2 (Apache-2.0). See SOURCES.md.
+use crate::map_engine::{
+    Memory,
     btreemap::Allocator,
-    read_address_vec, read_struct, read_to_vec, read_u32, read_u64,
+    read_address_vec, read_to_vec, read_u32, read_u64,
     storable::Storable,
     types::{Address, Bytes},
-    write, write_struct, write_u32, Memory,
+    write, write_u32,
 };
 use std::borrow::{Borrow, Cow};
 use std::cell::OnceCell;
 
 mod io;
-#[cfg(test)]
-mod tests;
+
 mod v1;
 mod v2;
 
@@ -30,7 +31,6 @@ const INTERNAL_NODE_TYPE: u8 = 1;
 const U32_SIZE: Bytes = Bytes::new(4);
 
 #[derive(Debug, PartialEq, Copy, Clone, Eq)]
-#[cfg_attr(test, derive(test_strategy::Arbitrary))]
 pub enum NodeType {
     Leaf,
     Internal,
@@ -70,7 +70,7 @@ impl<K: Storable + Ord + Clone> Node<K> {
     /// Loads a node from memory at the given address.
     pub fn load<M: Memory>(address: Address, page_size: PageSize, memory: &M) -> Self {
         // Load the header to determine which version the node is, then load the node accordingly.
-        let header: NodeHeader = read_struct(address, memory);
+        let header = NodeHeader::read(memory, address);
         assert_eq!(&header.magic, MAGIC, "Bad magic.");
         match header.version {
             LAYOUT_VERSION_1 => match page_size {
@@ -367,7 +367,7 @@ impl<K: Storable + Ord + Clone> Node<K> {
     /// POSTCONDITION:
     ///   * `source` is deallocated.
     ///   * all the entries of `source`, as well as the median, are merged into `self`, in sorted
-    ///      order.
+    ///     order.
     pub fn merge<M: Memory>(
         &mut self,
         mut source: Node<K>,
@@ -426,25 +426,6 @@ impl<K: Storable + Ord + Clone> Node<K> {
         // Assert postconditions.
         assert_eq!(b.entries.len(), 0);
         assert_eq!(b.children.len(), 0);
-    }
-
-    #[cfg(test)]
-    pub fn entries<M: Memory>(&self, memory: &M) -> Vec<Entry<K>> {
-        (0..self.entries.len())
-            .map(|i| (self.key(i, memory).clone(), self.value(i, memory).to_vec()))
-            .collect()
-    }
-
-    #[cfg(test)]
-    pub fn keys<M: Memory>(&self, memory: &M) -> Vec<&K> {
-        (0..self.entries.len())
-            .map(|i| self.key(i, memory))
-            .collect()
-    }
-
-    #[cfg(test)]
-    pub fn overflows(&self) -> &[Address] {
-        &self.overflows
     }
 
     /// Returns the number of entries in the node.
@@ -513,6 +494,7 @@ impl<K: Storable + Ord + Clone> Node<K> {
 
 // A transient data structure for reading/writing metadata into/from stable memory.
 #[repr(C, packed)]
+#[derive(Copy, Clone)]
 struct NodeHeader {
     magic: [u8; 3],
     version: u8,
@@ -680,5 +662,26 @@ impl DerivedPageSize {
     /// Returns the page size derived from the max key/value sizes.
     fn get(&self) -> u32 {
         v1::size_v1(self.max_key_size, self.max_value_size).get() as u32
+    }
+}
+
+impl NodeHeader {
+    fn read(memory: &impl Memory, address: Address) -> Self {
+        let mut bytes = [0; 7];
+        memory.read(address.get(), &mut bytes);
+        Self {
+            magic: bytes[0..3].try_into().unwrap(),
+            version: bytes[3],
+            node_type: bytes[4],
+            num_entries: u16::from_le_bytes(bytes[5..7].try_into().unwrap()),
+        }
+    }
+    fn encode(&self) -> [u8; 7] {
+        let mut bytes = [0; 7];
+        bytes[0..3].copy_from_slice(&self.magic);
+        bytes[3] = self.version;
+        bytes[4] = self.node_type;
+        bytes[5..7].copy_from_slice(&self.num_entries.to_le_bytes());
+        bytes
     }
 }

@@ -1,6 +1,6 @@
 //! Governed map collection implementation.
 use super::{MapIter, Memory, Storable};
-use crate::{DefaultMemoryImpl, RuntimeMemory, substrate};
+use crate::{DefaultMemoryImpl, RuntimeMemory, map_engine::btreemap::BTreeMap};
 use std::{collections::BTreeSet, ops::RangeBounds};
 
 ///
@@ -9,7 +9,7 @@ use std::{collections::BTreeSet, ops::RangeBounds};
 ///
 
 pub struct StableBTreeMap<K: Storable + Ord + Clone, V: Storable, M: Memory = DefaultMemoryImpl> {
-    inner: substrate::BTreeMap<K, V, RuntimeMemory<M>>,
+    inner: BTreeMap<K, V, RuntimeMemory<M>>,
 }
 
 impl<K: Storable + Ord + Clone, V: Storable, M: Memory> StableBTreeMap<K, V, M> {
@@ -32,7 +32,7 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> StableBTreeMap<K, V, M> 
     #[must_use]
     pub fn reset(memory: RuntimeMemory<M>) -> Self {
         Self {
-            inner: substrate::BTreeMap::new(memory),
+            inner: BTreeMap::new(memory),
         }
     }
 
@@ -44,7 +44,7 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> StableBTreeMap<K, V, M> 
     #[must_use]
     pub fn load(memory: RuntimeMemory<M>) -> Self {
         Self {
-            inner: substrate::BTreeMap::load(memory),
+            inner: BTreeMap::load(memory),
         }
     }
 

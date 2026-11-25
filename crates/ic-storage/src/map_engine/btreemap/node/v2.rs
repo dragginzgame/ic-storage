@@ -1,3 +1,4 @@
+// Derived from DFINITY ic-stable-structures 0.7.2 (Apache-2.0). See SOURCES.md.
 //! Node V2
 //!
 //! A v2 node is an iteration on a v1 node. Compared to a v1 node, it has a
@@ -71,9 +72,13 @@
 //! node by the BTreeMap Allocator, and has no connection with OS memory pages or
 //! Wasm pages.
 
-use super::*;
-use crate::btreemap::Allocator;
-use crate::{btreemap::node::io::NodeWriter, types::NULL};
+use super::{
+    Address, Borrow, Bytes, Cow, INTERNAL_NODE_TYPE, LAYOUT_VERSION_2, LEAF_NODE_TYPE, LazyKey,
+    LazyValue, MAGIC, Memory, Node, NodeHeader, NodeReader, NodeType, PageSize, Storable, U32_SIZE,
+    Version, read_address_vec, read_to_vec, read_u32, read_u64,
+};
+use crate::map_engine::btreemap::Allocator;
+use crate::map_engine::{btreemap::node::io::NodeWriter, types::NULL};
 
 // Initial page
 pub(super) const OVERFLOW_ADDRESS_OFFSET: Bytes = Bytes::new(7);
@@ -111,9 +116,6 @@ impl<K: Storable + Ord + Clone> Node<K> {
         header: NodeHeader,
         memory: &M,
     ) -> Self {
-        #[cfg(feature = "bench_scope")]
-        let _p = canbench_rs::bench_scope("node_load_v2"); // May add significant overhead.
-
         // Load the node, including any overflows, into a buffer.
         let overflows = read_overflows(address, memory);
 
@@ -215,9 +217,6 @@ impl<K: Storable + Ord + Clone> Node<K> {
 
     // Saves the node to memory.
     pub(super) fn save_v2<M: Memory>(&mut self, allocator: &mut Allocator<M>) {
-        #[cfg(feature = "bench_scope")]
-        let _p = canbench_rs::bench_scope("node_save_v2"); // May add significant overhead.
-
         let page_size = self.version.page_size().get();
         assert!(page_size >= MINIMUM_PAGE_SIZE);
 
@@ -248,7 +247,7 @@ impl<K: Storable + Ord + Clone> Node<K> {
             num_entries: self.entries.len() as u16,
         };
 
-        writer.write_struct(&header, offset);
+        writer.write(offset, &header.encode());
         offset += NodeHeader::size();
 
         // Add a null overflow address.
@@ -299,20 +298,15 @@ impl<K: Storable + Ord + Clone> Node<K> {
 }
 
 fn read_overflows<M: Memory>(address: Address, memory: &M) -> Vec<Address> {
-    #[repr(C, packed)]
-    struct OverflowPageHeader {
-        magic: [u8; 3],
-        next: Address,
-    }
-
     let mut overflows = vec![];
     let mut overflow = Address::from(read_u64(memory, address + OVERFLOW_ADDRESS_OFFSET));
     while overflow != NULL {
         overflows.push(overflow);
 
-        let header: OverflowPageHeader = read_struct(overflow, memory);
-        assert_eq!(&header.magic, OVERFLOW_MAGIC, "Bad overflow magic.");
-        overflow = header.next;
+        let mut header = [0; 11];
+        memory.read(overflow.get(), &mut header);
+        assert_eq!(&header[..3], OVERFLOW_MAGIC, "Bad overflow magic.");
+        overflow = Address::from(u64::from_le_bytes(header[3..].try_into().unwrap()));
     }
 
     overflows

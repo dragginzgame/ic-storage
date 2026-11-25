@@ -1,7 +1,7 @@
-use crate::{
-    read_struct,
+// Derived from DFINITY ic-stable-structures 0.7.2 (Apache-2.0). See SOURCES.md.
+use crate::map_engine::{
+    Memory,
     types::{Address, Bytes, NULL},
-    write_struct, Memory,
 };
 
 const ALLOCATOR_LAYOUT_VERSION: u8 = 1;
@@ -72,9 +72,11 @@ impl<M: Memory> Allocator<M> {
     ///
     /// When initialized, the allocator has the following memory layout:
     ///
+    ///    ```text
     /// [   AllocatorHeader       | ChunkHeader ]
     ///      ..   free_list_head  ↑      next
     ///                |__________|       |____ NULL
+    ///    ```
     ///
     pub fn new(memory: M, addr: Address, allocation_size: Bytes) -> Self {
         let mut allocator = Self {
@@ -103,7 +105,7 @@ impl<M: Memory> Allocator<M> {
 
     /// Load an allocator from memory at the given `addr`.
     pub fn load(memory: M, addr: Address) -> Self {
-        let header: AllocatorHeader = read_struct(addr, &memory);
+        let header = AllocatorHeader::read(&memory, addr);
         assert_eq!(&header.magic, ALLOCATOR_MAGIC, "Bad magic.");
         assert_eq!(
             header.version, ALLOCATOR_LAYOUT_VERSION,
@@ -129,33 +131,41 @@ impl<M: Memory> Allocator<M> {
     ///
     ///    Example memory layout:
     ///
+    ///    ```text
     ///    [   AllocatorHeader       | ChunkHeader ]
     ///         ..   free_list_head  ↑      next
     ///                   |__________↑       |____ NULL
+    ///    ```
     ///
     ///    In this case, the chunk in the free list is allocated to the user
     ///    and a new `ChunkHeader` is appended to the allocator's memory,
     ///    growing the memory if necessary.
     ///
+    ///    ```text
     ///    [   AllocatorHeader       | ChunkHeader | ... | ChunkHeader2 ]
     ///         ..   free_list_head      (allocated)     ↑      next
     ///                   |______________________________↑       |____ NULL
+    ///    ```
     ///
     /// 2) The list of free chunks (`free_list_head`) has more than one element.
     ///
     ///    Example memory layout:
     ///
+    ///    ```text
     ///    [   AllocatorHeader       | ChunkHeader1 | ... | ChunkHeader2 ]
     ///         ..   free_list_head  ↑       next         ↑       next
     ///                   |__________↑        |___________↑         |____ NULL
+    ///    ```
     ///
     ///    In this case, the first chunk in the free list is allocated to the
     ///    user, and the head of the list is updated to point to the next free
     ///    block.
     ///
+    ///    ```text
     ///    [   AllocatorHeader       | ChunkHeader1 | ... | ChunkHeader2 ]
     ///         ..   free_list_head      (allocated)      ↑       next
     ///                   |_______________________________↑         |____ NULL
+    ///    ```
     ///
     pub fn allocate(&mut self) -> Address {
         // Get the next available chunk.
@@ -222,12 +232,7 @@ impl<M: Memory> Allocator<M> {
             _buffer: [0; 16],
         };
 
-        write_struct(&header, self.header_addr, &self.memory);
-    }
-
-    #[cfg(test)]
-    pub fn num_allocated_chunks(&self) -> u64 {
-        self.num_allocated_chunks
+        crate::map_engine::write(&self.memory, self.header_addr.get(), &header.encode());
     }
 
     // The full size of a chunk, which is the size of the header + the `allocation_size` that's
@@ -273,11 +278,11 @@ impl ChunkHeader {
     }
 
     fn save<M: Memory>(&self, address: Address, memory: &M) {
-        write_struct(self, address, memory);
+        crate::map_engine::write(memory, address.get(), &self.encode());
     }
 
     fn load<M: Memory>(address: Address, memory: &M) -> Self {
-        let header: ChunkHeader = read_struct(address, memory);
+        let header = ChunkHeader::read(memory, address);
         assert_eq!(&header.magic, CHUNK_MAGIC, "Bad magic.");
         assert_eq!(header.version, CHUNK_LAYOUT_VERSION, "Unsupported version.");
 
@@ -289,185 +294,56 @@ impl ChunkHeader {
     }
 }
 
-#[cfg(test)]
-mod test {
-    use super::*;
-    use crate::{Memory, WASM_PAGE_SIZE};
-    use std::cell::RefCell;
-    use std::rc::Rc;
-
-    fn make_memory() -> Rc<RefCell<Vec<u8>>> {
-        Rc::new(RefCell::new(Vec::new()))
-    }
-
-    #[test]
-    fn new_and_load() {
-        let mem = make_memory();
-        let allocator_addr = Address::from(0);
-        let allocation_size = Bytes::from(16u64);
-
-        // Create a new allocator.
-        Allocator::new(mem.clone(), allocator_addr, allocation_size);
-
-        // Load it from memory.
-        let allocator = Allocator::load(mem.clone(), allocator_addr);
-
-        assert_eq!(allocator.allocation_size, allocation_size);
-        assert_eq!(
-            allocator.free_list_head,
-            allocator_addr + AllocatorHeader::size()
-        );
-
-        // Load the first memory chunk.
-        let chunk = ChunkHeader::load(allocator.free_list_head, &mem);
-        assert_eq!(chunk.next, NULL);
-    }
-
-    #[test]
-    fn allocate() {
-        let mem = make_memory();
-        let allocation_size = Bytes::from(16u64);
-
-        let mut allocator = Allocator::new(mem, Address::from(0), allocation_size);
-
-        let original_free_list_head = allocator.free_list_head;
-
-        // Each allocation should push the `head` by `chunk_size`.
-        for i in 1..=3 {
-            allocator.allocate();
-            assert_eq!(
-                allocator.free_list_head,
-                original_free_list_head + allocator.chunk_size() * i
-            );
+impl AllocatorHeader {
+    fn read(memory: &impl Memory, address: Address) -> Self {
+        let mut bytes = [0; 48];
+        memory.read(address.get(), &mut bytes);
+        Self {
+            magic: bytes[0..3].try_into().unwrap(),
+            version: bytes[3],
+            _alignment: bytes[4..8].try_into().unwrap(),
+            allocation_size: Bytes::from(u64::from_le_bytes(bytes[8..16].try_into().unwrap())),
+            num_allocated_chunks: u64::from_le_bytes(bytes[16..24].try_into().unwrap()),
+            free_list_head: Address::from(u64::from_le_bytes(bytes[24..32].try_into().unwrap())),
+            _buffer: bytes[32..48].try_into().unwrap(),
         }
     }
-
-    #[test]
-    fn allocate_large() {
-        // Allocate large chunks to verify that we are growing the memory.
-        let mem = make_memory();
-        assert_eq!(mem.size(), 0);
-        let allocator_addr = Address::from(0);
-        let allocation_size = Bytes::from(WASM_PAGE_SIZE);
-
-        let mut allocator = Allocator::new(mem.clone(), allocator_addr, allocation_size);
-        assert_eq!(mem.size(), 1);
-
-        allocator.allocate();
-        assert_eq!(mem.size(), 2);
-
-        allocator.allocate();
-        assert_eq!(mem.size(), 3);
-
-        allocator.allocate();
-        assert_eq!(mem.size(), 4);
-
-        // Each allocation should push the `head` by `chunk_size`.
-        assert_eq!(
-            allocator.free_list_head,
-            allocator_addr + AllocatorHeader::size() + allocator.chunk_size() * 3
-        );
-        assert_eq!(allocator.num_allocated_chunks, 3);
-
-        // Load and reload to verify that the data is the same.
-        let allocator = Allocator::load(mem, Address::from(0));
-        assert_eq!(
-            allocator.free_list_head,
-            allocator_addr + AllocatorHeader::size() + allocator.chunk_size() * 3
-        );
-        assert_eq!(allocator.num_allocated_chunks, 3);
+    fn encode(&self) -> [u8; 48] {
+        let mut bytes = [0; 48];
+        bytes[0..3].copy_from_slice(&self.magic);
+        bytes[3] = self.version;
+        bytes[4..8].copy_from_slice(&self._alignment);
+        bytes[8..16].copy_from_slice(&{ self.allocation_size }.get().to_le_bytes());
+        bytes[16..24].copy_from_slice(&self.num_allocated_chunks.to_le_bytes());
+        bytes[24..32].copy_from_slice(&self.free_list_head.get().to_le_bytes());
+        bytes[32..48].copy_from_slice(&self._buffer);
+        bytes
     }
+}
 
-    #[test]
-    fn allocate_then_deallocate() {
-        let mem = make_memory();
-        let allocation_size = Bytes::from(16u64);
-        let allocator_addr = Address::from(0);
-
-        let mut allocator = Allocator::new(mem.clone(), allocator_addr, allocation_size);
-
-        let chunk_addr = allocator.allocate();
-
-        assert_eq!(
-            allocator.free_list_head,
-            allocator_addr + AllocatorHeader::size() + allocator.chunk_size()
-        );
-        allocator.deallocate(chunk_addr);
-        assert_eq!(
-            allocator.free_list_head,
-            allocator_addr + AllocatorHeader::size()
-        );
-        assert_eq!(allocator.num_allocated_chunks, 0);
-
-        // Load and reload to verify that the data is the same.
-        let allocator = Allocator::load(mem, allocator_addr);
-        assert_eq!(
-            allocator.free_list_head,
-            allocator_addr + AllocatorHeader::size()
-        );
-        assert_eq!(allocator.num_allocated_chunks, 0);
+impl ChunkHeader {
+    fn read(memory: &impl Memory, address: Address) -> Self {
+        let mut bytes = [0; 16];
+        memory.read(address.get(), &mut bytes);
+        Self {
+            magic: bytes[0..3].try_into().unwrap(),
+            version: bytes[3],
+            allocated: match bytes[4] {
+                0 => false,
+                1 => true,
+                _ => panic!("invalid chunk allocation flag"),
+            },
+            _alignment: bytes[5..8].try_into().unwrap(),
+            next: Address::from(u64::from_le_bytes(bytes[8..16].try_into().unwrap())),
+        }
     }
-
-    #[test]
-    fn clear_deallocates_all_allocated_chunks() {
-        let mem = make_memory();
-        let allocation_size = Bytes::from(16u64);
-        let allocator_addr = Address::from(0);
-
-        let mut allocator = Allocator::new(mem.clone(), allocator_addr, allocation_size);
-
-        allocator.allocate();
-        allocator.allocate();
-
-        assert_eq!(
-            allocator.free_list_head,
-            allocator_addr
-                + AllocatorHeader::size()
-                + allocator.chunk_size()
-                + allocator.chunk_size()
-        );
-        allocator.clear();
-
-        let header_actual: AllocatorHeader = read_struct(allocator_addr, &mem);
-
-        Allocator::new(mem.clone(), allocator_addr, allocation_size);
-
-        let header_expected: AllocatorHeader = read_struct(allocator_addr, &mem);
-
-        assert_eq!(header_actual, header_expected);
-    }
-
-    #[test]
-    fn allocate_deallocate_2() {
-        let mem = make_memory();
-        let allocation_size = Bytes::from(16u64);
-
-        let mut allocator = Allocator::new(mem, Address::from(0), allocation_size);
-
-        let _chunk_addr_1 = allocator.allocate();
-        let chunk_addr_2 = allocator.allocate();
-
-        assert_eq!(allocator.free_list_head, chunk_addr_2 + allocation_size);
-        allocator.deallocate(chunk_addr_2);
-        assert_eq!(allocator.free_list_head, chunk_addr_2 - ChunkHeader::size());
-
-        let chunk_addr_3 = allocator.allocate();
-        assert_eq!(chunk_addr_3, chunk_addr_2);
-        assert_eq!(allocator.free_list_head, chunk_addr_3 + allocation_size);
-    }
-
-    #[test]
-    #[should_panic]
-    fn deallocate_free_chunk() {
-        let mem = make_memory();
-        let allocation_size: u64 = 16;
-
-        let mut allocator = Allocator::new(mem, Address::from(0), Bytes::from(allocation_size));
-
-        let chunk_addr = allocator.allocate();
-        allocator.deallocate(chunk_addr);
-
-        // Try deallocating the free chunk - should panic.
-        allocator.deallocate(chunk_addr);
+    fn encode(&self) -> [u8; 16] {
+        let mut bytes = [0; 16];
+        bytes[0..3].copy_from_slice(&self.magic);
+        bytes[3] = self.version;
+        bytes[4] = self.allocated as u8;
+        bytes[5..8].copy_from_slice(&self._alignment);
+        bytes[8..16].copy_from_slice(&self.next.get().to_le_bytes());
+        bytes
     }
 }

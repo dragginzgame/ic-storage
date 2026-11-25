@@ -1,3 +1,4 @@
+// Derived from DFINITY ic-stable-structures 0.7.2 (Apache-2.0). See SOURCES.md.
 //! Node V1
 //!
 //! A v1 node is the first node layout, with fixed node sizes and support for
@@ -40,7 +41,11 @@
 //! Child(k + 1) address    ↕ 8 bytes
 //! ----------------------------------------
 //! ```
-use super::*;
+use super::{
+    Address, Borrow, Bytes, CAPACITY, DerivedPageSize, INTERNAL_NODE_TYPE, LAYOUT_VERSION_1,
+    LEAF_NODE_TYPE, LazyKey, LazyValue, MAGIC, Memory, Node, NodeHeader, NodeType, Storable,
+    U32_SIZE, Version, read_u32, read_u64, write, write_u32,
+};
 
 impl<K: Storable + Ord + Clone> Node<K> {
     /// Creates a new v1 node at the given address.
@@ -63,9 +68,6 @@ impl<K: Storable + Ord + Clone> Node<K> {
         max_value_size: u32,
         memory: &M,
     ) -> Self {
-        #[cfg(feature = "bench_scope")]
-        let _p = canbench_rs::bench_scope("node_load_v1"); // May add significant overhead.
-
         // Load the entries.
         let mut entries = Vec::with_capacity(header.num_entries as usize);
         let mut offset = NodeHeader::size();
@@ -113,9 +115,6 @@ impl<K: Storable + Ord + Clone> Node<K> {
     }
 
     pub(super) fn save_v1<M: Memory>(&self, memory: &M) {
-        #[cfg(feature = "bench_scope")]
-        let _p = canbench_rs::bench_scope("node_save_v1"); // May add significant overhead.
-
         match self.node_type {
             NodeType::Leaf => {
                 assert!(self.children.is_empty());
@@ -129,10 +128,11 @@ impl<K: Storable + Ord + Clone> Node<K> {
         assert!(!self.entries.is_empty() || !self.children.is_empty());
 
         // Assert entries are sorted in strictly increasing order.
-        assert!(self
-            .entries
-            .windows(2)
-            .all(|arr| self.get_key(&arr[0], memory) < self.get_key(&arr[1], memory)));
+        assert!(
+            self.entries
+                .windows(2)
+                .all(|arr| self.get_key(&arr[0], memory) < self.get_key(&arr[1], memory))
+        );
 
         let (max_key_size, max_value_size) = match self.version {
             Version::V1(DerivedPageSize {
@@ -152,7 +152,7 @@ impl<K: Storable + Ord + Clone> Node<K> {
             num_entries: self.entries.len() as u16,
         };
 
-        write_struct(&header, self.address, memory);
+        write(memory, self.address.get(), &header.encode());
 
         let mut offset = NodeHeader::size();
 

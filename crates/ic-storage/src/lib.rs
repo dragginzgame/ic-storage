@@ -6,6 +6,7 @@
 pub mod adapter;
 mod hash;
 mod key;
+mod map_engine;
 mod memory;
 mod runtime;
 mod stable_cell;

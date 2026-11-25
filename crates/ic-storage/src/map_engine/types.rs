@@ -1,3 +1,4 @@
+// Derived from DFINITY ic-stable-structures 0.7.2 (Apache-2.0). See SOURCES.md.
 use core::ops::{Add, AddAssign, Div, Mul, Rem, Sub, SubAssign};
 
 pub const NULL: Address = Address(0);

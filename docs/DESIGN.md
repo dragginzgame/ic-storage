@@ -13,8 +13,7 @@ through the allocation's disjoint stable-memory extents.
 
 Collection wrappers consume those leases. Upstream BTreeMap, BTreeSet, Cell, Vec,
 MinHeap and Log own their algorithms and bytes; Storage owns names, grants,
-backing custody, allocation limits and safe constructor selection. The map engine batches sorted exact-key deletion in a locally patched upstream
-0.7.2 tree, preserving its node layout and ordinary rebalancing rules. Applications
+backing custody, allocation limits and safe constructor selection. The map engine batches sorted exact-key deletion in the 0.7.2 tree packaged inside ic-storage, preserving its node layout and ordinary rebalancing rules. Applications
 use upstream `Storable` and own their record codecs and schema migrations.
 The upstream 255-ID MemoryManager is not used; our directory owns allocation.
 No retained Rust heap, custom Rust allocator or nightly features are required.
