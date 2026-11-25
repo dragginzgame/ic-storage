@@ -4,7 +4,7 @@ members = ["crates/ic-storage"]
 exclude = ["qualification"]
 
 [workspace.package]
-version = "0.80.3"
+version = "0.80.4"
 edition = "2024"
 rust-version = "1.100.0"
 license-file = "LICENSE.md"
