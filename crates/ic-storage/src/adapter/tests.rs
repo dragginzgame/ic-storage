@@ -378,7 +378,6 @@ fn bounded_keys_interleave_across_separators_and_respect_endpoints() {
     }
 }
 
-#[cfg(feature = "test-support")]
 #[test]
 fn shared_reads_match_point_lookups_including_branch_hits_and_adjacent_misses() {
     let backing = VectorMemory::default();
@@ -432,4 +431,36 @@ fn key_range_checks_node_integrity_without_reading_external_records() {
             .next()))
         .is_err()
     );
+}
+
+#[test]
+fn fallible_batch_stops_before_later_payloads() {
+    let backing = VectorMemory::default();
+    let host = runtime(backing.clone());
+    let mut map = StableBTreeMap::<u64, Vec<u8>, _>::create(lease(&host, "app.map.v1"));
+    for key in 0..200 {
+        map.insert(2 * key, vec![key as u8; 1024]);
+    }
+    // Corrupt the last external payload. Visiting that key would trap.
+    let offset = backing
+        .borrow()
+        .windows(1024)
+        .position(|window| window == [199; 1024])
+        .unwrap();
+    backing.borrow_mut()[offset] ^= 1;
+    let before = backing.borrow().clone();
+    for stop in [0, 1, 2, 31, 160] {
+        let mut visited = Vec::new();
+        let error = map.try_visit_sorted_keys(&(0..400).collect::<Vec<_>>(), |key, value| {
+            assert_eq!(
+                value,
+                key.is_multiple_of(2).then(|| vec![(key / 2) as u8; 1024])
+            );
+            visited.push(*key);
+            if *key == stop { Err(stop) } else { Ok(()) }
+        });
+        assert_eq!(error, Err(stop));
+        assert!(visited.into_iter().eq(0..=stop));
+    }
+    assert_eq!(*backing.borrow(), before);
 }

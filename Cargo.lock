@@ -28,7 +28,7 @@ checksum = "54d94d66be307c67deb2063d1e735e781e614a26d8ec0f13ba97092a03ebb788"
 
 [[package]]
 name = "ic-storage"
-version = "0.80.1"
+version = "0.80.2"
 dependencies = [
  "ic-platform-runtime",
  "serde",

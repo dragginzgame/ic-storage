@@ -150,16 +150,38 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> StableBTreeMap<K, V, M> 
         self.inner.get(key).expect("B-tree get failed")
     }
 
-    /// Qualification experiment. Visit sorted distinct probes in order, including misses.
+    /// Visit each sorted, distinct probe in order, including misses. At most
+    /// one decoded value is passed to the visitor at a time.
     ///
     /// # Panics
     /// Panics on unordered or duplicate keys, backing, record integrity or codec failure.
-    #[cfg(feature = "test-support")]
-    pub fn visit_sorted_keys(&self, keys: &[K], visit: impl FnMut(&K, Option<V>)) {
+    pub fn visit_sorted_keys(&self, keys: &[K], mut visit: impl FnMut(&K, Option<V>)) {
+        let Ok(()) = self.try_visit_sorted_keys(keys, |key, value| {
+            visit(key, value);
+            Ok::<(), std::convert::Infallible>(())
+        });
+    }
+
+    /// Visit sorted, distinct probes in order while sharing B-tree routing reads.
+    /// The caller bounds the input. Each hit or miss is delivered exactly once
+    /// until the visitor returns an error.
+    ///
+    /// # Errors
+    /// Returns the first visitor error immediately, skipping subsequent probes
+    /// and their subtree and payload reads.
+    ///
+    /// # Panics
+    /// Panics on unordered or duplicate keys before visiting. Backing, record
+    /// integrity and codec failures also panic.
+    pub fn try_visit_sorted_keys<E>(
+        &self,
+        keys: &[K],
+        visit: impl FnMut(&K, Option<V>) -> Result<(), E>,
+    ) -> Result<(), E> {
         assert!(keys.windows(2).all(|pair| pair[0] < pair[1]));
         self.inner
             .visit_sorted_keys(keys, visit)
-            .expect("B-tree batch read failed");
+            .expect("B-tree batch read failed")
     }
 
     /// Check whether the map contains a key.

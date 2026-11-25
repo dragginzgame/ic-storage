@@ -1,0 +1,44 @@
+--- a/crates/ic-db/src/store/mod.rs
++++ b/crates/ic-db/src/store/mod.rs
+@@ -512,21 +512,27 @@
+         decode: impl Fn(&EntitySchema, K, &[u8]) -> Result<R, Error>,
+     ) -> Result<Vec<Option<R>>, Error> {
+         let mut rows: Vec<_> = (0..keys.len()).map(|_| None).collect();
+-        let mut handled = 0_u32;
+-        for (i, &key) in keys.iter().enumerate() {
+-            if handled & (1 << i) != 0 {
+-                continue;
+-            }
+-            let bytes = self.map.get(&row_key(entity.id, key.into_row_key()));
+-            for (j, &other) in keys.iter().enumerate().skip(i) {
+-                if other == key {
+-                    handled |= 1 << j;
+-                    if let Some(bytes) = &bytes {
+-                        rows[j] = Some(decode(entity, key, bytes)?);
+-                    }
++        if let [key] = keys {
++            rows[0] = self.map.get(&row_key(entity.id, key.into_row_key()))
++                .map(|bytes| decode(entity, *key, &bytes)).transpose()?;
++            return Ok(rows);
++        }
++        let mut groups = std::collections::BTreeMap::<_,u32>::new();
++        for (slot, key) in keys.iter().enumerate() {
++            *groups.entry(row_key(entity.id, key.into_row_key())).or_default() |= 1 << slot;
++        }
++        let (probes, masks): (Vec<_>, Vec<_>) = groups.into_iter().unzip();
++        let mut masks = masks.into_iter();
++        self.map.try_visit_sorted_keys(&probes, |_, bytes| {
++            let mut mask = masks.next().unwrap();
++            if let Some(bytes) = bytes {
++                while mask != 0 {
++                    let slot = mask.trailing_zeros() as usize;
++                    rows[slot] = Some(decode(entity, keys[slot], &bytes)?);
++                    mask &= mask-1;
+                 }
+             }
+-        }
+-
++            Ok::<(), Error>(())
++        })?;
+         Ok(rows)
+     }

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.80.2] - 2026-11-25
+
+- Make sorted multi-key visits available with default features. `try_visit_sorted_keys` returns the first visitor error before reading later keys.
+- IC DB’s installed 32-hit projected read fell from 2,122,557 to 773,539 instructions with shared traversal. All 431 ordinary Storage engine cases matched 0.80.1.
+
 ## [0.80.1] - 2026-11-25
 
 - Add `StableBTreeMap::keys_range(bounds)` for double-ended traversal without external value reads. The existing map layout reopens directly.

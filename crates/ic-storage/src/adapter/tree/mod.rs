@@ -308,36 +308,35 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> Tree<K, V, M> {
         }
     }
 
-    #[cfg(feature = "test-support")]
-    pub fn visit_sorted_keys(
+    pub fn visit_sorted_keys<E>(
         &self,
         keys: &[K],
-        mut visit: impl FnMut(&K, Option<V>),
-    ) -> Result<()> {
+        mut visit: impl FnMut(&K, Option<V>) -> std::result::Result<(), E>,
+    ) -> Result<std::result::Result<(), E>> {
         if let [key] = keys {
-            visit(key, self.get(key)?);
-            return Ok(());
+            return Ok(visit(key, self.get(key)?));
         }
         self.healthy()?;
         self.visit_subtree(self.root.borrow().top, 0, keys, &mut visit)
     }
 
-    #[cfg(feature = "test-support")]
-    fn visit_subtree(
+    fn visit_subtree<E>(
         &self,
         pointer: Option<Pointer>,
         depth: usize,
         mut keys: &[K],
-        visit: &mut impl FnMut(&K, Option<V>),
-    ) -> Result<()> {
+        visit: &mut impl FnMut(&K, Option<V>) -> std::result::Result<(), E>,
+    ) -> Result<std::result::Result<(), E>> {
         if keys.is_empty() {
-            return Ok(());
+            return Ok(Ok(()));
         }
         let Some(pointer) = pointer else {
             for key in keys {
-                visit(key, None);
+                if let Err(error) = visit(key, None) {
+                    return Ok(Err(error));
+                }
             }
-            return Ok(());
+            return Ok(Ok(()));
         };
         let node = self.read_node(pointer, depth)?;
         // Partition at separators in ascending order. Start at the first requested
@@ -346,19 +345,24 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> Tree<K, V, M> {
         for slot in first..node.len() {
             let separator = K::from_bytes(Cow::Borrowed(node.key_bytes(slot)));
             let split = keys.partition_point(|key| key < &separator);
-            self.visit_subtree(
+            if let Err(error) = self.visit_subtree(
                 node.children.get(slot).copied(),
                 depth + 1,
                 &keys[..split],
                 visit,
-            )?;
+            )? {
+                return Ok(Err(error));
+            }
             keys = &keys[split..];
             if keys.first() == Some(&separator) {
-                visit(&keys[0], Some(self.decode_hit(Rc::clone(&node), slot)?));
+                if let Err(error) = visit(&keys[0], Some(self.decode_hit(Rc::clone(&node), slot)?))
+                {
+                    return Ok(Err(error));
+                }
                 keys = &keys[1..];
             }
             if keys.is_empty() {
-                return Ok(());
+                return Ok(Ok(()));
             }
         }
         self.visit_subtree(node.children.last().copied(), depth + 1, keys, visit)
