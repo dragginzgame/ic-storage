@@ -15,6 +15,7 @@ test = false
 doctest = false
 
 [features]
+positioned-keys = []
 shared-reads = ["ic-storage/test-support"]
 
 [dependencies]
@@ -32,6 +33,11 @@ crate-type = ["cdylib"]
 
 [[example]]
 name = "read_paths"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "lookahead"
+path = "probes/lookahead.rs"
 crate-type = ["cdylib"]
 
 [lints]

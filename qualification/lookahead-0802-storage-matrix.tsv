@@ -1,0 +1,991 @@
+suite	case	metrics	released	positioned
+storage-engine-matrix	matrix 0 256 0 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	250430,3060,1,0	250430,3060,1,0
+storage-engine-matrix	matrix 0 256 0 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	10317357,4146,0,0	10317357,4146,0,0
+storage-engine-matrix	matrix 0 256 0 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	11788672,4426,1,0	11788672,4426,1,0
+storage-engine-matrix	matrix 0 256 0 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	7220017,2978,0,0	7220017,2978,0,0
+storage-engine-matrix	matrix 0 256 0 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4805942,651,0,0	4805942,651,0,0
+storage-engine-matrix	matrix 0 256 0 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	5059369,651,0,0	5059369,651,0,0
+storage-engine-matrix	matrix 0 256 0 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	5137198,651,0,0	5137198,651,0,0
+storage-engine-matrix	matrix 0 256 0 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	833634,1866,0,0	782437,1866,0,0
+storage-engine-matrix	matrix 0 256 0 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	927039,1866,0,0	876866,1866,0,0
+storage-engine-matrix	matrix 0 256 0 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	139668,1546,0,0	133296,1546,0,0
+storage-engine-matrix	matrix 0 256 0 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	139004,1546,0,0	132736,1546,0,0
+storage-engine-matrix	matrix 0 256 0 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	43399,1591,0,0	43178,1591,0,0
+storage-engine-matrix	matrix 0 256 0 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	35899,1479,0,0	35899,1479,0,0
+storage-engine-matrix	matrix 0 256 0 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3070176,3722,0,0	3070176,3722,0,0
+storage-engine-matrix	matrix 0 256 0 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2113261,5196,0,0	2113261,5196,0,0
+storage-engine-matrix	matrix 0 256 0 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2593999,5543,0,0	2593999,5543,0,0
+storage-engine-matrix	matrix 0 256 0 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1233671,2776,0,0	1233671,2776,0,0
+storage-engine-matrix	matrix 0 256 0 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	112538,2367,0,0	112317,2367,0,0
+storage-engine-matrix	matrix 0 256 0 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2914171,4245,0,0	2914171,4245,0,0
+storage-engine-matrix	matrix 0 256 0 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	9987,1443,0,0	9987,1443,0,0
+storage-engine-matrix	matrix 0 256 0 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2110965,3405,0,0	2110965,3405,0,0
+storage-engine-matrix	matrix 0 256 0 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	248607,1912,1,0	248607,1912,1,0
+storage-engine-matrix	matrix 0 256 0 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1846,0,0,0	1846,0,0,0
+storage-engine-matrix	matrix 0 256 0 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	9347,0,0,0	9347,0,0,0
+storage-engine-matrix	matrix 0 256 0 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	680950,67472,1,2	680950,67472,1,2
+storage-engine-matrix	matrix 0 256 0 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1327,0,0,0	1327,0,0,0
+storage-engine-matrix	matrix 0 256 0 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	26311,1103,0,0	26311,1103,0,0
+storage-engine-matrix	comparison 16 0 hits	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6574942,753,0,0	6574941,753,0,0
+storage-engine-matrix	comparison 16 0 misses	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	7042192,753,0,0	7042192,753,0,0
+storage-engine-matrix	comparison 16 0 seek_forward	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2464085,1985,0,0	2410094,1985,0,0
+storage-engine-matrix	comparison 16 0 all_present_forward	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8455578,1977,0,0	8267162,1977,0,0
+storage-engine-matrix	comparison 16 0 seek_reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2439648,1985,0,0	2385945,1985,0,0
+storage-engine-matrix	comparison 16 0 all_present_reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8523481,1977,0,0	8335065,1977,0,0
+storage-engine-matrix	comparison 16 1 hits	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6415022,753,0,0	6415021,753,0,0
+storage-engine-matrix	comparison 16 1 misses	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6871467,753,0,0	6871467,753,0,0
+storage-engine-matrix	comparison 16 1 seek_forward	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2410086,1985,0,0	2361499,1985,0,0
+storage-engine-matrix	comparison 16 1 all_present_forward	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8284839,1977,0,0	8097447,1977,0,0
+storage-engine-matrix	comparison 16 1 seek_reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2385793,1985,0,0	2337494,1985,0,0
+storage-engine-matrix	comparison 16 1 all_present_reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8352248,1977,0,0	8164856,1977,0,0
+storage-engine-matrix	comparison 512 0 hits	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	51727997,6705,0,0	51727996,6705,0,0
+storage-engine-matrix	comparison 512 0 misses	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	56265812,6705,0,0	56265812,6705,0,0
+storage-engine-matrix	comparison 512 0 seek_forward	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	21556472,14881,0,0	20561073,14881,0,0
+storage-engine-matrix	comparison 512 0 all_present_forward	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	76008194,14873,0,0	72518402,14873,0,0
+storage-engine-matrix	comparison 512 0 seek_reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	21057471,14881,0,0	20062360,14881,0,0
+storage-engine-matrix	comparison 512 0 all_present_reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	76550531,14873,0,0	73060739,14873,0,0
+storage-engine-matrix	matrix 1 256 0 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	244614,1944,1,0	244614,1944,1,0
+storage-engine-matrix	matrix 1 256 0 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	22910312,4192,0,0	22910312,4192,0,0
+storage-engine-matrix	matrix 1 256 0 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	24742288,4480,1,0	24742288,4480,1,0
+storage-engine-matrix	matrix 1 256 0 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	19425904,1896,0,0	19425904,1896,0,0
+storage-engine-matrix	matrix 1 256 0 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	10799229,1696,0,0	10799229,1696,0,0
+storage-engine-matrix	matrix 1 256 0 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12006191,1560,0,0	12006191,1560,0,0
+storage-engine-matrix	matrix 1 256 0 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12506233,1896,0,0	12506233,1896,0,0
+storage-engine-matrix	matrix 1 256 0 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1231889,2140,0,0	1231889,2140,0,0
+storage-engine-matrix	matrix 1 256 0 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1438077,2140,0,0	1438077,2140,0,0
+storage-engine-matrix	matrix 1 256 0 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	241297,1668,0,0	241297,1668,0,0
+storage-engine-matrix	matrix 1 256 0 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	241263,1668,0,0	241263,1668,0,0
+storage-engine-matrix	matrix 1 256 0 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	90845,1560,0,0	90845,1560,0,0
+storage-engine-matrix	matrix 1 256 0 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	24788,1014,0,0	24788,1014,0,0
+storage-engine-matrix	matrix 1 256 0 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6172841,4344,0,0	6172841,4344,0,0
+storage-engine-matrix	matrix 1 256 0 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6032057,4272,0,0	6032057,4272,0,0
+storage-engine-matrix	matrix 1 256 0 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8622587,5048,0,0	8622587,5048,0,0
+storage-engine-matrix	matrix 1 256 0 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3982779,3544,0,0	3982779,3544,0,0
+storage-engine-matrix	matrix 1 256 0 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	185926,1488,0,0	185926,1488,0,0
+storage-engine-matrix	matrix 1 256 0 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6299978,4192,0,0	6299978,4192,0,0
+storage-engine-matrix	matrix 1 256 0 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2728,0,0,0	2728,0,0,0
+storage-engine-matrix	matrix 1 256 0 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4501409,3408,0,0	4501409,3408,0,0
+storage-engine-matrix	matrix 1 256 0 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	250815,1912,1,0	250815,1912,1,0
+storage-engine-matrix	matrix 1 256 0 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1846,0,0,0	1846,0,0,0
+storage-engine-matrix	matrix 1 256 0 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	58464,0,0,0	58464,0,0,0
+storage-engine-matrix	matrix 1 256 0 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	682128,67472,1,2	682128,67472,1,2
+storage-engine-matrix	matrix 1 256 0 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2356,0,0,0	2356,0,0,0
+storage-engine-matrix	matrix 1 256 0 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	26434,1103,0,0	26434,1103,0,0
+storage-engine-matrix	comparison 512 1 hits	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	51568077,6705,0,0	51568076,6705,0,0
+storage-engine-matrix	comparison 512 1 misses	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	56095107,6705,0,0	56095107,6705,0,0
+storage-engine-matrix	comparison 512 1 seek_forward	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	21502473,14881,0,0	20512478,14881,0,0
+storage-engine-matrix	comparison 512 1 all_present_forward	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	75837415,14873,0,0	72348647,14873,0,0
+storage-engine-matrix	comparison 512 1 seek_reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	21003616,14881,0,0	20013909,14881,0,0
+storage-engine-matrix	comparison 512 1 all_present_reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	76379338,14873,0,0	72890570,14873,0,0
+storage-engine-matrix	matrix 0 256 16 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	250430,3060,1,0	250430,3060,1,0
+storage-engine-matrix	matrix 0 256 16 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12827889,4818,0,0	12827889,4818,0,0
+storage-engine-matrix	matrix 0 256 16 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	14519535,5162,1,0	14519535,5162,1,0
+storage-engine-matrix	matrix 0 256 16 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	9060858,3606,0,0	9060858,3606,0,0
+storage-engine-matrix	matrix 0 256 16 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	5959763,795,0,0	5959763,795,0,0
+storage-engine-matrix	matrix 0 256 16 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6214441,779,0,0	6214441,779,0,0
+storage-engine-matrix	matrix 0 256 16 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6279558,779,0,0	6279558,779,0,0
+storage-engine-matrix	matrix 0 256 16 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	919589,2282,0,0	868392,2282,0,0
+storage-engine-matrix	matrix 0 256 16 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1196581,2298,0,0	1145384,2298,0,0
+storage-engine-matrix	matrix 0 256 16 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	175609,1882,0,0	169109,1882,0,0
+storage-engine-matrix	matrix 0 256 16 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	175674,1882,0,0	169278,1882,0,0
+storage-engine-matrix	matrix 0 256 16 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	51136,1943,0,0	50915,1943,0,0
+storage-engine-matrix	matrix 0 256 16 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	36539,1479,0,0	36539,1479,0,0
+storage-engine-matrix	matrix 0 256 16 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3889252,4490,0,0	3889252,4490,0,0
+storage-engine-matrix	matrix 0 256 16 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2894848,6188,0,0	2894848,6188,0,0
+storage-engine-matrix	matrix 0 256 16 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3553492,7015,0,0	3553492,7015,0,0
+storage-engine-matrix	matrix 0 256 16 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1435212,3048,0,0	1435212,3048,0,0
+storage-engine-matrix	matrix 0 256 16 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	134110,2767,0,0	133889,2767,0,0
+storage-engine-matrix	matrix 0 256 16 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3643358,4933,0,0	3643358,4933,0,0
+storage-engine-matrix	matrix 0 256 16 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	10040,1443,0,0	10040,1443,0,0
+storage-engine-matrix	matrix 0 256 16 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2690084,3965,0,0	2690084,3965,0,0
+storage-engine-matrix	matrix 0 256 16 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	250732,1928,1,0	250732,1928,1,0
+storage-engine-matrix	matrix 0 256 16 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1846,0,0,0	1846,0,0,0
+storage-engine-matrix	matrix 0 256 16 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	35328,16,0,0	35328,16,0,0
+storage-engine-matrix	matrix 0 256 16 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	681704,67488,1,2	681704,67488,1,2
+storage-engine-matrix	matrix 0 256 16 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1963,16,0,0	1963,16,0,0
+storage-engine-matrix	matrix 0 256 16 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	26347,1103,0,0	26347,1103,0,0
+storage-engine-matrix	matrix 0 256 16 fixed_insert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	25764146,4716,0,0	25764146,4716,0,0
+storage-engine-matrix	matrix 0 256 16 fixed_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	10458692,949,0,0	10458692,949,0,0
+storage-engine-matrix	matrix 0 256 16 fixed_overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	15934930,3446,0,0	15934930,3446,0,0
+storage-engine-matrix	matrix 0 256 16 fixed_range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	186399,3972,0,0	175356,3972,0,0
+storage-engine-matrix	matrix 0 256 16 fixed_remove	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	18085771,4919,0,0	18085771,4919,0,0
+storage-engine-matrix	matrix 0 256 16 key16_insert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	15759027,5732,0,0	15759027,5732,0,0
+storage-engine-matrix	matrix 0 256 16 key16_hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	7736074,1049,0,0	7736074,1049,0,0
+storage-engine-matrix	matrix 0 256 16 key16_range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	335094,2317,0,0	335158,2317,0,0
+storage-engine-matrix	matrix 0 256 16 key64_insert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	21707760,7748,0,0	21707760,7748,0,0
+storage-engine-matrix	matrix 0 256 16 key64_hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12252178,1657,0,0	12252178,1657,0,0
+storage-engine-matrix	matrix 0 256 16 key64_range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	649880,3469,0,0	649944,3469,0,0
+storage-engine-matrix	matrix 0 256 16 key256_insert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	45720338,16578,2,0	45720338,16578,2,0
+storage-engine-matrix	matrix 0 256 16 key256_hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	30978403,4153,0,0	30978403,4153,0,0
+storage-engine-matrix	matrix 0 256 16 key256_range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1866795,8077,0,0	1866859,8077,0,0
+storage-engine-matrix	matrix 0 256 16 text_option_insert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	14045235,4334,0,0	14045235,4334,0,0
+storage-engine-matrix	matrix 0 256 16 text_option_hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6691140,648,0,0	6691140,648,0,0
+storage-engine-matrix	matrix 0 256 16 text_option_range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	367425,1582,0,0	367425,1582,0,0
+storage-engine-matrix	matrix 0 256 16 text_option_remove	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	9707388,4342,0,0	9707388,4342,0,0
+storage-engine-matrix	matrix 0 256 16 tuple_array_insert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12382148,4503,0,0	12382148,4503,0,0
+storage-engine-matrix	matrix 0 256 16 tuple_array_hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	5902800,682,0,0	5902800,682,0,0
+storage-engine-matrix	matrix 0 256 16 tuple_array_range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	353746,1705,0,0	353746,1705,0,0
+storage-engine-matrix	matrix 0 256 16 tuple_array_remove	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8440367,4645,0,0	8440367,4645,0,0
+storage-engine-matrix	matrix 0 256 16 u128_string_insert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	13120182,4936,0,0	13120182,4936,0,0
+storage-engine-matrix	matrix 0 256 16 u128_string_hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	5844356,805,0,0	5844356,805,0,0
+storage-engine-matrix	matrix 0 256 16 u128_string_range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	275812,1873,0,0	275812,1873,0,0
+storage-engine-matrix	matrix 0 256 16 u128_string_remove	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	9694564,5121,0,0	9694564,5121,0,0
+storage-engine-matrix	matrix 1 256 16 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	244614,1944,1,0	244614,1944,1,0
+storage-engine-matrix	matrix 1 256 16 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	26114856,4304,0,0	26114856,4304,0,0
+storage-engine-matrix	matrix 1 256 16 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	27785771,4592,1,0	27785771,4592,1,0
+storage-engine-matrix	matrix 1 256 16 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	21927652,2064,0,0	21927652,2064,0,0
+storage-engine-matrix	matrix 1 256 16 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	11194364,1704,0,0	11194364,1704,0,0
+storage-engine-matrix	matrix 1 256 16 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12219503,1560,0,0	12219503,1560,0,0
+storage-engine-matrix	matrix 1 256 16 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12733463,1896,0,0	12733463,1896,0,0
+storage-engine-matrix	matrix 1 256 16 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1242549,2140,0,0	1242549,2140,0,0
+storage-engine-matrix	matrix 1 256 16 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2029201,2524,0,0	2029201,2524,0,0
+storage-engine-matrix	matrix 1 256 16 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	314393,1844,0,0	314393,1844,0,0
+storage-engine-matrix	matrix 1 256 16 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	314235,1844,0,0	314235,1844,0,0
+storage-engine-matrix	matrix 1 256 16 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	94137,1584,0,0	94137,1584,0,0
+storage-engine-matrix	matrix 1 256 16 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	24960,1014,0,0	24960,1014,0,0
+storage-engine-matrix	matrix 1 256 16 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	7031754,4744,0,0	7031754,4744,0,0
+storage-engine-matrix	matrix 1 256 16 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6777699,4368,0,0	6777699,4368,0,0
+storage-engine-matrix	matrix 1 256 16 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	9956905,5384,0,0	9956905,5384,0,0
+storage-engine-matrix	matrix 1 256 16 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4269416,3696,0,0	4269416,3696,0,0
+storage-engine-matrix	matrix 1 256 16 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	201470,1584,0,0	201470,1584,0,0
+storage-engine-matrix	matrix 1 256 16 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	7158471,4304,0,0	7158471,4304,0,0
+storage-engine-matrix	matrix 1 256 16 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2728,0,0,0	2728,0,0,0
+storage-engine-matrix	matrix 1 256 16 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	5231631,3520,0,0	5231631,3520,0,0
+storage-engine-matrix	matrix 1 256 16 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	251159,1928,1,0	251159,1928,1,0
+storage-engine-matrix	matrix 1 256 16 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1846,0,0,0	1846,0,0,0
+storage-engine-matrix	matrix 1 256 16 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	78677,16,0,0	78677,16,0,0
+storage-engine-matrix	matrix 1 256 16 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	682877,67488,1,2	682877,67488,1,2
+storage-engine-matrix	matrix 1 256 16 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2730,16,0,0	2730,16,0,0
+storage-engine-matrix	matrix 1 256 16 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	26938,1103,0,0	26938,1103,0,0
+storage-engine-matrix	matrix 1 256 16 fixed_insert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	45950606,4424,0,0	45950606,4424,0,0
+storage-engine-matrix	matrix 1 256 16 fixed_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	21782465,1808,0,0	21782465,1808,0,0
+storage-engine-matrix	matrix 1 256 16 fixed_overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	37797222,1904,0,0	37797222,1904,0,0
+storage-engine-matrix	matrix 1 256 16 fixed_range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	296090,3808,0,0	296090,3808,0,0
+storage-engine-matrix	matrix 1 256 16 fixed_remove	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	33245238,4456,0,0	33245238,4456,0,0
+storage-engine-matrix	matrix 1 256 16 key16_insert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	28970275,4760,0,0	28970275,4760,0,0
+storage-engine-matrix	matrix 1 256 16 key16_hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	15922610,1920,0,0	15922610,1920,0,0
+storage-engine-matrix	matrix 1 256 16 key16_range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	489372,2236,0,0	489372,2236,0,0
+storage-engine-matrix	matrix 1 256 16 key64_insert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	34293882,5880,0,0	34293882,5880,0,0
+storage-engine-matrix	matrix 1 256 16 key64_hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	17916856,2352,0,0	17916856,2352,0,0
+storage-engine-matrix	matrix 1 256 16 key64_range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	704765,2988,0,0	704765,2988,0,0
+storage-engine-matrix	matrix 1 256 16 key256_insert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	58903419,11224,1,0	58903419,11224,1,0
+storage-engine-matrix	matrix 1 256 16 key256_hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	36054695,4656,0,0	36054695,4656,0,0
+storage-engine-matrix	matrix 1 256 16 key256_range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1617091,6508,0,0	1617091,6508,0,0
+storage-engine-matrix	matrix 1 256 16 text_option_insert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	29745765,4332,0,0	29745765,4332,0,0
+storage-engine-matrix	matrix 1 256 16 text_option_hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	16864521,1739,0,0	16864521,1739,0,0
+storage-engine-matrix	matrix 1 256 16 text_option_range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	551558,1740,0,0	551558,1740,0,0
+storage-engine-matrix	matrix 1 256 16 text_option_remove	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	21110115,3837,0,0	21110115,3837,0,0
+storage-engine-matrix	matrix 1 256 16 tuple_array_insert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	23204554,4932,0,0	23204554,4932,0,0
+storage-engine-matrix	matrix 1 256 16 tuple_array_hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	9828440,1648,0,0	9828440,1648,0,0
+storage-engine-matrix	matrix 1 256 16 tuple_array_range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	335904,2284,0,0	335904,2284,0,0
+storage-engine-matrix	matrix 1 256 16 tuple_array_remove	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	17107654,4988,0,0	17107654,4988,0,0
+storage-engine-matrix	matrix 1 256 16 u128_string_insert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	22005857,5018,0,0	22005857,5018,0,0
+storage-engine-matrix	matrix 1 256 16 u128_string_hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	10841692,1888,0,0	10841692,1888,0,0
+storage-engine-matrix	matrix 1 256 16 u128_string_range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	399060,1948,0,0	399060,1948,0,0
+storage-engine-matrix	matrix 1 256 16 u128_string_remove	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	16144316,4415,0,0	16144316,4415,0,0
+storage-engine-matrix	matrix 0 256 31 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	250430,3060,1,0	250430,3060,1,0
+storage-engine-matrix	matrix 0 256 31 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	13845582,5448,0,0	13845582,5448,0,0
+storage-engine-matrix	matrix 0 256 31 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	15807810,5852,1,0	15807810,5852,1,0
+storage-engine-matrix	matrix 0 256 31 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	10281129,4206,0,0	10281129,4206,0,0
+storage-engine-matrix	matrix 0 256 31 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6751974,930,0,0	6751974,930,0,0
+storage-engine-matrix	matrix 0 256 31 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	7047977,899,0,0	7047977,899,0,0
+storage-engine-matrix	matrix 0 256 31 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	7130629,902,0,0	7130629,902,0,0
+storage-engine-matrix	matrix 0 256 31 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1010864,2672,0,0	959667,2672,0,0
+storage-engine-matrix	matrix 0 256 31 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1282752,2703,0,0	1231555,2703,0,0
+storage-engine-matrix	matrix 0 256 31 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	189463,2197,0,0	182963,2197,0,0
+storage-engine-matrix	matrix 0 256 31 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	189537,2197,0,0	183141,2197,0,0
+storage-engine-matrix	matrix 0 256 31 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	58578,2273,0,0	58357,2273,0,0
+storage-engine-matrix	matrix 0 256 31 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	36225,1479,0,0	36225,1479,0,0
+storage-engine-matrix	matrix 0 256 31 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4247722,5210,0,0	4247722,5210,0,0
+storage-engine-matrix	matrix 0 256 31 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3255684,7164,0,0	3255684,7164,0,0
+storage-engine-matrix	matrix 0 256 31 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3975582,8441,0,0	3975582,8441,0,0
+storage-engine-matrix	matrix 0 256 31 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1580891,3303,0,0	1580891,3303,0,0
+storage-engine-matrix	matrix 0 256 31 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	148769,3142,0,0	148548,3142,0,0
+storage-engine-matrix	matrix 0 256 31 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3969954,5578,0,0	3969954,5578,0,0
+storage-engine-matrix	matrix 0 256 31 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	10052,1443,0,0	10052,1443,0,0
+storage-engine-matrix	matrix 0 256 31 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2891051,4490,0,0	2891051,4490,0,0
+storage-engine-matrix	matrix 0 256 31 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	250240,1943,1,0	250240,1943,1,0
+storage-engine-matrix	matrix 0 256 31 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1846,0,0,0	1846,0,0,0
+storage-engine-matrix	matrix 0 256 31 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	36004,31,0,0	36004,31,0,0
+storage-engine-matrix	matrix 0 256 31 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	680738,67503,1,2	680738,67503,1,2
+storage-engine-matrix	matrix 0 256 31 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1993,31,0,0	1993,31,0,0
+storage-engine-matrix	matrix 0 256 31 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	25989,1103,0,0	25989,1103,0,0
+storage-engine-matrix	matrix 1 256 31 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	244614,1944,1,0	244614,1944,1,0
+storage-engine-matrix	matrix 1 256 31 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	26391488,4409,0,0	26391488,4409,0,0
+storage-engine-matrix	matrix 1 256 31 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	27934758,4697,1,0	27934758,4697,1,0
+storage-engine-matrix	matrix 1 256 31 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	22093525,2229,0,0	22093525,2229,0,0
+storage-engine-matrix	matrix 1 256 31 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	11218437,1719,0,0	11218437,1719,0,0
+storage-engine-matrix	matrix 1 256 31 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12254062,1560,0,0	12254062,1560,0,0
+storage-engine-matrix	matrix 1 256 31 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12746089,1896,0,0	12746089,1896,0,0
+storage-engine-matrix	matrix 1 256 31 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1244154,2140,0,0	1244154,2140,0,0
+storage-engine-matrix	matrix 1 256 31 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2059601,2884,0,0	2059601,2884,0,0
+storage-engine-matrix	matrix 1 256 31 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	320151,2009,0,0	320151,2009,0,0
+storage-engine-matrix	matrix 1 256 31 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	319812,2009,0,0	319812,2009,0,0
+storage-engine-matrix	matrix 1 256 31 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	95060,1614,0,0	95060,1614,0,0
+storage-engine-matrix	matrix 1 256 31 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	25225,1014,0,0	25225,1014,0,0
+storage-engine-matrix	matrix 1 256 31 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	7084720,5119,0,0	7084720,5119,0,0
+storage-engine-matrix	matrix 1 256 31 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6847720,4458,0,0	6847720,4458,0,0
+storage-engine-matrix	matrix 1 256 31 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	10052676,5699,0,0	10052676,5699,0,0
+storage-engine-matrix	matrix 1 256 31 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4266440,4041,0,0	4266440,4041,0,0
+storage-engine-matrix	matrix 1 256 31 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	204081,1674,0,0	204081,1674,0,0
+storage-engine-matrix	matrix 1 256 31 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	7208598,4409,0,0	7208598,4409,0,0
+storage-engine-matrix	matrix 1 256 31 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2728,0,0,0	2728,0,0,0
+storage-engine-matrix	matrix 1 256 31 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	5267625,3625,0,0	5267625,3625,0,0
+storage-engine-matrix	matrix 1 256 31 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	250832,1943,1,0	250832,1943,1,0
+storage-engine-matrix	matrix 1 256 31 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1846,0,0,0	1846,0,0,0
+storage-engine-matrix	matrix 1 256 31 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	80293,31,0,0	80293,31,0,0
+storage-engine-matrix	matrix 1 256 31 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	682312,67503,1,2	682312,67503,1,2
+storage-engine-matrix	matrix 1 256 31 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2867,31,0,0	2867,31,0,0
+storage-engine-matrix	matrix 1 256 31 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	27069,1103,0,0	27069,1103,0,0
+storage-engine-matrix	matrix 0 256 32 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	250430,3060,1,0	250430,3060,1,0
+storage-engine-matrix	matrix 0 256 32 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	13916844,5490,0,0	13916844,5490,0,0
+storage-engine-matrix	matrix 0 256 32 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	15893639,5898,1,0	15893639,5898,1,0
+storage-engine-matrix	matrix 0 256 32 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	10361468,4246,0,0	10361468,4246,0,0
+storage-engine-matrix	matrix 0 256 32 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6792438,939,0,0	6792438,939,0,0
+storage-engine-matrix	matrix 0 256 32 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	7097641,907,0,0	7097641,907,0,0
+storage-engine-matrix	matrix 0 256 32 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	7254163,913,0,0	7254163,913,0,0
+storage-engine-matrix	matrix 0 256 32 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1015283,2698,0,0	964086,2698,0,0
+storage-engine-matrix	matrix 0 256 32 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1288347,2730,0,0	1237150,2730,0,0
+storage-engine-matrix	matrix 0 256 32 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	190278,2218,0,0	183778,2218,0,0
+storage-engine-matrix	matrix 0 256 32 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	190351,2218,0,0	183955,2218,0,0
+storage-engine-matrix	matrix 0 256 32 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	59079,2295,0,0	58858,2295,0,0
+storage-engine-matrix	matrix 0 256 32 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	36225,1479,0,0	36225,1479,0,0
+storage-engine-matrix	matrix 0 256 32 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4287731,5258,0,0	4287731,5258,0,0
+storage-engine-matrix	matrix 0 256 32 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3292965,7231,0,0	3292965,7231,0,0
+storage-engine-matrix	matrix 0 256 32 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4037882,8538,0,0	4037882,8538,0,0
+storage-engine-matrix	matrix 0 256 32 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1624365,3320,0,0	1624365,3320,0,0
+storage-engine-matrix	matrix 0 256 32 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	150382,3167,0,0	150161,3167,0,0
+storage-engine-matrix	matrix 0 256 32 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4005324,5621,0,0	4005324,5621,0,0
+storage-engine-matrix	matrix 0 256 32 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	10216,1443,0,0	10216,1443,0,0
+storage-engine-matrix	matrix 0 256 32 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2925851,4525,0,0	2925851,4525,0,0
+storage-engine-matrix	matrix 0 256 32 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	249935,1944,1,0	249935,1944,1,0
+storage-engine-matrix	matrix 0 256 32 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1846,0,0,0	1846,0,0,0
+storage-engine-matrix	matrix 0 256 32 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	36068,32,0,0	36068,32,0,0
+storage-engine-matrix	matrix 0 256 32 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	680643,67504,1,2	680643,67504,1,2
+storage-engine-matrix	matrix 0 256 32 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1995,32,0,0	1995,32,0,0
+storage-engine-matrix	matrix 0 256 32 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	26009,1103,0,0	26009,1103,0,0
+storage-engine-matrix	matrix 1 256 32 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	244614,1944,1,0	244614,1944,1,0
+storage-engine-matrix	matrix 1 256 32 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	26400106,4416,0,0	26400106,4416,0,0
+storage-engine-matrix	matrix 1 256 32 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	27942644,4704,1,0	27942644,4704,1,0
+storage-engine-matrix	matrix 1 256 32 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	22099400,2240,0,0	22099400,2240,0,0
+storage-engine-matrix	matrix 1 256 32 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	11218949,1720,0,0	11218949,1720,0,0
+storage-engine-matrix	matrix 1 256 32 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12254062,1560,0,0	12254062,1560,0,0
+storage-engine-matrix	matrix 1 256 32 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12746089,1896,0,0	12746089,1896,0,0
+storage-engine-matrix	matrix 1 256 32 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1244154,2140,0,0	1244154,2140,0,0
+storage-engine-matrix	matrix 1 256 32 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2061137,2908,0,0	2061137,2908,0,0
+storage-engine-matrix	matrix 1 256 32 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	320343,2020,0,0	320343,2020,0,0
+storage-engine-matrix	matrix 1 256 32 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	320004,2020,0,0	320004,2020,0,0
+storage-engine-matrix	matrix 1 256 32 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	95066,1616,0,0	95066,1616,0,0
+storage-engine-matrix	matrix 1 256 32 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	25225,1014,0,0	25225,1014,0,0
+storage-engine-matrix	matrix 1 256 32 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	7086771,5144,0,0	7086771,5144,0,0
+storage-engine-matrix	matrix 1 256 32 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6849766,4464,0,0	6849766,4464,0,0
+storage-engine-matrix	matrix 1 256 32 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	10056057,5720,0,0	10056057,5720,0,0
+storage-engine-matrix	matrix 1 256 32 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4267103,4064,0,0	4267103,4064,0,0
+storage-engine-matrix	matrix 1 256 32 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	204121,1680,0,0	204121,1680,0,0
+storage-engine-matrix	matrix 1 256 32 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	7210790,4416,0,0	7210790,4416,0,0
+storage-engine-matrix	matrix 1 256 32 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2728,0,0,0	2728,0,0,0
+storage-engine-matrix	matrix 1 256 32 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	5269508,3632,0,0	5269508,3632,0,0
+storage-engine-matrix	matrix 1 256 32 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	250834,1944,1,0	250834,1944,1,0
+storage-engine-matrix	matrix 1 256 32 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1846,0,0,0	1846,0,0,0
+storage-engine-matrix	matrix 1 256 32 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	80357,32,0,0	80357,32,0,0
+storage-engine-matrix	matrix 1 256 32 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	682314,67504,1,2	682314,67504,1,2
+storage-engine-matrix	matrix 1 256 32 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2869,32,0,0	2869,32,0,0
+storage-engine-matrix	matrix 1 256 32 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	27071,1103,0,0	27071,1103,0,0
+storage-engine-matrix	matrix 0 256 33 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	250430,3060,1,0	250430,3060,1,0
+storage-engine-matrix	matrix 0 256 33 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12322233,4469,1,0	12322233,4469,1,0
+storage-engine-matrix	matrix 0 256 33 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	13897638,4785,2,0	13897638,4785,2,0
+storage-engine-matrix	matrix 0 256 33 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8548726,3179,0,0	8548726,3179,0,0
+storage-engine-matrix	matrix 0 256 33 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6216773,723,0,0	6216773,723,0,0
+storage-engine-matrix	matrix 0 256 33 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	5908265,723,0,0	5908265,723,0,0
+storage-engine-matrix	matrix 0 256 33 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6059617,723,0,0	6059617,723,0,0
+storage-engine-matrix	matrix 0 256 33 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	907121,2100,0,0	855924,2100,0,0
+storage-engine-matrix	matrix 0 256 33 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2164333,2133,0,0	2113136,2133,0,0
+storage-engine-matrix	matrix 0 256 33 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	296089,1759,0,0	289589,1759,0,0
+storage-engine-matrix	matrix 0 256 33 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	296553,1759,0,0	290157,1759,0,0
+storage-engine-matrix	matrix 0 256 33 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	54268,1813,0,0	54047,1813,0,0
+storage-engine-matrix	matrix 0 256 33 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	35737,1479,0,0	35737,1479,0,0
+storage-engine-matrix	matrix 0 256 33 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3599369,4153,0,0	3599369,4153,0,0
+storage-engine-matrix	matrix 0 256 33 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2663880,7133,0,0	2663880,7133,0,0
+storage-engine-matrix	matrix 0 256 33 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3148450,8011,0,0	3148450,8011,0,0
+storage-engine-matrix	matrix 0 256 33 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1389821,2929,0,0	1389821,2929,0,0
+storage-engine-matrix	matrix 0 256 33 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	130932,2814,0,0	130711,2814,0,0
+storage-engine-matrix	matrix 0 256 33 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3470453,4577,0,0	3470453,4577,0,0
+storage-engine-matrix	matrix 0 256 33 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	9452,1443,0,0	9452,1443,0,0
+storage-engine-matrix	matrix 0 256 33 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2475137,3773,0,0	2475137,3773,0,0
+storage-engine-matrix	matrix 0 256 33 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	249719,1945,1,0	249719,1945,1,0
+storage-engine-matrix	matrix 0 256 33 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1846,0,0,0	1846,0,0,0
+storage-engine-matrix	matrix 0 256 33 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	36449,33,0,0	36449,33,0,0
+storage-engine-matrix	matrix 0 256 33 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	681556,67505,1,2	681556,67505,1,2
+storage-engine-matrix	matrix 0 256 33 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1997,33,0,0	1997,33,0,0
+storage-engine-matrix	matrix 0 256 33 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	26249,1103,0,0	26249,1103,0,0
+storage-engine-matrix	matrix 1 256 33 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	244614,1944,1,0	244614,1944,1,0
+storage-engine-matrix	matrix 1 256 33 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	26408724,4423,0,0	26408724,4423,0,0
+storage-engine-matrix	matrix 1 256 33 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	27950530,4711,1,0	27950530,4711,1,0
+storage-engine-matrix	matrix 1 256 33 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	22105275,2251,0,0	22105275,2251,0,0
+storage-engine-matrix	matrix 1 256 33 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	11219461,1721,0,0	11219461,1721,0,0
+storage-engine-matrix	matrix 1 256 33 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12254062,1560,0,0	12254062,1560,0,0
+storage-engine-matrix	matrix 1 256 33 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12746089,1896,0,0	12746089,1896,0,0
+storage-engine-matrix	matrix 1 256 33 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1244154,2140,0,0	1244154,2140,0,0
+storage-engine-matrix	matrix 1 256 33 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2062673,2932,0,0	2062673,2932,0,0
+storage-engine-matrix	matrix 1 256 33 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	320535,2031,0,0	320535,2031,0,0
+storage-engine-matrix	matrix 1 256 33 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	320196,2031,0,0	320196,2031,0,0
+storage-engine-matrix	matrix 1 256 33 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	95072,1618,0,0	95072,1618,0,0
+storage-engine-matrix	matrix 1 256 33 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	25225,1014,0,0	25225,1014,0,0
+storage-engine-matrix	matrix 1 256 33 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	7088822,5169,0,0	7088822,5169,0,0
+storage-engine-matrix	matrix 1 256 33 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6851812,4470,0,0	6851812,4470,0,0
+storage-engine-matrix	matrix 1 256 33 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	10059438,5741,0,0	10059438,5741,0,0
+storage-engine-matrix	matrix 1 256 33 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4267766,4087,0,0	4267766,4087,0,0
+storage-engine-matrix	matrix 1 256 33 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	204161,1686,0,0	204161,1686,0,0
+storage-engine-matrix	matrix 1 256 33 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	7212982,4423,0,0	7212982,4423,0,0
+storage-engine-matrix	matrix 1 256 33 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2728,0,0,0	2728,0,0,0
+storage-engine-matrix	matrix 1 256 33 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	5271391,3644,0,0	5271391,3644,0,0
+storage-engine-matrix	matrix 1 256 33 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	250836,1945,1,0	250836,1945,1,0
+storage-engine-matrix	matrix 1 256 33 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1846,0,0,0	1846,0,0,0
+storage-engine-matrix	matrix 1 256 33 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	80421,33,0,0	80421,33,0,0
+storage-engine-matrix	matrix 1 256 33 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	682316,67505,1,2	682316,67505,1,2
+storage-engine-matrix	matrix 1 256 33 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2871,33,0,0	2871,33,0,0
+storage-engine-matrix	matrix 1 256 33 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	27073,1103,0,0	27073,1103,0,0
+storage-engine-matrix	matrix 0 256 236 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	250430,3060,1,0	250430,3060,1,0
+storage-engine-matrix	matrix 0 256 236 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12789603,4672,1,0	12789603,4672,1,0
+storage-engine-matrix	matrix 0 256 236 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	14497104,4988,2,0	14497104,4988,2,0
+storage-engine-matrix	matrix 0 256 236 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	9615894,3788,0,0	9615894,3788,0,0
+storage-engine-matrix	matrix 0 256 236 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6844021,723,0,0	6844021,723,0,0
+storage-engine-matrix	matrix 0 256 236 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	5998633,723,0,0	5998633,723,0,0
+storage-engine-matrix	matrix 0 256 236 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	5970784,723,0,0	5970784,723,0,0
+storage-engine-matrix	matrix 0 256 236 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	903455,2100,0,0	852258,2100,0,0
+storage-engine-matrix	matrix 0 256 236 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3237151,2336,0,0	3185954,2336,0,0
+storage-engine-matrix	matrix 0 256 236 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	429615,1962,0,0	423115,1962,0,0
+storage-engine-matrix	matrix 0 256 236 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	430079,1962,0,0	423683,1962,0,0
+storage-engine-matrix	matrix 0 256 236 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	58302,2016,0,0	58081,2016,0,0
+storage-engine-matrix	matrix 0 256 236 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	35925,1479,0,0	35925,1479,0,0
+storage-engine-matrix	matrix 0 256 236 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3732502,4356,0,0	3732502,4356,0,0
+storage-engine-matrix	matrix 0 256 236 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2805488,7336,0,0	2805488,7336,0,0
+storage-engine-matrix	matrix 0 256 236 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3300440,8214,0,0	3300440,8214,0,0
+storage-engine-matrix	matrix 0 256 236 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1382077,2929,0,0	1382077,2929,0,0
+storage-engine-matrix	matrix 0 256 236 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	135971,3017,0,0	135750,3017,0,0
+storage-engine-matrix	matrix 0 256 236 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3607612,4780,0,0	3607612,4780,0,0
+storage-engine-matrix	matrix 0 256 236 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	9445,1443,0,0	9445,1443,0,0
+storage-engine-matrix	matrix 0 256 236 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2613815,3976,0,0	2613815,3976,0,0
+storage-engine-matrix	matrix 0 256 236 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	248922,2148,1,0	248922,2148,1,0
+storage-engine-matrix	matrix 0 256 236 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1846,0,0,0	1846,0,0,0
+storage-engine-matrix	matrix 0 256 236 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	49214,236,0,0	49214,236,0,0
+storage-engine-matrix	matrix 0 256 236 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	681081,67708,1,2	681081,67708,1,2
+storage-engine-matrix	matrix 0 256 236 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2250,236,0,0	2250,236,0,0
+storage-engine-matrix	matrix 0 256 236 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	26602,1103,0,0	26602,1103,0,0
+storage-engine-matrix	matrix 1 256 236 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	244614,1944,1,0	244614,1944,1,0
+storage-engine-matrix	matrix 1 256 236 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	32148108,9008,1,0	32148108,9008,1,0
+storage-engine-matrix	matrix 1 256 236 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	33496094,9968,1,0	33496094,9968,1,0
+storage-engine-matrix	matrix 1 256 236 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	25873698,4596,0,0	25873698,4596,0,0
+storage-engine-matrix	matrix 1 256 236 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12635554,2020,0,0	12635554,2020,0,0
+storage-engine-matrix	matrix 1 256 236 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	13646127,1656,0,0	13646127,1656,0,0
+storage-engine-matrix	matrix 1 256 236 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	14046724,1992,0,0	14046724,1992,0,0
+storage-engine-matrix	matrix 1 256 236 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1361043,2236,0,0	1361043,2236,0,0
+storage-engine-matrix	matrix 1 256 236 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2613744,7900,0,0	2613744,7900,0,0
+storage-engine-matrix	matrix 1 256 236 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	402722,4360,0,0	402722,4360,0,0
+storage-engine-matrix	matrix 1 256 236 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	400642,4360,0,0	400642,4360,0,0
+storage-engine-matrix	matrix 1 256 236 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	107953,2120,0,0	107953,2120,0,0
+storage-engine-matrix	matrix 1 256 236 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	25126,1014,0,0	25126,1014,0,0
+storage-engine-matrix	matrix 1 256 236 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8519846,10656,0,0	8519846,10656,0,0
+storage-engine-matrix	matrix 1 256 236 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8270632,10032,0,0	8270632,10032,0,0
+storage-engine-matrix	matrix 1 256 236 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12050012,11572,0,0	12050012,11572,0,0
+storage-engine-matrix	matrix 1 256 236 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4942793,8884,0,0	4942793,8884,0,0
+storage-engine-matrix	matrix 1 256 236 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	235084,3008,0,0	235084,3008,0,0
+storage-engine-matrix	matrix 1 256 236 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8698325,9008,0,0	8698325,9008,0,0
+storage-engine-matrix	matrix 1 256 236 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2728,0,0,0	2728,0,0,0
+storage-engine-matrix	matrix 1 256 236 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6430115,7832,0,0	6430115,7832,0,0
+storage-engine-matrix	matrix 1 256 236 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	252790,2148,1,0	252790,2148,1,0
+storage-engine-matrix	matrix 1 256 236 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1846,0,0,0	1846,0,0,0
+storage-engine-matrix	matrix 1 256 236 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	93628,236,0,0	93628,236,0,0
+storage-engine-matrix	matrix 1 256 236 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	683496,67708,1,2	683496,67708,1,2
+storage-engine-matrix	matrix 1 256 236 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3173,236,0,0	3173,236,0,0
+storage-engine-matrix	matrix 1 256 236 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	27501,1103,0,0	27501,1103,0,0
+storage-engine-matrix	matrix 0 256 237 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	250430,3060,1,0	250430,3060,1,0
+storage-engine-matrix	matrix 0 256 237 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	13089516,4673,2,0	13089516,4673,2,0
+storage-engine-matrix	matrix 0 256 237 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	14682373,4989,3,0	14682373,4989,3,0
+storage-engine-matrix	matrix 0 256 237 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	9899703,3791,0,0	9899703,3791,0,0
+storage-engine-matrix	matrix 0 256 237 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	7063300,723,0,0	7063300,723,0,0
+storage-engine-matrix	matrix 0 256 237 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6263252,723,0,0	6263252,723,0,0
+storage-engine-matrix	matrix 0 256 237 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6279642,723,0,0	6279642,723,0,0
+storage-engine-matrix	matrix 0 256 237 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	915780,2100,0,0	864583,2100,0,0
+storage-engine-matrix	matrix 0 256 237 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3265374,2337,0,0	3214177,2337,0,0
+storage-engine-matrix	matrix 0 256 237 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	433107,1963,0,0	426607,1963,0,0
+storage-engine-matrix	matrix 0 256 237 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	434848,1963,0,0	428452,1963,0,0
+storage-engine-matrix	matrix 0 256 237 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	59996,2017,0,0	59775,2017,0,0
+storage-engine-matrix	matrix 0 256 237 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	36533,1479,0,0	36533,1479,0,0
+storage-engine-matrix	matrix 0 256 237 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3801810,4357,0,0	3801810,4357,0,0
+storage-engine-matrix	matrix 0 256 237 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2809794,7337,0,0	2809794,7337,0,0
+storage-engine-matrix	matrix 0 256 237 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3290218,8215,0,0	3290218,8215,0,0
+storage-engine-matrix	matrix 0 256 237 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1441248,2929,0,0	1441248,2929,0,0
+storage-engine-matrix	matrix 0 256 237 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	139122,3018,0,0	138901,3018,0,0
+storage-engine-matrix	matrix 0 256 237 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3690713,4781,0,0	3690713,4781,0,0
+storage-engine-matrix	matrix 0 256 237 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	9931,1443,0,0	9931,1443,0,0
+storage-engine-matrix	matrix 0 256 237 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2707562,3977,0,0	2707562,3977,0,0
+storage-engine-matrix	matrix 0 256 237 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	250748,2149,1,0	250748,2149,1,0
+storage-engine-matrix	matrix 0 256 237 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1846,0,0,0	1846,0,0,0
+storage-engine-matrix	matrix 0 256 237 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	49283,237,0,0	49283,237,0,0
+storage-engine-matrix	matrix 0 256 237 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	682887,67709,1,2	682887,67709,1,2
+storage-engine-matrix	matrix 0 256 237 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2312,237,0,0	2312,237,0,0
+storage-engine-matrix	matrix 0 256 237 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	26906,1103,0,0	26906,1103,0,0
+storage-engine-matrix	matrix 1 256 237 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	244614,1944,1,0	244614,1944,1,0
+storage-engine-matrix	matrix 1 256 237 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	32124586,9030,1,0	32124586,9030,1,0
+storage-engine-matrix	matrix 1 256 237 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	33417422,9994,1,0	33417422,9994,1,0
+storage-engine-matrix	matrix 1 256 237 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	25853888,4607,0,0	25853888,4607,0,0
+storage-engine-matrix	matrix 1 256 237 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12476724,2021,0,0	12476724,2021,0,0
+storage-engine-matrix	matrix 1 256 237 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	13454127,1656,0,0	13454127,1656,0,0
+storage-engine-matrix	matrix 1 256 237 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	13978222,1992,0,0	13978222,1992,0,0
+storage-engine-matrix	matrix 1 256 237 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1346271,2236,0,0	1346271,2236,0,0
+storage-engine-matrix	matrix 1 256 237 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2602747,7924,0,0	2602747,7924,0,0
+storage-engine-matrix	matrix 1 256 237 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	394750,4371,0,0	394750,4371,0,0
+storage-engine-matrix	matrix 1 256 237 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	394250,4371,0,0	394250,4371,0,0
+storage-engine-matrix	matrix 1 256 237 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	106355,2122,0,0	106355,2122,0,0
+storage-engine-matrix	matrix 1 256 237 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	24990,1014,0,0	24990,1014,0,0
+storage-engine-matrix	matrix 1 256 237 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8502163,10686,0,0	8502163,10686,0,0
+storage-engine-matrix	matrix 1 256 237 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8254731,10060,0,0	8254731,10060,0,0
+storage-engine-matrix	matrix 1 256 237 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12004242,11603,0,0	12004242,11603,0,0
+storage-engine-matrix	matrix 1 256 237 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4887498,8907,0,0	4887498,8907,0,0
+storage-engine-matrix	matrix 1 256 237 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	233601,3014,0,0	233601,3014,0,0
+storage-engine-matrix	matrix 1 256 237 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8662308,9030,0,0	8662308,9030,0,0
+storage-engine-matrix	matrix 1 256 237 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2728,0,0,0	2728,0,0,0
+storage-engine-matrix	matrix 1 256 237 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6414244,7852,0,0	6414244,7852,0,0
+storage-engine-matrix	matrix 1 256 237 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	251115,2149,1,0	251115,2149,1,0
+storage-engine-matrix	matrix 1 256 237 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1846,0,0,0	1846,0,0,0
+storage-engine-matrix	matrix 1 256 237 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	100423,237,0,0	100423,237,0,0
+storage-engine-matrix	matrix 1 256 237 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	682999,67709,1,2	682999,67709,1,2
+storage-engine-matrix	matrix 1 256 237 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3155,237,0,0	3155,237,0,0
+storage-engine-matrix	matrix 1 256 237 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	27385,1103,0,0	27385,1103,0,0
+storage-engine-matrix	matrix 0 256 1004 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	250430,3060,1,0	250430,3060,1,0
+storage-engine-matrix	matrix 0 256 1004 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	15785006,5440,4,0	15785006,5440,4,0
+storage-engine-matrix	matrix 0 256 1004 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	17519419,5756,5,0	17519419,5756,5,0
+storage-engine-matrix	matrix 0 256 1004 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	14126070,6092,0,0	14126070,6092,0,0
+storage-engine-matrix	matrix 0 256 1004 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	9036499,1004,0,0	9036499,1004,0,0
+storage-engine-matrix	matrix 0 256 1004 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6068521,723,0,0	6068521,723,0,0
+storage-engine-matrix	matrix 0 256 1004 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6189336,723,0,0	6189336,723,0,0
+storage-engine-matrix	matrix 0 256 1004 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	909571,2100,0,0	858374,2100,0,0
+storage-engine-matrix	matrix 0 256 1004 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	7274673,3104,0,0	7223476,3104,0,0
+storage-engine-matrix	matrix 0 256 1004 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	935152,2730,0,0	928652,2730,0,0
+storage-engine-matrix	matrix 0 256 1004 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	935616,2730,0,0	929220,2730,0,0
+storage-engine-matrix	matrix 0 256 1004 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	74070,2784,0,0	73849,2784,0,0
+storage-engine-matrix	matrix 0 256 1004 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	36585,1479,0,0	36585,1479,0,0
+storage-engine-matrix	matrix 0 256 1004 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4242756,5124,0,0	4242756,5124,0,0
+storage-engine-matrix	matrix 0 256 1004 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3333748,8104,0,0	3333748,8104,0,0
+storage-engine-matrix	matrix 0 256 1004 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3814881,8982,0,0	3814881,8982,0,0
+storage-engine-matrix	matrix 0 256 1004 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1410533,2929,0,0	1410533,2929,0,0
+storage-engine-matrix	matrix 0 256 1004 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	151890,3785,0,0	151669,3785,0,0
+storage-engine-matrix	matrix 0 256 1004 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4221723,5548,0,0	4221723,5548,0,0
+storage-engine-matrix	matrix 0 256 1004 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	10426,1443,0,0	10426,1443,0,0
+storage-engine-matrix	matrix 0 256 1004 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3213525,4744,0,0	3213525,4744,0,0
+storage-engine-matrix	matrix 0 256 1004 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	252141,2916,1,0	252141,2916,1,0
+storage-engine-matrix	matrix 0 256 1004 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1846,0,0,0	1846,0,0,0
+storage-engine-matrix	matrix 0 256 1004 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	103049,1004,0,0	103049,1004,0,0
+storage-engine-matrix	matrix 0 256 1004 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	683349,68476,1,2	683349,68476,1,2
+storage-engine-matrix	matrix 0 256 1004 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3915,1004,0,0	3915,1004,0,0
+storage-engine-matrix	matrix 0 256 1004 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	28558,1103,0,0	28558,1103,0,0
+storage-engine-matrix	matrix 1 256 1004 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	244614,1944,1,0	244614,1944,1,0
+storage-engine-matrix	matrix 1 256 1004 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	50857071,26448,4,0	50857071,26448,4,0
+storage-engine-matrix	matrix 1 256 1004 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	51813380,30384,5,0	51813380,30384,5,0
+storage-engine-matrix	matrix 1 256 1004 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	37477454,13332,0,0	37477454,13332,0,0
+storage-engine-matrix	matrix 1 256 1004 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	16405923,2948,0,0	16405923,2948,0,0
+storage-engine-matrix	matrix 1 256 1004 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	17190703,1816,0,0	17190703,1816,0,0
+storage-engine-matrix	matrix 1 256 1004 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	18012074,2216,0,0	18012074,2216,0,0
+storage-engine-matrix	matrix 1 256 1004 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1706781,2460,0,0	1706781,2460,0,0
+storage-engine-matrix	matrix 1 256 1004 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4612304,26556,0,0	4612304,26556,0,0
+storage-engine-matrix	matrix 1 256 1004 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	651943,12968,0,0	651943,12968,0,0
+storage-engine-matrix	matrix 1 256 1004 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	652516,12968,0,0	652516,12968,0,0
+storage-engine-matrix	matrix 1 256 1004 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	138426,3816,0,0	138426,3816,0,0
+storage-engine-matrix	matrix 1 256 1004 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	25129,1014,0,0	25129,1014,0,0
+storage-engine-matrix	matrix 1 256 1004 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12866617,34112,0,0	12866617,34112,0,0
+storage-engine-matrix	matrix 1 256 1004 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12476818,31872,0,0	12476818,31872,0,0
+storage-engine-matrix	matrix 1 256 1004 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	18602754,35788,0,0	18602754,35788,0,0
+storage-engine-matrix	matrix 1 256 1004 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6813351,26868,0,0	6813351,26868,0,0
+storage-engine-matrix	matrix 1 256 1004 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	330847,7784,0,0	330847,7784,0,0
+storage-engine-matrix	matrix 1 256 1004 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	13307889,26448,0,0	13307889,26448,0,0
+storage-engine-matrix	matrix 1 256 1004 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2728,0,0,0	2728,0,0,0
+storage-engine-matrix	matrix 1 256 1004 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	10179684,23592,0,0	10179684,23592,0,0
+storage-engine-matrix	matrix 1 256 1004 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	253290,2916,1,0	253290,2916,1,0
+storage-engine-matrix	matrix 1 256 1004 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1846,0,0,0	1846,0,0,0
+storage-engine-matrix	matrix 1 256 1004 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	152310,1004,0,0	152310,1004,0,0
+storage-engine-matrix	matrix 1 256 1004 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	683744,68476,1,2	683744,68476,1,2
+storage-engine-matrix	matrix 1 256 1004 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4902,1004,0,0	4902,1004,0,0
+storage-engine-matrix	matrix 1 256 1004 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	29386,1103,0,0	29386,1103,0,0
+storage-engine-matrix	matrix 0 256 1005 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	250430,3060,1,0	250430,3060,1,0
+storage-engine-matrix	matrix 0 256 1005 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	16730135,5441,8,0	16730135,5441,8,0
+storage-engine-matrix	matrix 0 256 1005 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	18400675,5757,9,0	18400675,5757,9,0
+storage-engine-matrix	matrix 0 256 1005 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	13861731,6095,0,0	13861731,6095,0,0
+storage-engine-matrix	matrix 0 256 1005 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	9005760,1005,0,0	9005760,1005,0,0
+storage-engine-matrix	matrix 0 256 1005 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6030673,723,0,0	6030673,723,0,0
+storage-engine-matrix	matrix 0 256 1005 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6117372,723,0,0	6117372,723,0,0
+storage-engine-matrix	matrix 0 256 1005 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	919208,2100,0,0	868011,2100,0,0
+storage-engine-matrix	matrix 0 256 1005 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	7401026,3105,0,0	7349829,3105,0,0
+storage-engine-matrix	matrix 0 256 1005 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	958345,2731,0,0	951845,2731,0,0
+storage-engine-matrix	matrix 0 256 1005 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	958809,2731,0,0	952413,2731,0,0
+storage-engine-matrix	matrix 0 256 1005 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	74629,2785,0,0	74408,2785,0,0
+storage-engine-matrix	matrix 0 256 1005 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	36226,1479,0,0	36226,1479,0,0
+storage-engine-matrix	matrix 0 256 1005 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4222152,5125,0,0	4222152,5125,0,0
+storage-engine-matrix	matrix 0 256 1005 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3321508,8105,0,0	3321508,8105,0,0
+storage-engine-matrix	matrix 0 256 1005 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3811380,8983,0,0	3811380,8983,0,0
+storage-engine-matrix	matrix 0 256 1005 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1391875,2929,0,0	1391875,2929,0,0
+storage-engine-matrix	matrix 0 256 1005 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	151680,3786,0,0	151459,3786,0,0
+storage-engine-matrix	matrix 0 256 1005 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4193420,5549,0,0	4193420,5549,0,0
+storage-engine-matrix	matrix 0 256 1005 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	10309,1443,0,0	10309,1443,0,0
+storage-engine-matrix	matrix 0 256 1005 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3199667,4745,0,0	3199667,4745,0,0
+storage-engine-matrix	matrix 0 256 1005 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	250568,2917,1,0	250568,2917,1,0
+storage-engine-matrix	matrix 0 256 1005 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1846,0,0,0	1846,0,0,0
+storage-engine-matrix	matrix 0 256 1005 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	103113,1005,0,0	103113,1005,0,0
+storage-engine-matrix	matrix 0 256 1005 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	683048,68477,1,2	683048,68477,1,2
+storage-engine-matrix	matrix 0 256 1005 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4051,1005,0,0	4051,1005,0,0
+storage-engine-matrix	matrix 0 256 1005 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	28776,1103,0,0	28776,1103,0,0
+storage-engine-matrix	matrix 1 256 1005 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	244614,1944,1,0	244614,1944,1,0
+storage-engine-matrix	matrix 1 256 1005 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	50834214,26470,4,0	50834214,26470,4,0
+storage-engine-matrix	matrix 1 256 1005 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	51985406,30410,5,0	51985406,30410,5,0
+storage-engine-matrix	matrix 1 256 1005 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	37613314,13343,0,0	37613314,13343,0,0
+storage-engine-matrix	matrix 1 256 1005 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	16382069,2949,0,0	16382069,2949,0,0
+storage-engine-matrix	matrix 1 256 1005 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	17200943,1816,0,0	17200943,1816,0,0
+storage-engine-matrix	matrix 1 256 1005 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	17976398,2216,0,0	17976398,2216,0,0
+storage-engine-matrix	matrix 1 256 1005 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1698319,2460,0,0	1698319,2460,0,0
+storage-engine-matrix	matrix 1 256 1005 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4649795,26580,0,0	4649795,26580,0,0
+storage-engine-matrix	matrix 1 256 1005 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	686423,12979,0,0	686423,12979,0,0
+storage-engine-matrix	matrix 1 256 1005 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	685522,12979,0,0	685522,12979,0,0
+storage-engine-matrix	matrix 1 256 1005 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	139834,3818,0,0	139834,3818,0,0
+storage-engine-matrix	matrix 1 256 1005 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	24932,1014,0,0	24932,1014,0,0
+storage-engine-matrix	matrix 1 256 1005 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12952857,34142,0,0	12952857,34142,0,0
+storage-engine-matrix	matrix 1 256 1005 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12636432,31900,0,0	12636432,31900,0,0
+storage-engine-matrix	matrix 1 256 1005 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	18654017,35819,0,0	18654017,35819,0,0
+storage-engine-matrix	matrix 1 256 1005 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6798441,26891,0,0	6798441,26891,0,0
+storage-engine-matrix	matrix 1 256 1005 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	335456,7790,0,0	335456,7790,0,0
+storage-engine-matrix	matrix 1 256 1005 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	13368542,26470,0,0	13368542,26470,0,0
+storage-engine-matrix	matrix 1 256 1005 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2728,0,0,0	2728,0,0,0
+storage-engine-matrix	matrix 1 256 1005 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	10226473,23612,0,0	10226473,23612,0,0
+storage-engine-matrix	matrix 1 256 1005 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	253343,2917,1,0	253343,2917,1,0
+storage-engine-matrix	matrix 1 256 1005 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1846,0,0,0	1846,0,0,0
+storage-engine-matrix	matrix 1 256 1005 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	152678,1005,0,0	152678,1005,0,0
+storage-engine-matrix	matrix 1 256 1005 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	684212,68477,1,2	684212,68477,1,2
+storage-engine-matrix	matrix 1 256 1005 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4961,1005,0,0	4961,1005,0,0
+storage-engine-matrix	matrix 1 256 1005 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	28982,1103,0,0	28982,1103,0,0
+storage-engine-matrix	matrix 0 256 1024 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	250430,3060,1,0	250430,3060,1,0
+storage-engine-matrix	matrix 0 256 1024 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	16799428,5460,8,0	16799428,5460,8,0
+storage-engine-matrix	matrix 0 256 1024 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	18384897,5776,9,0	18384897,5776,9,0
+storage-engine-matrix	matrix 0 256 1024 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	14190141,6152,0,0	14190141,6152,0,0
+storage-engine-matrix	matrix 0 256 1024 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	9091395,1024,0,0	9091395,1024,0,0
+storage-engine-matrix	matrix 0 256 1024 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6080041,723,0,0	6080041,723,0,0
+storage-engine-matrix	matrix 0 256 1024 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6160605,723,0,0	6160605,723,0,0
+storage-engine-matrix	matrix 0 256 1024 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	912117,2100,0,0	860920,2100,0,0
+storage-engine-matrix	matrix 0 256 1024 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	7497443,3124,0,0	7446246,3124,0,0
+storage-engine-matrix	matrix 0 256 1024 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	967421,2750,0,0	960921,2750,0,0
+storage-engine-matrix	matrix 0 256 1024 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	967885,2750,0,0	961489,2750,0,0
+storage-engine-matrix	matrix 0 256 1024 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	74895,2804,0,0	74674,2804,0,0
+storage-engine-matrix	matrix 0 256 1024 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	36350,1479,0,0	36350,1479,0,0
+storage-engine-matrix	matrix 0 256 1024 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4253777,5144,0,0	4253777,5144,0,0
+storage-engine-matrix	matrix 0 256 1024 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3340851,8124,0,0	3340851,8124,0,0
+storage-engine-matrix	matrix 0 256 1024 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3815499,9002,0,0	3815499,9002,0,0
+storage-engine-matrix	matrix 0 256 1024 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1422932,2929,0,0	1422932,2929,0,0
+storage-engine-matrix	matrix 0 256 1024 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	153140,3805,0,0	152919,3805,0,0
+storage-engine-matrix	matrix 0 256 1024 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4248020,5568,0,0	4248020,5568,0,0
+storage-engine-matrix	matrix 0 256 1024 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	9907,1443,0,0	9907,1443,0,0
+storage-engine-matrix	matrix 0 256 1024 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3241180,4764,0,0	3241180,4764,0,0
+storage-engine-matrix	matrix 0 256 1024 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	251492,2936,1,0	251492,2936,1,0
+storage-engine-matrix	matrix 0 256 1024 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1846,0,0,0	1846,0,0,0
+storage-engine-matrix	matrix 0 256 1024 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	104329,1024,0,0	104329,1024,0,0
+storage-engine-matrix	matrix 0 256 1024 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	683247,68496,1,2	683247,68496,1,2
+storage-engine-matrix	matrix 0 256 1024 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4176,1024,0,0	4176,1024,0,0
+storage-engine-matrix	matrix 0 256 1024 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	28352,1103,0,0	28352,1103,0,0
+storage-engine-matrix	matrix 1 256 1024 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	244614,1944,1,0	244614,1944,1,0
+storage-engine-matrix	matrix 1 256 1024 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	51043543,26888,4,0	51043543,26888,4,0
+storage-engine-matrix	matrix 1 256 1024 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	51887691,30904,5,0	51887691,30904,5,0
+storage-engine-matrix	matrix 1 256 1024 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	37757012,13552,0,0	37757012,13552,0,0
+storage-engine-matrix	matrix 1 256 1024 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	16386436,2968,0,0	16386436,2968,0,0
+storage-engine-matrix	matrix 1 256 1024 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	17199407,1816,0,0	17199407,1816,0,0
+storage-engine-matrix	matrix 1 256 1024 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	18003483,2216,0,0	18003483,2216,0,0
+storage-engine-matrix	matrix 1 256 1024 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1705699,2460,0,0	1705699,2460,0,0
+storage-engine-matrix	matrix 1 256 1024 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4629882,27036,0,0	4629882,27036,0,0
+storage-engine-matrix	matrix 1 256 1024 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	667279,13188,0,0	667279,13188,0,0
+storage-engine-matrix	matrix 1 256 1024 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	661550,13188,0,0	661550,13188,0,0
+storage-engine-matrix	matrix 1 256 1024 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	141487,3856,0,0	141487,3856,0,0
+storage-engine-matrix	matrix 1 256 1024 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	24986,1014,0,0	24986,1014,0,0
+storage-engine-matrix	matrix 1 256 1024 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	13011200,34712,0,0	13011200,34712,0,0
+storage-engine-matrix	matrix 1 256 1024 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12706957,32432,0,0	12706957,32432,0,0
+storage-engine-matrix	matrix 1 256 1024 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	18761368,36408,0,0	18761368,36408,0,0
+storage-engine-matrix	matrix 1 256 1024 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6836700,27328,0,0	6836700,27328,0,0
+storage-engine-matrix	matrix 1 256 1024 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	337093,7904,0,0	337093,7904,0,0
+storage-engine-matrix	matrix 1 256 1024 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	13406326,26888,0,0	13406326,26888,0,0
+storage-engine-matrix	matrix 1 256 1024 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2728,0,0,0	2728,0,0,0
+storage-engine-matrix	matrix 1 256 1024 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	10278340,23992,0,0	10278340,23992,0,0
+storage-engine-matrix	matrix 1 256 1024 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	252628,2936,1,0	252628,2936,1,0
+storage-engine-matrix	matrix 1 256 1024 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1846,0,0,0	1846,0,0,0
+storage-engine-matrix	matrix 1 256 1024 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	153446,1024,0,0	153446,1024,0,0
+storage-engine-matrix	matrix 1 256 1024 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	683839,68496,1,2	683839,68496,1,2
+storage-engine-matrix	matrix 1 256 1024 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4979,1024,0,0	4979,1024,0,0
+storage-engine-matrix	matrix 1 256 1024 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	29274,1103,0,0	29274,1103,0,0
+storage-engine-matrix	matrix 0 256 8172 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	250430,3060,1,0	250430,3060,1,0
+storage-engine-matrix	matrix 0 256 8172 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	43037620,19320,32,0	43037620,19320,32,0
+storage-engine-matrix	matrix 0 256 8172 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	44657892,19636,33,0	44657892,19636,33,0
+storage-engine-matrix	matrix 0 256 8172 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	53700795,27596,0,0	53700795,27596,0,0
+storage-engine-matrix	matrix 0 256 8172 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	27777208,8172,0,0	27777208,8172,0,0
+storage-engine-matrix	matrix 0 256 8172 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6096957,723,0,0	6096957,723,0,0
+storage-engine-matrix	matrix 0 256 8172 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6109953,723,0,0	6109953,723,0,0
+storage-engine-matrix	matrix 0 256 8172 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	903695,2100,0,0	852498,2100,0,0
+storage-engine-matrix	matrix 0 256 8172 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	44887189,10272,0,0	44835992,10272,0,0
+storage-engine-matrix	matrix 0 256 8172 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	5636185,9898,0,0	5629685,9898,0,0
+storage-engine-matrix	matrix 0 256 8172 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	5636649,9898,0,0	5630253,9898,0,0
+storage-engine-matrix	matrix 0 256 8172 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	221136,9952,0,0	220915,9952,0,0
+storage-engine-matrix	matrix 0 256 8172 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	35713,1479,0,0	35713,1479,0,0
+storage-engine-matrix	matrix 0 256 8172 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8975451,12292,0,0	8975451,12292,0,0
+storage-engine-matrix	matrix 0 256 8172 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8058935,15272,0,0	8058935,15272,0,0
+storage-engine-matrix	matrix 0 256 8172 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8566188,16150,0,0	8566188,16150,0,0
+storage-engine-matrix	matrix 0 256 8172 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1385516,2929,0,0	1385516,2929,0,0
+storage-engine-matrix	matrix 0 256 8172 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	299315,10953,0,0	299094,10953,0,0
+storage-engine-matrix	matrix 0 256 8172 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	9454830,19399,0,0	9454830,19399,0,0
+storage-engine-matrix	matrix 0 256 8172 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	10075,1443,0,0	10075,1443,0,0
+storage-engine-matrix	matrix 0 256 8172 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8453067,18676,0,0	8453067,18676,0,0
+storage-engine-matrix	matrix 0 256 8172 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	265295,10084,1,0	265295,10084,1,0
+storage-engine-matrix	matrix 0 256 8172 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1846,0,0,0	1846,0,0,0
+storage-engine-matrix	matrix 0 256 8172 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	562057,8172,0,0	562057,8172,0,0
+storage-engine-matrix	matrix 0 256 8172 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	697948,75644,1,2	697948,75644,1,2
+storage-engine-matrix	matrix 0 256 8172 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	18344,8172,0,0	18344,8172,0,0
+storage-engine-matrix	matrix 0 256 8172 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	42859,8172,0,0	42859,8172,0,0
+storage-engine-matrix	matrix 1 256 8172 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	244614,1944,1,0	244614,1944,1,0
+storage-engine-matrix	matrix 1 256 8172 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	203705765,189128,33,3	203705765,189128,33,3
+storage-engine-matrix	matrix 1 256 8172 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	198699252,220896,33,0	198699252,220896,33,0
+storage-engine-matrix	matrix 1 256 8172 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	130900800,94980,0,0	130900800,94980,0,0
+storage-engine-matrix	matrix 1 256 8172 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	45248588,11908,0,0	45248588,11908,0,0
+storage-engine-matrix	matrix 1 256 8172 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	44213571,3608,0,0	44213571,3608,0,0
+storage-engine-matrix	matrix 1 256 8172 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	46579557,4456,0,0	46579557,4456,0,0
+storage-engine-matrix	matrix 1 256 8172 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4200248,4700,0,0	4200248,4700,0,0
+storage-engine-matrix	matrix 1 256 8172 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	20922036,200828,0,0	20922036,200828,0,0
+storage-engine-matrix	matrix 1 256 8172 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2802053,93608,0,0	2802053,93608,0,0
+storage-engine-matrix	matrix 1 256 8172 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2800718,93608,0,0	2800718,93608,0,0
+storage-engine-matrix	matrix 1 256 8172 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	398444,19944,0,0	398444,19944,0,0
+storage-engine-matrix	matrix 1 256 8172 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	24995,1014,0,0	24995,1014,0,0
+storage-engine-matrix	matrix 1 256 8172 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	49172801,253408,1,0	49172801,253408,1,0
+storage-engine-matrix	matrix 1 256 8172 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	48053321,235600,0,0	48053321,235600,0,0
+storage-engine-matrix	matrix 1 256 8172 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	72054168,261660,0,1	72054168,261660,0,1
+storage-engine-matrix	matrix 1 256 8172 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	21824506,194868,0,0	21824506,194868,0,0
+storage-engine-matrix	matrix 1 256 8172 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1121150,52696,0,0	1121150,52696,0,0
+storage-engine-matrix	matrix 1 256 8172 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	51102121,189128,0,0	51102121,189128,0,0
+storage-engine-matrix	matrix 1 256 8172 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2728,0,0,0	2728,0,0,0
+storage-engine-matrix	matrix 1 256 8172 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	40819900,170704,0,0	40819900,170704,0,0
+storage-engine-matrix	matrix 1 256 8172 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	267832,10084,1,0	267832,10084,1,0
+storage-engine-matrix	matrix 1 256 8172 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1846,0,0,0	1846,0,0,0
+storage-engine-matrix	matrix 1 256 8172 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	604697,8172,0,0	604697,8172,0,0
+storage-engine-matrix	matrix 1 256 8172 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	378217,75644,1,0	378217,75644,1,0
+storage-engine-matrix	matrix 1 256 8172 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	19410,8172,0,0	19410,8172,0,0
+storage-engine-matrix	matrix 1 256 8172 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	43858,8172,0,0	43858,8172,0,0
+storage-engine-matrix	matrix 0 256 8173 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	250430,3060,1,0	250430,3060,1,0
+storage-engine-matrix	matrix 0 256 8173 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	50170934,19322,64,0	50170934,19322,64,0
+storage-engine-matrix	matrix 0 256 8173 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	51766643,19638,65,0	51766643,19638,65,0
+storage-engine-matrix	matrix 0 256 8173 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	53718899,27599,0,0	53718899,27599,0,0
+storage-engine-matrix	matrix 0 256 8173 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	27795458,8173,0,0	27795458,8173,0,0
+storage-engine-matrix	matrix 0 256 8173 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6109993,723,0,0	6109993,723,0,0
+storage-engine-matrix	matrix 0 256 8173 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6224577,723,0,0	6224577,723,0,0
+storage-engine-matrix	matrix 0 256 8173 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	913537,2100,0,0	862340,2100,0,0
+storage-engine-matrix	matrix 0 256 8173 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	44932889,10273,0,0	44881692,10273,0,0
+storage-engine-matrix	matrix 0 256 8173 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	5643056,9899,0,0	5636556,9899,0,0
+storage-engine-matrix	matrix 0 256 8173 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	5643520,9899,0,0	5637124,9899,0,0
+storage-engine-matrix	matrix 0 256 8173 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	221400,9953,0,0	221179,9953,0,0
+storage-engine-matrix	matrix 0 256 8173 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	36199,1479,0,0	36199,1479,0,0
+storage-engine-matrix	matrix 0 256 8173 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8964121,12293,0,0	8964121,12293,0,0
+storage-engine-matrix	matrix 0 256 8173 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8045243,15273,0,0	8045243,15273,0,0
+storage-engine-matrix	matrix 0 256 8173 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8543370,16151,0,0	8543370,16151,0,0
+storage-engine-matrix	matrix 0 256 8173 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1411778,2929,0,0	1411778,2929,0,0
+storage-engine-matrix	matrix 0 256 8173 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	299510,10954,0,0	299289,10954,0,0
+storage-engine-matrix	matrix 0 256 8173 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	9471487,19401,0,0	9471487,19401,0,0
+storage-engine-matrix	matrix 0 256 8173 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	9737,1443,0,0	9737,1443,0,0
+storage-engine-matrix	matrix 0 256 8173 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8447981,18678,0,0	8447981,18678,0,0
+storage-engine-matrix	matrix 0 256 8173 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	266626,10085,1,0	266626,10085,1,0
+storage-engine-matrix	matrix 0 256 8173 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1846,0,0,0	1846,0,0,0
+storage-engine-matrix	matrix 0 256 8173 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	562121,8173,0,0	562121,8173,0,0
+storage-engine-matrix	matrix 0 256 8173 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	698400,75645,1,2	698400,75645,1,2
+storage-engine-matrix	matrix 0 256 8173 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	18223,8173,0,0	18223,8173,0,0
+storage-engine-matrix	matrix 0 256 8173 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	42781,8173,0,0	42781,8173,0,0
+storage-engine-matrix	matrix 1 256 8173 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	244614,1944,1,0	244614,1944,1,0
+storage-engine-matrix	matrix 1 256 8173 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	203679731,189150,33,3	203679731,189150,33,3
+storage-engine-matrix	matrix 1 256 8173 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	198785576,220922,33,0	198785576,220922,33,0
+storage-engine-matrix	matrix 1 256 8173 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	131330303,94991,0,0	131330303,94991,0,0
+storage-engine-matrix	matrix 1 256 8173 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	45647311,11909,0,0	45647311,11909,0,0
+storage-engine-matrix	matrix 1 256 8173 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	44866883,3608,0,0	44866883,3608,0,0
+storage-engine-matrix	matrix 1 256 8173 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	47160516,4456,0,0	47160516,4456,0,0
+storage-engine-matrix	matrix 1 256 8173 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4243785,4700,0,0	4243785,4700,0,0
+storage-engine-matrix	matrix 1 256 8173 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	20948917,200852,0,0	20948917,200852,0,0
+storage-engine-matrix	matrix 1 256 8173 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2808670,93619,0,0	2808670,93619,0,0
+storage-engine-matrix	matrix 1 256 8173 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2806394,93619,0,0	2806394,93619,0,0
+storage-engine-matrix	matrix 1 256 8173 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	400816,19946,0,0	400816,19946,0,0
+storage-engine-matrix	matrix 1 256 8173 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	24849,1014,0,0	24849,1014,0,0
+storage-engine-matrix	matrix 1 256 8173 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	49361842,253438,1,1	49361842,253438,1,1
+storage-engine-matrix	matrix 1 256 8173 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	48087829,235628,0,0	48087829,235628,0,0
+storage-engine-matrix	matrix 1 256 8173 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	71851126,261691,0,0	71851126,261691,0,0
+storage-engine-matrix	matrix 1 256 8173 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	21802012,194891,0,0	21802012,194891,0,0
+storage-engine-matrix	matrix 1 256 8173 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1117288,52702,0,0	1117288,52702,0,0
+storage-engine-matrix	matrix 1 256 8173 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	51147806,189150,0,0	51147806,189150,0,0
+storage-engine-matrix	matrix 1 256 8173 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2728,0,0,0	2728,0,0,0
+storage-engine-matrix	matrix 1 256 8173 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	40853739,170724,0,0	40853739,170724,0,0
+storage-engine-matrix	matrix 1 256 8173 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	266545,10085,1,0	266545,10085,1,0
+storage-engine-matrix	matrix 1 256 8173 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1846,0,0,0	1846,0,0,0
+storage-engine-matrix	matrix 1 256 8173 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	605848,8173,0,0	605848,8173,0,0
+storage-engine-matrix	matrix 1 256 8173 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	377115,75645,1,0	377115,75645,1,0
+storage-engine-matrix	matrix 1 256 8173 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	19352,8173,0,0	19352,8173,0,0
+storage-engine-matrix	matrix 1 256 8173 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	43994,8173,0,0	43994,8173,0,0
+storage-engine-matrix	matrix 0 256 8192 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	250430,3060,1,0	250430,3060,1,0
+storage-engine-matrix	matrix 0 256 8192 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	50213590,19360,64,0	50213590,19360,64,0
+storage-engine-matrix	matrix 0 256 8192 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	51809395,19676,65,0	51809395,19676,65,0
+storage-engine-matrix	matrix 0 256 8192 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	53800307,27656,0,0	53800307,27656,0,0
+storage-engine-matrix	matrix 0 256 8192 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	27834114,8192,0,0	27834114,8192,0,0
+storage-engine-matrix	matrix 0 256 8192 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6109993,723,0,0	6109993,723,0,0
+storage-engine-matrix	matrix 0 256 8192 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	6224577,723,0,0	6224577,723,0,0
+storage-engine-matrix	matrix 0 256 8192 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	913537,2100,0,0	862340,2100,0,0
+storage-engine-matrix	matrix 0 256 8192 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	45010201,10292,0,0	44959004,10292,0,0
+storage-engine-matrix	matrix 0 256 8192 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	5652720,9918,0,0	5646220,9918,0,0
+storage-engine-matrix	matrix 0 256 8192 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	5653184,9918,0,0	5646788,9918,0,0
+storage-engine-matrix	matrix 0 256 8192 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	221702,9972,0,0	221481,9972,0,0
+storage-engine-matrix	matrix 0 256 8192 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	36199,1479,0,0	36199,1479,0,0
+storage-engine-matrix	matrix 0 256 8192 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8973785,12312,0,0	8973785,12312,0,0
+storage-engine-matrix	matrix 0 256 8192 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8054761,15292,0,0	8054761,15292,0,0
+storage-engine-matrix	matrix 0 256 8192 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8556525,16170,0,0	8556525,16170,0,0
+storage-engine-matrix	matrix 0 256 8192 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1411778,2929,0,0	1411778,2929,0,0
+storage-engine-matrix	matrix 0 256 8192 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	299812,10973,0,0	299591,10973,0,0
+storage-engine-matrix	matrix 0 256 8192 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	9482175,19439,0,0	9482175,19439,0,0
+storage-engine-matrix	matrix 0 256 8192 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	9737,1443,0,0	9737,1443,0,0
+storage-engine-matrix	matrix 0 256 8192 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8458669,18716,0,0	8458669,18716,0,0
+storage-engine-matrix	matrix 0 256 8192 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	266664,10104,1,0	266664,10104,1,0
+storage-engine-matrix	matrix 0 256 8192 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1846,0,0,0	1846,0,0,0
+storage-engine-matrix	matrix 0 256 8192 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	563328,8192,0,0	563328,8192,0,0
+storage-engine-matrix	matrix 0 256 8192 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	698438,75664,1,2	698438,75664,1,2
+storage-engine-matrix	matrix 0 256 8192 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	18261,8192,0,0	18261,8192,0,0
+storage-engine-matrix	matrix 0 256 8192 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	42819,8192,0,0	42819,8192,0,0
+storage-engine-matrix	matrix 1 256 8192 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	244614,1944,1,0	244614,1944,1,0
+storage-engine-matrix	matrix 1 256 8192 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	204463082,189600,33,3	204463082,189600,33,3
+storage-engine-matrix	matrix 1 256 8192 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	199243362,221424,33,0	199243362,221424,33,0
+storage-engine-matrix	matrix 1 256 8192 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	131555870,95200,0,0	131555870,95200,0,0
+storage-engine-matrix	matrix 1 256 8192 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	45580854,11928,0,0	45580854,11928,0,0
+storage-engine-matrix	matrix 1 256 8192 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	44764975,3608,0,0	44764975,3608,0,0
+storage-engine-matrix	matrix 1 256 8192 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	47127553,4456,0,0	47127553,4456,0,0
+storage-engine-matrix	matrix 1 256 8192 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4234566,4700,0,0	4234566,4700,0,0
+storage-engine-matrix	matrix 1 256 8192 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	20988480,201308,0,0	20988480,201308,0,0
+storage-engine-matrix	matrix 1 256 8192 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2817904,93828,0,0	2817904,93828,0,0
+storage-engine-matrix	matrix 1 256 8192 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2815915,93828,0,0	2815915,93828,0,0
+storage-engine-matrix	matrix 1 256 8192 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	402071,19984,0,0	402071,19984,0,0
+storage-engine-matrix	matrix 1 256 8192 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	24852,1014,0,0	24852,1014,0,0
+storage-engine-matrix	matrix 1 256 8192 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	49356355,254016,1,0	49356355,254016,1,0
+storage-engine-matrix	matrix 1 256 8192 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	48221368,236160,0,0	48221368,236160,0,0
+storage-engine-matrix	matrix 1 256 8192 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	72284532,262280,0,1	72284532,262280,0,1
+storage-engine-matrix	matrix 1 256 8192 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	21962404,195336,0,0	21962404,195336,0,0
+storage-engine-matrix	matrix 1 256 8192 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1125152,52816,0,0	1125152,52816,0,0
+storage-engine-matrix	matrix 1 256 8192 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	51321166,189600,0,0	51321166,189600,0,0
+storage-engine-matrix	matrix 1 256 8192 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2728,0,0,0	2728,0,0,0
+storage-engine-matrix	matrix 1 256 8192 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	40976822,171112,0,0	40976822,171112,0,0
+storage-engine-matrix	matrix 1 256 8192 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	267242,10104,1,0	267242,10104,1,0
+storage-engine-matrix	matrix 1 256 8192 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1846,0,0,0	1846,0,0,0
+storage-engine-matrix	matrix 1 256 8192 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	606726,8192,0,0	606726,8192,0,0
+storage-engine-matrix	matrix 1 256 8192 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	378014,75664,1,0	378014,75664,1,0
+storage-engine-matrix	matrix 1 256 8192 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	19377,8192,0,0	19377,8192,0,0
+storage-engine-matrix	matrix 1 256 8192 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	43129,8192,0,0	43129,8192,0,0
+storage-engine-matrix	matrix 0 2048 16 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	250430,3060,1,0	250430,3060,1,0
+storage-engine-matrix	matrix 0 2048 16 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	127050953,5941,5,0	127050953,5941,5,0
+storage-engine-matrix	matrix 0 2048 16 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	137943644,6285,4,0	137943644,6285,4,0
+storage-engine-matrix	matrix 0 2048 16 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	90648894,4639,0,0	90648894,4639,0,0
+storage-engine-matrix	matrix 0 2048 16 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	64928691,881,0,0	64928691,881,0,0
+storage-engine-matrix	matrix 0 2048 16 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	64661821,865,0,0	64661821,865,0,0
+storage-engine-matrix	matrix 0 2048 16 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	67812567,951,0,0	67812567,951,0,0
+storage-engine-matrix	matrix 0 2048 16 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	7408093,3319,0,0	6998496,3319,0,0
+storage-engine-matrix	matrix 0 2048 16 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	9620826,3335,0,0	9211229,3335,0,0
+storage-engine-matrix	matrix 0 2048 16 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	184428,2575,0,0	177928,2575,0,0
+storage-engine-matrix	matrix 0 2048 16 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	184492,2575,0,0	178096,2575,0,0
+storage-engine-matrix	matrix 0 2048 16 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	67880,2575,0,0	67659,2575,0,0
+storage-engine-matrix	matrix 0 2048 16 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	36217,1479,0,0	36217,1479,0,0
+storage-engine-matrix	matrix 0 2048 16 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4466885,5183,0,0	4466885,5183,0,0
+storage-engine-matrix	matrix 0 2048 16 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3559896,7523,0,0	3559896,7523,0,0
+storage-engine-matrix	matrix 0 2048 16 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4482350,8246,0,0	4482350,8246,0,0
+storage-engine-matrix	matrix 0 2048 16 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2232245,4257,0,0	2232245,4257,0,0
+storage-engine-matrix	matrix 0 2048 16 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	184267,3937,0,0	184046,3937,0,0
+storage-engine-matrix	matrix 0 2048 16 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4557276,6142,0,0	4557276,6142,0,0
+storage-engine-matrix	matrix 0 2048 16 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	9790,1443,0,0	9790,1443,0,0
+storage-engine-matrix	matrix 0 2048 16 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2706312,3965,0,0	2706312,3965,0,0
+storage-engine-matrix	matrix 0 2048 16 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	251266,1928,1,0	251266,1928,1,0
+storage-engine-matrix	matrix 0 2048 16 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12598,0,0,0	12598,0,0,0
+storage-engine-matrix	matrix 0 2048 16 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	35355,16,0,0	35355,16,0,0
+storage-engine-matrix	matrix 0 2048 16 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	682188,67488,1,2	682188,67488,1,2
+storage-engine-matrix	matrix 0 2048 16 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1897,16,0,0	1897,16,0,0
+storage-engine-matrix	matrix 0 2048 16 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	26264,1103,0,0	26264,1103,0,0
+storage-engine-matrix	matrix 1 2048 16 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	244614,1944,1,0	244614,1944,1,0
+storage-engine-matrix	matrix 1 2048 16 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	256958011,5176,6,0	256958011,5176,6,0
+storage-engine-matrix	matrix 1 2048 16 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	254617362,5392,4,0	254617362,5392,4,0
+storage-engine-matrix	matrix 1 2048 16 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	224350903,2800,0,0	224350903,2800,0,0
+storage-engine-matrix	matrix 1 2048 16 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	109460765,1808,0,0	109460765,1808,0,0
+storage-engine-matrix	matrix 1 2048 16 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	147321175,2264,0,0	147321175,2264,0,0
+storage-engine-matrix	matrix 1 2048 16 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	138548155,2624,0,0	138548155,2624,0,0
+storage-engine-matrix	matrix 1 2048 16 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	9828563,2904,0,0	9828563,2904,0,0
+storage-engine-matrix	matrix 1 2048 16 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	16109750,3416,0,0	16109750,3416,0,0
+storage-engine-matrix	matrix 1 2048 16 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	324583,1484,0,0	324583,1484,0,0
+storage-engine-matrix	matrix 1 2048 16 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	324887,1484,0,0	324887,1484,0,0
+storage-engine-matrix	matrix 1 2048 16 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	129226,2288,0,0	129226,2288,0,0
+storage-engine-matrix	matrix 1 2048 16 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	24950,1014,0,0	24950,1014,0,0
+storage-engine-matrix	matrix 1 2048 16 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8777407,6840,0,0	8777407,6840,0,0
+storage-engine-matrix	matrix 1 2048 16 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8358462,5240,0,0	8358462,5240,0,0
+storage-engine-matrix	matrix 1 2048 16 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12063841,6568,0,0	12063841,6568,0,0
+storage-engine-matrix	matrix 1 2048 16 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	5503319,4544,0,0	5503319,4544,0,0
+storage-engine-matrix	matrix 1 2048 16 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	435916,3960,0,0	435916,3960,0,0
+storage-engine-matrix	matrix 1 2048 16 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8677182,4824,0,0	8677182,4824,0,0
+storage-engine-matrix	matrix 1 2048 16 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2728,0,0,0	2728,0,0,0
+storage-engine-matrix	matrix 1 2048 16 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	5214836,3520,0,0	5214836,3520,0,0
+storage-engine-matrix	matrix 1 2048 16 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	250472,1928,1,0	250472,1928,1,0
+storage-engine-matrix	matrix 1 2048 16 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12598,0,0,0	12598,0,0,0
+storage-engine-matrix	matrix 1 2048 16 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	78566,16,0,0	78566,16,0,0
+storage-engine-matrix	matrix 1 2048 16 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	682720,67488,1,2	682720,67488,1,2
+storage-engine-matrix	matrix 1 2048 16 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2710,16,0,0	2710,16,0,0
+storage-engine-matrix	matrix 1 2048 16 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	26805,1103,0,0	26805,1103,0,0
+storage-engine-matrix	matrix 0 2048 33 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	250430,3060,1,0	250430,3060,1,0
+storage-engine-matrix	matrix 0 2048 33 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	121184632,5508,13,0	121184632,5508,13,0
+storage-engine-matrix	matrix 0 2048 33 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	132645613,5824,12,0	132645613,5824,12,0
+storage-engine-matrix	matrix 0 2048 33 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	87315114,4139,0,0	87315114,4139,0,0
+storage-engine-matrix	matrix 0 2048 33 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	67209511,802,0,0	67209511,802,0,0
+storage-engine-matrix	matrix 0 2048 33 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	63197458,802,0,0	63197458,802,0,0
+storage-engine-matrix	matrix 0 2048 33 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	67486194,881,0,0	67486194,881,0,0
+storage-engine-matrix	matrix 0 2048 33 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	7325223,3060,0,0	6915626,3060,0,0
+storage-engine-matrix	matrix 0 2048 33 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	17458727,3093,0,0	17049130,3093,0,0
+storage-engine-matrix	matrix 0 2048 33 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	306647,2403,0,0	300147,2403,0,0
+storage-engine-matrix	matrix 0 2048 33 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	307109,2403,0,0	300713,2403,0,0
+storage-engine-matrix	matrix 0 2048 33 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	70426,2403,0,0	70205,2403,0,0
+storage-engine-matrix	matrix 0 2048 33 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	36098,1479,0,0	36098,1479,0,0
+storage-engine-matrix	matrix 0 2048 33 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4189142,4797,0,0	4189142,4797,0,0
+storage-engine-matrix	matrix 0 2048 33 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	3317134,8785,0,0	3317134,8785,0,0
+storage-engine-matrix	matrix 0 2048 33 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4047235,9243,0,0	4047235,9243,0,0
+storage-engine-matrix	matrix 0 2048 33 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2233475,4047,0,0	2233475,4047,0,0
+storage-engine-matrix	matrix 0 2048 33 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	178954,3909,0,0	178733,3909,0,0
+storage-engine-matrix	matrix 0 2048 33 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	4340609,5695,0,0	4340609,5695,0,0
+storage-engine-matrix	matrix 0 2048 33 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	9790,1443,0,0	9790,1443,0,0
+storage-engine-matrix	matrix 0 2048 33 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2499176,3773,0,0	2499176,3773,0,0
+storage-engine-matrix	matrix 0 2048 33 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	249118,1945,1,0	249118,1945,1,0
+storage-engine-matrix	matrix 0 2048 33 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12598,0,0,0	12598,0,0,0
+storage-engine-matrix	matrix 0 2048 33 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	36449,33,0,0	36449,33,0,0
+storage-engine-matrix	matrix 0 2048 33 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	682192,67505,1,2	682192,67505,1,2
+storage-engine-matrix	matrix 0 2048 33 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	1994,33,0,0	1994,33,0,0
+storage-engine-matrix	matrix 0 2048 33 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	26116,1103,0,0	26116,1103,0,0
+storage-engine-matrix	matrix 1 2048 33 map_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	244614,1944,1,0	244614,1944,1,0
+storage-engine-matrix	matrix 1 2048 33 insert_ordered	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	258454227,5295,6,0	258454227,5295,6,0
+storage-engine-matrix	matrix 1 2048 33 insert_permuted	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	254338339,5511,4,0	254338339,5511,4,0
+storage-engine-matrix	matrix 1 2048 33 overwrite	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	226209983,2987,0,0	226209983,2987,0,0
+storage-engine-matrix	matrix 1 2048 33 hit	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	110066136,1825,0,0	110066136,1825,0,0
+storage-engine-matrix	matrix 1 2048 33 miss	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	147673411,2264,0,0	147673411,2264,0,0
+storage-engine-matrix	matrix 1 2048 33 contains	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	138069651,2624,0,0	138069651,2624,0,0
+storage-engine-matrix	matrix 1 2048 33 keys	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	9804391,2904,0,0	9804391,2904,0,0
+storage-engine-matrix	matrix 1 2048 33 values	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	16411245,3960,0,0	16411245,3960,0,0
+storage-engine-matrix	matrix 1 2048 33 range	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	329310,1671,0,0	329310,1671,0,0
+storage-engine-matrix	matrix 1 2048 33 reverse	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	328693,1671,0,0	328693,1671,0,0
+storage-engine-matrix	matrix 1 2048 33 endpoints	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	129059,2322,0,0	129059,2322,0,0
+storage-engine-matrix	matrix 1 2048 33 map_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	25050,1014,0,0	25050,1014,0,0
+storage-engine-matrix	matrix 1 2048 33 delete_point	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8874607,7469,0,0	8874607,7469,0,0
+storage-engine-matrix	matrix 1 2048 33 delete_adjacent	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8458154,5342,0,0	8458154,5342,0,0
+storage-engine-matrix	matrix 1 2048 33 delete_interleaved	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12184847,7078,0,0	12184847,7078,0,0
+storage-engine-matrix	matrix 1 2048 33 retry	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	5528988,4867,0,0	5528988,4867,0,0
+storage-engine-matrix	matrix 1 2048 33 pop_ends	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	440457,4470,0,0	440457,4470,0,0
+storage-engine-matrix	matrix 1 2048 33 reinsert	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	8779409,4943,0,0	8779409,4943,0,0
+storage-engine-matrix	matrix 1 2048 33 clear	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2728,0,0,0	2728,0,0,0
+storage-engine-matrix	matrix 1 2048 33 refill	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	5271683,3644,0,0	5271683,3644,0,0
+storage-engine-matrix	matrix 1 2048 33 cell_create	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	250330,1945,1,0	250330,1945,1,0
+storage-engine-matrix	matrix 1 2048 33 cell_get	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	12598,0,0,0	12598,0,0,0
+storage-engine-matrix	matrix 1 2048 33 cell_replace	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	79812,33,0,0	79812,33,0,0
+storage-engine-matrix	matrix 1 2048 33 cell_grow	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	682254,67505,1,2	682254,67505,1,2
+storage-engine-matrix	matrix 1 2048 33 cell_shrink	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	2833,33,0,0	2833,33,0,0
+storage-engine-matrix	matrix 1 2048 33 cell_reopen	instructions,peak_heap_bytes,stable_growth_pages,wasm_growth_pages	26847,1103,0,0	26847,1103,0,0
+storage-read-paths	read fresh 16 1 0 0	instructions,peak_heap_bytes,nodes,external_reads	105148,865,3,0	105148,865,3,0
+storage-read-paths	read fresh 16 1 0 1	instructions,peak_heap_bytes,nodes,external_reads	105189,865,3,0	105189,865,3,0
+storage-read-paths	read fresh 16 1 0 2	instructions,peak_heap_bytes,nodes,external_reads	106097,1968,3,0	106094,1968,3,0
+storage-read-paths	read fresh 16 1 0 3	instructions,peak_heap_bytes,nodes,external_reads	105602,1952,3,0	105599,1952,3,0
+storage-read-paths	read fresh 16 1 1 0	instructions,peak_heap_bytes,nodes,external_reads	105188,865,3,0	105188,865,3,0
+storage-read-paths	read fresh 16 1 1 1	instructions,peak_heap_bytes,nodes,external_reads	105189,865,3,0	105189,865,3,0
+storage-read-paths	read fresh 16 1 2 0	instructions,peak_heap_bytes,nodes,external_reads	104257,865,3,0	104257,865,3,0
+storage-read-paths	read fresh 16 1 2 1	instructions,peak_heap_bytes,nodes,external_reads	104265,865,3,0	104265,865,3,0
+storage-read-paths	read fresh 16 8 0 0	instructions,peak_heap_bytes,nodes,external_reads	273612,865,23,0	273612,865,23,0
+storage-read-paths	read fresh 16 8 0 1	instructions,peak_heap_bytes,nodes,external_reads	119051,1920,4,0	119051,1920,4,0
+storage-read-paths	read fresh 16 8 0 2	instructions,peak_heap_bytes,nodes,external_reads	119475,1968,4,0	119451,1968,4,0
+storage-read-paths	read fresh 16 8 0 3	instructions,peak_heap_bytes,nodes,external_reads	115055,1952,4,0	115031,1952,4,0
+storage-read-paths	read fresh 16 8 1 0	instructions,peak_heap_bytes,nodes,external_reads	265563,881,22,0	265563,881,22,0
+storage-read-paths	read fresh 16 8 1 1	instructions,peak_heap_bytes,nodes,external_reads	165182,1920,11,0	165182,1920,11,0
+storage-read-paths	read fresh 16 8 2 0	instructions,peak_heap_bytes,nodes,external_reads	272175,865,24,0	272175,865,24,0
+storage-read-paths	read fresh 16 8 2 1	instructions,peak_heap_bytes,nodes,external_reads	165185,1904,12,0	165185,1904,12,0
+storage-read-paths	read fresh 16 32 0 0	instructions,peak_heap_bytes,nodes,external_reads	825966,881,90,0	825966,881,90,0
+storage-read-paths	read fresh 16 32 0 1	instructions,peak_heap_bytes,nodes,external_reads	176300,1920,9,0	176300,1920,9,0
+storage-read-paths	read fresh 16 32 0 2	instructions,peak_heap_bytes,nodes,external_reads	177585,1968,9,0	177489,1968,9,0
+storage-read-paths	read fresh 16 32 0 3	instructions,peak_heap_bytes,nodes,external_reads	159560,1952,9,0	159464,1952,9,0
+storage-read-paths	read fresh 16 32 1 0	instructions,peak_heap_bytes,nodes,external_reads	911759,881,90,0	911759,881,90,0
+storage-read-paths	read fresh 16 32 1 1	instructions,peak_heap_bytes,nodes,external_reads	445735,2178,38,0	445735,2178,38,0
+storage-read-paths	read fresh 16 32 2 0	instructions,peak_heap_bytes,nodes,external_reads	920738,865,96,0	920738,865,96,0
+storage-read-paths	read fresh 16 32 2 1	instructions,peak_heap_bytes,nodes,external_reads	449698,2162,43,0	449698,2162,43,0
+storage-read-paths	read reopened 16 1 0 0	instructions,peak_heap_bytes,nodes,external_reads	105072,865,3,0	105072,865,3,0
+storage-read-paths	read reopened 16 1 0 1	instructions,peak_heap_bytes,nodes,external_reads	104727,865,3,0	104727,865,3,0
+storage-read-paths	read reopened 16 1 0 2	instructions,peak_heap_bytes,nodes,external_reads	106022,1968,3,0	106019,1968,3,0
+storage-read-paths	read reopened 16 1 0 3	instructions,peak_heap_bytes,nodes,external_reads	105750,1952,3,0	105747,1952,3,0
+storage-read-paths	read reopened 16 1 1 0	instructions,peak_heap_bytes,nodes,external_reads	105115,865,3,0	105115,865,3,0
+storage-read-paths	read reopened 16 1 1 1	instructions,peak_heap_bytes,nodes,external_reads	104727,865,3,0	104727,865,3,0
+storage-read-paths	read reopened 16 1 2 0	instructions,peak_heap_bytes,nodes,external_reads	103824,865,3,0	103824,865,3,0
+storage-read-paths	read reopened 16 1 2 1	instructions,peak_heap_bytes,nodes,external_reads	103832,865,3,0	103832,865,3,0
+storage-read-paths	read reopened 16 8 0 0	instructions,peak_heap_bytes,nodes,external_reads	269974,865,23,0	269974,865,23,0
+storage-read-paths	read reopened 16 8 0 1	instructions,peak_heap_bytes,nodes,external_reads	119017,1920,4,0	119017,1920,4,0
+storage-read-paths	read reopened 16 8 0 2	instructions,peak_heap_bytes,nodes,external_reads	119613,1968,4,0	119589,1968,4,0
+storage-read-paths	read reopened 16 8 0 3	instructions,peak_heap_bytes,nodes,external_reads	115114,1952,4,0	115090,1952,4,0
+storage-read-paths	read reopened 16 8 1 0	instructions,peak_heap_bytes,nodes,external_reads	262117,881,22,0	262117,881,22,0
+storage-read-paths	read reopened 16 8 1 1	instructions,peak_heap_bytes,nodes,external_reads	164648,1920,11,0	164648,1920,11,0
+storage-read-paths	read reopened 16 8 2 0	instructions,peak_heap_bytes,nodes,external_reads	269006,865,24,0	269006,865,24,0
+storage-read-paths	read reopened 16 8 2 1	instructions,peak_heap_bytes,nodes,external_reads	163785,1904,12,0	163785,1904,12,0
+storage-read-paths	read reopened 16 32 0 0	instructions,peak_heap_bytes,nodes,external_reads	825072,881,90,0	825072,881,90,0
+storage-read-paths	read reopened 16 32 0 1	instructions,peak_heap_bytes,nodes,external_reads	177020,1920,9,0	177020,1920,9,0
+storage-read-paths	read reopened 16 32 0 2	instructions,peak_heap_bytes,nodes,external_reads	177330,1968,9,0	177234,1968,9,0
+storage-read-paths	read reopened 16 32 0 3	instructions,peak_heap_bytes,nodes,external_reads	159098,1952,9,0	159002,1952,9,0
+storage-read-paths	read reopened 16 32 1 0	instructions,peak_heap_bytes,nodes,external_reads	911759,881,90,0	911759,881,90,0
+storage-read-paths	read reopened 16 32 1 1	instructions,peak_heap_bytes,nodes,external_reads	448411,2178,38,0	448411,2178,38,0
+storage-read-paths	read reopened 16 32 2 0	instructions,peak_heap_bytes,nodes,external_reads	920738,865,96,0	920738,865,96,0
+storage-read-paths	read reopened 16 32 2 1	instructions,peak_heap_bytes,nodes,external_reads	452926,2162,43,0	452926,2162,43,0
+storage-read-paths	read fresh 4096 1 0 0	instructions,peak_heap_bytes,nodes,external_reads	385872,4096,3,1	385872,4096,3,1
+storage-read-paths	read fresh 4096 1 0 1	instructions,peak_heap_bytes,nodes,external_reads	385794,4096,3,1	385794,4096,3,1
+storage-read-paths	read fresh 4096 1 0 2	instructions,peak_heap_bytes,nodes,external_reads	309368,5901,3,1	309365,5901,3,1
+storage-read-paths	read fresh 4096 1 0 3	instructions,peak_heap_bytes,nodes,external_reads	265456,1805,3,0	265453,1805,3,0
+storage-read-paths	read fresh 4096 1 1 0	instructions,peak_heap_bytes,nodes,external_reads	385686,4096,3,1	385686,4096,3,1
+storage-read-paths	read fresh 4096 1 1 1	instructions,peak_heap_bytes,nodes,external_reads	385794,4096,3,1	385794,4096,3,1
+storage-read-paths	read fresh 4096 1 2 0	instructions,peak_heap_bytes,nodes,external_reads	263850,802,3,0	263850,802,3,0
+storage-read-paths	read fresh 4096 1 2 1	instructions,peak_heap_bytes,nodes,external_reads	263958,802,3,0	263958,802,3,0
+storage-read-paths	read fresh 4096 8 0 0	instructions,peak_heap_bytes,nodes,external_reads	1477415,4096,23,8	1477415,4096,23,8
+storage-read-paths	read fresh 4096 8 0 1	instructions,peak_heap_bytes,nodes,external_reads	1326911,5853,4,8	1326911,5853,4,8
+storage-read-paths	read fresh 4096 8 0 2	instructions,peak_heap_bytes,nodes,external_reads	706284,5901,4,8	706260,5901,4,8
+storage-read-paths	read fresh 4096 8 0 3	instructions,peak_heap_bytes,nodes,external_reads	355089,1805,4,0	355065,1805,4,0
+storage-read-paths	read fresh 4096 8 1 0	instructions,peak_heap_bytes,nodes,external_reads	2030454,4096,22,8	2030454,4096,22,8
+storage-read-paths	read fresh 4096 8 1 1	instructions,peak_heap_bytes,nodes,external_reads	1932076,5853,11,8	1932076,5853,11,8
+storage-read-paths	read fresh 4096 8 2 0	instructions,peak_heap_bytes,nodes,external_reads	1069335,802,24,0	1069335,802,24,0
+storage-read-paths	read fresh 4096 8 2 1	instructions,peak_heap_bytes,nodes,external_reads	963864,1757,12,0	963864,1757,12,0
+storage-read-paths	read fresh 4096 32 0 0	instructions,peak_heap_bytes,nodes,external_reads	5174430,4096,90,32	5174430,4096,90,32
+storage-read-paths	read fresh 4096 32 0 1	instructions,peak_heap_bytes,nodes,external_reads	4527884,5853,9,32	4527884,5853,9,32
+storage-read-paths	read fresh 4096 32 0 2	instructions,peak_heap_bytes,nodes,external_reads	2044163,5901,9,32	2044067,5901,9,32
+storage-read-paths	read fresh 4096 32 0 3	instructions,peak_heap_bytes,nodes,external_reads	638974,1805,9,0	638878,1805,9,0
+storage-read-paths	read fresh 4096 32 1 0	instructions,peak_heap_bytes,nodes,external_reads	8062285,4096,90,32	8062285,4096,90,32
+storage-read-paths	read fresh 4096 32 1 1	instructions,peak_heap_bytes,nodes,external_reads	7595808,6090,38,32	7595808,6090,38,32
+storage-read-paths	read fresh 4096 32 2 0	instructions,peak_heap_bytes,nodes,external_reads	3881558,802,96,0	3881558,802,96,0
+storage-read-paths	read fresh 4096 32 2 1	instructions,peak_heap_bytes,nodes,external_reads	3404681,1994,43,0	3404681,1994,43,0
+storage-read-paths	read reopened 4096 1 0 0	instructions,peak_heap_bytes,nodes,external_reads	385628,4096,3,1	385628,4096,3,1
+storage-read-paths	read reopened 4096 1 0 1	instructions,peak_heap_bytes,nodes,external_reads	385283,4096,3,1	385283,4096,3,1
+storage-read-paths	read reopened 4096 1 0 2	instructions,peak_heap_bytes,nodes,external_reads	308846,5901,3,1	308843,5901,3,1
+storage-read-paths	read reopened 4096 1 0 3	instructions,peak_heap_bytes,nodes,external_reads	265330,1805,3,0	265327,1805,3,0
+storage-read-paths	read reopened 4096 1 1 0	instructions,peak_heap_bytes,nodes,external_reads	385671,4096,3,1	385671,4096,3,1
+storage-read-paths	read reopened 4096 1 1 1	instructions,peak_heap_bytes,nodes,external_reads	385283,4096,3,1	385283,4096,3,1
+storage-read-paths	read reopened 4096 1 2 0	instructions,peak_heap_bytes,nodes,external_reads	263506,802,3,0	263506,802,3,0
+storage-read-paths	read reopened 4096 1 2 1	instructions,peak_heap_bytes,nodes,external_reads	263514,802,3,0	263514,802,3,0
+storage-read-paths	read reopened 4096 8 0 0	instructions,peak_heap_bytes,nodes,external_reads	1474470,4096,23,8	1474470,4096,23,8
+storage-read-paths	read reopened 4096 8 0 1	instructions,peak_heap_bytes,nodes,external_reads	1326161,5853,4,8	1326161,5853,4,8
+storage-read-paths	read reopened 4096 8 0 2	instructions,peak_heap_bytes,nodes,external_reads	705956,5901,4,8	705932,5901,4,8
+storage-read-paths	read reopened 4096 8 0 3	instructions,peak_heap_bytes,nodes,external_reads	354674,1805,4,0	354650,1805,4,0
+storage-read-paths	read reopened 4096 8 1 0	instructions,peak_heap_bytes,nodes,external_reads	2026812,4096,22,8	2026812,4096,22,8
+storage-read-paths	read reopened 4096 8 1 1	instructions,peak_heap_bytes,nodes,external_reads	1929917,5853,11,8	1929917,5853,11,8
+storage-read-paths	read reopened 4096 8 2 0	instructions,peak_heap_bytes,nodes,external_reads	1066109,802,24,0	1066109,802,24,0
+storage-read-paths	read reopened 4096 8 2 1	instructions,peak_heap_bytes,nodes,external_reads	961632,1757,12,0	961632,1757,12,0
+storage-read-paths	read reopened 4096 32 0 0	instructions,peak_heap_bytes,nodes,external_reads	5163303,4096,90,32	5163303,4096,90,32
+storage-read-paths	read reopened 4096 32 0 1	instructions,peak_heap_bytes,nodes,external_reads	4527770,5853,9,32	4527770,5853,9,32
+storage-read-paths	read reopened 4096 32 0 2	instructions,peak_heap_bytes,nodes,external_reads	2044970,5901,9,32	2044874,5901,9,32
+storage-read-paths	read reopened 4096 32 0 3	instructions,peak_heap_bytes,nodes,external_reads	639848,1805,9,0	639752,1805,9,0
+storage-read-paths	read reopened 4096 32 1 0	instructions,peak_heap_bytes,nodes,external_reads	8050898,4096,90,32	8050898,4096,90,32
+storage-read-paths	read reopened 4096 32 1 1	instructions,peak_heap_bytes,nodes,external_reads	7594968,6090,38,32	7594968,6090,38,32
+storage-read-paths	read reopened 4096 32 2 0	instructions,peak_heap_bytes,nodes,external_reads	3871470,802,96,0	3871470,802,96,0
+storage-read-paths	read reopened 4096 32 2 1	instructions,peak_heap_bytes,nodes,external_reads	3406433,1994,43,0	3406433,1994,43,0
+storage-installed-test	delete mutations=32 keys=126 stride=1 bulk=0	instructions,wasm_growth_pages,peak_extra_heap_bytes	10725424,0,12758	10725424,0,12758
+storage-installed-test	delete mutations=32 keys=126 stride=1 bulk=1	instructions,wasm_growth_pages,peak_extra_heap_bytes	8246858,0,13487	8246858,0,13487
+storage-installed-test	delete mutations=32 keys=126 stride=2 bulk=0	instructions,wasm_growth_pages,peak_extra_heap_bytes	12852020,0,13473	12852020,0,13473
+storage-installed-test	delete mutations=32 keys=126 stride=2 bulk=1	instructions,wasm_growth_pages,peak_extra_heap_bytes	10168738,0,15486	10168738,0,15486
+storage-installed-test	delete mutations=256 keys=1022 stride=1 bulk=0	instructions,wasm_growth_pages,peak_extra_heap_bytes	88476039,0,21881	88476039,0,21881
+storage-installed-test	delete mutations=256 keys=1022 stride=1 bulk=1	instructions,wasm_growth_pages,peak_extra_heap_bytes	69597374,0,23153	69597374,0,23153
+storage-installed-test	delete mutations=256 keys=1022 stride=2 bulk=0	instructions,wasm_growth_pages,peak_extra_heap_bytes	107274283,0,22511	107274283,0,22511
+storage-installed-test	delete mutations=256 keys=1022 stride=2 bulk=1	instructions,wasm_growth_pages,peak_extra_heap_bytes	86290300,0,25138	86290300,0,25138

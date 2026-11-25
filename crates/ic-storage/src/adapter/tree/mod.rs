@@ -1109,7 +1109,24 @@ pub struct TreeIter<'a, K, V, M: Memory> {
     keys_only: bool,
 }
 impl<K: Storable + Ord + Clone, V: Storable, M: Memory> TreeIter<'_, K, V, M> {
-    fn step(&mut self, forward: bool) -> Result<Option<MapEntry<K, V>>> {
+    /// Consume the next key at the front, skipping its external value.
+    /// Subsequent entry or key reads continue from the updated range.
+    ///
+    /// # Panics
+    /// Panics on invalid bounds, backing, routing record integrity or key codec failure.
+    pub fn next_key(&mut self) -> Option<K> {
+        self.advance(true, true).map(MapEntry::into_key)
+    }
+
+    /// Consume the next key at the back, skipping its external value.
+    ///
+    /// # Panics
+    /// Panics on invalid bounds, backing, routing record integrity or key codec failure.
+    pub fn next_back_key(&mut self) -> Option<K> {
+        self.advance(false, true).map(MapEntry::into_key)
+    }
+
+    fn step(&mut self, forward: bool, keys_only: bool) -> Result<Option<MapEntry<K, V>>> {
         ensure(!self.invalid, Error::Bounds)?;
         self.tree.healthy()?;
         let empty = match (&self.lower, &self.upper) {
@@ -1132,7 +1149,7 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> TreeIter<'_, K, V, M> {
         }
         let entry = self
             .tree
-            .advance_path(path.as_mut().unwrap(), forward, self.keys_only)?;
+            .advance_path(path.as_mut().unwrap(), forward, keys_only)?;
         if let Some((key, value)) = entry {
             let after = match &self.lower {
                 Bound::Unbounded => true,
@@ -1167,19 +1184,19 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> TreeIter<'_, K, V, M> {
         }
         Ok(None)
     }
-    fn advance(&mut self, forward: bool) -> Option<Result<MapEntry<K, V>>> {
+    fn advance(&mut self, forward: bool, keys_only: bool) -> Option<MapEntry<K, V>> {
         if self.exhausted {
             return None;
         }
-        match self.step(forward) {
-            Ok(Some(entry)) => Some(Ok(entry)),
+        match self.step(forward, keys_only) {
+            Ok(Some(entry)) => Some(entry),
             Ok(None) => {
                 self.exhausted = true;
                 None
             }
             Err(error) => {
                 self.exhausted = true;
-                Some(Err(error))
+                panic!("invalid map entry: {error:?}")
             }
         }
     }
@@ -1187,16 +1204,14 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> TreeIter<'_, K, V, M> {
 impl<K: Storable + Ord + Clone, V: Storable, M: Memory> Iterator for TreeIter<'_, K, V, M> {
     type Item = MapEntry<K, V>;
     fn next(&mut self) -> Option<Self::Item> {
-        self.advance(true)
-            .map(|entry| entry.expect("invalid map entry"))
+        self.advance(true, self.keys_only)
     }
 }
 impl<K: Storable + Ord + Clone, V: Storable, M: Memory> DoubleEndedIterator
     for TreeIter<'_, K, V, M>
 {
     fn next_back(&mut self) -> Option<Self::Item> {
-        self.advance(false)
-            .map(|entry| entry.expect("invalid map entry"))
+        self.advance(false, self.keys_only)
     }
 }
 impl<K: Storable + Ord + Clone, V: Storable, M: Memory> std::iter::FusedIterator

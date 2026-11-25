@@ -1,0 +1,115 @@
+--- a/qualification/ic-db-m1-records-canister/src/listing_costs.rs
++++ b/qualification/ic-db-m1-records-canister/src/listing_costs.rs
+@@ -346,3 +346,46 @@
+     };
+     (rows, counter() - start)
+ }
++
++#[ic_platform_runtime::update(
++    runtime = ic_platform_runtime, name = "seed_primary_pages",
++    guard = crate::transport::admit::<250>, decode = crate::transport::decode::<_, 250>,
++    encode = crate::transport::encode::<_, 250>, max_bytes = 65_536,
++    on_error = crate::transport::endpoint_error
++)]
++fn seed_primary_pages(shape: u8) {
++    use crate::schema::BinaryObject;
++    let host = runtime();
++    let mut db = open(&host);
++    for id in 1..=24 {
++        let size = match shape {
++            0 => 8,
++            1 => 1024,
++            2 if matches!(id, 9 | 17) => 1024,
++            2 => 8,
++            _ => panic!("unknown shape"),
++        };
++        let row = BinaryObject { id, payload: vec![id as u8; size], optional: None };
++        let mut batch = ic_db::Batch::new();
++        if id == 1 {batch.replace(&row).unwrap();} else {batch.insert(&row).unwrap();}
++        db.commit(batch).unwrap();
++    }
++}
++
++type PrimaryPageSample = (Vec<(u64, ic_wire::ByteBuf)>, Option<u64>, u64, u64);
++#[ic_platform_runtime::update(
++    runtime = ic_platform_runtime, name = "measured_primary_page",
++    guard = crate::transport::admit::<251>, decode = crate::transport::decode_measured::<_, 251>,
++    encode = crate::transport::encode::<_, 251>, max_bytes = 65_536,
++    on_error = crate::transport::endpoint_error
++)]
++fn measured_primary_page(((after, limit), counter): crate::transport::Measured<(Option<u64>, u8)>)
++    -> PrimaryPageSample {
++    let start = counter();
++    let host = runtime();
++    let db = open(&host);
++    let opened = counter();
++    let page = db.page::<crate::schema::BinaryObject>(after, usize::from(limit)).unwrap();
++    let end = counter();
++    (page.rows.into_iter().map(|r| (r.id,r.payload.into())).collect(),page.next_after,opened-start,end-opened)
++}
+--- a/qualification/ic-db-m0-rollback-driver/tests/listing_costs.rs
++++ b/qualification/ic-db-m0-rollback-driver/tests/listing_costs.rs
+@@ -629,3 +629,63 @@
+     }
+     owned.drop().await;
+ }
++
++#[tokio::test]
++#[ignore = "requires page-measurement Wasm and PocketIC"]
++async fn primary_page_lookahead() {
++    let wasm = std::fs::read(std::env::var_os("IC_DB_M1_RECORDS_WASM").unwrap()).unwrap();
++    let predecessor = std::env::var_os("IC_DB_PAGE_PREDECESSOR")
++        .map(|path| std::fs::read(path).unwrap())
++        .unwrap_or_else(|| wasm.clone());
++    let owned = instance().await.unwrap();
++    let pic = &owned;
++    for shape in 0..3_u8 {
++        let id = pic.create_canister().await;
++        pic.add_cycles(id, 3_000_000_000_000).await;
++        pic.install_canister(id, predecessor.clone(), vec![], None)
++            .await;
++        call::<()>(pic, id, "seed_primary_pages", 250, &shape).await;
++        for phase in ["fresh", "reopened"] {
++            if phase == "reopened" {
++                ic_db_m0_rollback_driver::upgrade_stopped(pic, id, wasm.clone(), vec![], None)
++                    .await
++                    .unwrap();
++            }
++            let before = pic.get_stable_memory(id).await;
++            for limit in [1_u8, 8, 16, 32] {
++                let mut after = None;
++                loop {
++                    let (rows, next, open, work): (
++                        Vec<(u64, ic_wire::ByteBuf)>,
++                        Option<u64>,
++                        u64,
++                        u64,
++                    ) = call(pic, id, "measured_primary_page", 251, &(after, limit)).await;
++                    let first = after.unwrap_or(0) + 1;
++                    let last = (first + u64::from(limit) - 1).min(24);
++                    assert_eq!(rows.len() as u64, (first..=last).count() as u64);
++                    for ((key, payload), expected) in rows.iter().zip(first..=last) {
++                        assert_eq!(*key, expected);
++                        let size = if shape == 1 || (shape == 2 && matches!(expected, 9 | 17)) {
++                            1024
++                        } else {
++                            8
++                        };
++                        assert_eq!(payload.as_ref(), vec![expected as u8; size].as_slice());
++                    }
++                    assert_eq!(next, (last < 24).then_some(last));
++                    println!(
++                        "primary,{phase},{shape},{limit},{first},{},{open},{work}",
++                        rows.len()
++                    );
++                    if first > 24 {
++                        break;
++                    }
++                    after = Some(next.unwrap_or(24)); // Also probe an explicitly exhausted cursor.
++                }
++            }
++            assert_eq!(pic.get_stable_memory(id).await, before);
++        }
++    }
++    owned.drop().await;
++}

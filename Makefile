@@ -61,3 +61,11 @@ storage-read-paths: | toko-execution-check
 	+RUSTFLAGS='-C link-arg=-zstack-size=1048576' cargo build $(QUAL) -p storage-canister --example read_paths --features shared-reads --target wasm32-unknown-unknown --release
 	@wc -c target/qualification/wasm32-unknown-unknown/release/examples/read_paths.wasm
 	+@umask 077; server="$$($(SERVER_TOOL) --check)" && mkdir -p target/evidence/testkit && attempt="$$(mktemp -d "$(CURDIR)/target/evidence/testkit/reads.XXXXXX")" && STORAGE_READ_WASM="$(CURDIR)/target/qualification/wasm32-unknown-unknown/release/examples/read_paths.wasm" "$$server" run "$(SERVER_DIRECTORY)" "$$attempt/evidence" --ttl 300 -- cargo test $(QUAL) -p storage-tests --test read_paths -- --ignored --nocapture
+
+.PHONY: storage-lookahead
+storage-lookahead: | toko-execution-check
+	+RUSTFLAGS='-C link-arg=-zstack-size=1048576' cargo build $(QUAL) -p storage-canister --example lookahead --target wasm32-unknown-unknown --release
+	@wc -c target/qualification/wasm32-unknown-unknown/release/examples/lookahead.wasm
+	+RUSTFLAGS='-C link-arg=-zstack-size=1048576' cargo build $(QUAL) -p storage-canister --example lookahead --features positioned-keys --target wasm32-unknown-unknown --release
+	@wc -c target/qualification/wasm32-unknown-unknown/release/examples/lookahead.wasm
+	+@umask 077; server="$$($(SERVER_TOOL) --check)" && mkdir -p target/evidence/testkit && attempt="$$(mktemp -d "$(CURDIR)/target/evidence/testkit/reads.XXXXXX")" && LOOKAHEAD_WASM="$(CURDIR)/target/qualification/wasm32-unknown-unknown/release/examples/lookahead.wasm" "$$server" run "$(SERVER_DIRECTORY)" "$$attempt/evidence" --ttl 300 -- cargo test $(QUAL) -p storage-tests --test lookahead -- --ignored --nocapture

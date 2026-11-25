@@ -422,6 +422,8 @@ fn key_range_checks_node_integrity_without_reading_external_records() {
         bytes[offset + 12] ^= 1;
     };
     corrupt_digest(b"ICBTVAL1");
+    assert_eq!(map.range(7..=7).next_key(), Some(7));
+    assert_eq!(map.range(7..=7).next_back_key(), Some(7));
     assert_eq!(map.keys_range(7..=7).next(), Some(7));
     assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| map.get(&7))).is_err());
     corrupt_digest(b"ICBTND01");
@@ -463,4 +465,32 @@ fn fallible_batch_stops_before_later_payloads() {
         assert!(visited.into_iter().eq(0..=stop));
     }
     assert_eq!(*backing.borrow(), before);
+}
+
+#[test]
+fn positioned_key_and_entry_steps_share_front_back_and_exhaustion() {
+    let host = runtime(VectorMemory::default());
+    let mut map = StableBTreeMap::<u64, Vec<u8>, _>::create(lease(&host, "app.map.v1"));
+    for key in 0..220 {
+        map.insert(key, vec![key as u8; 1024]);
+    }
+    let mut iter = map.range(5..200);
+    let mut oracle = 5..200;
+    for step in 0..195 {
+        match step % 4 {
+            0 => assert_eq!(iter.next_key(), oracle.next()),
+            1 => assert_eq!(iter.next_back_key(), oracle.next_back()),
+            2 => assert_eq!(iter.next().unwrap().into_pair(), {
+                let key = oracle.next().unwrap();
+                (key, vec![key as u8; 1024])
+            }),
+            _ => assert_eq!(iter.next_back().unwrap().into_pair(), {
+                let key = oracle.next_back().unwrap();
+                (key, vec![key as u8; 1024])
+            }),
+        }
+    }
+    assert_eq!(iter.next_key(), None);
+    assert!(iter.next_back().is_none());
+    assert_eq!(iter.next_back_key(), None);
 }

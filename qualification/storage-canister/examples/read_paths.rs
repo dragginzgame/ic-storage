@@ -8,14 +8,14 @@ use ic_storage::{
 use std::cell::{Cell, RefCell};
 
 #[global_allocator]
-static HEAP: peak_alloc::PeakAlloc = peak_alloc::PeakAlloc;
+pub(crate) static HEAP: peak_alloc::PeakAlloc = peak_alloc::PeakAlloc;
 thread_local! {
-    static MAP: RefCell<Option<StableBTreeMap<u64, Vec<u8>, Counted>>> = const { RefCell::new(None) };
-    static NODES: Cell<u64> = const { Cell::new(0) };
-    static VALUES: Cell<u64> = const { Cell::new(0) };
+    pub(crate) static MAP: RefCell<Option<StableBTreeMap<u64, Vec<u8>, Counted>>> = const { RefCell::new(None) };
+    pub(crate) static NODES: Cell<u64> = const { Cell::new(0) };
+    pub(crate) static VALUES: Cell<u64> = const { Cell::new(0) };
 }
 #[derive(Default)]
-struct Counted(DefaultMemoryImpl);
+pub(crate) struct Counted(DefaultMemoryImpl);
 impl MemoryBacking for Counted {
     fn backing_identity(&self) -> BackingIdentity {
         self.0.backing_identity()
@@ -71,7 +71,7 @@ extern "C" fn reopen() {
     open(false);
 }
 
-fn args() -> [u64; 4] {
+pub(crate) fn args() -> [u64; 4] {
     assert_eq!(ic0::msg_arg_data_size(), 32);
     let mut bytes = [0; 32];
     ic0::msg_arg_data_copy(&mut bytes, 0);
@@ -81,7 +81,7 @@ fn args() -> [u64; 4] {
 #[unsafe(export_name = "canister_update seed")]
 extern "C" fn seed() {
     let [start, size, _, _] = args();
-    assert!(start < 512 && matches!(size, 16 | 4096));
+    assert!(start < 512 && matches!(size, 16 | 1024 | 4096));
     MAP.with_borrow_mut(|map| {
         let map = map.as_mut().unwrap();
         for i in start..start + 32 {

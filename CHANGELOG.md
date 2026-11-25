@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.80.3] - 2026-11-25
+
+- Add `next_key` and `next_back_key` on positioned entry iterators. These consume one key and skip its external value.
+- On installed IC DB canisters, reading all 24 one-KiB rows across three pages used 5.4% fewer post-open instructions. All 204 pagination cases passed, including the direct upgrade from 0.80.2.
+
 ## [0.80.2] - 2026-11-25
 
 - Make sorted multi-key visits available with default features. `try_visit_sorted_keys` returns the first visitor error before reading later keys.
