@@ -16,7 +16,8 @@ impl Directory {
     }
 
     pub(super) fn page(&self, id: AllocationId, logical: u64) -> Option<u64> {
-        self.page_span(id, logical).map(|(page, _)| page)
+        self.page_span(*self.by_id.get(&id)?, logical)
+            .map(|(page, _)| page)
     }
 }
 

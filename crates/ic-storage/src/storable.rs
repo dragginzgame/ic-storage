@@ -20,14 +20,21 @@ pub enum Bound {
 }
 
 impl Bound {
+    pub(crate) const fn accepts_length(self, length: usize) -> bool {
+        match self {
+            Self::Unbounded => true,
+            Self::Bounded {
+                max_size,
+                is_fixed_size,
+            } => {
+                let maximum = max_size as usize;
+                length <= maximum && (!is_fixed_size || length == maximum)
+            }
+        }
+    }
+
     pub(crate) const fn check(self, bytes: &[u8]) {
-        if let Self::Bounded {
-            max_size,
-            is_fixed_size,
-        } = self
-            && !(bytes.len() <= max_size as usize
-                && (!is_fixed_size || bytes.len() == max_size as usize))
-        {
+        if !self.accepts_length(bytes.len()) {
             panic!("record violates codec bound");
         }
     }

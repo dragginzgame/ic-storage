@@ -68,7 +68,7 @@ impl ReadNode {
     pub fn len(&self) -> usize {
         self.entries.len()
     }
-    pub fn search<K: Storable + Ord>(&self, key: &K) -> Result<std::result::Result<usize, usize>> {
+    pub fn search<K: Storable + Ord>(&self, key: &K) -> std::result::Result<usize, usize> {
         let (mut low, mut high) = (0, self.len());
         while low < high {
             let mid = low + (high - low) / 2;
@@ -80,10 +80,10 @@ impl ReadNode {
             match order {
                 Ordering::Less => high = mid,
                 Ordering::Greater => low = mid + 1,
-                Ordering::Equal => return Ok(Ok(mid)),
+                Ordering::Equal => return Ok(mid),
             }
         }
-        Ok(Err(low))
+        Err(low)
     }
     pub fn inline_value(&self, index: usize) -> Option<&[u8]> {
         match &self.entries[index].value {

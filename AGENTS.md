@@ -12,7 +12,7 @@ or corrupt data. Applications own schemas and explicitly authorize migrations.
 Do not modify the legacy sibling repository or reset consumer storage.
 
 This repository adopts `TOKO-TOOLING.md` and its revision-bound references.
-The canonical exporter owns Toko 0.46.4 under `vendor/toko-tooling/` and
+The canonical exporter owns Toko 0.46.5 under `vendor/toko-tooling/` and
 `.toko-tooling.snapshot`. Use Storage-owned Memory and Storable contracts. Keep `ic-stable-structures` out of product and normal canister dependency graphs.
 The qualification matrix may use the released crate as a dev-dependency. Stable-memory
 system calls continue through `ic-platform-runtime`.

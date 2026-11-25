@@ -284,7 +284,7 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> Tree<K, V, M> {
         for depth in 0..MAX_DEPTH {
             let Some(current) = p else { return Ok(None) };
             let node = self.read_node(current, depth)?;
-            match node.search(key)? {
+            match node.search(key) {
                 Ok(i) => return Ok(Some((node, i))),
                 Err(i) => p = node.children.get(i).copied(),
             }
@@ -304,7 +304,7 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> Tree<K, V, M> {
         } else {
             let value = node.value(index);
             drop(node);
-            decode(self.value(value)?)
+            Ok(decode(self.value(value)?))
         }
     }
 
@@ -341,7 +341,7 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> Tree<K, V, M> {
         let node = self.read_node(pointer, depth)?;
         // Partition at separators in ascending order. Start at the first requested
         // slot so even a pair of distant probes only descends into relevant children.
-        let first = node.search(&keys[0])?.unwrap_or_else(|slot| slot);
+        let first = node.search(&keys[0]).unwrap_or_else(|slot| slot);
         for slot in first..node.len() {
             let separator = K::from_bytes(Cow::Borrowed(node.key_bytes(slot)));
             let split = keys.partition_point(|key| key < &separator);
@@ -390,7 +390,7 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> Tree<K, V, M> {
             top
         });
         drop(key);
-        let old = old.map(decode).transpose()?;
+        let old = old.map(decode);
         tx.commit()?;
         Ok(old)
     }
@@ -398,7 +398,7 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> Tree<K, V, M> {
         self.healthy()?;
         let mut tx = Transaction::new(self);
         let old = tx.remove_key(key)?;
-        let value = old.map(decode).transpose()?;
+        let value = old.map(decode);
         tx.commit()?;
         Ok(value)
     }
@@ -436,11 +436,11 @@ impl<K: Storable + Ord + Clone, V: Storable, M: Memory> Tree<K, V, M> {
             let node = self.read_node(p, path.len())?;
             let (index, at_inclusive_bound) = match bound {
                 Bound::Unbounded => (if forward { 0 } else { node.len() }, false),
-                Bound::Included(key) => match node.search(key)? {
+                Bound::Included(key) => match node.search(key) {
                     Ok(i) => (i + usize::from(!forward), true),
                     Err(i) => (i, false),
                 },
-                Bound::Excluded(key) => match node.search(key)? {
+                Bound::Excluded(key) => match node.search(key) {
                     Ok(i) => (i + usize::from(forward), false),
                     Err(i) => (i, false),
                 },
@@ -548,9 +548,9 @@ struct Frame {
     index: usize,
     descend: bool,
 }
-fn decode<T: Storable>(bytes: Vec<u8>) -> Result<T> {
+fn decode<T: Storable>(bytes: Vec<u8>) -> T {
     T::BOUND.check(&bytes);
-    Ok(T::from_bytes(Cow::Owned(bytes)))
+    T::from_bytes(Cow::Owned(bytes))
 }
 
 type Split = Option<(Entry, Pointer)>;
@@ -760,7 +760,7 @@ impl<'a, K: Storable + Ord + Clone, V: Storable, M: Memory> Transaction<'a, K, V
             Error::Corrupt("map path exceeds height bound"),
         )?;
         let read = p.map(|p| self.read_node(p, depth)).transpose()?;
-        let search = read.as_ref().map_or(Ok(Err(0)), |node| node.search(key))?;
+        let search = read.as_ref().map_or(Err(0), |node| node.search(key));
         let (mut node, old) = match search {
             Ok(i) => {
                 let read = read.as_ref().unwrap();
@@ -845,7 +845,7 @@ impl<'a, K: Storable + Ord + Clone, V: Storable, M: Memory> Transaction<'a, K, V
             Error::Corrupt("map path exceeds height bound"),
         )?;
         let read = self.read_node(p, depth)?;
-        match read.search(key)? {
+        match read.search(key) {
             Ok(i) => {
                 let mut node = read.owned();
                 let old = self.value(&node.entries[i].value)?;
@@ -1065,7 +1065,7 @@ impl<K, V: Storable> MapEntry<K, V> {
     /// # Panics
     /// Panics if the stored encoding violates the value codec or its bound.
     pub fn into_pair(self) -> (K, V) {
-        (self.key, decode(self.bytes).expect("invalid map value"))
+        (self.key, decode(self.bytes))
     }
     /// Consume the entry without decoding its value.
     pub fn into_key(self) -> K {
@@ -1076,7 +1076,7 @@ impl<K, V: Storable> MapEntry<K, V> {
     /// # Panics
     /// Panics if the stored encoding violates the value codec or its bound.
     pub fn into_value(self) -> V {
-        decode(self.bytes).expect("invalid map value")
+        decode(self.bytes)
     }
 }
 

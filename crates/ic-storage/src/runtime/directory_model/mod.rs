@@ -322,8 +322,11 @@ impl Directory {
         })
     }
 
-    fn page_span(&self, id: AllocationId, logical: u64) -> Option<(u64, u64)> {
-        let index = *self.by_id.get(&id)?;
+    fn pages_at(&self, index: usize) -> u64 {
+        self.logical_ends[index].last().copied().unwrap_or(0)
+    }
+
+    fn page_span(&self, index: usize, logical: u64) -> Option<(u64, u64)> {
         let ends = &self.logical_ends[index];
         let slot = ends.partition_point(|&end| end <= logical);
         let extent = self.image.entries[index].extents.get(slot)?;

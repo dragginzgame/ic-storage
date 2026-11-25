@@ -263,15 +263,13 @@ impl<M: Memory> Store<M> {
         Ok(pages)
     }
 
-    pub(super) fn pages(&self, id: AllocationId) -> Result<u64, Error> {
+    fn allocation_index(&self, id: AllocationId) -> Result<usize, Error> {
         self.healthy()?;
-        let index = *self.directory.by_id.get(&id).ok_or(Error::Missing)?;
+        self.directory.by_id.get(&id).copied().ok_or(Error::Missing)
+    }
 
-        // Disjoint extents fit within the admitted physical page budget.
-        Ok(self.directory.logical_ends[index]
-            .last()
-            .copied()
-            .unwrap_or(0))
+    pub(super) fn pages(&self, id: AllocationId) -> Result<u64, Error> {
+        Ok(self.directory.pages_at(self.allocation_index(id)?))
     }
 
     fn access(
@@ -281,7 +279,12 @@ impl<M: Memory> Store<M> {
         length: usize,
         mut io: impl FnMut(u64, std::ops::Range<usize>),
     ) -> Result<(), Error> {
-        let capacity = self.pages(id)?.checked_mul(PAGE).ok_or(Error::Bounds)?;
+        let index = self.allocation_index(id)?;
+        let capacity = self
+            .directory
+            .pages_at(index)
+            .checked_mul(PAGE)
+            .ok_or(Error::Bounds)?;
         let length64 = u64::try_from(length).map_err(|_| Error::Bounds)?;
         let end = offset.checked_add(length64).ok_or(Error::Bounds)?;
         if end > capacity {
@@ -296,7 +299,7 @@ impl<M: Memory> Store<M> {
             let within = logical % PAGE;
             let (physical, remaining_pages) = self
                 .directory
-                .page_span(id, logical / PAGE)
+                .page_span(index, logical / PAGE)
                 .ok_or(Error::Bounds)?;
             let available = remaining_pages * PAGE - within;
             let count = (length - done).min(usize::try_from(available).unwrap_or(usize::MAX));

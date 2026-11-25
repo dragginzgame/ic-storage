@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.80.6] - 2026-11-25
+
+- Resolve each allocation ID once per lease read or write, including requests that cross extents.
+- Simplify B-tree key search and value decoding. Cell and B-tree now share the same codec-length check.
+- Against 0.80.5, 543 of 559 installed benchmark cases used fewer instructions and 16 matched. Measured peak heap and page growth matched across all cases.
+
 ## [0.80.5] - 2026-11-25
 
 - Start inclusive forward and reverse ranges directly at an exact match in a B-tree branch.

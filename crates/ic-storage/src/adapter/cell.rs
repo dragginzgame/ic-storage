@@ -110,15 +110,8 @@ fn encode<T: Storable>(value: &T) -> Cow<'_, [u8]> {
 }
 
 fn check_bound<T: Storable>(length: usize) {
-    if let Bound::Bounded {
-        max_size,
-        is_fixed_size,
-    } = T::BOUND
-    {
-        let maximum = max_size as usize;
-        assert!(
-            length <= maximum && (!is_fixed_size || length == maximum),
-            "Cell codec length violates its declared bound"
-        );
-    }
+    assert!(
+        T::BOUND.accepts_length(length),
+        "Cell codec length violates its declared bound"
+    );
 }

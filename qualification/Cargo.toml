@@ -15,7 +15,7 @@ ic-storage = { path = "../crates/ic-storage" }
 ic-testkit = "0.110.0"
 peak_alloc = "0.3.0"
 tokio = { version = "1.54.1", features = ["macros", "rt"] }
-toko-tooling = "=0.46.4"
+toko-tooling = "=0.46.5"
 
 [workspace.lints.cargo]
 unused_dependencies = "deny"
